@@ -1,8 +1,9 @@
 import re
 import traceback
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from itertools import chain, islice, tee
-from typing import Any, Callable, Optional
+from typing import Any
 
 from requests.exceptions import HTTPError
 
@@ -78,7 +79,7 @@ def clean_attribute(name: str, value: Any) -> Any:
     """
     if name == "download_urls":
         return value.strip()
-    elif name == "case_dates" and not isinstance(value, (datetime, date)):
+    elif name == "case_dates" and not isinstance(value, (datetime | date)):
         value = convert_date_string(value)
 
     if isinstance(value, str):
@@ -153,7 +154,7 @@ def backscrape_over_paginated_results(
     end_date: date,
     date_fmt: str,
     site,
-    prepare_request_fn: Optional[Callable] = None,
+    prepare_request_fn: Callable | None = None,
     url_template: str = "",
 ) -> list[dict]:
     """

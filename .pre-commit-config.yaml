@@ -37,3 +37,19 @@ repos:
           - types-requests
           - types-lxml
           - types-selenium
+
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty
+        entry: uv run ty check
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        entry: uv run pytest tests/local -x -q
+        language: system
+        pass_filenames: false
+        always_run: true

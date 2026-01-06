@@ -1,6 +1,5 @@
 import re
 from datetime import date
-from typing import Optional, Union
 
 from lxml.html import HtmlElement
 
@@ -191,7 +190,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
     def _fill_non_present_values_as_empty(
         self,
         field_mappings: dict[str, str],
-        meta_data: dict[str, Union[str, date, None, list[dict[str, str]]]],
+        meta_data: dict[str, str | date | None | list[dict[str, str]]],
     ) -> None:
         """Fill claim missing values in meta_data with empty values if they are
         not present.
@@ -210,7 +209,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
 
     def _parse_case_name_and_docket_number(
         self,
-        meta_data: dict[str, Union[str, date, None, list[dict[str, str]]]],
+        meta_data: dict[str, str | date | None | list[dict[str, str]]],
         claim_table: HtmlElement,
     ) -> None:
         """Parses the case name and docket number from the provided meta_data
@@ -241,7 +240,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
 
     def _parse_docket_number(
         self, docket_number: str
-    ) -> tuple[str, dict[str, Union[str, None]]]:
+    ) -> tuple[str, dict[str, str | None]]:
         """Strip the judge initials off docket numbers, and do any other
         similar cleanup.
 
@@ -270,7 +269,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
 
     def _get_claim_data_from_anchors(
         self, anchor_nodes: list[HtmlElement]
-    ) -> dict[str, Union[str, list[dict[str, str]]]]:
+    ) -> dict[str, str | list[dict[str, str]]]:
         """Retrieves claim data from a list of HTML anchor elements.
 
         :param anchor_nodes: A list of HTML anchor elements that contain
@@ -317,7 +316,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
         return claim
 
     @staticmethod
-    def get_pacer_claim_id_from_claim_url(url: str) -> Union[str, None]:
+    def get_pacer_claim_id_from_claim_url(url: str) -> str | None:
         """Extract the caseid from the doc1 URL."""
         match = re.search(r"claim_id=(\d+)", url)
         if match:
@@ -326,7 +325,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
             return None
 
     @staticmethod
-    def get_claim_number_from_claim_url(url: str) -> Union[str, None]:
+    def get_claim_number_from_claim_url(url: str) -> str | None:
         """Extract the caseid from the doc1 URL."""
         match = re.search(r"claim_num=(\d+-\d+)", url)
         if match:
@@ -335,7 +334,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
             return None
 
     @staticmethod
-    def get_claim_doc_seq_from_claim_url(url: str) -> Union[str, None]:
+    def get_claim_doc_seq_from_claim_url(url: str) -> str | None:
         """Extract the caseid from the doc1 URL."""
         match = re.search(r"claim_doc_seq=(\d+)", url)
         if match:
@@ -346,7 +345,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
     @staticmethod
     def _get_label_value_pair_from_string(
         string: str, field_mappings: dict[str, str]
-    ) -> dict[str, Union[str, date, None]]:
+    ) -> dict[str, str | date | None]:
         """Get the field name and value from a string.
 
         e.g: Case: 3:23-bk-10722
@@ -394,8 +393,8 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
         pacer_case_id: str,
         docket_number: str,
         creditor_name: str,
-        date_start: Optional[date] = None,
-        date_end: Optional[date] = None,
+        date_start: date | None = None,
+        date_end: date | None = None,
     ):
         """Query the claims activity and return the results.
 

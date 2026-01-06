@@ -6,7 +6,7 @@ from datetime import datetime
 from email.message import EmailMessage
 from enum import Enum
 from pathlib import Path
-from typing import Optional, TypedDict, Union
+from typing import TypedDict
 from urllib.parse import parse_qs, urlparse
 
 import requests
@@ -63,7 +63,7 @@ class SCOTUSEmailData(TypedDict):
     email_type: str
     followup_url: str
     email_datetime: datetime
-    data: Optional[SCOTUSNotificationEmail]
+    data: SCOTUSNotificationEmail | None
 
 
 class SCOTUSEmailHandlingResult(TypedDict):
@@ -72,7 +72,7 @@ class SCOTUSEmailHandlingResult(TypedDict):
     """
 
     email_type: str
-    data: Union[dict[str, str], str]
+    data: dict[str, str] | str
 
 
 class SCOTUSConfirmationResult(Enum):
@@ -118,7 +118,7 @@ class _SCOTUSConfirmationPageScraper:
 
     def __init__(self, court_id: str = "scotus"):
         self.court_id = court_id
-        self.tree: Optional[HtmlElement] = None
+        self.tree: HtmlElement | None = None
 
     @property
     def data(self) -> str:
@@ -188,8 +188,8 @@ class SCOTUSEmail:
 
     def __init__(self, court_id: str = "scotus"):
         self.court_id: str = court_id
-        self.tree: Optional[HtmlElement] = None
-        self.message: Optional[EmailMessage] = None
+        self.tree: HtmlElement | None = None
+        self.message: EmailMessage | None = None
         self.email_type: SCOTUSEmailType = SCOTUSEmailType.INVALID
 
     @property
@@ -363,7 +363,7 @@ class SCOTUSEmail:
                 return
             self.email_type = email_type
 
-    def _parse_datetime(self) -> Optional[datetime]:
+    def _parse_datetime(self) -> datetime | None:
         """Extract the "Date" header in the notification email message into a
         `datetime`, returning `None` if the header is absent or parsing fails
         and logging an appropriate error.

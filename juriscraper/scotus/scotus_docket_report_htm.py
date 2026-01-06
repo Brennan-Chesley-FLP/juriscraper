@@ -1,6 +1,6 @@
 import re
 from collections import defaultdict
-from typing import Any, Optional
+from typing import Any
 
 from lxml import html
 from lxml.html import HtmlElement
@@ -112,7 +112,7 @@ class SCOTUSDocketReportHTM(SCOTUSDocketReportHTML):
     def _build_docket_entry(
         self,
         date_str: str,
-        description_td: Optional[HtmlElement],
+        description_td: HtmlElement | None,
         attachment_path: str,
         table_layout: bool = False,
     ) -> dict[str, Any]:
@@ -213,8 +213,8 @@ class SCOTUSDocketReportHTM(SCOTUSDocketReportHTML):
 
     def _build_htm_attorney(
         self,
-        current_attorney: Optional[dict[str, Any]],
-    ) -> Optional[dict[str, Any]]:
+        current_attorney: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
         """Complete an attorney dict from the HTM Contacts table.
 
         :param current_attorney: The in-progress attorney dict with initial values.
@@ -378,7 +378,7 @@ class SCOTUSDocketReportHTM(SCOTUSDocketReportHTML):
 
     def _htm_row_for_label(
         self, label: str, allow_indent: bool = False
-    ) -> Optional[HtmlElement]:
+    ) -> HtmlElement | None:
         """Return the <tr> whose first <td> equals the given label.
 
         :param label: The exact label text, e.g. "Docketed:" or "Case Nos.:".
@@ -400,7 +400,7 @@ class SCOTUSDocketReportHTM(SCOTUSDocketReportHTML):
 
     def _htm_value_by_label(
         self, label: str, allow_indent: bool = False
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get the value text in td[2] for a labeled row.
 
         :param label: The label text in td[1].

@@ -9,7 +9,6 @@ History:
 
 import re
 from datetime import date
-from typing import Optional
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -82,7 +81,7 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def find_date(self, text: str) -> Optional[str]:  # type: ignore[return]
+    def find_date(self, text: str) -> str | None:  # type: ignore[return]
         """Find dates on text, and validate that they are indeed dates
         Sometimes the regex will pick a part of the string that is not a date
 

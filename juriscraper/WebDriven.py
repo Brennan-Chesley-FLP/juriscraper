@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
@@ -125,7 +124,7 @@ class WebDriven:
             EC.presence_of_element_located((By.ID, id_attr))
         )  # ty: ignore[possibly-missing-attribute]
 
-    def take_screenshot(self, name: Optional[str] = None):
+    def take_screenshot(self, name: str | None = None):
         """Use this method to snap screenshots during debugging"""
         name = name if name else f"screenshot.{self.__module__}.png"
         self.webdriver.save_screenshot(name)  # type: ignore[attr-defined]

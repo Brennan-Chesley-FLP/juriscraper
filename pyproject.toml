@@ -64,6 +64,7 @@ dev = [
   "types-lxml>=2025.11.25",
   "types-selenium",
   "responses>=0.25.8",
+  "ty>=0.0.9",
 ]
 
 [tool.setuptools]

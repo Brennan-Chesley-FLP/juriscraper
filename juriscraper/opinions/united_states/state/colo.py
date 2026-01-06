@@ -15,7 +15,6 @@ History:
 
 import re
 from datetime import date, datetime, timedelta
-from typing import Optional
 from urllib.parse import urlencode
 
 from lxml import etree, html
@@ -238,7 +237,7 @@ class Site(OpinionSiteLinear):
         self.html = self._download()
         self._process_html()
 
-    def update_url(self, dates: Optional[tuple[date]] = None) -> tuple[date]:
+    def update_url(self, dates: tuple[date] | None = None) -> tuple[date]:
         """
         Set URL with date filters and current timestamp.
         Request with no date filter was returning very old documents
@@ -278,7 +277,7 @@ class Site(OpinionSiteLinear):
             new_tree = etree.Element("html")
             body = etree.SubElement(new_tree, "body")
             body.append(tree)
-            return html.tostring(new_tree)
+            return html.tostring(new_tree)  # ty: ignore[invalid-argument-type]
 
         return content.encode("utf-8")
 

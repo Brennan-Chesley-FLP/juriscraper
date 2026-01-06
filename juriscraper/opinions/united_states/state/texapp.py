@@ -18,7 +18,6 @@
 #  - 2024-02-21; Updated by grossir: handle dynamic backscrapes
 
 from datetime import date, datetime, timedelta
-from typing import Optional
 
 from juriscraper.AbstractSite import logger
 from juriscraper.DeferringList import DeferringList
@@ -151,7 +150,7 @@ class Site(OpinionSiteLinear):
     def _get_case_names(self) -> DeferringList:
         """Get case names using a deferring list."""
 
-        def get_name(link: str) -> Optional[str]:
+        def get_name(link: str) -> str | None:
             """Abstract out the case name from the case page."""
             if self.test_mode_enabled():
                 return "No case names fetched during tests."

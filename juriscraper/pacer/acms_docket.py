@@ -3,7 +3,6 @@ import pprint
 import re
 import sys
 from collections import OrderedDict
-from typing import Optional
 
 from requests import Response
 
@@ -63,7 +62,7 @@ class ACMSDocketReport(AppellateDocketReport):
 
     def download_pdf(  # type: ignore[override]
         self, entry_id: str, doc_id: str
-    ) -> tuple[Optional[Response], str]:
+    ) -> tuple[Response | None, str]:
         """
         Downloads a PDF for a given docket entry and document ID.
 

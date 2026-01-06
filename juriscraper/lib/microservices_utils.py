@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 from urllib.parse import urljoin
 
 import requests
@@ -16,7 +15,7 @@ MICROSERVICE_URLS = {
 logger = make_default_logger()
 
 
-def test_for_meta_redirections(r: Response) -> tuple[bool, Optional[str]]:
+def test_for_meta_redirections(r: Response) -> tuple[bool, str | None]:
     """Test for meta data redirections
 
     :param r: A response object

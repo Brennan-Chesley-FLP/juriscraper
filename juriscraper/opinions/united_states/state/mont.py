@@ -100,21 +100,21 @@ class Site(OpinionSiteLinear):
             lower_court = re.sub(
                 r"\s+", " ", match.group("lower_court")
             ).strip()
-            result.setdefault("Docket", {})["appeal_from_str"] = lower_court
+            result.setdefault("Docket", {})["appeal_from_str"] = lower_court  # type: ignore[arg-type, index]
             lower_court_judge = match.group("judge")
             if lower_court_judge:
-                result.setdefault("OriginatingCourtInformation", {})[
+                result.setdefault("OriginatingCourtInformation", {})[  # type: ignore[arg-type, index]
                     "assigned_to_str"
                 ] = lower_court_judge
             lower_court_docket = match.group("lower_court_docket")
             if lower_court_docket:
-                result.setdefault("OriginatingCourtInformation", {})[
+                result.setdefault("OriginatingCourtInformation", {})[  # type: ignore[arg-type, index]
                     "docket_number"
                 ] = lower_court_docket
 
         docket_number_pattern = re.compile(r"(DA|OP)\s[0-9]{2}-[0-9]{4}")
         if match := docket_number_pattern.search(scraped_text):
-            result.setdefault("Docket", {})["docket_number"] = match.group(0)
+            result.setdefault("Docket", {})["docket_number"] = match.group(0)  # type: ignore[arg-type, index]
 
         return result
 
@@ -144,4 +144,4 @@ class Site(OpinionSiteLinear):
         ):
             raise InvalidDocumentError(content)
 
-        return content
+        return content  # type: ignore[return-value]

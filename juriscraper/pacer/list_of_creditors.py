@@ -90,7 +90,7 @@ class ListOfCreditors(BaseDocketReport, BaseReport):
         r = requests.post(
             self.FORMAT_RAW_DATA_SERVICE, params=params, timeout=req_timeout
         )
-        if "text/plain" in r.headers.get("content-type"):
+        if "text/plain" in r.headers.get("content-type"):  # type: ignore[operator]
             return r
         return None
 

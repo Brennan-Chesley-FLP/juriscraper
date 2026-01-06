@@ -33,8 +33,8 @@ class Site(OpinionSiteLinear):
             start = datetime.today() - timedelta(days=15)
             end = datetime.today()
 
-        start = start.strftime("%m-%d-%Y")
-        end = end.strftime("%m-%d-%Y")
+        start = start.strftime("%m-%d-%Y")  # type: ignore[assignment]
+        end = end.strftime("%m-%d-%Y")  # type: ignore[assignment, union-attr]
 
         params = {
             "range": "None",

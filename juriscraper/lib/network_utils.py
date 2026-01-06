@@ -113,7 +113,7 @@ class AcmsApiClient:
                 else None
             ),
             "byteCount": (
-                int(raw_data.get("byteCount"))
+                int(raw_data.get("byteCount"))  # type: ignore[arg-type]
                 if raw_data.get("byteCount")
                 else None
             ),
@@ -148,7 +148,7 @@ class AcmsApiClient:
             "isCaseSealed": raw_data.get("isCaseSealed"),
             "isUserCaseParticipant": raw_data.get("isUserCaseParticipant"),
             "byteCount": (
-                int(raw_data.get("byteCount"))
+                int(raw_data.get("byteCount"))  # type: ignore[arg-type]
                 if raw_data.get("byteCount")
                 else None
             ),
@@ -241,8 +241,8 @@ class AcmsApiClient:
         response = self.session.post(
             url,
             json={
-                "csoId": self.session.acms_user_data["CsoId"],
-                "contactType": self.session.acms_user_data["ContactType"],
+                "csoId": self.session.acms_user_data["CsoId"],  # type: ignore[attr-defined]
+                "contactType": self.session.acms_user_data["ContactType"],  # type: ignore[attr-defined]
             },
         )
         response.raise_for_status()

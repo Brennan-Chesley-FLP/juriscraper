@@ -184,7 +184,7 @@ class Site(OpinionSiteLinear):
         if cite_match := re.search(
             r"(?<=\[)\d+ Misc 3d\s+[\S]+(?=\])", target_text
         ):
-            metadata["Citation"] = cite_match.group(0)
+            metadata["Citation"] = cite_match.group(0)  # type: ignore[assignment]
 
         # found on the header table
         judge = ""
@@ -201,14 +201,14 @@ class Site(OpinionSiteLinear):
         ]
         if len(judge_matches) == 2:
             # last name is in full name
-            if judge_matches[0].group("judge") in judge_matches[-1].group(
+            if judge_matches[0].group("judge") in judge_matches[-1].group(  # type: ignore[union-attr]
                 "judge"
             ):
-                judge = judge_matches[-1].group("judge")
+                judge = judge_matches[-1].group("judge")  # type: ignore[union-attr]
             else:
-                judge = judge_matches[0].group("judge")
+                judge = judge_matches[0].group("judge")  # type: ignore[union-attr]
         elif judge_matches:
-            judge = judge_matches[0].group("judge")
+            judge = judge_matches[0].group("judge")  # type: ignore[union-attr]
 
         if judge:
             metadata["Opinion"] = {
@@ -221,7 +221,7 @@ class Site(OpinionSiteLinear):
         # with whitespace. If not, case names would lack proper separation
         scraped_text = scraped_text.replace("<br>", "\n")
         full_case = fromstring(scraped_text).xpath("//table")
-        full_case = full_case[1].text_content() if len(full_case) > 1 else ""
+        full_case = full_case[1].text_content() if len(full_case) > 1 else ""  # type: ignore[attr-defined]
         if full_case:
             full_case = harmonize(full_case)
             metadata["Docket"]["case_name_full"] = full_case
@@ -231,7 +231,7 @@ class Site(OpinionSiteLinear):
 
     @staticmethod
     def cleanup_content(content: str) -> str:
-        return ny.Site.cleanup_content(content)
+        return ny.Site.cleanup_content(content)  # type: ignore[arg-type, return-value]
 
     def make_backscrape_iterable(self, kwargs) -> None:
         """Make back scrape iterable

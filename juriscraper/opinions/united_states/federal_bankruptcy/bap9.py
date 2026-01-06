@@ -162,17 +162,17 @@ class Site(OpinionSiteLinear):
         :param dates: A tuple containing start and end dates.
         :return: None; updates self.cases with cases from the specified date range.
         """
-        start_str, end_str, _ = date
+        start_str, end_str, _ = date  # type: ignore[misc]
 
         # Parse start date or fall back to first_opinion_date
-        if start_str:
-            self.start_date = datetime.strptime(start_str, "%Y/%m/%d")
+        if start_str:  # type: ignore[has-type]
+            self.start_date = datetime.strptime(start_str, "%Y/%m/%d")  # type: ignore[has-type]
         else:
             self.start_date = self.first_opinion_date
 
         # Parse end date or fall back to now
-        if end_str:
-            self.end_date = datetime.strptime(end_str, "%Y/%m/%d")
+        if end_str:  # type: ignore[has-type]
+            self.end_date = datetime.strptime(end_str, "%Y/%m/%d")  # type: ignore[has-type]
         else:
             self.end_date = datetime.now()
 

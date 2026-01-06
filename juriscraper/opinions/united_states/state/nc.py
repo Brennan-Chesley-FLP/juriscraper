@@ -81,7 +81,7 @@ class Site(OpinionSiteLinear):
         if match := re.search(self.date_regex, date_block):
             return match.group("date")
         # Second pattern for ncctapp unpublished opinions
-        return self.coa_rgx.search(date_block).group("date")
+        return self.coa_rgx.search(date_block).group("date")  # type: ignore[union-attr]
 
     def _download_backwards(self, year: int) -> None:
         """Build year URL and scrape

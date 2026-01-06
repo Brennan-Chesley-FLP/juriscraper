@@ -78,7 +78,7 @@ class Site(OralArgumentSiteLinear):
         :param d: Date to download arguments starting from
         :return: None
         """
-        self.start_date, self.end_date = d
+        self.start_date, self.end_date = d  # type: ignore[misc]
         logger.info("Backscraping for range %s %s", *d)
         self.html = self._download()
         self._process_html()

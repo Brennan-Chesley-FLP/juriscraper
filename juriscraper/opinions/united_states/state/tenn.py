@@ -221,11 +221,11 @@ class Site(ClusterSite):
             or (concur and dissent)
             or (concur and not_join)
         ):
-            op_type = OpinionType.CONCURRING_IN_PART_AND_DISSENTING_IN_PART
+            op_type = OpinionType.CONCURRING_IN_PART_AND_DISSENTING_IN_PART  # type: ignore[assignment]
         elif concur:
-            op_type = OpinionType.CONCURRENCE
+            op_type = OpinionType.CONCURRENCE  # type: ignore[assignment]
         elif dissent:
-            op_type = OpinionType.DISSENT
+            op_type = OpinionType.DISSENT  # type: ignore[assignment]
 
         # if no type was found, set it to Majority but do not edit the name
         if not op_type:
@@ -238,7 +238,7 @@ class Site(ClusterSite):
             )
             raw_name = raw_name[: match.start()].strip()
 
-        return raw_name, op_type.value
+        return raw_name, op_type.value  # type: ignore[attr-defined]
 
     def _download_backwards(self, dates: tuple[date, date]) -> None:
         r"""Download cases within a given date range.

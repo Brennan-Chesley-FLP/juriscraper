@@ -6,7 +6,7 @@ from juriscraper.OpinionSite import OpinionSite
 oregon_module = import_module("juriscraper.opinions.united_states.state.or")
 
 
-class Site(oregon_module.Site):
+class Site(oregon_module.Site):  # type: ignore[name-defined]
     court_code = "p17027coll6"
     days_interval = 120
     # prevent test_ScraperExtractFromTextTest failure, given that parent class

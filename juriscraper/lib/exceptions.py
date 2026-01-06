@@ -94,7 +94,7 @@ class AutoLoggingException(Exception):
         if fingerprint:
             log_kwargs["extra"] = {"fingerprint": fingerprint}
 
-        logger.log(logging_level, message, **log_kwargs)
+        logger.log(logging_level, message, **log_kwargs)  # type: ignore[arg-type, union-attr]
         super().__init__(message)
 
 

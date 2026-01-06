@@ -415,7 +415,7 @@ class AbstractSite:
                 # Clean up content types like "application/pdf;charset=utf-8"
                 # and 'application/octet-stream; charset=UTF-8'
                 content_type = (
-                    r.headers.get("Content-Type").lower().split(";")[0].strip()
+                    r.headers.get("Content-Type").lower().split(";")[0].strip()  # type: ignore[union-attr]
                 )
                 m = any(
                     content_type in mime.lower()

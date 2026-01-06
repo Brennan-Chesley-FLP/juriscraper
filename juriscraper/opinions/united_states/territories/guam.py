@@ -80,7 +80,7 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def find_date(self, text: str) -> Optional[str]:
+    def find_date(self, text: str) -> Optional[str]:  # type: ignore[return]
         """Find dates on text, and validate that they are indeed dates
         Sometimes the regex will pick a part of the string that is not a date
 

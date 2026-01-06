@@ -80,7 +80,7 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def make_backscrape_iterable(
+    def make_backscrape_iterable(  # type: ignore[override, return]
         self, kwargs: dict
     ) -> list[tuple[date, date]]:
         """Reuse base function to get a sequence of date objects for

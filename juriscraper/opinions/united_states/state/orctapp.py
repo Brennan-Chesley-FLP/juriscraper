@@ -13,7 +13,7 @@ from importlib import import_module
 oregon_module = import_module("juriscraper.opinions.united_states.state.or")
 
 
-class Site(oregon_module.Site):
+class Site(oregon_module.Site):  # type: ignore[name-defined]
     court_code = "p17027coll5"
 
     def __init__(self, *args, **kwargs):

@@ -44,7 +44,7 @@ class Site(OpinionSiteLinear):
             url = f"{self.document_url}/{pdf_file_name}".replace(" ", "%20")
 
             match = self.date_re.match(opinion["date_heard"])
-            timestamp = int(match.group(1)) / 1000
+            timestamp = int(match.group(1)) / 1000  # type: ignore[union-attr]
             date_filed = datetime.fromtimestamp(timestamp).strftime("%m/%d/%Y")
 
             self.cases.append(

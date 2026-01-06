@@ -109,7 +109,7 @@ class Site(ClusterSite):
                         "url": url,
                         "author": author_str,
                         "per_curiam": per_curiam,
-                        "type": opinion_type.value,
+                        "type": opinion_type.value,  # type: ignore[attr-defined]
                     }
                 )
 
@@ -209,7 +209,7 @@ class Site(ClusterSite):
             # default value in CL
             type = OpinionType.COMBINED
 
-        return type
+        return type  # type: ignore[return-value]
 
     def extract_from_text(self, scraped_text: str) -> dict:
         """Extract citations from text

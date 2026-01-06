@@ -261,7 +261,7 @@ class AppellateDocketReport(BaseDocketReport, BaseReport):
         self._clear_caches()
         super().parse()
 
-    def download_pdf(
+    def download_pdf(  # type: ignore[override]
         self, pacer_doc_id, pacer_case_id=None
     ) -> tuple[Optional[Response], str]:
         """Download a PDF from an appellate court.
@@ -627,7 +627,7 @@ class AppellateDocketReport(BaseDocketReport, BaseReport):
         return force_unicode(description)
 
     @staticmethod
-    def _get_page_count_from_tr(tr: html.HtmlElement) -> Optional[int]:
+    def _get_page_count_from_tr(tr: html.HtmlElement) -> Optional[int]:  # type: ignore[return]
         """Take a row from the attachment table and return the page count as an
         int extracted from the input value.
         """
@@ -775,7 +775,7 @@ class AppellateDocketReport(BaseDocketReport, BaseReport):
                 return text_node
         return None
 
-    @staticmethod
+    @staticmethod  # type: ignore[no-redef]
     def _get_pacer_doc_id(cell):
         urls = cell.xpath(".//a")
         if not urls:

@@ -48,8 +48,8 @@ class TexasSupremeCourtDocket(TexasCommonData):
     """
 
     appeals_court: TexasAppealsCourt
-    case_events: list[TexasSupremeCourtCaseEvent]
-    appellate_briefs: list[TexasSupremeCourtAppellateBrief]
+    case_events: list[TexasSupremeCourtCaseEvent]  # type: ignore[misc]
+    appellate_briefs: list[TexasSupremeCourtAppellateBrief]  # type: ignore[misc]
 
 
 class TexasSupremeCourtScraper(TexasCommonScraper):
@@ -65,7 +65,7 @@ class TexasSupremeCourtScraper(TexasCommonScraper):
         super().__init__(court_id)
 
     @property
-    def data(self) -> TexasSupremeCourtDocket:
+    def data(self) -> TexasSupremeCourtDocket:  # type: ignore[override]
         """
         Extract parsed data from an HTML tree. This property returns a
         `TexasSupremeCourtDocket`.

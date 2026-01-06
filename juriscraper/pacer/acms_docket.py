@@ -37,7 +37,7 @@ class ACMSDocketReport(AppellateDocketReport):
         """
         self._acms_json = json.loads(text)
 
-    def query(self, case_id: str):
+    def query(self, case_id: str):  # type: ignore[override]
         """
         Queries the court API for case and docket details for a given case ID.
 
@@ -58,7 +58,7 @@ class ACMSDocketReport(AppellateDocketReport):
             "docketInfo": entry_details,
         }
 
-    def download_pdf(
+    def download_pdf(  # type: ignore[override]
         self, entry_id: str, doc_id: str
     ) -> tuple[Optional[Response], str]:
         """

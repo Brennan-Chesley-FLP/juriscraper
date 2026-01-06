@@ -45,7 +45,7 @@ class SCOTUSDocketReportHTML(SCOTUSDocketReport):
         :return: None
         """
         text = clean_html(text)
-        self.tree = html.fromstring(text or "")
+        self.tree = html.fromstring(text or "")  # type: ignore[assignment]
 
     @property
     def metadata(self) -> dict[str, Any]:
@@ -377,7 +377,7 @@ class SCOTUSDocketReportHTML(SCOTUSDocketReport):
 
         :return: List of dicts containing parties data.
         """
-        table = next(iter(self.tree.xpath("//table[@id='Contacts']")), None)
+        table = next(iter(self.tree.xpath("//table[@id='Contacts']")), None)  # type: ignore[attr-defined]
         if table is None:
             return []
 

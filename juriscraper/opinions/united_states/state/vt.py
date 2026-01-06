@@ -112,7 +112,7 @@ class Site(OpinionSiteLinear):
         }
         if start:
             params["facet_from_date"] = start.strftime("%m/%d/%Y")
-            params["facet_to_date"] = end.strftime("%m/%d/%Y")
+            params["facet_to_date"] = end.strftime("%m/%d/%Y")  # type: ignore[union-attr]
 
         self.url = f"{self.base_url}?{urlencode(params)}"
 
@@ -193,11 +193,11 @@ class Site(OpinionSiteLinear):
                 "OriginatingCourtInformation", {}
             )
             if lower_court:
-                docket["appeal_from_str"] = lower_court
+                docket["appeal_from_str"] = lower_court  # type: ignore[index]
             if lower_court_number:
-                originating_court_info["docket_number"] = lower_court_number
+                originating_court_info["docket_number"] = lower_court_number  # type: ignore[index]
             if lower_court_judge:
-                originating_court_info["assigned_to_str"] = (
+                originating_court_info["assigned_to_str"] = (  # type: ignore[index]
                     lower_court_judge.strip()
                 )
         else:
@@ -211,6 +211,6 @@ class Site(OpinionSiteLinear):
                     r"\s+", " ", match.group("lower_court")
                 ).strip()
                 docket = metadata.setdefault("Docket", {})
-                docket["appeal_from_str"] = lower_court
+                docket["appeal_from_str"] = lower_court  # type: ignore[index]
 
         return metadata

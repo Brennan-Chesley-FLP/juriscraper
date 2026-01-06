@@ -285,7 +285,7 @@ class NotificationEmail(BaseDocketReport, BaseReport):
             r"filed\son\s([\d|\/]*)", clean_string(self.tree.text_content())
         )
         return convert_date_string(
-            date_filed[0].lower().replace("filed on ", "")
+            date_filed[0].lower().replace("filed on ", "")  # type: ignore[index]
         )
 
     def _get_document_number(self, current_node: HtmlElement) -> str:
@@ -298,7 +298,7 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         node = current_node.xpath(path)[0].text_content()
         text_number = clean_string(node)
         if text_number == "No document attached" or text_number == "":
-            return None
+            return None  # type: ignore[return-value]
         words = re.split(r"\(|\s", text_number)
         return words[0]
 
@@ -313,7 +313,7 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         if document_number:
             return clean_string(document_number[0])
         else:
-            return None
+            return None  # type: ignore[return-value]
 
     def _get_doc1_anchor(self, current_node: HtmlElement) -> str:
         """Safely retrieves the anchor tag for the document
@@ -333,7 +333,7 @@ class NotificationEmail(BaseDocketReport, BaseReport):
             )
             return current_node.xpath(path)[0]
         except IndexError:
-            return None
+            return None  # type: ignore[return-value]
 
     def _get_case_anchor(self, current_node: HtmlElement) -> Optional[str]:
         """Safely retrieves the anchor tag for a case.
@@ -544,10 +544,10 @@ class NotificationEmail(BaseDocketReport, BaseReport):
                 # description of the first item.
                 for docket in dockets:
                     if docket["docket_entries"]:
-                        docket["docket_entries"][0]["short_description"] = (
+                        docket["docket_entries"][0]["short_description"] = (  # type: ignore[index, typeddict-unknown-key]
                             self._get_short_description()
                         )
-        return dockets
+        return dockets  # type: ignore[return-value]
 
     def _get_docket_entries(
         self, current_node: Optional[HtmlElement] = None
@@ -578,24 +578,24 @@ class NotificationEmail(BaseDocketReport, BaseReport):
                 if match:
                     case_url = match.group(1)
         else:
-            description = self._get_description(current_node)
+            description = self._get_description(current_node)  # type: ignore[arg-type]
             if description is not None:
-                anchor = self._get_doc1_anchor(current_node)
+                anchor = self._get_doc1_anchor(current_node)  # type: ignore[arg-type]
                 document_url = (
-                    anchor.xpath("./@href")[0] if anchor is not None else None
+                    anchor.xpath("./@href")[0] if anchor is not None else None  # type: ignore[attr-defined]
                 )
 
                 if self._is_acms():
-                    document_number = self._parse_acms_document_number(
+                    document_number = self._parse_acms_document_number(  # type: ignore[assignment]
                         self.subject_cleaned, self.docket_numbers[0]
                     )
                 elif self._is_appellate():
                     document_number = None
                 else:
-                    document_number = self._get_document_number(current_node)
+                    document_number = self._get_document_number(current_node)  # type: ignore[arg-type]
 
                 # Get Case URL for HTML version.
-                case_url = self._get_case_anchor(current_node)
+                case_url = self._get_case_anchor(current_node)  # type: ignore[arg-type]
 
         if description is not None:
             # "doc" value for document_number will cause an error on
@@ -643,7 +643,7 @@ class NotificationEmail(BaseDocketReport, BaseReport):
                     case_url
                 )
 
-            return entries
+            return entries  # type: ignore[return-value]
         return []
 
     def _parse_bankruptcy_short_description(self, subject: str) -> str:
@@ -767,7 +767,7 @@ class NotificationEmail(BaseDocketReport, BaseReport):
 
         pattern = rf"{re.escape(docket_number)}\s*-\s*(?:(\d+)\s*-\s*)?(.*)"
         match = re.search(pattern, subject, re.IGNORECASE)
-        return match.groups() if match else None
+        return match.groups() if match else None  # type: ignore[return-value]
 
     def _parse_acms_document_number(
         self, subject: str, docket_number: str

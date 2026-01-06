@@ -221,7 +221,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
         docket_number = meta_data.get("docket_number")
         if docket_number:
             docket_number, docket_number_components = (
-                self._parse_docket_number(docket_number)
+                self._parse_docket_number(docket_number)  # type: ignore[arg-type]
             )
             meta_data["docket_number"] = docket_number
             # Include the docket_number components.
@@ -229,7 +229,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
         else:
             docket_number = claim_table.xpath("(.//tr)[1]/td[1]/a//text()")[0]
             docket_number, docket_number_components = (
-                self._parse_docket_number(docket_number)
+                self._parse_docket_number(docket_number)  # type: ignore[arg-type]
             )
             meta_data["docket_number"] = docket_number
             # Include the docket_number components.
@@ -369,7 +369,7 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
             .replace(")", "")
             .rstrip(":")
         )
-        label = field_mappings.get(label)
+        label = field_mappings.get(label)  # type: ignore[assignment]
 
         if not label:
             return {}

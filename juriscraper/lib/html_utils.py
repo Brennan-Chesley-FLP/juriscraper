@@ -299,7 +299,7 @@ def parse_table(table: HtmlElement) -> dict[str, list[HtmlElement]]:
     ]
     if len(headers) == 0:
         headers = list(
-            map(str, range(len(table.find(".//tr").findall(".//td"))))
+            map(str, range(len(table.find(".//tr").findall(".//td"))))  # type: ignore[union-attr]
         )
         rows = table.findall("./tr")
     else:

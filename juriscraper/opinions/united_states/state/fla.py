@@ -106,7 +106,7 @@ class Site(OpinionSiteLinear):
             self.scopes,
             self.site_access,
             start.strftime(fmt),
-            end.strftime(fmt),
+            end.strftime(fmt),  # type: ignore[union-attr]
         )
 
     def _download_backwards(self, dates: tuple[date, date]) -> None:

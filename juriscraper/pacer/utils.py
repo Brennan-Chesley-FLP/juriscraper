@@ -625,7 +625,7 @@ def reverse_sumDocSelected_function(s) -> Optional[dict[str, int]]:
      - doc_id: document ID without court prefix, sometimes called dlsid.
     """
     match = re.search(r"sumDocSelected\((.*?)\)", s)
-    args = [arg.strip() for arg in match.group(1).split(",")]
+    args = [arg.strip() for arg in match.group(1).split(",")]  # type: ignore[union-attr]
     if args[0] != "this":
         return None
     parts = {

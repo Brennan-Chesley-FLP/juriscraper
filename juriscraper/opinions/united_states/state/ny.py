@@ -62,7 +62,7 @@ class Site(OpinionSiteLinear):
             "rbOpinionMotion": "opinion",
             "Pty": "",
             "and_or": "and",
-            "dtStartDate": start_date.strftime("%m/%d/%Y"),
+            "dtStartDate": start_date.strftime("%m/%d/%Y"),  # type: ignore[union-attr]
             "dtEndDate": end_date.strftime("%m/%d/%Y"),
             "court": self.court,
             "docket": "",

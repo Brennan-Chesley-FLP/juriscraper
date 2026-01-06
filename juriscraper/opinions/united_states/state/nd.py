@@ -185,19 +185,19 @@ class Site(OpinionSiteLinear):
 
         # We only put keys into the objects when they exist
         # Otherwise, we would overwrite existing data with empty values
-        metadata.update({"OpinionCluster": {}, "Docket": {}})
+        metadata.update({"OpinionCluster": {}, "Docket": {}})  # type: ignore[dict-item]
         if case_name:
-            metadata["Docket"]["case_name"] = case_name
-            metadata["OpinionCluster"]["case_name"] = case_name
+            metadata["Docket"]["case_name"] = case_name  # type: ignore[index]
+            metadata["OpinionCluster"]["case_name"] = case_name  # type: ignore[index]
         if docket_number:
-            metadata["Docket"]["docket_number"] = normalize_dashes(
+            metadata["Docket"]["docket_number"] = normalize_dashes(  # type: ignore[index]
                 docket_number
             )
         if lower_court:
-            metadata["Docket"]["appeal_from_str"] = lower_court
+            metadata["Docket"]["appeal_from_str"] = lower_court  # type: ignore[index]
         if lower_court_judge:
-            metadata.update({"OriginatingCourtInformation": {}})
-            metadata["OriginatingCourtInformation"]["assigned_to_str"] = (
+            metadata.update({"OriginatingCourtInformation": {}})  # type: ignore[dict-item]
+            metadata["OriginatingCourtInformation"]["assigned_to_str"] = (  # type: ignore[index]
                 lower_court_judge
             )
 

@@ -35,7 +35,7 @@ def re_xpath(self, path):
     )
 
 
-HtmlElement.re_xpath = re_xpath
+HtmlElement.re_xpath = re_xpath  # type: ignore[attr-defined]
 
 
 class BaseReport:
@@ -231,7 +231,7 @@ class BaseReport:
             else:
                 url = make_doc1_url(self.court_id, pacer_doc_id, True)
                 params = {
-                    "caseid": pacer_case_id,
+                    "caseid": pacer_case_id,  # type: ignore[dict-item]
                     "magic_num": pacer_magic_num,
                     "use_magic": "1",  # Bypass the free look confirmation.
                 }
@@ -259,8 +259,8 @@ class BaseReport:
         else:
             # If no magic_number use normal method to fetch the document
             r, url = self._query_pdf_download(
-                pacer_case_id,
-                pacer_doc_id,
+                pacer_case_id,  # type: ignore[arg-type]
+                pacer_doc_id,  # type: ignore[arg-type]
                 pacer_magic_num,
                 got_receipt="1",
                 de_seq_num=de_seq_num,
@@ -273,7 +273,10 @@ class BaseReport:
                 # bug. Try again, but do so without the pacer_case_id.
                 # This should work, but will omit the blue header on the PDFs.
                 r, url = self._query_pdf_download(
-                    None, pacer_doc_id, pacer_magic_num, got_receipt="1"
+                    None,  # type: ignore[arg-type]
+                    pacer_doc_id,  # type: ignore[arg-type]
+                    pacer_magic_num,
+                    got_receipt="1",  # type: ignore[arg-type]
                 )
 
             error = None

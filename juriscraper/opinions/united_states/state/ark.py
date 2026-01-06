@@ -89,7 +89,7 @@ class Site(OpinionSiteLinear):
             "cont": "",
             "ref": "",
             "d1": start.strftime("%m/%d/%Y"),
-            "d2": end.strftime("%m/%d/%Y"),
+            "d2": end.strftime("%m/%d/%Y"),  # type: ignore[union-attr]
             "col": self.court_code,
             "tf1": "",
             "tf2": "",

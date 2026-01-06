@@ -33,11 +33,11 @@ class Site(OpinionSiteLinear):
         :param judges: Content of the panel as a string
         :return: Judges as a string list
         """
-        judges = [
+        judges = [  # type: ignore[assignment]
             j.replace(" Jr.", "Jr.").strip(" *") for j in judges.split(",")
         ]
-        judges = [j.replace("Jr.", " Jr.") for j in judges]
-        return judges
+        judges = [j.replace("Jr.", " Jr.") for j in judges]  # type: ignore[assignment]
+        return judges  # type: ignore[return-value]
 
     def _fetch_author(self, judges: str) -> str:
         """Parse the author from the judge text

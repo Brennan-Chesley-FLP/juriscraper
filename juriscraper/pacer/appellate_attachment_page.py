@@ -206,7 +206,7 @@ class AppellateAttachmentPage(BaseReport):
             doc1_url = url.xpath("./@href")[0]
             return get_pacer_doc_id_from_doc1_url(doc1_url)
 
-    def _get_pacer_case_id(self) -> str:
+    def _get_pacer_case_id(self) -> str:  # type: ignore[return]
         """Get the pacer_case_id value by inspecting the function scripts
 
         :returns str: The pacer_case_id value
@@ -216,7 +216,7 @@ class AppellateAttachmentPage(BaseReport):
         if m:
             return m.group(1)
 
-    def _get_pacer_seq_no(self) -> str:
+    def _get_pacer_seq_no(self) -> str:  # type: ignore[return]
         """Get pacer sequence number.
         This value corresponds to the value in the docket TR
 

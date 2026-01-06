@@ -59,8 +59,8 @@ def follow_redirections(r: Response, s: Session) -> Response:
     """
     redirected, url = test_for_meta_redirections(r)
     if redirected:
-        logger.info(f"Following a meta redirection to: {url.encode()}")
-        r = follow_redirections(s.get(url), s)
+        logger.info(f"Following a meta redirection to: {url.encode()}")  # type: ignore[str-bytes-safe, union-attr]
+        r = follow_redirections(s.get(url), s)  # type: ignore[arg-type]
     return r
 
 

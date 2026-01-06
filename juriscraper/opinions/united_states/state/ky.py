@@ -72,7 +72,7 @@ class Site(OpinionSiteLinear):
             "searchFields[0].values[0]": start.strftime("%m/%d/%Y"),
             "searchFields[0].indexFieldName": "filedDate",
             "searchFields[1].operation": "<=",
-            "searchFields[1].values[0]": end.strftime("%m/%d/%Y"),
+            "searchFields[1].values[0]": end.strftime("%m/%d/%Y"),  # type: ignore[union-attr]
             "searchFields[1].indexFieldName": "filedDate",
             "searchFilters[0].operation": "=",
             "searchFilters[0].indexFieldName": "caseHeader.court",

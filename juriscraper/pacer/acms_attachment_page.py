@@ -69,7 +69,7 @@ class ACMSAttachmentPage(BaseReport):
         # Extract description before format extension
         return parts[-1].split(".")[0]
 
-    def check_validity(self, parsed_json: dict) -> None:
+    def check_validity(self, parsed_json: dict) -> None:  # type: ignore[override]
         """Place sanity checks here to make sure that the returned json is
         valid and not an error page or some other kind of problem.
 

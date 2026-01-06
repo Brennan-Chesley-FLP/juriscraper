@@ -127,9 +127,9 @@ class _SCOTUSConfirmationPageScraper:
 
         :return: Result of the confirmation attempt.
         """
-        body_content = self.tree.find(".//div[@class='body-content']")
-        script_tag = body_content.find(".//script")
-        script = script_tag.text_content()
+        body_content = self.tree.find(".//div[@class='body-content']")  # type: ignore[union-attr]
+        script_tag = body_content.find(".//script")  # type: ignore[union-attr]
+        script = script_tag.text_content()  # type: ignore[union-attr]
         # The confirmation page by default displays all response messages
         # and uses a (presumably) server-generated if/else chain with
         # conditions set to `true` or `false` to determine which message to
@@ -219,7 +219,7 @@ class SCOTUSEmail:
         return SCOTUSEmailData(
             email_type=self.email_type.value,
             followup_url=followup_url,
-            email_datetime=self._parse_datetime(),
+            email_datetime=self._parse_datetime(),  # type: ignore[typeddict-item]
             data=data,
         )
 
@@ -271,7 +271,7 @@ class SCOTUSEmail:
         """Determine the type of the email (docket update/confirmation) based
         on the subject line. If the subject line does not match any known
         patterns, return `EmailType.INVALID`."""
-        subject = self.message.get("Subject", failobj="")
+        subject = self.message.get("Subject", failobj="")  # type: ignore[union-attr]
 
         if self.DOCKET_ENTRY_SUBJECT_REGEX.match(subject) is not None:
             return SCOTUSEmailType.DOCKET_ENTRY
@@ -293,7 +293,7 @@ class SCOTUSEmail:
 
         :return: None
         """
-        self.message = email.message_from_string(text)
+        self.message = email.message_from_string(text)  # type: ignore[assignment]
         email_type = self._determine_email_type()
 
         if email_type == SCOTUSEmailType.INVALID:
@@ -302,7 +302,7 @@ class SCOTUSEmail:
         content_part = next(
             (
                 part
-                for part in self.message.walk()
+                for part in self.message.walk()  # type: ignore[union-attr]
                 if part.get_content_type() == "text/html"
                 and not part.is_multipart()
             ),
@@ -320,7 +320,7 @@ class SCOTUSEmail:
         charset = content_part.get_content_charset(content_part.get_charset())
 
         try:
-            body = payload.decode(charset)
+            body = payload.decode(charset)  # type: ignore[arg-type, union-attr]
         except UnicodeDecodeError:
             logger.error(
                 "Unable to decode email payload with charset '%s'", charset
@@ -332,7 +332,7 @@ class SCOTUSEmail:
         n_anchors = sum(1 for _ in self.tree.iterfind(".//a"))
 
         if email_type == SCOTUSEmailType.DOCKET_ENTRY:
-            if self.message.get("Date") is None:
+            if self.message.get("Date") is None:  # type: ignore[union-attr]
                 logger.error("Unable to find 'Date' header in email")
                 return
 
@@ -370,10 +370,10 @@ class SCOTUSEmail:
 
         :return: `datetime` or `None` if unable to parse the "Date" header.
         """
-        message_date = self.message.get("Date")
+        message_date = self.message.get("Date")  # type: ignore[union-attr]
 
         try:
-            return datetime.strptime(message_date, "%a, %d %b %Y %H:%M:%S %z")
+            return datetime.strptime(message_date, "%a, %d %b %Y %H:%M:%S %z")  # type: ignore[arg-type]
         except ValueError:
             logger.error(
                 "Unable to parse 'Date' header of email (value is '%s')",
@@ -388,10 +388,10 @@ class SCOTUSEmail:
 
         :return: Clean docket entry title.
         """
-        text = self.tree.text_content()
+        text = self.tree.text_content()  # type: ignore[union-attr]
         match = self.TITLE_REGEX.match(text)
 
-        return clean_string(match.group(1))
+        return clean_string(match.group(1))  # type: ignore[union-attr]
 
     def _parse_case_name(self) -> str:
         """Extract the case name from the first `<a>` tag in the email body
@@ -399,7 +399,7 @@ class SCOTUSEmail:
 
         :return: Cleaned case name.
         """
-        return harmonize(self.tree.findtext(".//a"))
+        return harmonize(self.tree.findtext(".//a"))  # type: ignore[union-attr]
 
     def _parse_docket_number(self) -> str:
         """Extract the docket number using the `href` attribute from the first
@@ -407,17 +407,17 @@ class SCOTUSEmail:
 
         :return: Docket number.
         """
-        file = parse_qs(urlparse(self.tree.find(".//a").get("href")).query)[
+        file = parse_qs(urlparse(self.tree.find(".//a").get("href")).query)[  # type: ignore[union-attr, type-var]
             "filename"
         ][0]
-        docket_number = Path(file).stem
+        docket_number = Path(file).stem  # type: ignore[arg-type]
         return clean_string(docket_number)
 
     def _parse_first_link(self) -> str:
         """Extract the `href` attribute from the first `<a>` tag in the email
         body.
         """
-        return self.tree.find(".//a").get("href")
+        return self.tree.find(".//a").get("href")  # type: ignore[return-value, union-attr]
 
 
 def _main():

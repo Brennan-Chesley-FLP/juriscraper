@@ -129,19 +129,19 @@ def _parse_appeals_court(tree: HtmlElement) -> TexasAppealsCourt:
     container = tree.find(
         './/*[@id="ctl00_ContentPlaceHolder1_divCOAInfo"]/div/div/div[2]'
     )
-    info_container = container.find(
+    info_container = container.find(  # type: ignore[union-attr]
         './/*[@id="ctl00_ContentPlaceHolder1_pnlCOA"]'
     )
     # Texas gives the judge their own child element all to themselves for some
     # reason.
-    judge_container = container.find(
+    judge_container = container.find(  # type: ignore[union-attr]
         './/*[@id="ctl00_ContentPlaceHolder1_pnlCOAJudge"]'
     )
     if judge_container is None:
         judge_container = []
     case_info = {
         clean_string(row.find(".//*[1]").text_content()): row.find(".//*[2]")
-        for row in (list(info_container) + list(judge_container))
+        for row in (list(info_container) + list(judge_container))  # type: ignore[arg-type]
     }
     justice_node = case_info.get("COA Justice")
 
@@ -417,10 +417,10 @@ class TexasCommonScraper(AbstractParser[TexasCommonData]):
         :return: Dictionary containing the case information.
         """
         parent = self.tree.find('.//*[@id="case"]/..')
-        coa_parent = parent.find(
+        coa_parent = parent.find(  # type: ignore[union-attr]
             './/*[@id="ctl00_ContentPlaceHolder1_COAOnly"]'
         )
-        children = parent.iterfind('.//*[@class="row-fluid"]')
+        children = parent.iterfind('.//*[@class="row-fluid"]')  # type: ignore[union-attr]
 
         if coa_parent is not None:
             children = chain(
@@ -428,8 +428,8 @@ class TexasCommonScraper(AbstractParser[TexasCommonData]):
             )
 
         return {
-            self._extract_case_data_name(child.find(".//*[1]")): clean_string(
-                get_all_text(child.find(".//*[2]"))
+            self._extract_case_data_name(child.find(".//*[1]")): clean_string(  # type: ignore[arg-type]
+                get_all_text(child.find(".//*[2]"))  # type: ignore[arg-type]
             )
             for child in children
         }
@@ -641,7 +641,7 @@ class TexasCommonScraper(AbstractParser[TexasCommonData]):
         table = self.tree.find(
             './/table[@id="ctl00_ContentPlaceHolder1_grdParty_ctl00"]'
         )
-        parties = parse_table(table)
+        parties = parse_table(table)  # type: ignore[arg-type]
         n_parties = len(parties["Party"])
 
         return [
@@ -663,12 +663,12 @@ class TexasCommonScraper(AbstractParser[TexasCommonData]):
 
         :return: Trial court info.
         """
-        info_panel: HtmlElement = self.tree.find(
+        info_panel: HtmlElement = self.tree.find(  # type: ignore[assignment]
             './/*[@id="panelTrialCourtInfo"]/div[2]'
         )
         fields: dict[str, str] = {
-            clean_string(child.find(".//*[1]").text_content()): clean_string(
-                child.find(".//*[2]").text_content()
+            clean_string(child.find(".//*[1]").text_content()): clean_string(  # type: ignore[union-attr]
+                child.find(".//*[2]").text_content()  # type: ignore[union-attr]
             )
             for child in info_panel.iterchildren()
         }
@@ -699,7 +699,7 @@ class TexasCommonScraper(AbstractParser[TexasCommonData]):
             return []
         documents = parse_table(table)
         anchors = [parent.find(".//a") for parent in documents["0"]]
-        urls: list[str] = [anchor.get("href") for anchor in anchors]
+        urls: list[str] = [anchor.get("href") for anchor in anchors]  # type: ignore[misc, union-attr]
         query_dicts: list[dict[str, list[str]]] = [
             parse_qs(urlparse(url).query) for url in urls
         ]
@@ -712,7 +712,8 @@ class TexasCommonScraper(AbstractParser[TexasCommonData]):
             for document in documents["1"]
         ]
         file_size_matches = [
-            FILE_SIZE_RE.search(anchor.text_content()) for anchor in anchors
+            FILE_SIZE_RE.search(anchor.text_content())  # type: ignore[union-attr]
+            for anchor in anchors  # type: ignore[union-attr]
         ]
         file_size_strs = [
             match.group(0) if match is not None else ""

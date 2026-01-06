@@ -188,15 +188,15 @@ class Site(OpinionSiteLinear):
         :param link (etree.Element) The anchor element containing the PDF link.
         :return str The opinion type as a string.
         """
-        text = link.text.lower()
+        text = link.text.lower()  # type: ignore[union-attr]
         url = link.get("href")
-        if "per curiam" in text or url.endswith("pc.pdf"):
+        if "per curiam" in text or url.endswith("pc.pdf"):  # type: ignore[union-attr]
             op_type = OpinionType.UNANIMOUS
-        elif "in part" in text or url.endswith("cd.pdf"):
+        elif "in part" in text or url.endswith("cd.pdf"):  # type: ignore[union-attr]
             op_type = OpinionType.CONCURRING_IN_PART_AND_DISSENTING_IN_PART
-        elif "dissenting" in text or url.endswith("d.pdf"):
+        elif "dissenting" in text or url.endswith("d.pdf"):  # type: ignore[union-attr]
             op_type = OpinionType.DISSENT
-        elif "concurring" in text or url.endswith("c.pdf"):
+        elif "concurring" in text or url.endswith("c.pdf"):  # type: ignore[union-attr]
             op_type = OpinionType.CONCURRENCE
         else:
             op_type = OpinionType.MAJORITY

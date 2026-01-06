@@ -86,11 +86,11 @@ class Site(OpinionSiteLinear):
                 r"(?P<dockets>[SAC0-9, ]+)(?P<op_type> [A-Z].*)? (?P<case_name>.*)",
                 clean_text,
             )
-        op_type = m.group("op_type")
-        name = m.group("case_name")
+        op_type = m.group("op_type")  # type: ignore[union-attr]
+        name = m.group("case_name")  # type: ignore[union-attr]
         if op_type:
             name = f"{name} ({op_type.strip()})"
-        return m.group("dockets"), name
+        return m.group("dockets"), name  # type: ignore[union-attr]
 
     def _process_html(self) -> None:
         """Process the html and extract out the opinions

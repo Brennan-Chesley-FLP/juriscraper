@@ -64,7 +64,7 @@ class TexasCourtOfAppealsScraper(TexasCommonScraper):
         """
 
         common_data = super().data
-        court_name = clean_string(self.tree.find(".//h1").text_content())
+        court_name = clean_string(self.tree.find(".//h1").text_content())  # type: ignore[union-attr]
         transfer_from, transfer_to = self._parse_transfers()
 
         return TexasCourtOfAppealsDocket(

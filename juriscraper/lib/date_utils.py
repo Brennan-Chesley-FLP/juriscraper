@@ -170,9 +170,9 @@ def unique_year_month(
 
     for obj in date_list:
         if isinstance(obj, (date, datetime.datetime)):
-            obj = [obj]
+            obj = [obj]  # type: ignore[assignment]
 
-        for date_obj in obj:
+        for date_obj in obj:  # type: ignore[union-attr]
             ym = date_obj.strftime("%Y%m")
             if ym in seen_year_months:
                 continue

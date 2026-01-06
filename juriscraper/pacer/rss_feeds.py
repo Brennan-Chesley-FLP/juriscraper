@@ -365,7 +365,7 @@ class PacerRssFeed(DocketReport):
         else:
             regexes = [self.docket_number_dist_regex]
         for regex in regexes:
-            match = regex.search(title_text)
+            match = regex.search(title_text)  # type: ignore[arg-type]
             if match:
                 docket_number_components = self._parse_dn_components(
                     title_text

@@ -67,7 +67,7 @@ def generate_aws_sigv4_headers(
         "host": host,
         "x-amz-content-sha256": payload_hash,
         "x-amz-date": amz_date,
-        "x-amz-security-token": creds["SessionToken"],
+        "x-amz-security-token": creds["SessionToken"],  # type: ignore[index]
         "x-amz-target": target,
     }
     for h in sorted(signed_headers.split(";")):
@@ -95,7 +95,7 @@ def generate_aws_sigv4_headers(
     def sign(key, msg):
         return hmac.new(key, msg.encode(), hashlib.sha256).digest()
 
-    k_date = sign(("AWS4" + creds["SecretKey"]).encode(), date_stamp)
+    k_date = sign(("AWS4" + creds["SecretKey"]).encode(), date_stamp)  # type: ignore[index]
     k_region = sign(k_date, region)
     k_service = sign(k_region, service)
     k_signing = sign(k_service, "aws4_request")
@@ -107,10 +107,10 @@ def generate_aws_sigv4_headers(
     return {
         "Content-Type": "application/x-amz-json-1.0",
         "X-Amz-Date": amz_date,
-        "X-Amz-Security-Token": creds["SessionToken"],
+        "X-Amz-Security-Token": creds["SessionToken"],  # type: ignore[index]
         "X-Amz-Target": target,
         "Authorization": (
-            f"{algorithm} Credential={creds['AccessKeyId']}/{credential_scope}, "
+            f"{algorithm} Credential={creds['AccessKeyId']}/{credential_scope}, "  # type: ignore[index]
             f"SignedHeaders={signed_headers}, Signature={signature}"
         ),
         "X-Amz-Content-Sha256": payload_hash,

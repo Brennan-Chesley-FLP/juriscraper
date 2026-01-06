@@ -48,7 +48,7 @@ class WebDriven:
 
     def find_element(self, by: str, path: str) -> WebElement:
         if self.webdriver:
-            return self.webdriver.find_element(by, path)
+            return self.webdriver.find_element(by, path)  # type: ignore[attr-defined]
         raise Exception("webdriver not initiated")
 
     def find_element_by_class_name(self, path: str) -> WebElement:
@@ -61,7 +61,7 @@ class WebDriven:
         return self.find_element(By.XPATH, path)
 
     def get_page(self) -> WebElement:
-        text = clean_html(self.webdriver.page_source)
+        text = clean_html(self.webdriver.page_source)  # type: ignore[attr-defined]
         html = get_html_parsed_text(text)
         html.rewrite_links(fix_links_but_keep_anchors, base_href=self.url)
         return html
@@ -96,7 +96,7 @@ class WebDriven:
 
     def scroll_to_element_then_click(self, element: WebElement):
         script = "arguments[0].click();"
-        webdriver.Firefox.execute_script(script, element)
+        webdriver.Firefox.execute_script(script, element)  # type: ignore[arg-type]
 
     def select_form_option(self, form_id: str) -> Select:
         element = self.find_element_by_id(form_id)
@@ -122,4 +122,4 @@ class WebDriven:
     def take_screenshot(self, name: Optional[str] = None):
         """Use this method to snap screenshots during debugging"""
         name = name if name else f"screenshot.{self.__module__}.png"
-        self.webdriver.save_screenshot(name)
+        self.webdriver.save_screenshot(name)  # type: ignore[attr-defined]

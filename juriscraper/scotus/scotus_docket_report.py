@@ -65,37 +65,37 @@ class SCOTUSDocketReport:
         """
 
         scotus_data = self._scotus_json
-        docket_number = (scotus_data.get("CaseNumber", "")).strip()
+        docket_number = (scotus_data.get("CaseNumber", "")).strip()  # type: ignore[attr-defined]
         docket_number = (
             docket_number.replace("*** CAPITAL CASE ***", "").strip()
             if docket_number
             else None
         )
-        docket_date = scotus_data.get("DocketedDate", "")
-        respondent_title = scotus_data.get("RespondentTitle", "")
-        petitioner_title = scotus_data.get("PetitionerTitle", "")
+        docket_date = scotus_data.get("DocketedDate", "")  # type: ignore[attr-defined]
+        respondent_title = scotus_data.get("RespondentTitle", "")  # type: ignore[attr-defined]
+        petitioner_title = scotus_data.get("PetitionerTitle", "")  # type: ignore[attr-defined]
         case_name = (
             f"{petitioner_title} v. {respondent_title}"
             if respondent_title
             else petitioner_title
         )
-        lower_court = scotus_data.get("LowerCourt", "")
-        lower_court_case_numbers_raw = scotus_data.get(
+        lower_court = scotus_data.get("LowerCourt", "")  # type: ignore[attr-defined]
+        lower_court_case_numbers_raw = scotus_data.get(  # type: ignore[attr-defined]
             "LowerCourtCaseNumbers", ""
         )
-        lower_court_decision_date = scotus_data.get("LowerCourtDecision", "")
-        lower_court_rehearing_denied_date = scotus_data.get(
+        lower_court_decision_date = scotus_data.get("LowerCourtDecision", "")  # type: ignore[attr-defined]
+        lower_court_rehearing_denied_date = scotus_data.get(  # type: ignore[attr-defined]
             "LowerCourtRehearingDenied", ""
         )
-        links = scotus_data.get("Links", "").replace("Linked with", "").strip()
-        questions_presented_raw = scotus_data.get("QPLink", "")
+        links = scotus_data.get("Links", "").replace("Linked with", "").strip()  # type: ignore[attr-defined]
+        questions_presented_raw = scotus_data.get("QPLink", "")  # type: ignore[attr-defined]
         questions_presented = re.sub(
             r"^\.\.", self.SCOTUS_BASE_URL, questions_presented_raw
         )
 
         return {
             "docket_number": docket_number,
-            "capital_case": scotus_data.get("bCapitalCase"),
+            "capital_case": scotus_data.get("bCapitalCase"),  # type: ignore[attr-defined]
             "date_filed": self.normalize_date(docket_date),
             "case_name": case_name.strip() if case_name else "",
             "links": links,
@@ -116,7 +116,7 @@ class SCOTUSDocketReport:
             ),
             "questions_presented": questions_presented or None,
             "discretionary_court_decision": self.normalize_date(
-                scotus_data.get("DiscretionaryCourtDecision", "")
+                scotus_data.get("DiscretionaryCourtDecision", "")  # type: ignore[attr-defined]
             ),
         }
 
@@ -141,7 +141,7 @@ class SCOTUSDocketReport:
         :return: List of docket entry dicts
         """
         entries = []
-        for row in self._scotus_json.get("ProceedingsandOrder", []):
+        for row in self._scotus_json.get("ProceedingsandOrder", []):  # type: ignore[attr-defined]
             links = row.get("Links", [])
             document_number = None
             if links and (
@@ -205,7 +205,7 @@ class SCOTUSDocketReport:
             - attorneys: List of attorney dictionaries.
         """
 
-        type_parties = self._scotus_json.get(type_key, [])
+        type_parties = self._scotus_json.get(type_key, [])  # type: ignore[attr-defined]
         if not type_parties:
             return []
 
@@ -291,7 +291,7 @@ class SCOTUSDocketReport:
         # Case Slash-separated numbers with the same prefix: "98-35309/35509" or  "96-C-235/239/240/241"
         # Negative prefix-separated numbers: "99-1845,-1846,-1847,-197" or "98-60240,-60454,-60467,-"
         # "98-4033;-4214;-4246"
-        if self.LOWER_COURT_PATTERNS["common_prefix"].match(raw_text):
+        if self.LOWER_COURT_PATTERNS["common_prefix"].match(raw_text):  # type: ignore[attr-defined]
             # slash case
             if "/" in raw_text and not re.search(r"[;,]", raw_text):
                 parts = raw_text.split("/")
@@ -317,7 +317,7 @@ class SCOTUSDocketReport:
             return [f"{prefix}{n.strip('-')}" for n in numbers if n.strip("-")]
 
         # Case Comma-separated items with prefixes already correct: "33094-CW, 33095-CW"
-        if self.LOWER_COURT_PATTERNS["comma_correct_prefix"].match(raw_text):
+        if self.LOWER_COURT_PATTERNS["comma_correct_prefix"].match(raw_text):  # type: ignore[attr-defined]
             return raw_text.split(",")
 
         # Case Ampersand-separated with prefixes or 'See also'-separated with prefixes: "95-56639 & 96-55194" or "95-56639 See also 96-55194"
@@ -327,7 +327,7 @@ class SCOTUSDocketReport:
         # Case Preserve specific formats: "CR-99-1140", "1998-CA-0022039-MR"
         if any(
             p.match(raw_text)
-            for p in self.LOWER_COURT_PATTERNS["special_formats"]
+            for p in self.LOWER_COURT_PATTERNS["special_formats"]  # type: ignore[attr-defined]
         ):
             return raw_text.split(",")
 
@@ -340,9 +340,9 @@ class SCOTUSDocketReport:
             if " to " in range_part:
                 start, end = range_part.split(" to ")
                 if "-" in start:
-                    sprefix, snum = re.match(r"(\d+)-(\d+)", start).groups()
+                    sprefix, snum = re.match(r"(\d+)-(\d+)", start).groups()  # type: ignore[union-attr]
                     cleaned.append(f"{sprefix}-{snum}")
-                    end_num = int(re.match(r"(\d+-)?(\d+)", end).groups()[-1])
+                    end_num = int(re.match(r"(\d+-)?(\d+)", end).groups()[-1])  # type: ignore[union-attr]
                     cleaned.extend(
                         f"{sprefix}-{i}"
                         for i in range(int(snum) + 1, end_num + 1)

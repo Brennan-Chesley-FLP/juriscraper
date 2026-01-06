@@ -15,7 +15,7 @@ class Site(olc.Site):
         self.court_id = self.__module__
         self.back_scrape_iterable = range(1, 36)
 
-    def _download_backwards(self, page: int) -> None:
+    def _download_backwards(self, page: int) -> None:  # type: ignore[override]
         """Download backwards over the volume links in the DOJ OLC website.
 
         :param page: The page index for the URL

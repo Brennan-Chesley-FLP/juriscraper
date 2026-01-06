@@ -204,7 +204,7 @@ class Site(OpinionSiteLinear):
                 case["status"] = "Unknown"
 
             if not case.get("date"):
-                case["date_filed_is_approximate"] = True
+                case["date_filed_is_approximate"] = True  # type: ignore[assignment]
                 case["date"] = self.dates[1].strftime("%Y-%m-%d")
 
             if not case.get("docket"):
@@ -218,7 +218,7 @@ class Site(OpinionSiteLinear):
         :return None
         """
         logger.info("Backscraping for range %s %s", *dates)
-        self.dates = self.update_url(dates)
+        self.dates = self.update_url(dates)  # type: ignore[arg-type]
         self.html = self._download()
         self._process_html()
 
@@ -234,10 +234,10 @@ class Site(OpinionSiteLinear):
         """
         if not dates:
             today = datetime.now()
-            dates = (today - timedelta(7), today + timedelta(1))
+            dates = (today - timedelta(7), today + timedelta(1))  # type: ignore[assignment]
 
-        start = dates[0].strftime("%Y-%m-%d")
-        end = dates[1].strftime("%Y-%m-%d")
+        start = dates[0].strftime("%Y-%m-%d")  # type: ignore[index]
+        end = dates[1].strftime("%Y-%m-%d")  # type: ignore[index, misc]
         timestamp = str(datetime.now().timestamp())[:10]
         params = {**self.params}
         params.update(
@@ -247,7 +247,7 @@ class Site(OpinionSiteLinear):
             }
         )
         self.url = f"{self.base_url}?{urlencode(params)}"
-        return dates
+        return dates  # type: ignore[return-value]
 
     @staticmethod
     def cleanup_content(content):

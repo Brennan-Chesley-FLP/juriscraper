@@ -117,7 +117,7 @@ class Site(OpinionSiteLinear):
             )
             if not docket and fields.get("field_description"):
                 docket_str = fields["field_description"][0]["#text"]
-                docket = self.docket_regex.search(docket_str).group(0)
+                docket = self.docket_regex.search(docket_str).group(0)  # type: ignore[union-attr]
 
             name = re.sub(self.docket_regex, " ", name)
             # delete traces of multiple docket numbers
@@ -187,7 +187,7 @@ class Site(OpinionSiteLinear):
         self.html = self._download()
         self._process_html()
 
-    def make_backscrape_iterable(self, kwargs: dict) -> list[int]:
+    def make_backscrape_iterable(self, kwargs: dict) -> list[int]:  # type: ignore[override, return]
         """The API exposes no date filter, so we must query a year
         and then paginate the results.
         """

@@ -65,7 +65,7 @@ class Site(OpinionSiteLinear):
             "parties": "",
             "judges": "",
             "field_opinion_date_value[min][date]": start.strftime("%m/%d/%Y"),
-            "field_opinion_date_value[max][date]": end.strftime("%m/%d/%Y"),
+            "field_opinion_date_value[max][date]": end.strftime("%m/%d/%Y"),  # type: ignore[union-attr]
             "exclude": "",
         }
         self.url = f"{self.base_url}?{urlencode(params)}"

@@ -166,6 +166,6 @@ class Site(OpinionSiteLinear):
             result["Docket"] = {"appeal_from_str": lower_court}
 
         if match := re.search(regex, scraped_text[:1000]):
-            result["Citation"] = match.group("cite")
+            result["Citation"] = match.group("cite")  # type: ignore[assignment]
 
         return result

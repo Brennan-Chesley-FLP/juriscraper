@@ -3,7 +3,7 @@ import argparse
 import glob
 
 from lxml import etree
-from lxml.etree import _ElementStringResult
+from lxml.etree import _ElementStringResult  # type: ignore[attr-defined]
 
 __author__ = "mlissner"
 

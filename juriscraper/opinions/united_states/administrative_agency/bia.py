@@ -54,7 +54,7 @@ class Site(OpinionSiteLinear):
 
             citation, year = row_text.split("(", 1)
 
-            year = re.search(r"\d{4}", year).group(0)
+            year = re.search(r"\d{4}", year).group(0)  # type: ignore[union-attr]
             url = row.xpath(".//td[2]//a/@href")
             docket = row.xpath("string(.//td[2]//a)")
             self.cases.append(

@@ -161,5 +161,5 @@ class Site(OpinionSiteLinear):
         # page range append the reports' page URL to the iterable
         self.back_scrape_iterable = []
         for item in self.backscrape_date_range_mapper:
-            if max(item["start"], start) < min(item["end"] or now, end):
-                self.back_scrape_iterable.append((start, end, item["url"]))
+            if max(item["start"], start) < min(item["end"] or now, end):  # type: ignore[index]
+                self.back_scrape_iterable.append((start, end, item["url"]))  # type: ignore[index]

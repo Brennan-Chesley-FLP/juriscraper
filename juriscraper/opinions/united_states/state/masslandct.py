@@ -61,4 +61,4 @@ class Site(OpinionSite):
         ]
 
     def _get_precedential_statuses(self) -> list[str]:
-        return len(self.download_urls) * ["Published"]
+        return len(self.download_urls) * ["Published"]  # type: ignore[attr-defined]

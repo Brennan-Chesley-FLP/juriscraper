@@ -48,7 +48,7 @@ class MockRequest(Request):
             r.status_code = 404
             raise ConnectionError(e)
 
-        r._content_consumed = True
+        r._content_consumed = True  # ty: ignore[unresolved-attribute]
 
         #: Final URL location of Response.
         r.url = self.url
@@ -91,5 +91,5 @@ class MockResponse(Response):
     def __init__(self, status_code, content=None, headers=None, request=None):
         self.status_code = status_code
         self._content = content
-        self.headers = headers
-        self.request = request
+        self.headers = headers  # ty: ignore[invalid-assignment]
+        self.request = request  # ty: ignore[invalid-assignment]

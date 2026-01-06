@@ -24,7 +24,7 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        for row in self.html:
+        for row in self.html:  # ty: ignore[not-iterable]
             description = row["documentDescription"]
             if not description.startswith("Opinion"):
                 # skip orders and just do opinions

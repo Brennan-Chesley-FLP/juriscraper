@@ -20,7 +20,11 @@ class Site(OpinionSiteLinear):
     def _process_html(self):
         if self.test_mode_enabled():
             self.year = 2022
-        feed = feedparser.parse(self.request["response"].content)
+        feed = feedparser.parse(
+            self.request[
+                "response"
+            ].content  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         for item in feed["entries"]:
             if item.get("published_parsed", None) is None:
                 logger.warning("Skipping item with no published date")

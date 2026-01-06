@@ -27,18 +27,28 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for row in self.html.xpath("//table//tr[not(th)]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table//tr[not(th)]"
+        ):  # ty: ignore[possibly-missing-attribute]
             case = {
                 "name": row.xpath("td[1]/a/text()")[0].strip(),
                 "date": row.xpath("td[2]/span/text()")[0].strip(),
                 "docket": row.xpath("td[3]/span/text()")[0].strip(),
                 "url": urljoin(
-                    self.url, row.xpath("td[1]/a/@href")[0].strip()
+                    self.url,  # ty: ignore[invalid-argument-type]
+                    row.xpath("td[1]/a/@href")[
+                        0
+                    ].strip(),  # ty: ignore[invalid-argument-type]
                 ),
                 "judge": " ".join(row.xpath("td[6]/text()")).strip(),
                 "per_curiam": False,
             }
-            if "per curiam" in case["judge"].lower():
+            if (
+                "per curiam"
+                in case[
+                    "judge"
+                ].lower()  # ty: ignore[possibly-missing-attribute]
+            ):  # ty: ignore[possibly-missing-attribute]
                 case["judge"] = ""
                 case["per_curiam"] = True
 

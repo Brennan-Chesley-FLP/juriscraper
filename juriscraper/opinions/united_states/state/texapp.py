@@ -72,7 +72,11 @@ class Site(OpinionSiteLinear):
         to_date_param = self.make_date_param(self.end_date, end_date_str)
 
         self.parameters = {}
-        for hidden in self.html.xpath("//input[@type='hidden']"):
+        for (
+            hidden
+        ) in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//input[@type='hidden']"
+        ):  # ty: ignore[possibly-missing-attribute]
             value = hidden.xpath("@value")[0] if hidden.xpath("@value") else ""
             self.parameters[hidden.xpath("@name")[0]] = value
 
@@ -117,7 +121,9 @@ class Site(OpinionSiteLinear):
             self.html = super()._download()
 
         rows_xpath = "//table[@class='rgMasterTable']/tbody/tr[not(@class='rgNoRecords')]"
-        for row in self.html.xpath(rows_xpath):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            rows_xpath
+        ):  # ty: ignore[possibly-missing-attribute]
             # In texas we also have to ping the case page to get the name
             # this is unfortunately part of the process.
             self.seeds.append(row.xpath(".//a")[2].get("href"))
@@ -132,7 +138,11 @@ class Site(OpinionSiteLinear):
         next_page_xpath = (
             "//input[@title='Next Page' and not(@onclick='return false;')]"
         )
-        self.next_page = self.html.xpath(next_page_xpath)
+        self.next_page = (
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                next_page_xpath
+            )
+        )  # ty: ignore[possibly-missing-attribute]
         if self.next_page and not self.test_mode_enabled():
             self.current_page += 1
             logger.info(f"Paginating to page {self.current_page}")
@@ -169,7 +179,9 @@ class Site(OpinionSiteLinear):
 
         return DeferringList(seed=self.seeds, fetcher=get_name)
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Overrides present scraper start_date and end_date
 
         :param dates: (start_date, end_date) tuple
@@ -177,9 +189,9 @@ class Site(OpinionSiteLinear):
         """
         start, end = dates
         self.start_date = (
-            start.date() if not isinstance(start, date) else start
+            start.date() if not isinstance(start, date) else start  # type: ignore[attr-defined]
         )
-        self.end_date = end.date() if not isinstance(end, date) else end
+        self.end_date = end.date() if not isinstance(end, date) else end  # type: ignore[attr-defined]
         logger.info(
             "Backscraping for range %s %s", self.start_date, self.end_date
         )

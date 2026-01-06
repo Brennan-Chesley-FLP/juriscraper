@@ -24,7 +24,9 @@ class Site(OpinionSiteLinear):
         self.disable_certificate_verification()
 
     def _process_html(self) -> None:
-        for row in self.html.xpath(".//img[contains(@src, 'pdf.gif')]/../..")[
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//img[contains(@src, 'pdf.gif')]/../.."
+        )[  # ty: ignore[possibly-missing-attribute]
             :-1
         ]:
             status = row.xpath(".//td")[3].text_content()
@@ -40,7 +42,9 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Build URL with year input and scrape
 
         :param year: year to scrape

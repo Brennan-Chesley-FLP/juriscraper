@@ -29,7 +29,9 @@ class Site(OpinionSiteLinear):
         if self.test_mode_enabled():
             self.previous_date = datetime(2023, 9, 21).date()
 
-        for s in self.html.xpath(".//tr/td/.."):
+        for s in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//tr/td/.."
+        ):  # ty: ignore[possibly-missing-attribute]
             cells = s.xpath(".//td")
             if not cells[0].text_content():
                 continue

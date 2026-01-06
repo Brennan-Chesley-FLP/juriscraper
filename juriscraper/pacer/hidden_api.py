@@ -78,11 +78,21 @@ class PossibleCaseNumberApi(BaseReport):
          - bk - Bankruptcy
         There are others too, feel free to add them if you know them.
         """
-        case_count = self.tree.xpath("count(//case)")
-        nodes = self.tree.xpath("//case")
+        case_count = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "count(//case)"
+        )  # ty: ignore[possibly-missing-attribute]
+        nodes = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//case"
+        )  # ty: ignore[possibly-missing-attribute]
         if case_count == 0:
             try:
-                msg = self.tree.xpath("//message/@text")[0]
+                msg = (
+                    self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                        "//message/@text"
+                    )[  # ty: ignore[possibly-missing-attribute]
+                        0
+                    ]
+                )  # ty: ignore[possibly-missing-attribute]
             except IndexError:
                 pass
             else:
@@ -142,7 +152,9 @@ class PossibleCaseNumberApi(BaseReport):
                     # The IDs are not sequential. Can't use this technique.
                     pass
                 else:
-                    nodes = self.tree.xpath(f"//case[{attribute}={ids[0]}]")
+                    nodes = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                        f"//case[{attribute}={ids[0]}]"
+                    )  # ty: ignore[possibly-missing-attribute]
 
             if len(nodes) > 1 and case_name is not None:
                 # Disambiguate the possible case nodes to find the best one.
@@ -235,7 +247,7 @@ class ShowCaseDocApi(BaseReport):
     @property
     def data(self):
         """Get the URL out of the response object."""
-        url = self.response.url
+        url = self.response.url  # ty: ignore[possibly-missing-attribute]
         if "doc1" in url:
             return get_pacer_doc_id_from_doc1_url(url)
         else:
@@ -278,7 +290,9 @@ class AcmsCaseSearch(BaseReport):
                  if no data is found, the response is malformed, or an error
                  occurred.
         """
-        case_data = self.response.json()
+        case_data = (
+            self.response.json()  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         if not case_data:
             return {}
         return case_data[0]

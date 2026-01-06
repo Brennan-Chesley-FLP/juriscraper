@@ -51,7 +51,7 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for row in self.html:
+        for row in self.html:  # ty: ignore[not-iterable]
             url = urljoin(
                 "https://www.socialaw.com/services/slip-opinions/",
                 row["UrlName"],
@@ -100,7 +100,9 @@ class Site(OpinionSiteLinear):
         body.append(content)
         return html.tostring(new_tree).decode("utf-8")
 
-    def _download_backwards(self, search_date: date) -> None:
+    def _download_backwards(
+        self, search_date: date
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Download and process HTML for a given target date.
 
         :param search_date (date): The date for which to download and process opinions.
@@ -123,5 +125,5 @@ class Site(OpinionSiteLinear):
         """
         super().make_backscrape_iterable(kwargs)
         self.back_scrape_iterable = unique_year_month(
-            self.back_scrape_iterable
+            self.back_scrape_iterable  # ty: ignore[invalid-argument-type]
         )

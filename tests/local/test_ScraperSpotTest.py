@@ -65,7 +65,9 @@ class ScraperSpotTest(unittest.TestCase):
         }
         for s in strings.items():
             m = re.search(r"(.*?) \((.*?)\)( \((.*?)\))?", s[0])
-            name, docket, _, date = m.groups()
+            name, docket, _, date = (
+                m.groups()  # ty: ignore[possibly-missing-attribute]
+            )  # ty: ignore[possibly-missing-attribute]
             self.assertEqual([name, docket], s[1])
 
     def test_massappct(self):
@@ -125,5 +127,7 @@ class ScraperSpotTest(unittest.TestCase):
         }
         for s in strings.items():
             m = re.search(r"(.*?) \((.*?)\)( \((.*?)\))?", s[0])
-            name, docket, _, date = m.groups()
+            name, docket, _, date = (
+                m.groups()  # ty: ignore[possibly-missing-attribute]
+            )  # ty: ignore[possibly-missing-attribute]
             self.assertEqual([name, docket], s[1])

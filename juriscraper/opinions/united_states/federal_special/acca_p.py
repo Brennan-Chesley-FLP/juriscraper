@@ -20,7 +20,7 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        for row in self.html.xpath(
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             '//*[@id="Opinions_ResizeContainer"]/table/tbody/tr'
         ):
             col1, col2, col3 = row.xpath(".//td")

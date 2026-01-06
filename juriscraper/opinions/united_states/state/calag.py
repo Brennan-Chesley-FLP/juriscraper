@@ -36,7 +36,9 @@ class Site(OpinionSiteLinear):
 
         :return: none
         """
-        for row in self.html.xpath("//table/tbody/tr[.//a]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table/tbody/tr[.//a]"
+        ):  # ty: ignore[possibly-missing-attribute]
             docket = row.xpath(".//a//strong/text()")[0].strip()
             # Citation may not exist (yet?)
             citation = row.xpath(".//strong/em/text()")
@@ -51,7 +53,9 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def _download_backwards(self, year: str) -> None:
+    def _download_backwards(
+        self, year: str
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Download backwards
 
         :param year: The year to scrape

@@ -26,7 +26,7 @@ class Site(OpinionSiteLinear):
         self.make_backscrape_iterable(kwargs)
 
     def _process_html(self) -> None:
-        for row in self.html["results"]:
+        for row in self.html["results"]:  # ty: ignore[not-subscriptable]
             date, docket, notes, name = list(row["data"].values())
             url = row["documents"][0]["document"]["download_url"]
             if notes == "Unpublished":
@@ -43,7 +43,9 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range request
 
         "6e61b248-ef67-423e-b321-f2ed8ad05728" seems to be the name

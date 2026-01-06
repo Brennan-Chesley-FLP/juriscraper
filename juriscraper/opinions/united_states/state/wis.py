@@ -50,7 +50,9 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for row in self.html.xpath(".//table/tbody/tr"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//table/tbody/tr"
+        ):  # ty: ignore[possibly-missing-attribute]
             date, docket, caption, link = row.xpath("./td")
             self.cases.append(
                 {
@@ -76,7 +78,9 @@ class Site(OpinionSiteLinear):
 
         return {}
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Set date range from backscraping args and scrape
 
         :param dates: (start_date, end_date) tuple

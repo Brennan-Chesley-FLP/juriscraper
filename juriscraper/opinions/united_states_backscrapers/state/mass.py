@@ -55,7 +55,9 @@ class Site(OpinionSiteLinear):
 
         :return None
         """
-        for row in self.html.xpath("//tr[td/a]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr[td/a]"
+        ):  # ty: ignore[possibly-missing-attribute]
             _, date_filed_str, *name = row.xpath("td/text()")
             # Edge case where date is a range "December 8, 2000 - January 3, 2001"
             date_filed_str = date_filed_str.partition(" - ")[0]
@@ -122,7 +124,7 @@ class Site(OpinionSiteLinear):
             "OpinionCluster": {"headnotes": headnotes, "summary": summary},
         }
 
-    def _download_backwards(
+    def _download_backwards(  # ty: ignore[invalid-method-override]
         self, dates_and_url: tuple[date, date, str]
     ) -> None:
         """Set proper `masscases.com` url as self.url, and parse content

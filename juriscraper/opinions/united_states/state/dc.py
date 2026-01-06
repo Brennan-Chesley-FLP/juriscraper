@@ -31,7 +31,9 @@ class Site(OpinionSiteLinear):
         :return: None
         """
 
-        for row in self.html.xpath(self.base_path):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            self.base_path
+        ):  # ty: ignore[possibly-missing-attribute]
             docket = row.xpath("./td[1]/a/text()")[0].strip()
             url = row.xpath("./td[1]/a/@href")[0].strip()
             name = row.xpath("./td[2]/text()")[0].strip()

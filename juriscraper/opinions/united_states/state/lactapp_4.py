@@ -40,7 +40,9 @@ class Site(OpinionSiteLinear):
 
         # XPath for the opinion results
         opinion_results_xpath = "//div[contains(@class, 'opinion-result')]"
-        results = self.html.xpath(opinion_results_xpath)
+        results = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            opinion_results_xpath
+        )  # ty: ignore[possibly-missing-attribute]
 
         self.cases = []
         for result in results:
@@ -77,20 +79,24 @@ class Site(OpinionSiteLinear):
 
         :return None
         """
-        self.parameters.update(
+        self.parameters.update(  # ty: ignore[possibly-missing-attribute]
             {
                 "ctl00$Main$ddlOpMonth": self.search_date.strftime("%B"),
                 "ctl00$Main$ddlOpYear": self.search_date.strftime("%Y"),
             }
         )
 
-        for input in self.html.xpath('//input[@type="hidden"][@name]'):
+        for input in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//input[@type="hidden"][@name]'
+        ):  # ty: ignore[possibly-missing-attribute]
             name = input.get("name")
             value = input.get("value", "")
 
-            self.parameters[name] = value
+            self.parameters[name] = value  # ty: ignore[invalid-assignment]
 
-    def _download_backwards(self, search_date: date) -> None:
+    def _download_backwards(
+        self, search_date: date
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Download and process HTML for a given target date.
 
         :param search_date (date): The date for which to download and process opinions.
@@ -109,7 +115,7 @@ class Site(OpinionSiteLinear):
         """
         super().make_backscrape_iterable(kwargs)
         self.back_scrape_iterable = unique_year_month(
-            self.back_scrape_iterable
+            self.back_scrape_iterable  # ty: ignore[invalid-argument-type]
         )
 
     def _download(self, request_dict=None) -> HtmlElement:

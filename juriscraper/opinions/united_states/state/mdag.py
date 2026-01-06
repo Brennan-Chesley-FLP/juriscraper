@@ -27,7 +27,7 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self):
         self.json = self.html
-        for row in self.json["d"]["results"]:
+        for row in self.json["d"]["results"]:  # ty: ignore[not-subscriptable]
             docket_number = row["Title"]
             title = "Maryland Attorney General Opinion " + docket_number
             year = row["Year"]

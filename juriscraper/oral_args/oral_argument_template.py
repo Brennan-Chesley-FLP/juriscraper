@@ -39,7 +39,9 @@ class Site(OralArgumentSite):
         object's cleanup routines, so doing so here is not needed.
         """
         path = "//path/to/text/text()"
-        return list(self.html.xpath(path))
+        return list(
+            self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_names(self):
         """This example demonstrates how to extract text from an element that
@@ -56,7 +58,9 @@ class Site(OralArgumentSite):
         cases where the name is provided in uppercase only.
         """
         case_names = []
-        for e in self.html.xpath("//path/to/an/element/p"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//path/to/an/element/p"
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode")
             case_names.append(titlecase(s))
         return case_names
@@ -70,7 +74,9 @@ class Site(OralArgumentSite):
         path = "//path/to/text/text()"
         return [
             convert_date_string(date_string)
-            for date_string in self.html.xpath(path)
+            for date_string in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                path
+            )  # ty: ignore[possibly-missing-attribute]
         ]
 
     """
@@ -95,7 +101,9 @@ class Site(OralArgumentSite):
       Optional method used for downloading multiple pages of a court site.
     """
 
-    def _download_backwards(self, date_str):
+    def _download_backwards(
+        self, date_str
+    ):  # ty: ignore[invalid-method-override]
         """This is a simple method that can be used to generate Site objects
         that can be used to paginate through a court's entire website.
 

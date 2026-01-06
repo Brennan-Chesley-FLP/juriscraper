@@ -13,7 +13,9 @@ class Site(OpinionSiteLinear):
         self.court_id = self.__module__
 
     def _process_html(self):
-        for item in self.html.xpath(".//item"):
+        for item in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//item"
+        ):  # ty: ignore[possibly-missing-attribute]
             for e in item.xpath(
                 ".//description/text()",
                 namespaces={"dc": "http://purl.org/dc/elements/1.1/"},

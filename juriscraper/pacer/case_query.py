@@ -124,7 +124,11 @@ class CaseQuery(BaseDocketReport, BaseReport):
         # delimited by <br>s. This approach is more structured:
         center_path = './/div[@id="cmecfMainContent"]//center'
         try:
-            center = self.tree.xpath(center_path)[0]
+            center = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                center_path
+            )[  # ty: ignore[possibly-missing-attribute]
+                0
+            ]  # ty: ignore[possibly-missing-attribute]
         except IndexError:
             # Can happen for sealed cases? We have at least one test case here.
             self._metadata = {}
@@ -327,7 +331,7 @@ def _main():
     filepath = sys.argv[1]
     print(f"Parsing HTML file at {filepath}")
     with open(filepath) as f:
-        text = f.read().decode("utf-8")
+        text = f.read().decode("utf-8")  # ty: ignore[unresolved-attribute]
     report._parse_text(text)
     pprint.pprint(report.data, indent=2)
 

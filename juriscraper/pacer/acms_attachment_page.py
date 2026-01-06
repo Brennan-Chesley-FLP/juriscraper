@@ -18,7 +18,10 @@ class ACMSAttachmentPage(BaseReport):
 
     def __init__(self, court_id, pacer_session=None):
         super().__init__(court_id, pacer_session)
-        self.api_client = AcmsApiClient(pacer_session, court_id)
+        self.api_client = AcmsApiClient(
+            pacer_session,  # ty: ignore[invalid-argument-type]
+            court_id,  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type]
 
     def _parse_text(self, text):
         """Store the ACMS JSON
@@ -99,8 +102,12 @@ class ACMSAttachmentPage(BaseReport):
         # Attachment requests include user-specific data in the request body,
         # so the session must have the necessary authentication data
         # initialized beforehand.
-        if not self.session.acms_user_data:
-            self.session.get_acms_auth_object(self.court_id)
+        if (
+            not self.session.acms_user_data  # ty: ignore[possibly-missing-attribute]
+        ):  # ty: ignore[possibly-missing-attribute]
+            self.session.get_acms_auth_object(  # ty: ignore[possibly-missing-attribute]
+                self.court_id
+            )  # ty: ignore[possibly-missing-attribute]
 
         # Fetch Docket Entry Details
         docket_info = self.api_client.get_docket_entries(case_id)
@@ -162,33 +169,65 @@ class ACMSAttachmentPage(BaseReport):
 
         case_details = self._acms_json["caseDetails"]
         docket_entry = self._acms_json["docketEntry"]
-        de_text = strip_bad_html_tags_insecure(docket_entry["docketEntryText"])
+        de_text = strip_bad_html_tags_insecure(
+            docket_entry[  # ty: ignore[invalid-argument-type]
+                "docketEntryText"
+            ]  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type]
         result = {
-            "pacer_doc_id": docket_entry["docketEntryId"],
-            "pacer_case_id": case_details["caseId"],
-            "entry_number": docket_entry["entryNumber"],
+            "pacer_doc_id": docket_entry[  # ty: ignore[invalid-argument-type]
+                "docketEntryId"
+            ],  # ty: ignore[invalid-argument-type]
+            "pacer_case_id": case_details[  # ty: ignore[invalid-argument-type]
+                "caseId"
+            ],  # ty: ignore[invalid-argument-type]
+            "entry_number": docket_entry[  # ty: ignore[invalid-argument-type]
+                "entryNumber"
+            ],  # ty: ignore[invalid-argument-type]
             "description": unicodedata.normalize(
                 "NFKD", de_text.text_content()
             ),
-            "date_filed": convert_date_string(docket_entry["createdOn"]),
-            "date_end": convert_date_string(docket_entry["endDate"]),
+            "date_filed": convert_date_string(
+                docket_entry["createdOn"]  # ty: ignore[invalid-argument-type]
+            ),  # ty: ignore[invalid-argument-type]
+            "date_end": convert_date_string(
+                docket_entry["endDate"]  # ty: ignore[invalid-argument-type]
+            ),  # ty: ignore[invalid-argument-type]
             "attachments": [],
         }
 
         for row in self._acms_json["docketEntryDocuments"]:
-            result["attachments"].append(
+            result[
+                "attachments"
+            ].append(  # ty: ignore[possibly-missing-attribute]
                 {
-                    "attachment_number": int(row["documentNumber"]),
+                    "attachment_number": int(
+                        row[  # ty: ignore[invalid-argument-type]
+                            "documentNumber"
+                        ]  # ty: ignore[invalid-argument-type]
+                    ),  # ty: ignore[invalid-argument-type]
                     "description": self._clean_attachment_description(
-                        row["name"]
+                        row["name"]  # ty: ignore[invalid-argument-type]
                     ),
-                    "page_count": row["billablePages"],
-                    "pacer_doc_id": docket_entry["docketEntryId"],
-                    "acms_document_guid": row["docketDocumentDetailsId"],
-                    "cost": row["cost"],
-                    "date_filed": convert_date_string(row["createdOn"]),
-                    "permission": row["documentPermission"],
-                    "file_size": row["fileSize"],
+                    "page_count": row[  # ty: ignore[invalid-argument-type]
+                        "billablePages"
+                    ],  # ty: ignore[invalid-argument-type]
+                    "pacer_doc_id": docket_entry[  # ty: ignore[invalid-argument-type]
+                        "docketEntryId"
+                    ],  # ty: ignore[invalid-argument-type]
+                    "acms_document_guid": row[  # ty: ignore[invalid-argument-type]
+                        "docketDocumentDetailsId"
+                    ],  # ty: ignore[invalid-argument-type]
+                    "cost": row["cost"],  # ty: ignore[invalid-argument-type]
+                    "date_filed": convert_date_string(
+                        row["createdOn"]  # ty: ignore[invalid-argument-type]
+                    ),  # ty: ignore[invalid-argument-type]
+                    "permission": row[  # ty: ignore[invalid-argument-type]
+                        "documentPermission"
+                    ],  # ty: ignore[invalid-argument-type]
+                    "file_size": row[  # ty: ignore[invalid-argument-type]
+                        "fileSize"
+                    ],  # ty: ignore[invalid-argument-type]
                 }
             )
 

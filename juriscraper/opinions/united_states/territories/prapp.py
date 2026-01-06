@@ -32,7 +32,7 @@ class Site(OpinionSiteLinear):
         self.status = "Published"
         self.make_backscrape_iterable(kwargs)
 
-    def _download(self):
+    def _download(self):  # ty: ignore[invalid-method-override]
         """Download case pages
 
         If a backscrape ignore the need to find the correct page
@@ -55,7 +55,10 @@ class Site(OpinionSiteLinear):
                 return
 
             self.url = latest_url[0]
-        if self.current_month not in self.url:
+        if (
+            self.current_month
+            not in self.url  # ty: ignore[unsupported-operator]
+        ):  # ty: ignore[unsupported-operator]
             logger.debug(
                 f"No opinions yet posted for current month {self.current_month}, moving to most recent month."
             )
@@ -106,12 +109,18 @@ class Site(OpinionSiteLinear):
 
         months = []
         while current <= end_date.replace(day=1):
-            months.append(self.format_spanish_month_year(current))
+            months.append(
+                self.format_spanish_month_year(
+                    current  # ty: ignore[invalid-argument-type]
+                )  # ty: ignore[invalid-argument-type]
+            )  # ty: ignore[invalid-argument-type]
             current += relativedelta(months=1)
 
         self.back_scrape_iterable = months
 
-    def _download_backwards(self, year_month: str):
+    def _download_backwards(
+        self, year_month: str
+    ):  # ty: ignore[invalid-method-override]
         """Download backwards
 
         :param year_month: spanish year month used to generate url
@@ -123,7 +132,9 @@ class Site(OpinionSiteLinear):
         self.html = self._download()
         self._process_html()
 
-    def format_spanish_month_year(self, datetime_obj: datetime) -> str:
+    def format_spanish_month_year(  # ty: ignore[invalid-argument-type]
+        self, datetime_obj: datetime
+    ) -> str:  # ty: ignore[invalid-argument-type]
         """Generate month year slug in spanish
 
         Use this method to avoid issues with changing locale to spanish

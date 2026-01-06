@@ -22,7 +22,14 @@ class Site(OralArgumentSite):
 
     def _get_download_urls(self):
         path = "id('list')//tr//a/text()"
-        return list(map(self._return_download_url, self.html.xpath(path)))
+        return list(
+            map(
+                self._return_download_url,
+                self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                    path
+                ),  # ty: ignore[possibly-missing-attribute]
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     @staticmethod
     def _return_download_url(d):
@@ -32,21 +39,30 @@ class Site(OralArgumentSite):
 
     def _get_case_names(self):
         path = "id('list')//tr/td/span/text()"
-        return [s.lstrip(". ") for s in self.html.xpath(path)]
+        return [
+            s.lstrip(". ")
+            for s in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                path
+            )  # ty: ignore[possibly-missing-attribute]
+        ]  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_dates(self):
         path = "id('list')//tr/td[2]//text()"
         return [
             datetime.strptime(s, "%m/%d/%y").date()
-            for s in self.html.xpath(path)
+            for s in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                path
+            )  # ty: ignore[possibly-missing-attribute]
             if "Date" not in s
         ]
 
     def _get_docket_numbers(self):
         path = "id('list')//tr//a/text()"
-        return list(self.html.xpath(path))
+        return list(
+            self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
-    def _download_backwards(self, year):
+    def _download_backwards(self, year):  # ty: ignore[invalid-method-override]
         self.url = (
             f"http://www.supremecourt.gov/oral_arguments/argument_audio/{year}"
         )

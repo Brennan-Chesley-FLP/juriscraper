@@ -16,7 +16,9 @@ class Site(cit_2010.Site):
 
     def _get_case_dates(self):
         case_dates = []
-        for e in self.html.xpath("//table[3]/tr/td[3][../td/a]"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table[3]/tr/td[3][../td/a]"
+        ):  # ty: ignore[possibly-missing-attribute]
             date_string = html.tostring(
                 e, method="text", encoding="unicode"
             ).strip()

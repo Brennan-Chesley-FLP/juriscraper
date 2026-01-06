@@ -23,7 +23,7 @@ class PacerCaseQueryTest(unittest.TestCase):
         self.report.query(self.pacer_case_id)
         self.assertIn(
             "Foley v. Bates",
-            self.report.response.text,
+            self.report.response.text,  # ty: ignore[possibly-missing-attribute]
             msg="Super basic query failed",
         )
 

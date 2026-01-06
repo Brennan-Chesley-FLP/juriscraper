@@ -9,7 +9,9 @@ class Site(mo.Site):
         self.url = self.build_url()
 
     def _process_html(self):
-        for row in self.html.xpath("//div[@class='margin-bottom-15']"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//div[@class='margin-bottom-15']"
+        ):  # ty: ignore[possibly-missing-attribute]
             date = row.xpath(".//input")[0].value
             for opinion in row.xpath(".//div[@class='list-group-item-text']"):
                 url = opinion.xpath("a")[0].get("href")

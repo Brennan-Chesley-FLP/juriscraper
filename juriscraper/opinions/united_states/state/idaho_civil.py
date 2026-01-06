@@ -44,7 +44,9 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self):
         row_xpath = f"//table//tr[.//{self.path_conditional_anchor}]"
-        for row in self.html.xpath(row_xpath):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            row_xpath
+        ):  # ty: ignore[possibly-missing-attribute]
             url = self.get_opinion_url(row).replace("http://", "https://")
 
             # Sanitize case date, fix typo in date format

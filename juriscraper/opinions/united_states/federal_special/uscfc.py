@@ -31,13 +31,19 @@ class Site(OpinionSiteLinear):
         """
         judges_mapper = {
             option.get("value"): option.text_content()
-            for option in self.html.xpath("//select[@name='judge']//option")
+            for option in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//select[@name='judge']//option"
+            )  # ty: ignore[possibly-missing-attribute]
         }
         judges_mapper.pop("UNKNOWN", "")
         judges_mapper.pop("all", "")
 
         raw_data = (
-            self.html.xpath("//script")[0]
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//script"
+            )[  # ty: ignore[possibly-missing-attribute]
+                0
+            ]  # ty: ignore[possibly-missing-attribute]
             .text_content()
             .strip()
             .strip("; ")

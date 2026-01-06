@@ -65,18 +65,20 @@ class BaseDocketReport:
 
     def _clear_caches(self):
         """Clear any caches that are on the object."""
-        for attr in self.CACHE_ATTRS:
+        for attr in self.CACHE_ATTRS:  # ty: ignore[unresolved-attribute]
             setattr(self, f"_{attr}", None)
 
     @property
     def data(self):
         """Get all the data back from this endpoint."""
-        if self.is_valid is False:
+        if self.is_valid is False:  # ty: ignore[unresolved-attribute]
             return {}
 
-        data = self.metadata.copy()
-        data["parties"] = self.parties
-        data["docket_entries"] = self.docket_entries
+        data = self.metadata.copy()  # ty: ignore[unresolved-attribute]
+        data["parties"] = self.parties  # ty: ignore[unresolved-attribute]
+        data["docket_entries"] = (
+            self.docket_entries  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
         return data
 
     @staticmethod
@@ -155,7 +157,11 @@ class BaseDocketReport:
 
     def _get_str_from_tree(self, path):
         try:
-            s = self.tree.xpath(f"{path}/text()")[0].strip()
+            s = self.tree.xpath(  # ty: ignore[unresolved-attribute]
+                f"{path}/text()"
+            )[  # ty: ignore[unresolved-attribute]
+                0
+            ].strip()  # ty: ignore[unresolved-attribute]
         except IndexError:
             return ""  # Return an empty string. Don't return None.
         else:
@@ -298,7 +304,11 @@ class BaseDocketReport:
         Failing that, it will assume UTC.
         """
         try:
-            s = self.tree.xpath(f"{path}/text()")[0].strip()
+            s = self.tree.xpath(  # ty: ignore[unresolved-attribute]
+                f"{path}/text()"
+            )[  # ty: ignore[unresolved-attribute]
+                0
+            ].strip()  # ty: ignore[unresolved-attribute]
         except IndexError:
             return None
         else:
@@ -495,7 +505,9 @@ class DocketReport(BaseDocketReport, BaseReport):
 
         :return: True if is the docket report is not blank, otherwise False.
         """
-        rows = self.tree.xpath("//tr")
+        rows = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr"
+        )  # ty: ignore[possibly-missing-attribute]
         valid_content = False
         for row in rows:
             if row.getchildren():
@@ -655,7 +667,9 @@ class DocketReport(BaseDocketReport, BaseReport):
             '    ./td[1]//b/text()[contains(., "-----")]'
             "]/../tr"
         )
-        party_rows = self.tree.xpath(path)
+        party_rows = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            path
+        )  # ty: ignore[possibly-missing-attribute]
 
         parties = []
         party = {}
@@ -898,7 +912,9 @@ class DocketReport(BaseDocketReport, BaseReport):
                 if count_name == "None":
                     # No counts here. (Happens with terminated ones a lot.)
                     continue
-                criminal_data["counts"].append(
+                criminal_data[
+                    "counts"
+                ].append(  # ty: ignore[possibly-missing-attribute]
                     {
                         "name": count_name,
                         "disposition": disposition,
@@ -917,7 +933,9 @@ class DocketReport(BaseDocketReport, BaseReport):
                 if complaint_name == "None":
                     # No counts here. (Happens with terminated ones a lot.)
                     continue
-                criminal_data["complaints"].append(
+                criminal_data[
+                    "complaints"
+                ].append(  # ty: ignore[possibly-missing-attribute]
                     {
                         "name": complaint_name,
                         "disposition": disposition,
@@ -1059,7 +1077,11 @@ class DocketReport(BaseDocketReport, BaseReport):
                                 role.lower().startswith("designation"),
                             ]
                         ):
-                            attorney["roles"].append(role)
+                            attorney[
+                                "roles"
+                            ].append(  # ty: ignore[possibly-missing-attribute]
+                                role
+                            )  # ty: ignore[possibly-missing-attribute]
 
                 nxt_is_b_tag = isinstance(nxt, HtmlElement) and nxt.tag == "b"
                 if nxt is None or nxt_is_b_tag:
@@ -1100,7 +1122,7 @@ class DocketReport(BaseDocketReport, BaseReport):
             'selected documents")])'
         )
         footer_multi_doc = 'not(.//text()[contains(., "Footer format:")])'
-        docket_entry_all_rows = self.tree.xpath(
+        docket_entry_all_rows = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table"
             f"[preceding-sibling::table[{docket_header}] or {docket_header}]"
             f"[{bankr_multi_doc}]"
@@ -1335,7 +1357,11 @@ class DocketReport(BaseDocketReport, BaseReport):
         # Detect if the report was generated with "View multiple documents"
         # option enabled.
         view_multiple_documents = False
-        view_multi_docs = self.tree.xpath("//form[@name='view_multi_docs']")
+        view_multi_docs = (
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//form[@name='view_multi_docs']"
+            )
+        )  # ty: ignore[possibly-missing-attribute]
         if view_multi_docs:
             view_multiple_documents = True
         docket_entries = []
@@ -1424,7 +1450,7 @@ class DocketReport(BaseDocketReport, BaseReport):
 
         adversary_proceeding = False
         path = '//*[text()[contains(., "Adversary Proceeding")]]'
-        if self.tree.xpath(path):
+        if self.tree.xpath(path):  # ty: ignore[possibly-missing-attribute]
             adversary_proceeding = True
 
         self._is_adversary_proceeding = adversary_proceeding
@@ -1550,7 +1576,7 @@ class DocketReport(BaseDocketReport, BaseReport):
 
     def _set_metadata_values(self):
         # The first ancestor table of the table cell containing "date filed"
-        table = self.tree.xpath(
+        table = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
             # Match any td containing Date [fF]iled
             '//td[.//text()[contains(translate(., "f", "F"), "Date Filed:") '
             'or contains(translate(., "d", "D"), "Filed Date:")]]'
@@ -1634,7 +1660,11 @@ class DocketReport(BaseDocketReport, BaseReport):
         ]
         for regex in regexes:
             try:
-                desc = re.search(regex.format(ws=ws), s).group(1)
+                desc = re.search(
+                    regex.format(ws=ws), s
+                ).group(  # ty: ignore[possibly-missing-attribute]
+                    1
+                )  # ty: ignore[possibly-missing-attribute]
                 break
             except AttributeError:
                 continue
@@ -1658,7 +1688,13 @@ class DocketReport(BaseDocketReport, BaseReport):
             # This is probably a sub docket to a larger case. Use that title.
             try:
                 path = '//i[contains(., "Lead BK Title")]/following::text()'
-                case_name = self.tree.xpath(path)[0].strip()
+                case_name = (
+                    self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                        path
+                    )[  # ty: ignore[possibly-missing-attribute]
+                        0
+                    ].strip()
+                )  # ty: ignore[possibly-missing-attribute]
             except IndexError:
                 case_name = "Unknown Case Title"
 
@@ -1708,7 +1744,9 @@ class DocketReport(BaseDocketReport, BaseReport):
             docket_number_path = "//center//font"
         else:
             docket_number_path = "//h3"
-        nodes = self.tree.xpath(docket_number_path)
+        nodes = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            docket_number_path
+        )  # ty: ignore[possibly-missing-attribute]
         string_nodes = [s.text_content() for s in nodes]
         return self._parse_docket_number_strs(string_nodes)
 
@@ -1716,7 +1754,9 @@ class DocketReport(BaseDocketReport, BaseReport):
         if self.is_adversary_proceeding:
             # Add the next table too, if it contains the nature of suit.
             path = '//table[contains(., "Nature[s] of")]//tr'
-            rows = self.tree.xpath(path)
+            rows = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                path
+            )  # ty: ignore[possibly-missing-attribute]
             nos = []
             for row in rows:
                 cell_texts = [
@@ -1738,7 +1778,11 @@ class DocketReport(BaseDocketReport, BaseReport):
         else:
             # No luck getting it in the metadata_values attribute. Broaden
             # the search to look in the entire docket HTML.
-            text_nodes = self.tree.xpath("//text()")
+            text_nodes = (
+                self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                    "//text()"
+                )
+            )  # ty: ignore[possibly-missing-attribute]
             text_nodes = [t for t in text_nodes if t and not t.isspace()]
             judge_str = self._get_value(judge_regex, text_nodes)
             return normalize_judge_string(judge_str)[0]

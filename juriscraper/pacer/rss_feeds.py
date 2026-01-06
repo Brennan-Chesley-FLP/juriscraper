@@ -175,7 +175,7 @@ class PacerRssFeed(DocketReport):
         else:
             return f"https://ecf.{self.court_id}.uscourts.gov/{self.PATH}"
 
-    def query(self):
+    def query(self):  # ty: ignore[invalid-method-override]
         """Query the RSS feed for a given court ID
 
         Note that we use requests here, and so we forgo some of the
@@ -197,12 +197,18 @@ class PacerRssFeed(DocketReport):
         # Previously, this value has been (60, 300), then 5. Hopefully the
         # below is a reasonable middle ground.
         timeout = (5, 20)
-        self.response = self.session.get(self.url, timeout=timeout)
+        self.response = (
+            self.session.get(  # ty: ignore[possibly-missing-attribute]
+                self.url, timeout=timeout
+            )
+        )  # ty: ignore[possibly-missing-attribute]
 
     def parse(self):
         self._clear_caches()
-        self.response.raise_for_status()
-        self._parse_text(self.response.text)
+        self.response.raise_for_status()  # ty: ignore[possibly-missing-attribute]
+        self._parse_text(
+            self.response.text  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _parse_text(self, text):
         """Parse the feed and set self.feed
@@ -318,7 +324,9 @@ class PacerRssFeed(DocketReport):
             de["pacer_seq_no"] = None
 
         if self.is_appellate:
-            set_pacer_doc_id_as_appellate_document_number(de)
+            set_pacer_doc_id_as_appellate_document_number(
+                de  # ty: ignore[invalid-argument-type]
+            )  # ty: ignore[invalid-argument-type]
 
         return [de]
 
@@ -335,10 +343,17 @@ class PacerRssFeed(DocketReport):
         )
         m = data_parts_re.search(entry_text)
         return {
-            "type": m.group("type"),
-            "office": m.group("office"),
-            "chapter": m.group("chapter"),
-            "trustee_str": m.group("trustee") or "",
+            "type": m.group("type"),  # ty: ignore[possibly-missing-attribute]
+            "office": m.group(  # ty: ignore[possibly-missing-attribute]
+                "office"
+            ),  # ty: ignore[possibly-missing-attribute]
+            "chapter": m.group(  # ty: ignore[possibly-missing-attribute]
+                "chapter"
+            ),  # ty: ignore[possibly-missing-attribute]
+            "trustee_str": m.group(  # ty: ignore[possibly-missing-attribute]
+                "trustee"
+            )  # ty: ignore[possibly-missing-attribute]
+            or "",  # ty: ignore[possibly-missing-attribute]
         }
 
     def _parse_docket_number(
@@ -373,7 +388,9 @@ class PacerRssFeed(DocketReport):
                 return match.group(1), docket_number_components
         return None, self._return_default_dn_components()
 
-    def _get_case_name(self, title_text):
+    def _get_case_name(
+        self, title_text
+    ):  # ty: ignore[invalid-method-override]
         # 1:18-cv-04423 Chau v. Gorg &amp; Smith et al --> Chau v. Gorg & Smith
         try:
             case_name = title_text.split(" ", 1)[1]
@@ -431,7 +448,9 @@ sorry if that was your filename.""",
                 % (args.court_or_file, feed.court_id)
             )
             f = open(args.court_or_file)  # noqa: SIM115
-        feed._parse_text(f.read().decode("utf-8"))
+        feed._parse_text(
+            f.read().decode("utf-8")  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     print(f"Got {len(feed.data)} items")
     if args.verbose:

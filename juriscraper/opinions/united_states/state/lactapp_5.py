@@ -41,7 +41,9 @@ class Site(OpinionSiteLinear):
             # We need to set the proper search filter the first time
             if not self.search_is_configured:
                 self.update_hidden_inputs()
-                self.parameters["__EVENTTARGET"] = (
+                self.parameters[
+                    "__EVENTTARGET"
+                ] = (  # ty: ignore[invalid-assignment]
                     "ctl00$cntBody$ctlOpinionSearch_Toggle$ddlSearchOptions"
                 )
                 self.html = self._download()
@@ -53,9 +55,19 @@ class Site(OpinionSiteLinear):
             self.html = self._download()
 
         count_xpath = "//*[@id='cntBody_ctlOpinionSearch_Toggle_lblRecordCnt']"
-        logger.info(self.html.xpath(count_xpath)[0].text_content().strip())
+        logger.info(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                count_xpath
+            )[  # ty: ignore[possibly-missing-attribute]
+                0
+            ]  # ty: ignore[possibly-missing-attribute]
+            .text_content()
+            .strip()  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
-        for row in self.html.xpath("//tr[.//a[contains(@id, 'HyperLink_')]]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr[.//a[contains(@id, 'HyperLink_')]]"
+        ):  # ty: ignore[possibly-missing-attribute]
             fixed_values = {}
             for id_part, key in self.id_to_case_mapper.items():
                 element = row.xpath(f".//*[contains(@id, '{id_part}')]")
@@ -99,8 +111,16 @@ class Site(OpinionSiteLinear):
         """Parse form values characteristic of aspx sites,
         and put then on self.parameters for POST use
         """
-        for input in self.html.xpath('//input[@type="hidden"]'):
-            self.parameters[input.get("name")] = input.get("value", "")
+        for input in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//input[@type="hidden"]'
+        ):  # ty: ignore[possibly-missing-attribute]
+            self.parameters[
+                input.get("name")
+            ] = (  # ty: ignore[invalid-assignment]
+                input.get(  # ty: ignore[invalid-assignment]
+                    "value", ""
+                )
+            )  # ty: ignore[invalid-assignment]
 
     def update_date_filters(self) -> None:
         """Set year and month values from `self.target_date`
@@ -121,7 +141,9 @@ class Site(OpinionSiteLinear):
             "ctl00$cntBody$ctlOpinionSearch_Toggle$btnSearch": "Search",
         }
 
-    def _download_backwards(self, target_date: date) -> None:
+    def _download_backwards(
+        self, target_date: date
+    ) -> None:  # ty: ignore[invalid-method-override]
         self.target_date = target_date
         self.html = self._download()
         self._process_html()
@@ -129,5 +151,5 @@ class Site(OpinionSiteLinear):
     def make_backscrape_iterable(self, kwargs):
         super().make_backscrape_iterable(kwargs)
         self.back_scrape_iterable = unique_year_month(
-            self.back_scrape_iterable
+            self.back_scrape_iterable  # ty: ignore[invalid-argument-type]
         )

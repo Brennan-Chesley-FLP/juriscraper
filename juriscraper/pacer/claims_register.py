@@ -83,7 +83,11 @@ class ClaimsRegister(BaseDocketReport, BaseReport):
         }
         # The title row has some weird labels that look like:
         #  <span class="label">Closed</span> 10/26/2018
-        label_nodes = self.tree.xpath('//span[@class="label"]')
+        label_nodes = (
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                '//span[@class="label"]'
+            )
+        )  # ty: ignore[possibly-missing-attribute]
         for label_node in label_nodes:
             data.update(
                 self._get_label_value_pair(label_node, False, field_mappings)
@@ -91,7 +95,7 @@ class ClaimsRegister(BaseDocketReport, BaseReport):
 
         # Each cell in the header table has a value like:
         # <td><b>Judge:</b>  Barbara J. Houser</td>
-        cells = self.tree.xpath(
+        cells = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
             "//center/p/following-sibling::table[1]//td[text() and b]"
         )
         for cell in cells:
@@ -102,7 +106,11 @@ class ClaimsRegister(BaseDocketReport, BaseReport):
 
         # Finally, do the cells in the footer area. These look like:
         # <b>Case Name:</b> Scottish Holdings, Inc. <br>
-        label_nodes = self.tree.xpath("//center/b")
+        label_nodes = (
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//center/b"
+            )
+        )  # ty: ignore[possibly-missing-attribute]
         for label_node in label_nodes:
             data.update(
                 self._get_label_value_pair(label_node, True, field_mappings)
@@ -154,7 +162,11 @@ class ClaimsRegister(BaseDocketReport, BaseReport):
         if self._claims is not None:
             return self._claims
 
-        claim_tables = self.tree.xpath('//table[@class="complexReport"]')
+        claim_tables = (
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                '//table[@class="complexReport"]'
+            )
+        )  # ty: ignore[possibly-missing-attribute]
         claims = []
         for claim_table in claim_tables:
             claim = {}
@@ -219,7 +231,13 @@ class ClaimsRegister(BaseDocketReport, BaseReport):
         """Get the claim_number and date fields"""
         data = {}
         claim_number_text = td.xpath(".//b")[0].text_content()
-        claim_number = int(re.search(r"\d+", claim_number_text).group(0))
+        claim_number = int(
+            re.search(
+                r"\d+", claim_number_text
+            ).group(  # ty: ignore[possibly-missing-attribute]
+                0
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         data["claim_number"] = claim_number
 
         labels = td.xpath(".//i")

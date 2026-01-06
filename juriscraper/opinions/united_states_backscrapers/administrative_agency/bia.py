@@ -14,7 +14,9 @@ class Site(bia.Site):
         self.court_id = self.__module__
         self.back_scrape_iterable = range(0, 21)
 
-    def _download_backwards(self, volume: int) -> None:
+    def _download_backwards(
+        self, volume: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Download backwards over the volume links in the DOJ BIA website.
 
         :param volume: The volume index for the URL

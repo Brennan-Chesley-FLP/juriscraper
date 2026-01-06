@@ -30,7 +30,9 @@ class Site(OralArgumentSiteLinear):
 
     def _process_html(self):
         anchor_xpath = "a[contains(@href, '/recordings/docs/') and contains(@href, '.mp3')]"
-        for row in self.html.xpath(f"//div[div[div[div[{anchor_xpath}]]]]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            f"//div[div[div[div[{anchor_xpath}]]]]"
+        ):  # ty: ignore[possibly-missing-attribute]
             ahref = row.xpath(f".//{anchor_xpath}")
             url = ahref[0].xpath("@href")[0]
             docket = ahref[0].xpath("text()")[0]
@@ -57,7 +59,9 @@ class Site(OralArgumentSiteLinear):
                 }
             )
 
-    def _download_backwards(self, target_date: date) -> None:
+    def _download_backwards(
+        self, target_date: date
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Download historical data
 
         Note that this URL will work:
@@ -79,5 +83,5 @@ class Site(OralArgumentSiteLinear):
         """
         super().make_backscrape_iterable(kwargs)
         self.back_scrape_iterable = unique_year_month(
-            self.back_scrape_iterable
+            self.back_scrape_iterable  # ty: ignore[invalid-argument-type]
         )

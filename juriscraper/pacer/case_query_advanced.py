@@ -55,7 +55,7 @@ class BaseCaseQueryAdvanced(BaseDocketReport, BaseReport):
         if self.is_valid is False:
             return {}
 
-        return self.metadata
+        return self.metadata  # ty: ignore[unresolved-attribute]
 
     @staticmethod
     def get_text_for_cell(cell):
@@ -110,7 +110,7 @@ class CaseQueryAdvancedBankruptcy(BaseCaseQueryAdvanced):
         # we just nuke them. They're not that important to us now anyway. But
         # none would deny this is a hackish way to normalize the results.
 
-        table_rows = self.tree.xpath(
+        table_rows = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
             '//table//tr[@class="rowBackground1" or @class="rowbackground2"]'
         )
         data = []
@@ -275,7 +275,7 @@ def _main():
     filepath = sys.argv[1]
     print(f"Parsing HTML file at {filepath}")
     with open(filepath) as f:
-        text = f.read().decode("utf-8")
+        text = f.read().decode("utf-8")  # ty: ignore[unresolved-attribute]
     report._parse_text(text)
     pprint.pprint(report.data, indent=2)
 

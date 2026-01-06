@@ -76,7 +76,9 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self):
         json_data = self.html
-        for item in json_data["d"]["DataObject"]:
+        for item in json_data["d"][  # ty: ignore[not-subscriptable]
+            "DataObject"
+        ]:  # ty: ignore[not-subscriptable]
             docket, clean_name = self.extract_case_name_info(item["Name"])
             case = {
                 "name": clean_name,

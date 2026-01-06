@@ -44,7 +44,9 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for row in self.html.xpath(self.row_xpath):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            self.row_xpath
+        ):  # ty: ignore[possibly-missing-attribute]
             title = row.xpath("string(span[@class='title'])")
             links = row.xpath("span[@class='title']/@onclick")
             summary = row.xpath("string(span[@class='desc'])")
@@ -53,7 +55,9 @@ class Site(OpinionSiteLinear):
                 continue
             url = links[0][13:-2].replace("http:", "https:")
             m = re.search(self.pattern, title)
-            name, citation, docket, status = m.groups()
+            name, citation, docket, status = (
+                m.groups()  # ty: ignore[possibly-missing-attribute]
+            )  # ty: ignore[possibly-missing-attribute]
             author = row.xpath("string(span[@class='author']/i)").strip()
             per_curiam = author == "Per Curiam"
             date = self.extract_date(row)
@@ -83,7 +87,9 @@ class Site(OpinionSiteLinear):
         # Second pattern for ncctapp unpublished opinions
         return self.coa_rgx.search(date_block).group("date")  # type: ignore[union-attr]
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Build year URL and scrape
 
         :param year: year to scrape

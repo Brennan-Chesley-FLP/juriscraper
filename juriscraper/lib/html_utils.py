@@ -73,7 +73,7 @@ def get_html5_parsed_text(text: str) -> HtmlElement:
     )
 
 
-def get_table_column_text(
+def get_table_column_text(  # ty: ignore[invalid-argument-type]
     html: HtmlElement,
     cell_num: int,
     path_base: Optional[str] = None,
@@ -85,7 +85,7 @@ def get_table_column_text(
     return [cell.text_content().strip() for cell in html.xpath(path)]
 
 
-def get_table_column_links(
+def get_table_column_links(  # ty: ignore[invalid-argument-type]
     html: HtmlElement,
     cell_num: int,
     path_base: Optional[str] = None,

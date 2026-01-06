@@ -34,7 +34,9 @@ class Site(OpinionSiteLinear):
 
         :return None
         """
-        rows = self.html.xpath("//div[@class='info']")
+        rows = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//div[@class='info']"
+        )  # ty: ignore[possibly-missing-attribute]
         if len(rows) >= 25:
             logger.info(
                 "25 results for this query, results may be lost in pagination"
@@ -110,7 +112,9 @@ class Site(OpinionSiteLinear):
             return {"OpinionCluster": {"docket_number": match[0]}}
         return {}
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range request
 
         :param dates: (start_date, end_date) tuple

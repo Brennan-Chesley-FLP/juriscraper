@@ -90,7 +90,7 @@ class DocketHistoryReport(DocketReport):
         self._metadata = data
         return data
 
-    def query(
+    def query(  # ty: ignore[invalid-method-override]
         self,
         pacer_case_id,
         query_type="History",
@@ -155,7 +155,7 @@ class DocketHistoryReport(DocketReport):
             return self._docket_entries
 
         docket_header = './/th/text()[contains(., "Description")]'
-        docket_entry_rows = self.tree.xpath(
+        docket_entry_rows = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
             f"//table[{docket_header}]/tbody/tr"
         )[1:]  # Skip first row
 
@@ -225,7 +225,9 @@ class DocketHistoryReport(DocketReport):
                 return convert_date_string(m.group(1))
 
     def _set_metadata_values(self):
-        text_nodes = self.tree.xpath("//center[not(.//table)]//text()")
+        text_nodes = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//center[not(.//table)]//text()"
+        )  # ty: ignore[possibly-missing-attribute]
         values = []
         for s in text_nodes:
             s = clean_string(force_unicode(s))
@@ -286,7 +288,9 @@ class DocketHistoryReport(DocketReport):
             ]
         else:
             regexes = [self.docket_number_dist_regex]
-        nodes = self.tree.xpath('//center//font[@size="+1"]')
+        nodes = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//center//font[@size="+1"]'
+        )  # ty: ignore[possibly-missing-attribute]
         string_nodes = [s.text_content() for s in nodes]
         for regex in regexes:
             for s in string_nodes:

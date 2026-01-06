@@ -43,7 +43,9 @@ class Site(OpinionSite):
         object's cleanup routines, so doing so here is not needed.
         """
         path = "//path/to/text/text()"
-        return list(self.html.xpath(path))
+        return list(
+            self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_names(self):
         """
@@ -61,7 +63,9 @@ class Site(OpinionSite):
         cases where the name is provided in uppercase only.
         """
         case_names = []
-        for e in self.html.xpath("//path/to/an/element/p"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//path/to/an/element/p"
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode")
             case_names.append(titlecase(s))
         return case_names
@@ -76,7 +80,9 @@ class Site(OpinionSite):
         path = "//path/to/text/text()"
         return [
             convert_date_string(date_string)
-            for date_string in self.html.xpath(path)
+            for date_string in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                path
+            )  # ty: ignore[possibly-missing-attribute]
         ]
 
     def _get_precedential_statuses(self):
@@ -85,7 +91,9 @@ class Site(OpinionSite):
         'Published' or 'Unpublished', as below.
         """
         statuses = []
-        for e in self.html.xpath("//path/to/text/text()"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//path/to/text/text()"
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode")
             if "Opinion" in s:
                 statuses.append("Published")
@@ -225,7 +233,9 @@ class Site(OpinionSite):
         """
         return content
 
-    def _download_backwards(self, date_str):
+    def _download_backwards(
+        self, date_str
+    ):  # ty: ignore[invalid-method-override]
         """
         This is a simple method that can be used to generate Site objects
         that can be used to paginate through a court's entire website.

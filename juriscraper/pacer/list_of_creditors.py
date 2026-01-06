@@ -50,9 +50,11 @@ class ListOfCreditors(BaseDocketReport, BaseReport):
             return self._metadata
 
         try:
-            raw_data = self.tree.xpath(
-                '//form[@name="bnc"]//input[@name="data"]/@value'
-            )[0]
+            raw_data = (
+                self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                    '//form[@name="bnc"]//input[@name="data"]/@value'
+                )[0]
+            )
         except IndexError:
             raw_data = None
         meta_data = {
@@ -69,7 +71,13 @@ class ListOfCreditors(BaseDocketReport, BaseReport):
         return: A valid POST param to query the report.
         """
 
-        action_value = self.tree.xpath('//form[@method="POST"]/@action')[0]
+        action_value = (
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                '//form[@method="POST"]/@action'
+            )[  # ty: ignore[possibly-missing-attribute]
+                0
+            ]
+        )  # ty: ignore[possibly-missing-attribute]
         param = action_value.split("?")[1]
         return param
 
@@ -84,7 +92,7 @@ class ListOfCreditors(BaseDocketReport, BaseReport):
         params = {
             "format": "rawdata",
             "useragentstring": "CM/ECF-BK V10.6.4",
-            "data": self._metadata["data"],
+            "data": self._metadata["data"],  # ty: ignore[not-subscriptable]
         }
         req_timeout = (60, 300)
         r = requests.post(

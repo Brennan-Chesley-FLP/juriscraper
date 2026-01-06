@@ -69,7 +69,7 @@ class Site(OpinionSiteLinear):
     def _process_html(self) -> None:
         json_response = self.html
 
-        for case in json_response["data"]:
+        for case in json_response["data"]:  # ty: ignore[not-subscriptable]
             fields = case["fields"]
 
             if fields["field_document_file"]:
@@ -142,11 +142,19 @@ class Site(OpinionSiteLinear):
         self.paginate = False  # prevent recursion
 
         logger.info(
-            "Found %s results, will paginate through", json_response["total"]
+            "Found %s results, will paginate through",
+            json_response["total"],  # ty: ignore[not-subscriptable]
         )
-        for page in range(2, json_response["last_page"] + 1):
+        for page in range(
+            2,
+            json_response["last_page"] + 1,  # ty: ignore[not-subscriptable]
+        ):  # ty: ignore[not-subscriptable]
             logger.info("Paginating to page %s", page)
-            self.url = self.url.replace(f"page={page - 1}", f"page={page}")
+            self.url = (
+                self.url.replace(  # ty: ignore[possibly-missing-attribute]
+                    f"page={page - 1}", f"page={page}"
+                )
+            )  # ty: ignore[possibly-missing-attribute]
             self.html = self._download()
             self._process_html()
 
@@ -180,7 +188,9 @@ class Site(OpinionSiteLinear):
             "X-Requested-With": "XMLHttpRequest",
         }
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         self.paginate = True
         self.set_request_parameters(year)
         logger.info("Backscraping year %s", year)

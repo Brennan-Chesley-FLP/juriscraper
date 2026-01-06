@@ -27,7 +27,11 @@ class Site(OpinionSiteLinear):
         self.json = self.html
 
         # Processes only the first result to scrape the most recent data.
-        item = self.json["_embedded"]["results"][0]
+        item = self.json["_embedded"][  # ty: ignore[not-subscriptable]
+            "results"
+        ][  # ty: ignore[not-subscriptable]
+            0
+        ]  # ty: ignore[not-subscriptable]
 
         date_filed = item["scheduledDate"][:10]
         for publicationItem in item["publicationItems"]:

@@ -51,7 +51,9 @@ class Site(OpinionSiteLinear):
         :return: None
         """
         path = "//table[@class='Dashboard']/tbody/tr"
-        for item in self.html.xpath(path):
+        for item in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            path
+        ):  # ty: ignore[possibly-missing-attribute]
             url = item.xpath(".//td/a/@href")[0]
             first_cell = item.xpath(".//td/a/text()")[0]
             tds = item.xpath(".//td")
@@ -94,7 +96,9 @@ class Site(OpinionSiteLinear):
                 )
             )
 
-    def _download_backwards(self, page_number: int) -> None:
+    def _download_backwards(
+        self, page_number: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Method used by backscraper to download historical records
 
         :param page_number: an element of self.back_scrape_iterable

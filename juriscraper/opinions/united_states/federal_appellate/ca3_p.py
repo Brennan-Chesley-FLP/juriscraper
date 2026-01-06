@@ -14,14 +14,26 @@ class Site(OpinionSite):
         self.court_id = self.__module__
 
     def _get_case_names(self):
-        return list(self.html.xpath('//a[contains(@href, "opinarch")]/text()'))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                '//a[contains(@href, "opinarch")]/text()'
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_download_urls(self):
-        return list(self.html.xpath('//a[contains(@href, "opinarch")]/@href'))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                '//a[contains(@href, "opinarch")]/@href'
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_dates(self):
         dates = []
-        for text_string in self.html.xpath("//text()"):
+        for (
+            text_string
+        ) in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//text()"
+        ):  # ty: ignore[possibly-missing-attribute]
             if not text_string.lower().startswith("filed"):
                 continue
             else:
@@ -32,7 +44,11 @@ class Site(OpinionSite):
 
     def _get_docket_numbers(self):
         docket_numbers = []
-        for text_string in self.html.xpath("//text()"):
+        for (
+            text_string
+        ) in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//text()"
+        ):  # ty: ignore[possibly-missing-attribute]
             if not text_string.lower().startswith("filed"):
                 continue
             else:
@@ -41,10 +57,13 @@ class Site(OpinionSite):
 
     def _get_precedential_statuses(self):
         statuses = []
-        for _ in range(0, len(self.case_names)):
-            if "recprec" in self.url:
+        for _ in range(
+            0,
+            len(self.case_names),  # ty: ignore[unresolved-attribute]
+        ):  # ty: ignore[unresolved-attribute]
+            if "recprec" in self.url:  # ty: ignore[unsupported-operator]
                 statuses.append("Published")
-            elif "recnonprec" in self.url:
+            elif "recnonprec" in self.url:  # ty: ignore[unsupported-operator]
                 statuses.append("Unpublished")
             else:
                 statuses.append("Unknown")
@@ -52,7 +71,9 @@ class Site(OpinionSite):
 
     def _get_lower_courts(self):
         lower_courts = []
-        for e in self.html.xpath('//a[contains(@href, "opinarch")]'):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//a[contains(@href, "opinarch")]'
+        ):  # ty: ignore[possibly-missing-attribute]
             text_strings = e.xpath("./following-sibling::text()[1]")
             text_string = " ".join(text_strings)
             if (

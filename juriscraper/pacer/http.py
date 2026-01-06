@@ -413,7 +413,9 @@ class PacerSession(requests.Session):
                 "Did not get NextGenCSO cookie when attempting PACER login."
             )
         # Set up cookie with 'nextGenCSO' token (128-byte string of characters)
-        session_cookies = requests.cookies.RequestsCookieJar()
+        session_cookies = (
+            requests.cookies.RequestsCookieJar()  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         session_cookies.set(
             "NextGenCSO",
             response_json.get("nextGenCSO"),

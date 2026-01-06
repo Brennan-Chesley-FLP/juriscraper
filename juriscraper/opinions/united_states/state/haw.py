@@ -31,7 +31,9 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for row in self.html.xpath("//tr[@class='row-']"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr[@class='row-']"
+        ):  # ty: ignore[possibly-missing-attribute]
             date, court, docket, name, lower_court, citation = row.xpath(
                 ".//td"
             )
@@ -78,7 +80,9 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def _download_backwards(self, search_date: date) -> None:
+    def _download_backwards(
+        self, search_date: date
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Download and process HTML for a given target date.
 
         :param search_date (date): The date for which to download and process opinions.
@@ -86,13 +90,22 @@ class Site(OpinionSiteLinear):
         and processes the HTML to extract case details.
         """
 
-        self.request["parameters"]["params"] = {
+        self.request["parameters"][
+            "params"
+        ] = {  # ty: ignore[invalid-assignment]
             "yr": search_date.year,
             "mo": f"{search_date.month:02d}",
         }
         logger.info(
             "Now downloading case page at: %s (params: %s)"
-            % (self.url, self.request["parameters"]["params"])
+            % (
+                self.url,
+                self.request[
+                    "parameters"
+                ][  # ty: ignore[invalid-argument-type]
+                    "params"
+                ],  # ty: ignore[invalid-argument-type, not-subscriptable]
+            )  # ty: ignore[invalid-argument-type, not-subscriptable]
         )
         self.html = self._download()
         self._process_html()
@@ -105,5 +118,5 @@ class Site(OpinionSiteLinear):
         """
         super().make_backscrape_iterable(kwargs)
         self.back_scrape_iterable = unique_year_month(
-            self.back_scrape_iterable
+            self.back_scrape_iterable  # ty: ignore[invalid-argument-type]
         )

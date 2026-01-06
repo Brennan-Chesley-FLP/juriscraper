@@ -33,7 +33,11 @@ class Site(OpinionSiteLinear):
         self.status = "Published"
         # juriscraper in the user agent crashes it
         # it appears to be just straight up blocked.
-        self.request["headers"]["user-agent"] = "Free Law Project"
+        self.request["headers"][
+            "user-agent"
+        ] = (  # ty: ignore[invalid-assignment]
+            "Free Law Project"  # ty: ignore[invalid-assignment]
+        )
         self.end_date = date.today()
         self.start_date = self.end_date - timedelta(days=30)
         self.is_citation_visible = True
@@ -171,7 +175,9 @@ class Site(OpinionSiteLinear):
 
         self.back_scrape_iterable = [(start, end)]
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Called when backscraping
 
         :param dates: (start_date, end_date) tuple

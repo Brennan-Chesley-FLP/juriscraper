@@ -17,7 +17,9 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self) -> None:
-        for row in self.html.xpath("//table/tr[not(th)]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table/tr[not(th)]"
+        ):  # ty: ignore[possibly-missing-attribute]
             name = row.xpath(".//*[@class='op-title']/text()")[0]
 
             split = self.date_regex.split(name)[0]

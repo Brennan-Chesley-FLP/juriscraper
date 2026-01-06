@@ -13,7 +13,7 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        for row in self.html.xpath(
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//div[@id='content']//p[a[contains(@href, '.pdf')]]"
         ):
             texts = row.xpath("text()")
@@ -25,12 +25,15 @@ class Site(OpinionSiteLinear):
             # pick longest text; if not, HTML comments may cause wrong indexing
             text = sorted(texts)[-1]
             neutral_cite_match = re.search(r"\d{4} UT( App)? \d{1,}", text)
-            citation = neutral_cite_match.group(0)
+            citation = neutral_cite_match.group(  # ty: ignore[possibly-missing-attribute]
+                0
+            )  # ty: ignore[possibly-missing-attribute]
 
             filed_index = text.find("Filed")
             docket = text[:filed_index].strip(", ")
             date_filed = text[
-                filed_index + 5 : neutral_cite_match.start()
+                filed_index
+                + 5 : neutral_cite_match.start()  # ty: ignore[possibly-missing-attribute]
             ].strip(" ,")
 
             self.cases.append(

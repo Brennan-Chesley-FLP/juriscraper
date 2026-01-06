@@ -32,14 +32,25 @@ class Site(OpinionSite):
         ]
 
     def _get_case_names(self):
-        return [titlecase(t) for t in self.html.xpath("//table/td[2]/text()")]
+        return [
+            titlecase(t)
+            for t in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table/td[2]/text()"
+            )  # ty: ignore[possibly-missing-attribute]
+        ]  # ty: ignore[possibly-missing-attribute]
 
     def _get_download_urls(self):
-        return list(self.html.xpath("//table/td/b/a/@href"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table/td/b/a/@href"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_dates(self):
         dates = []
-        for e in self.html.xpath("//table/td[3]/text()"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table/td[3]/text()"
+        ):  # ty: ignore[possibly-missing-attribute]
             dates.append(
                 date.fromtimestamp(time.mktime(time.strptime(e, "%m-%d-%Y")))
             )
@@ -47,12 +58,19 @@ class Site(OpinionSite):
 
     def _get_docket_numbers(self):
         return [
-            e.text_content() for e in self.html.xpath("//table/td/b/a/nobr")
+            e.text_content()
+            for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table/td/b/a/nobr"
+            )  # ty: ignore[possibly-missing-attribute]
         ]
 
     def _get_precedential_statuses(self):
         statuses = []
-        for status in self.html.xpath("//table/td[4]/text()"):
+        for (
+            status
+        ) in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table/td[4]/text()"
+        ):  # ty: ignore[possibly-missing-attribute]
             if "opn" in status.lower():
                 statuses.append("Published")
             elif "sum" in status.lower():

@@ -49,7 +49,9 @@ class Site(OpinionSiteLinear):
 
         :return None
         """
-        for case in self.html.xpath(".//article"):
+        for case in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//article"
+        ):  # ty: ignore[possibly-missing-attribute]
             name_url_span = case.xpath(
                 ".//div[contains(@class, 'views-field-name')]"
             )[0]
@@ -76,7 +78,9 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range request
         :param dates: (start_date, end_date) tuple
         :return None
@@ -144,7 +148,10 @@ class Site(OpinionSiteLinear):
             # update court_id for opinions that have a VT citation, that are
             # marked on the source as belonging to one of the superior court
             # divisions. Check test_ScraperExtractFromTextTest examples
-            if "vtsuperct" in self.court_id:
+            if (
+                "vtsuperct"
+                in self.court_id  # ty: ignore[unsupported-operator]
+            ):  # ty: ignore[unsupported-operator]
                 metadata["Docket"] = {"court_id": "vt"}
 
         non_precedential_heading = (

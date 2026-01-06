@@ -61,14 +61,21 @@ class Site(OralArgumentSiteLinear):
             self._set_parameters()
             self._request_url_post(self.data_url)
 
-        for row in self.request["response"].json()["data"]:
+        for row in self.request[
+            "response"
+        ].json()[  # ty: ignore[possibly-missing-attribute]
+            "data"
+        ]:  # ty: ignore[possibly-missing-attribute]
             _, name, _, url, _ = row[2].split('"')
             self.cases.append(
                 {
                     "date": row[0],
                     "docket": row[1],
                     "name": name,
-                    "url": urljoin(self.url, url),
+                    "url": urljoin(
+                        self.url,  # ty: ignore[invalid-argument-type]
+                        url,  # ty: ignore[invalid-argument-type]
+                    ),  # ty: ignore[invalid-argument-type]
                 }
             )
 
@@ -88,7 +95,7 @@ class Site(OralArgumentSiteLinear):
 
         :return:None
         """
-        wdt_nonce = self.html.xpath(
+        wdt_nonce = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             ".//input[@id='wdtNonceFrontendServerSide_8']/@value"
         )
 
@@ -127,4 +134,4 @@ class Site(OralArgumentSiteLinear):
             self.end_date = date.today()
             self.start_date = self.end_date - timedelta(days=30)
 
-        return f"{self.start_date.strftime('%m/%d/%Y')}|{self.end_date.strftime('%m/%d/%Y')}"
+        return f"{self.start_date.strftime('%m/%d/%Y')}|{self.end_date.strftime('%m/%d/%Y')}"  # ty: ignore[possibly-missing-attribute]

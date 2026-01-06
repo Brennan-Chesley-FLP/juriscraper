@@ -101,7 +101,11 @@ class ClaimsActivity(BaseDocketReport, BaseReport):
             "remarks": "remarks",
         }
 
-        claim_tables = self.tree.xpath('//table[@class="complexReport"]')
+        claim_tables = (
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                '//table[@class="complexReport"]'
+            )
+        )  # ty: ignore[possibly-missing-attribute]
         for claim_table in claim_tables:
             meta_data = {
                 "court_id": self.court_id,

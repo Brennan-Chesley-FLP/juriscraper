@@ -57,7 +57,9 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self):
         xpath = ".//p[contains(@class, '{}')]/text()"
-        for row in self.html.xpath("//div[contains(@class,'case-result')]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//div[contains(@class,'case-result')]"
+        ):  # ty: ignore[possibly-missing-attribute]
             date_filed = row.xpath("preceding-sibling::div[h3]/h3/text()")[-1]
             docket = row.xpath(xpath.format("case-number"))[0]
             name = row.xpath(xpath.format("case-name"))[0]
@@ -82,17 +84,19 @@ class Site(OpinionSiteLinear):
 
     def make_backscrape_iterable(  # type: ignore[override, return]
         self, kwargs: dict
-    ) -> list[tuple[date, date]]:
+    ) -> list[tuple[date, date]]:  # ty: ignore[invalid-return-type]
         """Reuse base function to get a sequence of date objects for
         each month in the interval. Then, convert them to target URLs
         and replace the self.back_scrape_iterable
         """
         super().make_backscrape_iterable(kwargs)
         self.back_scrape_iterable = unique_year_month(
-            self.back_scrape_iterable
+            self.back_scrape_iterable  # ty: ignore[invalid-argument-type]
         )
 
-    def _download_backwards(self, date_obj: date) -> None:
+    def _download_backwards(
+        self, date_obj: date
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Downloads an older page, and parses it
 
         Opinions from terms older than 2012-06 are in HTML

@@ -31,7 +31,9 @@ class Site(OpinionSiteLinear):
         self.make_backscrape_iterable(kwargs)
 
     def _process_html(self) -> None:
-        for row in self.html.xpath(".//tr"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//tr"
+        ):  # ty: ignore[possibly-missing-attribute]
             if not row.xpath(".//td"):
                 continue
             self.cases.append(
@@ -70,7 +72,9 @@ class Site(OpinionSiteLinear):
         }
         self.url = f"{self.base_url}?{urlencode(params)}"
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range request
 
         :param dates: (start_date, end_date) tuple

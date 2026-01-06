@@ -56,7 +56,9 @@ class AcmsApiClient:
     MERGE_PDF_ENDPOINT = "MergePDFFiles/"
     GET_PDF_ENDPOINT = "GetMergedFile/"
 
-    def __init__(self, session: Session, court_id: str):
+    def __init__(  # ty: ignore[invalid-argument-type]
+        self, session: Session, court_id: str
+    ):  # ty: ignore[invalid-argument-type]
         self.session = session
         self.court_id = court_id
         self.base_url = self.BASE_URL_TEMPLATE.format(court_id=self.court_id)

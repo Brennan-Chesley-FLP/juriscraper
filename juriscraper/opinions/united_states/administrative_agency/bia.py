@@ -32,8 +32,10 @@ class Site(OpinionSiteLinear):
         if not self.test_mode_enabled():
             # Get last volume URL
             if not self.urls:
-                urls = self.html.xpath(
-                    ".//table[1]/tbody/tr/td/a[contains(., 'Volume')]"
+                urls = (
+                    self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                        ".//table[1]/tbody/tr/td/a[contains(., 'Volume')]"
+                    )
                 )
 
                 def get_text(elem):
@@ -43,7 +45,9 @@ class Site(OpinionSiteLinear):
             self.url = self.urls[self.volume].get("href")
             self.html = super()._download()
 
-        for row in self.html.xpath("//table"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table"
+        ):  # ty: ignore[possibly-missing-attribute]
             summary = row.xpath("string(following-sibling::p[1])")
             name = row.xpath(".//td[1]//*[self::strong or self::b]/text()")[0]
 

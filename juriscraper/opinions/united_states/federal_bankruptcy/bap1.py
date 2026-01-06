@@ -53,7 +53,9 @@ class Site(OpinionSiteLinear):
         self.court_id = self.__module__
         self.should_have_results = True
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Method used by backscraper to download historical records
 
         :param dates: (start_date, end_date) tuple
@@ -82,7 +84,11 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for row in self.html.xpath("//tr[td]")[::-1]:
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr[td]"
+        )[  # ty: ignore[possibly-missing-attribute]
+            ::-1
+        ]:  # ty: ignore[possibly-missing-attribute]
             docket_string = self.get_text_by_xpath(row, "td[1]")
 
             try:

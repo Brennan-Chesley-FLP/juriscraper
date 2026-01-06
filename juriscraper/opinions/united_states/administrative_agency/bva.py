@@ -56,7 +56,11 @@ class Site(OpinionSite):
         for result in html.xpath('//div[@id="results-area"]/div/a'):
             text = result.text_content().strip()
             try:
-                (citation, date, docket) = regex.match(text).group(1, 2, 4)
+                (citation, date, docket) = regex.match(
+                    text
+                ).group(  # ty: ignore[possibly-missing-attribute]
+                    1, 2, 4
+                )  # ty: ignore[possibly-missing-attribute]
             except Exception:
                 raise Exception(
                     "regex failure in _extract_case_data_from_html method of bva scraper"
@@ -90,7 +94,9 @@ class Site(OpinionSite):
     def _get_precedential_statuses(self):
         return [case["status"] for case in self.cases]
 
-    def _download_backwards(self, startat):
+    def _download_backwards(
+        self, startat
+    ):  # ty: ignore[invalid-method-override]
         base_url = (
             "http://www.index.va.gov/search/va/bva_search.jsp?RPP=50&RS=%d"
             % (startat,)

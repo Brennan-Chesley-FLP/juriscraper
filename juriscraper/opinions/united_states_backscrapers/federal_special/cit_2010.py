@@ -14,7 +14,9 @@ class Site(cit.Site):
 
     def _get_case_dates(self):
         case_dates = []
-        for e in self.html.xpath("//table[3]/tr/td[3][../td/a]"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table[3]/tr/td[3][../td/a]"
+        ):  # ty: ignore[possibly-missing-attribute]
             date_string = html.tostring(
                 e, method="text", encoding="unicode"
             ).strip()
@@ -29,15 +31,25 @@ class Site(cit.Site):
         return case_dates
 
     def _get_download_urls(self):
-        return list(self.html.xpath("//table[3]//tr/td[1]/a/@href"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table[3]//tr/td[1]/a/@href"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_citations(self):
-        return list(self.html.xpath("//table[3]//tr/td[1]/a/text()"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table[3]//tr/td[1]/a/text()"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_names(self):
         # Exclude confidential rows
         case_names = []
-        for e in self.html.xpath("//table[3]/tr[position() > 1]/td[2]"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table[3]/tr[position() > 1]/td[2]"
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode")
             if "confidential" in s:
                 continue
@@ -52,7 +64,7 @@ class Site(cit.Site):
 
     def _get_precedential_statuses(self):
         statuses = []
-        for e in self.html.xpath(
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table[3]//tr[position() > 1]/td[2][../td/a]"
         ):
             s = (
@@ -68,7 +80,7 @@ class Site(cit.Site):
 
     def _get_docket_numbers(self):
         docket_numbers = []
-        for e in self.html.xpath(
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table[3]//tr[position() > 1]/td[4][../td/a]"
         ):
             docket_numbers.append(
@@ -78,7 +90,7 @@ class Site(cit.Site):
 
     def _get_judges(self):
         judges = []
-        for e in self.html.xpath(
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table[3]//tr[position() > 1]/td[5][../td/a]"
         ):
             s = html.tostring(e, method="text", encoding="unicode")
@@ -86,4 +98,8 @@ class Site(cit.Site):
         return judges
 
     def _get_nature_of_suit(self):
-        return list(self.html.xpath("//table[3]//tr/td[6][../td/a]/text()"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table[3]//tr/td[6][../td/a]/text()"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]

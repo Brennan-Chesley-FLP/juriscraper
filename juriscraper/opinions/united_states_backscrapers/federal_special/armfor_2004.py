@@ -15,11 +15,15 @@ class Site(OpinionSite):
         self.court_id = self.__module__
 
     def _get_case_names(self):
-        return list(self.html.xpath("//table//tr/td[1]/font/text()"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table//tr/td[1]/font/text()"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_download_urls(self):
         download_urls = []
-        for t in self.html.xpath(
+        for t in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table//table//tr[position() > 1]/td[2]/div/font/a[2]/@href"
         ):
             download_urls.append(t)
@@ -27,7 +31,7 @@ class Site(OpinionSite):
 
     def _get_case_dates(self):
         dates = []
-        for e in self.html.xpath(
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table/tr[3]/td[2]/blockquote/table/tbody/tr[position() > 1]/td[3]"
         ):
             s = html.tostring(e, method="text", encoding="unicode")
@@ -40,18 +44,20 @@ class Site(OpinionSite):
 
     def _get_docket_numbers(self):
         docket_numbers = []
-        for t in self.html.xpath(
+        for t in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table/tr[3]/td[2]/blockquote/table/tbody/tr/td[2]/div/font/a[1]/text()"
         ):
             docket_numbers.append(t)
         return docket_numbers
 
     def _get_precedential_statuses(self):
-        return ["Published"] * len(self.case_names)
+        return ["Published"] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
 
     def _get_citations(self):
         neutral_citations = []
-        for e in self.html.xpath(
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table/tr[3]/td[2]/blockquote/table/tbody/tr[position() > 1]/td[4]"
         ):
             s = html.tostring(e, method="text", encoding="unicode")

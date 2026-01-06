@@ -34,10 +34,14 @@ class Site(OpinionSiteLinearWebDriven):
         if not self.test_mode_enabled():
             self.initiate_webdriven_session()
             self.url = "https://searchdro.kscourts.gov/Data/decisionsList"
-            self.webdriver.get(self.url)
-            self.html = fromstring(self.webdriver.page_source)
+            self.webdriver.get(  # ty: ignore[possibly-missing-attribute]
+                self.url
+            )  # ty: ignore[possibly-missing-attribute]
+            self.html = fromstring(
+                self.webdriver.page_source  # ty: ignore[possibly-missing-attribute]
+            )  # ty: ignore[possibly-missing-attribute]
         else:
-            with open(self.url) as f:
+            with open(self.url) as f:  # ty: ignore[invalid-argument-type]
                 self.html = fromstring(f.read())
 
         links = self.html.xpath(self.link_xp)

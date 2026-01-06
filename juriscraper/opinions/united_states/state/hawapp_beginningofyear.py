@@ -19,7 +19,11 @@ class Site(hawapp.Site):
         if today.day < 15 and today.month == 1:
             this_year = today.year
             last_year = this_year - 1
-            self.url = self.url.replace(str(this_year), str(last_year))
+            self.url = (
+                self.url.replace(  # ty: ignore[possibly-missing-attribute]
+                    str(this_year), str(last_year)
+                )
+            )  # ty: ignore[possibly-missing-attribute]
         else:
             # This simply aborts the crawler.
             self.status = 200

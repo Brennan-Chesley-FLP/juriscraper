@@ -489,7 +489,7 @@ class AppellateDocketReport(BaseDocketReport, BaseReport):
 
         # If that doesn't work, fall back to parsing the docket_number wrapped
         # in a "tel:" href.
-        nodes = self.tree.re_xpath(
+        nodes = self.tree.re_xpath(  # ty: ignore[possibly-missing-attribute]
             f'//*[re:match(text(), "{docket_number_regex}")]'
         )
         if not nodes:
@@ -525,7 +525,9 @@ class AppellateDocketReport(BaseDocketReport, BaseReport):
             "following-sibling::table[1]//table//tr"
         )
 
-        party_rows = self.tree.xpath(path)
+        party_rows = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            path
+        )  # ty: ignore[possibly-missing-attribute]
 
         parties = []
         for row in party_rows:
@@ -709,12 +711,20 @@ class AppellateDocketReport(BaseDocketReport, BaseReport):
             '//comment()[contains(., "DOCKET ENTRIES")]/'
             "following-sibling::*[self::table | self::form]//tr"
         )
-        docket_entry_rows = self.tree.xpath(path)
+        docket_entry_rows = (
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                path
+            )
+        )  # ty: ignore[possibly-missing-attribute]
 
         # Detect if the report was generated with "View multiple documents"
         # option enabled.
         view_multiple_documents = False
-        view_selected_btn = self.tree.xpath("//input[@value='View Selected']")
+        view_selected_btn = (
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//input[@value='View Selected']"
+            )
+        )  # ty: ignore[possibly-missing-attribute]
         if view_selected_btn:
             view_multiple_documents = True
         docket_entries = []
@@ -814,14 +824,24 @@ class AppellateDocketReport(BaseDocketReport, BaseReport):
             "td[not(.//b)]"
         )  # 4
 
-        case_name = self.tree.xpath(path)[0].text_content()
+        case_name = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            path
+        )[  # ty: ignore[possibly-missing-attribute]
+            0
+        ].text_content()  # ty: ignore[possibly-missing-attribute]
         return clean_string(harmonize(case_name))
 
     def _get_panel(self):
         """Get the panel information"""
         path = '//*[re:match(text(), "Panel Assignment")]/ancestor::td[1]'
         try:
-            panel_table = self.tree.re_xpath(path)[0]
+            panel_table = (
+                self.tree.re_xpath(  # ty: ignore[possibly-missing-attribute]
+                    path
+                )[  # ty: ignore[possibly-missing-attribute]
+                    0
+                ]
+            )  # ty: ignore[possibly-missing-attribute]
         except IndexError:
             # No panel table.
             return []
@@ -838,7 +858,11 @@ class AppellateDocketReport(BaseDocketReport, BaseReport):
             '//*[re:match(text(), "Case Type Information")]/'
             "ancestor::table[1]//b"
         )
-        bold_nodes = self.tree.re_xpath(path)
+        bold_nodes = (
+            self.tree.re_xpath(  # ty: ignore[possibly-missing-attribute]
+                path
+            )
+        )  # ty: ignore[possibly-missing-attribute]
         case_info = []
         for node in bold_nodes:
             tail = str(node.tail).strip()
@@ -851,7 +875,7 @@ class AppellateDocketReport(BaseDocketReport, BaseReport):
     def _get_originating_court_info(self):
         """Get all of the originating type information as a dict."""
         try:
-            ogc_table = self.tree.re_xpath(
+            ogc_table = self.tree.re_xpath(  # ty: ignore[possibly-missing-attribute]
                 '//*[re:match(text(), "Originating Court Information")]/ancestor::table[1]'  # noqa
             )[0]
         except IndexError:
@@ -944,7 +968,9 @@ class AppellateDocketReport(BaseDocketReport, BaseReport):
         converted to a date.
         """
         node = node if node is not None else self.tree
-        nodes = node.re_xpath(f'//*[re:match(text(), "{regex}")]')
+        nodes = node.re_xpath(  # ty: ignore[possibly-missing-attribute]
+            f'//*[re:match(text(), "{regex}")]'
+        )  # ty: ignore[possibly-missing-attribute]
         try:
             tail = clean_string(nodes[0].tail.strip())
         except (IndexError, AttributeError):

@@ -61,7 +61,9 @@ class Site(OpinionSiteLinear):
 
         :return None
         """
-        for row in self.html.xpath("//tr[td/strong/a]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr[td/strong/a]"
+        ):  # ty: ignore[possibly-missing-attribute]
             title = get_row_column_text(row, 2)
 
             status = "Published"
@@ -85,7 +87,7 @@ class Site(OpinionSiteLinear):
             )
 
         if self.is_backscrape:
-            page_count = self.html.xpath(
+            page_count = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
                 "//span[@id='ContentPlaceHolder1_ChildContent1_Label_Page']"
             )[0].text_content()
             page_of = re.findall(r"Page (\d+) of (\d+)", page_count)
@@ -101,10 +103,16 @@ class Site(OpinionSiteLinear):
 
     def get_next_page(self) -> None:
         """Gets next page"""
-        view_state = self.html.xpath("//input[@id='__VIEWSTATE']/@value")[0]
-        event_validation = self.html.xpath(
-            "//input[@id='__EVENTVALIDATION']/@value"
-        )[0]
+        view_state = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//input[@id='__VIEWSTATE']/@value"
+        )[  # ty: ignore[possibly-missing-attribute]
+            0
+        ]  # ty: ignore[possibly-missing-attribute]
+        event_validation = (
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//input[@id='__EVENTVALIDATION']/@value"
+            )[0]
+        )
         data = {
             "ctl00$ctl00$ScriptManager1": "ctl00$ctl00$ContentPlaceHolder1$ChildContent1$UpdatePanel_Opinions|ctl00$ctl00$ContentPlaceHolder1$ChildContent1$LinkButton_Next",
             "__EVENTTARGET": "ctl00$ctl00$ContentPlaceHolder1$ChildContent1$LinkButton_Next",
@@ -114,7 +122,9 @@ class Site(OpinionSiteLinear):
         self.parameters = data
         self.html = super()._download()
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Get input year's page
 
         We need to GET the homepage first to load hidden inputs

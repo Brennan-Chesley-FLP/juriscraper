@@ -22,6 +22,6 @@ class Site(ind.Site):
             "archapp2005.html",
         )
 
-    def _download_backwards(self, page):
+    def _download_backwards(self, page):  # ty: ignore[invalid-method-override]
         self.url = f"http://www.in.gov/judiciary/opinions/{page}"
         self.html = self._download()

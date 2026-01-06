@@ -81,7 +81,15 @@ class Site(OpinionSiteLinear):
         }
 
     def _process_html(self):
-        for row in self.html.xpath(".//table")[-1].xpath(".//tr")[1:]:
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//table"
+        )[
+            -1
+        ].xpath(
+            ".//tr"
+        )[  # ty: ignore[possibly-missing-attribute]
+            1:
+        ]:  # ty: ignore[possibly-missing-attribute]
             slip_cite = " ".join(row.xpath("./td[5]//text()"))
             official_citation = " ".join(row.xpath("./td[4]//text()"))
             url = row.xpath(".//a")[0].get("href")
@@ -126,7 +134,9 @@ class Site(OpinionSiteLinear):
             return {"Docket": dockets.groupdict()}
         return {}
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range request
 
         :param dates: (start_date, end_date) tuple

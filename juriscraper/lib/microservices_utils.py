@@ -52,7 +52,9 @@ def test_for_meta_redirections(r: Response) -> tuple[bool, Optional[str]]:
     return False, None
 
 
-def follow_redirections(r: Response, s: Session) -> Response:
+def follow_redirections(  # ty: ignore[invalid-argument-type]
+    r: Response, s: Session
+) -> Response:  # ty: ignore[invalid-argument-type]
     """
     Parse and recursively follow meta refresh redirections if they exist until
     there are no more.

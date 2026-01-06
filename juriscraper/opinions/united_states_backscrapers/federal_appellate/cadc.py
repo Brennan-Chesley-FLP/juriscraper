@@ -22,21 +22,23 @@ class Site(OpinionSite):
 
     def _get_case_names(self):
         return list(
-            self.html.xpath(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
                 "//div[@class='row-entry'][position() mod 2 = 1]/span[2]/text()"
             )
         )
 
     def _get_download_urls(self):
         return list(
-            self.html.xpath(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
                 "//div[@class='row-entry'][position() mod 2 = 1]/span[1]/a/@href"
             )
         )
 
     def _get_case_dates(self):
         dates = []
-        for date_string in self.html.xpath(
+        for (
+            date_string
+        ) in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//div[@class='row-entry'][position() mod 2 = 0]/span[2]/text()"
         ):
             dates.append(
@@ -48,13 +50,19 @@ class Site(OpinionSite):
 
     def _get_docket_numbers(self):
         return list(
-            self.html.xpath(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
                 "//div[@class='row-entry'][position() mod 2 = 1]/span[1]/a/text()"
             )
         )
 
     def _get_precedential_statuses(self):
-        return ["Published" for _ in range(0, len(self.case_names))]
+        return [
+            "Published"
+            for _ in range(
+                0,
+                len(self.case_names),  # ty: ignore[unresolved-attribute]
+            )  # ty: ignore[unresolved-attribute]
+        ]  # ty: ignore[unresolved-attribute]
 
     def _download_backwards(self, d):
         self.url = "https://www.cadc.uscourts.gov/internet/opinions.nsf/OpinionsByRDate?OpenView&count=100&SKey={}".format(

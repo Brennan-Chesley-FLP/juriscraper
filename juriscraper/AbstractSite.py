@@ -111,18 +111,23 @@ class AbstractSite:
         return "\n".join(out)
 
     def __iter__(self):
-        for i in range(0, len(self.case_names)):
+        for i in range(
+            0,
+            len(self.case_names),  # ty: ignore[unresolved-attribute]
+        ):  # ty: ignore[unresolved-attribute]
             yield self._make_item(i)
 
     def __getitem__(self, i):
         return self._make_item(i)
 
     def __len__(self):
-        return len(self.case_names)
+        return len(self.case_names)  # ty: ignore[unresolved-attribute]
 
     def close_session(self):
         if self.request["session"]:
-            self.request["session"].close()
+            self.request[
+                "session"
+            ].close()  # ty: ignore[possibly-missing-attribute]
 
     def _make_item(self, i):
         """Using i, convert a single item into a dict. This is effectively a
@@ -155,7 +160,11 @@ class AbstractSite:
         :param cipher: The court required cipher
         :return: None
         """
-        self.request["session"].mount("https://", SSLAdapter(ciphers=cipher))
+        self.request[
+            "session"
+        ].mount(  # ty: ignore[possibly-missing-attribute]
+            "https://", SSLAdapter(ciphers=cipher)
+        )  # ty: ignore[possibly-missing-attribute]
 
     def test_mode_enabled(self):
         return self.method == "LOCAL"
@@ -269,7 +278,7 @@ class AbstractSite:
             )
 
         # check that we have data
-        if len(self.case_names) == 0:
+        if len(self.case_names) == 0:  # ty: ignore[unresolved-attribute]
             self.no_results_warning()
             return
 
@@ -281,24 +290,38 @@ class AbstractSite:
                     % (self.court_id, field)
                 )
 
-        sanity_check_case_names(self.case_names)
+        sanity_check_case_names(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
         date_filed_is_approximate = getattr(
-            self, "date_filed_is_approximate", [False for _ in self.case_names]
+            self,
+            "date_filed_is_approximate",
+            [
+                False
+                for _ in self.case_names  # ty: ignore[unresolved-attribute]
+            ],  # ty: ignore[unresolved-attribute]
         )
 
         sanity_check_dates(
-            zip(self.case_dates, self.case_names, date_filed_is_approximate),
-            self.court_id,
+            zip(
+                self.case_dates,  # ty: ignore[unresolved-attribute]
+                self.case_names,  # ty: ignore[unresolved-attribute]
+                date_filed_is_approximate,  # ty: ignore[unresolved-attribute]
+            ),  # ty: ignore[invalid-argument-type, unresolved-attribute]
+            self.court_id,  # ty: ignore[invalid-argument-type]
         )
 
         logger.info(
             "%s: Successfully found %s items."
-            % (self.court_id, len(self.case_names))
+            % (
+                self.court_id,
+                len(self.case_names),  # ty: ignore[unresolved-attribute]
+            )  # ty: ignore[unresolved-attribute]
         )
 
     def _date_sort(self):
         """Sort the object by date."""
-        if len(self.case_names) > 0:
+        if len(self.case_names) > 0:  # ty: ignore[unresolved-attribute]
             obj_list_attrs = [
                 self.__getattribute__(attr)
                 for attr in self._all_attrs
@@ -317,7 +340,9 @@ class AbstractSite:
         """Make a unique ID. ETag and Last-Modified from courts cannot be
         trusted
         """
-        self.hash = hashlib.sha1(str(self.case_names).encode()).hexdigest()
+        self.hash = hashlib.sha1(
+            str(self.case_names).encode()  # ty: ignore[unresolved-attribute]
+        ).hexdigest()  # ty: ignore[unresolved-attribute]
 
     def _make_html_tree(self, text):
         """Hook for custom HTML parsers
@@ -336,7 +361,12 @@ class AbstractSite:
         self.downloader_executed = True
         if self.method == "POST":
             truncated_params = {}
-            for k, v in self.parameters.items():
+            for (
+                k,
+                v,
+            ) in (
+                self.parameters.items()  # ty: ignore[possibly-missing-attribute]
+            ):  # ty: ignore[possibly-missing-attribute]
                 truncated_params[k] = trunc(v, 50, ellipsis="...[truncated]")
             logger.info(
                 "Now downloading case page at: %s (params: %s)"
@@ -398,10 +428,10 @@ class AbstractSite:
 
             # Note that we do a GET even if self.method is POST. This is
             # deliberate.
-            r = s.get(
+            r = s.get(  # ty: ignore[no-matching-overload, possibly-missing-attribute]
                 download_url,
                 verify=has_cipher,  # WA has a certificate we don't understand
-                headers=headers,
+                headers=headers,  # ty: ignore[invalid-argument-type]
                 cookies=self.cookies,
                 timeout=300,
             )
@@ -423,7 +453,15 @@ class AbstractSite:
                 )
 
                 if not m:
-                    court_str = self.court_id.split(".")[-1].split("_")[0]
+                    court_str = self.court_id.split(  # ty: ignore[possibly-missing-attribute]
+                        "."
+                    )[  # ty: ignore[possibly-missing-attribute]
+                        -1
+                    ].split(  # ty: ignore[possibly-missing-attribute]
+                        "_"
+                    )[  # ty: ignore[possibly-missing-attribute]
+                        0
+                    ]  # ty: ignore[possibly-missing-attribute]
                     fingerprint = [f"{court_str}-unexpected-content-type"]
                     msg = f"'{download_url}' '{content_type}' not in {self.expected_content_types}"
                     raise UnexpectedContentTypeError(
@@ -433,7 +471,10 @@ class AbstractSite:
             if doctor_is_available:
                 # test for and follow meta redirects, uses doctor get_extension
                 # service
-                r = follow_redirections(r, s)
+                r = follow_redirections(
+                    r,
+                    s,  # ty: ignore[invalid-argument-type]
+                )  # ty: ignore[invalid-argument-type]
                 r.raise_for_status()
 
         content = self.cleanup_content(r.content)
@@ -456,19 +497,33 @@ class AbstractSite:
         if parameters.get("verify") is not None:
             self.request["verify"] = parameters["verify"]
             del parameters["verify"]
-        self.request["parameters"].update(parameters)
+        self.request[
+            "parameters"
+        ].update(  # ty: ignore[possibly-missing-attribute]
+            parameters
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _request_url_get(self, url):
         """Execute GET request and assign appropriate request dictionary
         values
         """
         self.request["url"] = url
-        self.request["response"] = self.request["session"].get(
-            url,
-            headers=self.request["headers"],
-            verify=self.request["verify"],
-            timeout=60,
-            **self.request["parameters"],
+        self.request["response"] = (
+            self.request[  # ty: ignore[no-matching-overload]
+                "session"
+            ].get(  # ty: ignore[no-matching-overload, possibly-missing-attribute]
+                url,
+                headers=self.request[
+                    "headers"
+                ],  # ty: ignore[invalid-argument-type]
+                verify=self.request[
+                    "verify"
+                ],  # ty: ignore[invalid-argument-type]
+                timeout=60,
+                **self.request[
+                    "parameters"
+                ],  # ty: ignore[invalid-argument-type]
+            )
         )
         if self.save_response:
             self.save_response(self)
@@ -476,13 +531,17 @@ class AbstractSite:
     def _request_url_post(self, url):
         """Execute POST request and assign appropriate request dictionary values"""
         self.request["url"] = url
-        self.request["response"] = self.request["session"].post(
+        self.request["response"] = self.request[
+            "session"
+        ].post(  # ty: ignore[possibly-missing-attribute]
             url,
-            headers=self.request["headers"],
-            verify=self.request["verify"],
+            headers=self.request[
+                "headers"
+            ],  # ty: ignore[invalid-argument-type]
+            verify=self.request["verify"],  # ty: ignore[invalid-argument-type]
             data=self.parameters,
             timeout=60,
-            **self.request["parameters"],
+            **self.request["parameters"],  # ty: ignore[invalid-argument-type]
         )
         if self.save_response:
             self.save_response(self)
@@ -495,20 +554,35 @@ class AbstractSite:
     def _post_process_response(self):
         """Cleanup to response object"""
         self.tweak_response_object()
-        self.request["response"].raise_for_status()
+        self.request[
+            "response"
+        ].raise_for_status()  # ty: ignore[possibly-missing-attribute]
         set_response_encoding(self.request["response"])
 
     def _return_response_text_object(self):
         if self.request["response"]:
-            if "json" in self.request["response"].headers.get(
-                "content-type", ""
+            if (
+                "json"  # ty: ignore[unsupported-operator]
+                in self.request[
+                    "response"
+                ].headers.get(  # ty: ignore[possibly-missing-attribute, unsupported-operator]
+                    "content-type", ""
+                )
             ):
-                return self.request["response"].json()
+                return self.request[
+                    "response"
+                ].json()  # ty: ignore[possibly-missing-attribute]
             else:
                 try:
-                    payload = self.request["response"].content.decode("utf8")
+                    payload = self.request[
+                        "response"
+                    ].content.decode(  # ty: ignore[possibly-missing-attribute]
+                        "utf8"
+                    )  # ty: ignore[possibly-missing-attribute]
                 except Exception:
-                    payload = self.request["response"].text
+                    payload = self.request[
+                        "response"
+                    ].text  # ty: ignore[possibly-missing-attribute]
 
                 text = self._clean_text(payload)
                 html_tree = self._make_html_tree(text)
@@ -611,12 +685,12 @@ class AbstractSite:
             },
         ]
         """
-        return self._cookies
+        return self._cookies  # ty: ignore[unresolved-attribute]
 
     def _get_case_name_shorts(self):
         """Generates short case names for all the case names that we scrape."""
         case_name_shorts = []
-        for case_name in self.case_names:
+        for case_name in self.case_names:  # ty: ignore[unresolved-attribute]
             case_name_shorts.append(self.cnt.make_case_name_short(case_name))
         return case_name_shorts
 
@@ -629,4 +703,6 @@ class AbstractSite:
         these functions to be a hint to callers, so following these guidelines
         is not guaranteed.
         """
-        return [False] * len(self.case_names)
+        return [False] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]

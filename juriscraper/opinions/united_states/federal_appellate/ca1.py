@@ -19,7 +19,9 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        for row in self.html.xpath("//tr[not(th)]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr[not(th)]"
+        ):  # ty: ignore[possibly-missing-attribute]
             title = row.xpath("td[2]/a/text()")[0]
             url = row.xpath("td[2]/a/@href")[0]
             status = self.get_status_from_opinion_title(title)
@@ -55,7 +57,9 @@ class Site(OpinionSiteLinear):
             status = "Unknown"
         return status
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Change URL to backscraping date range
 
         :param dates: tuple with date range to scrape

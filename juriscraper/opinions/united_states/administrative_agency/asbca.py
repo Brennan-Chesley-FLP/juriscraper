@@ -44,7 +44,7 @@ class Site(OpinionSiteLinear):
         if self.test_mode_enabled():
             self.year = "2024"
 
-        rows = self.html.xpath(
+        rows = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//tr[not(th) and not(.//span[@style='background-color:#F8C100;']) and descendant::a]"
         )
         for row in rows:

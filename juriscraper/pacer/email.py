@@ -124,7 +124,10 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         :returns: True if is an NDA otherwise False
         """
         if self.appellate is None:
-            if "Notice of Docket Activity" in self.tree.text_content():
+            if (
+                "Notice of Docket Activity"
+                in self.tree.text_content()  # ty: ignore[possibly-missing-attribute]
+            ):  # ty: ignore[possibly-missing-attribute]
                 self.appellate = True
                 return self.appellate
             self.appellate = False
@@ -140,12 +143,16 @@ class NotificationEmail(BaseDocketReport, BaseReport):
             return self.acms
 
         # Table version notification. It's not ACMS
-        if self.tree.xpath("//table[contains(., 'Case Name:')]"):
+        if self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table[contains(., 'Case Name:')]"
+        ):  # ty: ignore[possibly-missing-attribute]
             self.acms = False
             return False
 
         # Div-based version notification. ACMS.
-        case_names = self.tree.xpath("//strong[contains(., 'Case Name:')]")
+        case_names = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//strong[contains(., 'Case Name:')]"
+        )  # ty: ignore[possibly-missing-attribute]
         case_names_count = len(case_names)
 
         # Multi-docket ACMS for appellate is not yet supported
@@ -172,7 +179,9 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         """
         return f'.//td[contains(., "{label}:")]/following-sibling::td[1]'
 
-    def _get_case_name(self, current_node: HtmlElement) -> str:
+    def _get_case_name(  # ty: ignore[invalid-argument-type]
+        self, current_node: HtmlElement
+    ) -> str:  # ty: ignore[invalid-argument-type]
         """Gets a cleaned case name from the email text
 
         :param  current_node: The relative lxml.HtmlElement
@@ -203,7 +212,9 @@ class NotificationEmail(BaseDocketReport, BaseReport):
 
         :returns: Case name, cleaned and harmonized
         """
-        email_body = self.tree.text_content()
+        email_body = (
+            self.tree.text_content()  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         regex = r"Case Name:(.*)"
         find_case = re.findall(regex, email_body)
         if len(find_case) > 1:
@@ -222,7 +233,7 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         self.case_names.append(clean_string(case_name))
         return clean_string(harmonize(case_name))
 
-    def _parse_docket_number(
+    def _parse_docket_number(  # ty: ignore[invalid-argument-type]
         self, current_node: HtmlElement
     ) -> tuple[Union[str, None], dict[str, Union[str, None]]]:
         """Gets a docket number from the email text and also parse the docket
@@ -270,7 +281,9 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         Otherwise, None and the default docket_number components dict with None
         values.
         """
-        email_body = self.tree.text_content()
+        email_body = (
+            self.tree.text_content()  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         regex = r"Case Number:(.*)"
         docket_number = re.findall(regex, email_body)
         self.raw_docket_numbers.update(set(docket_number))
@@ -282,7 +295,10 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         :returns: Date filed as date object
         """
         date_filed = re.search(
-            r"filed\son\s([\d|\/]*)", clean_string(self.tree.text_content())
+            r"filed\son\s([\d|\/]*)",
+            clean_string(
+                self.tree.text_content()  # ty: ignore[possibly-missing-attribute]
+            ),  # ty: ignore[possibly-missing-attribute]
         )
         return convert_date_string(
             date_filed[0].lower().replace("filed on ", "")  # type: ignore[index]
@@ -307,7 +323,9 @@ class NotificationEmail(BaseDocketReport, BaseReport):
 
         :returns: Document number, cleaned
         """
-        email_body = self.tree.text_content()
+        email_body = (
+            self.tree.text_content()  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         regex = r"Document Number:(.*)"
         document_number = re.findall(regex, email_body)
         if document_number:
@@ -421,7 +439,9 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         :raises: Exception if description can't be parsed
         :returns: Cleaned docket text
         """
-        email_body = self.tree.text_content()
+        email_body = (
+            self.tree.text_content()  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         regex = r"^.*?Docket Text:(?P<descr>.*?)(The following document|electronically mailed to:)"
         find_description = re.search(regex, email_body, re.DOTALL)
 
@@ -448,8 +468,10 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         :returns: True if it contains otherwise False.
         """
 
-        document_nodes = self.tree.xpath(
-            '//strong[contains(., "Document description:")]'
+        document_nodes = (
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                '//strong[contains(., "Document description:")]'
+            )
         )
         return not len(document_nodes) <= 1
 
@@ -458,7 +480,9 @@ class NotificationEmail(BaseDocketReport, BaseReport):
 
         :returns: True if it contains otherwise False.
         """
-        mail_body = self.tree.text_content()
+        mail_body = (
+            self.tree.text_content()  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         regex = r"^.*?The following document\(s\) are associated with this transaction:(?P<attachments>.*?)(electronically mailed to:|$)"
         find_attachments = re.search(regex, mail_body, re.DOTALL)
 
@@ -499,12 +523,16 @@ class NotificationEmail(BaseDocketReport, BaseReport):
             dockets.append(docket)
         elif self._is_acms():
             docket_number, docket_number_components = (
-                self._parse_docket_number(self.tree)
+                self._parse_docket_number(
+                    self.tree  # ty: ignore[invalid-argument-type]
+                )  # ty: ignore[invalid-argument-type]
             )
             # Cache the docket number and case name for its later use.
             self.docket_numbers.append(docket_number)
             docket = {
-                "case_name": self._get_case_name(self.tree),
+                "case_name": self._get_case_name(
+                    self.tree  # ty: ignore[invalid-argument-type]
+                ),  # ty: ignore[invalid-argument-type]
                 "docket_number": docket_number,
                 "date_filed": None,
                 "docket_entries": self._get_docket_entries(self.tree),
@@ -513,8 +541,10 @@ class NotificationEmail(BaseDocketReport, BaseReport):
             docket.update(docket_number_components)
             dockets.append(docket)
         else:
-            dockets_table = self.tree.xpath(
-                "//table[contains(., 'Case Name:')]"
+            dockets_table = (
+                self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                    "//table[contains(., 'Case Name:')]"
+                )
             )
             if self.appellate and len(dockets_table) > 1:
                 raise NotImplementedError(
@@ -563,7 +593,9 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         if self.content_type == "text/plain":
             description = self._get_description_plain()
             if description is not None:
-                email_body = self.tree.text_content()
+                email_body = (
+                    self.tree.text_content()  # ty: ignore[possibly-missing-attribute]
+                )  # ty: ignore[possibly-missing-attribute]
                 regex = r"view the document:[\r\n\s]+(https?://[^\s]+)"
                 url = re.findall(regex, email_body)
                 if url:
@@ -587,7 +619,10 @@ class NotificationEmail(BaseDocketReport, BaseReport):
 
                 if self._is_acms():
                     document_number = self._parse_acms_document_number(  # type: ignore[assignment]
-                        self.subject_cleaned, self.docket_numbers[0]
+                        self.subject_cleaned,  # ty: ignore[invalid-argument-type]
+                        self.docket_numbers[
+                            0
+                        ],  # ty: ignore[invalid-argument-type]
                     )
                 elif self._is_appellate():
                     document_number = None
@@ -624,7 +659,8 @@ class NotificationEmail(BaseDocketReport, BaseReport):
                 )
                 entries[0]["pacer_magic_num"] = (
                     get_pacer_magic_num_from_doc1_url(
-                        document_url, self.appellate
+                        document_url,
+                        self.appellate,  # ty: ignore[invalid-argument-type]
                     )
                     if not self._is_acms()
                     else get_pacer_magic_num_from_acms_url(document_url)
@@ -726,7 +762,13 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         # Parse the short description from the notification footer.
         path = "//strong[contains(text(), 'Document Description: ')]/following-sibling::text()[1]"
         try:
-            short_description_footer = self.tree.xpath(path)[0]
+            short_description_footer = (
+                self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                    path
+                )[  # ty: ignore[possibly-missing-attribute]
+                    0
+                ]
+            )  # ty: ignore[possibly-missing-attribute]
         except IndexError:
             short_description_footer = ""
 
@@ -751,7 +793,7 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         longer_short_description = max(
             short_description_subject, short_description_footer, key=len
         )
-        return longer_short_description
+        return longer_short_description  # ty: ignore[invalid-return-type]
 
     @staticmethod
     def _parse_acms_subject(
@@ -769,7 +811,7 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         match = re.search(pattern, subject, re.IGNORECASE)
         return match.groups() if match else None  # type: ignore[return-value]
 
-    def _parse_acms_document_number(
+    def _parse_acms_document_number(  # ty: ignore[invalid-argument-type]
         self, subject: str, docket_number: str
     ) -> Optional[str]:
         """Extract the document number if exists immediately following the
@@ -943,20 +985,36 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         """
         if self._is_appellate():
             path = '//strong[contains(., "Notice will be electronically mailed to")]/following-sibling::'
-            recipient_lines = self.tree.xpath(f"{path}text()")
+            recipient_lines = (
+                self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                    f"{path}text()"
+                )
+            )  # ty: ignore[possibly-missing-attribute]
         else:
             path = '//b[contains(., "Notice has been electronically mailed to")]/following-sibling::'
-            recipient_lines = self.tree.xpath(f"{path}text()")
-            link_lines = self.tree.xpath(f"{path}a")
+            recipient_lines = (
+                self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                    f"{path}text()"
+                )
+            )  # ty: ignore[possibly-missing-attribute]
+            link_lines = (
+                self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                    f"{path}a"
+                )
+            )  # ty: ignore[possibly-missing-attribute]
             if len(link_lines):
                 return self._get_email_recipients_with_links(
-                    self.tree.xpath(
+                    self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
                         'string(//b[contains(., "Notice has been electronically mailed to")]/parent::node())'
                     )
                 )
         if not recipient_lines:
             path = '//b[contains(., "Notice will be electronically mailed to")]/following-sibling::'
-            recipient_lines = self.tree.xpath(f"{path}text()")
+            recipient_lines = (
+                self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                    f"{path}text()"
+                )
+            )  # ty: ignore[possibly-missing-attribute]
 
         return self._get_email_recipients_with_links(" ".join(recipient_lines))
 
@@ -968,7 +1026,9 @@ class NotificationEmail(BaseDocketReport, BaseReport):
         :returns: List of email recipients with names and email addresses
         """
         email_recipients = []
-        mail_body = self.tree.text_content()
+        mail_body = (
+            self.tree.text_content()  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         regex = r"^.*?Notice has been electronically mailed to:(.*?)$"
 
         # Return all lines after recipients begins
@@ -1074,10 +1134,14 @@ class S3NotificationEmail(NotificationEmail):
 
         try:
             # Try to decode email body using utf-8
-            email_body = body.decode("utf-8")
+            email_body = body.decode(  # ty: ignore[possibly-missing-attribute]
+                "utf-8"
+            )  # ty: ignore[possibly-missing-attribute]
         except UnicodeDecodeError:
             # If it fails fallback on iso-8859-1
-            email_body = body.decode("iso-8859-1")
+            email_body = body.decode(  # ty: ignore[possibly-missing-attribute]
+                "iso-8859-1"
+            )  # ty: ignore[possibly-missing-attribute]
         if self.content_type == "text/plain":
             return super()._parse_text(email_body)
         elif self.content_type == "text/html":

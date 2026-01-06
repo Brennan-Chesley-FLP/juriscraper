@@ -27,14 +27,18 @@ class Site(OpinionSite):
         # This requires us to pad every other metadata field to match the
         # number of urls we find here.
         path = "//table[2]//tr[position()>0]/td[3]/a/@href"
-        return list(self.html.xpath(path))
+        return list(
+            self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_names(self):
         casenames = []
         rowpath = "//table[2]//tr[position()>0]"
         cnpath = "./td[2]//text()[preceding-sibling::br]"
         urlpath = "./td[3]/a/@href"
-        for row in self.html.xpath(rowpath):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            rowpath
+        ):  # ty: ignore[possibly-missing-attribute]
             case_list = row.xpath(cnpath)
             for rough_case_name in case_list:
                 case_name = titlecase(rough_case_name.lower())
@@ -49,7 +53,9 @@ class Site(OpinionSite):
         rowpath = "//table[2]//tr[position()>0]"
         datepath = "./td[1]/text()"
         urlpath = "./td[3]/a/@href"
-        for row in self.html.xpath(rowpath):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            rowpath
+        ):  # ty: ignore[possibly-missing-attribute]
             date_string = row.xpath(datepath)
             for d in date_string:
                 date_object = date.fromtimestamp(
@@ -62,14 +68,18 @@ class Site(OpinionSite):
         return dates
 
     def _get_precedential_statuses(self):
-        return ["Published"] * len(self.case_names)
+        return ["Published"] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
 
     def _get_docket_numbers(self):
         docket_numbers = []
         rowpath = "//table[2]//tr[position()>0]"
         dktpath = "./td[2]//text()[following-sibling::br]"
         urlpath = "./td[3]/a/@href"
-        for row in self.html.xpath(rowpath):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            rowpath
+        ):  # ty: ignore[possibly-missing-attribute]
             docket_number = row.xpath(dktpath)
             # Determine the number of urls in each row and pad the docket
             # numbers list sufficiently
@@ -80,7 +90,7 @@ class Site(OpinionSite):
     def _get_docket_document_numbers(self):
         document_numbers = []
         regex = re.compile(r"(\?)(\d+)([a-z]+)(\d+)(-)(.*)")
-        for url in self.html.xpath(
+        for url in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table[2]//tr[position()>0]/td[3]/a/@href"
         ):
             # Because we are acting directly on the entire url list, no padding
@@ -88,7 +98,9 @@ class Site(OpinionSite):
             doc_no = regex.search(url)
             # In 2012 (and perhaps elsewhere) they have a few weird urls.
             if re.search(regex, url) is not None:
-                document_numbers.append(doc_no.group(6))
+                document_numbers.append(
+                    doc_no.group(6)  # ty: ignore[possibly-missing-attribute]
+                )  # ty: ignore[possibly-missing-attribute]
             else:
                 document_numbers.append(url)
         return document_numbers
@@ -98,12 +110,14 @@ class Site(OpinionSite):
         rowpath = "//table[2]//tr[position()>0]"
         urlpath = "./td[3]/a/@href"
         judgepath = "./td[3]"
-        for row in self.html.xpath(rowpath):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            rowpath
+        ):  # ty: ignore[possibly-missing-attribute]
             for judge_element in row.xpath(judgepath):
                 judge_string = html.tostring(
                     judge_element, method="text", encoding="unicode"
                 )
-                judge = re.search(
+                judge = re.search(  # ty: ignore[possibly-missing-attribute]
                     r"(by\s)(.*)", judge_string, re.MULTILINE
                 ).group(2)
                 # Determine the number of urls in each row and pad the judges
@@ -114,7 +128,7 @@ class Site(OpinionSite):
 
     def _get_nature_of_suit(self):
         nos = []
-        for url in self.html.xpath(
+        for url in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table[2]//tr[position()>0]/td[3]/a/@href"
         ):
             # Because we are acting directly on the entire url list, no padding
@@ -123,7 +137,11 @@ class Site(OpinionSite):
             url_str = re.search(r"(\?)(\d+)([a-z]+)(\d+)(-)(.*)", url)
             # In 2012 (and perhaps elsewhere) they have a few weird urls.
             if re.search(regex, url) is not None:
-                nature_code = url_str.group(3)
+                nature_code = (
+                    url_str.group(  # ty: ignore[possibly-missing-attribute]
+                        3
+                    )
+                )  # ty: ignore[possibly-missing-attribute]
                 if nature_code == "cv":
                     nos.append("Civil")
                 elif nature_code == "cr":

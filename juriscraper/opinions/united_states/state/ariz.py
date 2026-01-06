@@ -27,22 +27,35 @@ class Site(OpinionSiteLinear):
         """
         # Extract download URLs
         download_urls_path = '//a[contains(@id , "hypCaseNum")]/@href'
-        download_urls = self.html.xpath(download_urls_path)
+        download_urls = (
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                download_urls_path
+            )
+        )  # ty: ignore[possibly-missing-attribute]
 
         # Extract case names
         case_names_path = '//span[contains(@id , "lblTitle")]//text()'
         case_names = [
-            titlecase(t.upper()) for t in self.html.xpath(case_names_path)
+            titlecase(t.upper())
+            for t in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                case_names_path
+            )  # ty: ignore[possibly-missing-attribute]
         ]
 
         # Extract case dates
         case_dates_path = '//span[contains(@id , "FilingDate")]//text()'
-        case_dates = list(self.html.xpath(case_dates_path))
+        case_dates = list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                case_dates_path
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
         # Extract precedential statuses
         precedential_statuses = []
         precedential_statuses_path = '//*[contains(@id, "DecType")]/text()'
-        for s in self.html.xpath(precedential_statuses_path):
+        for s in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            precedential_statuses_path
+        ):  # ty: ignore[possibly-missing-attribute]
             if "OPINION" in s:
                 precedential_statuses.append("Published")
             elif "MEMORANDUM" in s:
@@ -52,7 +65,11 @@ class Site(OpinionSiteLinear):
 
         # Extract docket numbers
         docket_numbers_path = '//a[contains(@id , "hypCaseNum")]//text()'
-        docket_numbers = list(self.html.xpath(docket_numbers_path))
+        docket_numbers = list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                docket_numbers_path
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
         # Build cases list
         for i in range(len(download_urls)):

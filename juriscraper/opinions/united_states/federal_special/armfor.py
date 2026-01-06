@@ -19,7 +19,9 @@ class Site(OpinionSiteLinear):
         self.status = "Published"
 
     def _process_html(self):
-        for row in self.html.xpath(self.row_base_path):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            self.row_base_path
+        ):  # ty: ignore[possibly-missing-attribute]
             case_name, docket, date, cite = row.xpath(".//td")
             cite = "" if "xx" in cite.text_content() else cite.text_content()
             self.cases.append(

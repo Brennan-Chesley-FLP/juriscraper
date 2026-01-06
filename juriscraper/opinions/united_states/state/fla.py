@@ -36,7 +36,7 @@ class Site(OpinionSiteLinear):
         :return: None
         """
         json = self.html
-        for row in json["searchResults"]:
+        for row in json["searchResults"]:  # ty: ignore[not-subscriptable]
             fields = row["content"]["fields"]
             if (fields.get("note", "") or "") in ("Notice of Correction",):
                 logger.info("Skipping non-opinion document %s", fields)
@@ -109,7 +109,9 @@ class Site(OpinionSiteLinear):
             end.strftime(fmt),  # type: ignore[union-attr]
         )
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Overrides scraper URL using date inputs
 
         :param dates: (start_date, end_date) tuple

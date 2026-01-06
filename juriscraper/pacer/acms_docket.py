@@ -23,7 +23,10 @@ class ACMSDocketReport(AppellateDocketReport):
     def __init__(self, court_id, pacer_session=None):
         super().__init__(court_id, pacer_session)
         self._acms_json = None
-        self.api_client = AcmsApiClient(pacer_session, court_id)
+        self.api_client = AcmsApiClient(
+            pacer_session,  # ty: ignore[invalid-argument-type]
+            court_id,  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type]
 
     def _parse_text(self, text):
         """Store the ACMS JSON
@@ -121,7 +124,9 @@ class ACMSDocketReport(AppellateDocketReport):
         That function then supplements it with parties and docket entries.
         """
 
-        caseDetails = self._acms_json["caseDetails"]
+        caseDetails = self._acms_json[
+            "caseDetails"
+        ]  # ty: ignore[not-subscriptable]
 
         data = {
             "court_id": self.court_id,
@@ -336,7 +341,11 @@ class ACMSDocketReport(AppellateDocketReport):
         # The second <td> is the atty list.
         # Within the atty list, there is one <div> per attorney.
 
-        parties_html = self._acms_json["caseDetails"]["partyAttorneyList"]
+        parties_html = self._acms_json[
+            "caseDetails"
+        ][  # ty: ignore[not-subscriptable]
+            "partyAttorneyList"
+        ]  # ty: ignore[not-subscriptable]
         tree = strip_bad_html_tags_insecure(parties_html)
         party_rows = tree.xpath(".//tr")
         parties = []
@@ -387,7 +396,11 @@ class ACMSDocketReport(AppellateDocketReport):
         """
 
         docket_entries = []
-        for row in self._acms_json["docketInfo"]["docketEntries"]:
+        for row in self._acms_json[
+            "docketInfo"
+        ][  # ty: ignore[not-subscriptable]
+            "docketEntries"
+        ]:  # ty: ignore[not-subscriptable]
             _ = """Here's what we have to work with:
 {
   "endDate": "2023-10-05",

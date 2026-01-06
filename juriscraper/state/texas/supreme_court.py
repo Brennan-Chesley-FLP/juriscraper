@@ -75,7 +75,7 @@ class TexasSupremeCourtScraper(TexasCommonScraper):
 
         common_data = super().data
         case_events = [
-            TexasSupremeCourtCaseEvent(
+            TexasSupremeCourtCaseEvent(  # ty: ignore[missing-typed-dict-key]
                 remarks=clean_string(remarks_element.text_content()),
                 **event_data,
             )
@@ -84,7 +84,7 @@ class TexasSupremeCourtScraper(TexasCommonScraper):
             )
         ]
         appellate_briefs = [
-            TexasSupremeCourtAppellateBrief(
+            TexasSupremeCourtAppellateBrief(  # ty: ignore[missing-typed-dict-key]
                 remarks=clean_string(remarks_element.text_content()),
                 **event_data,
             )

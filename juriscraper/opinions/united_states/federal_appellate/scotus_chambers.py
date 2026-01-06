@@ -108,7 +108,7 @@ class Site(OpinionSite):
             # Skip rows with blank first cell
             if cell_index == 0 and not text:
                 break
-            label = self.headers[cell_index]
+            label = self.headers[cell_index]  # ty: ignore[not-subscriptable]
             if label in ["R-", "Pt."]:
                 # Ignore some columns that we don't need
                 pass

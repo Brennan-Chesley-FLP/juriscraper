@@ -42,7 +42,11 @@ class Site(OpinionSiteLinear):
         the date, case name, docket number, and status and pdf URL.
         Return: None
         """
-        feed = feedparser.parse(self.request["response"].content)
+        feed = feedparser.parse(
+            self.request[
+                "response"
+            ].content  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         for item in feed["entries"]:
             value = item["content"][0]["value"]
             docket, title = item["title"].split(" [")[0].split(": ", 1)

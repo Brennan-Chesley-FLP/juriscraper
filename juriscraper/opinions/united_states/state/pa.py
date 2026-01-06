@@ -65,7 +65,7 @@ class Site(ClusterSite):
         """
         json_response = self.html
 
-        for cluster in json_response["Items"]:
+        for cluster in json_response["Items"]:  # ty: ignore[not-subscriptable]
             title = cluster["Caption"]
             name, docket = self.parse_case_title(title)
             # A.3d cites seem to exist only for pasuperct
@@ -104,7 +104,9 @@ class Site(ClusterSite):
                     per_curiam = True
 
                 url = self.document_url.format(self.court, op["FileName"])
-                parsed_cluster["sub_opinions"].append(
+                parsed_cluster[
+                    "sub_opinions"
+                ].append(  # ty: ignore[possibly-missing-attribute]
                     {
                         "url": url,
                         "author": author_str,
@@ -115,8 +117,16 @@ class Site(ClusterSite):
 
             self.cases.append(parsed_cluster)
 
-        if not self.test_mode_enabled() and json_response.get("HasNext"):
-            next_page = json_response["PageNumber"] + 1
+        if (
+            not self.test_mode_enabled()
+            and json_response.get(  # ty: ignore[possibly-missing-attribute]
+                "HasNext"
+            )
+        ):  # ty: ignore[possibly-missing-attribute]
+            next_page = (
+                json_response["PageNumber"]  # ty: ignore[not-subscriptable]
+                + 1  # ty: ignore[not-subscriptable]
+            )  # ty: ignore[not-subscriptable]
             logger.info("Paginating to page %s", next_page)
             self.params["pageNumber"] = next_page
             self.url = f"{self.base_url}{urlencode(self.params)}"
@@ -146,7 +156,7 @@ class Site(ClusterSite):
         :param op: opinion json
         :return: parsed status
         """
-        return self.status
+        return self.status  # ty: ignore[invalid-return-type]
 
     def clean_judge(self, author_str: str) -> str:
         """Cleans judge name. `pa` has a different format than
@@ -250,7 +260,9 @@ class Site(ClusterSite):
 
         return result
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Modify GET querystring for desired date range
 
         :param dates: (start_date, end_date) tuple

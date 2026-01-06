@@ -41,7 +41,9 @@ class Site(OpinionSiteLinear):
         :return: The cleaned html tree of the site
         """
         if self.request["response"]:
-            payload = self.request["response"].text
+            payload = self.request[
+                "response"
+            ].text  # ty: ignore[possibly-missing-attribute]
             text = self._clean_text(payload)
             html_tree = self._make_html_tree(text)
 
@@ -59,7 +61,9 @@ class Site(OpinionSiteLinear):
             return html_tree
 
     def _process_html(self):
-        for table in self.html.xpath(".//table"):
+        for table in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//table"
+        ):  # ty: ignore[possibly-missing-attribute]
             date_tags = table.xpath("preceding::time[1]/text()")
             if not date_tags:
                 continue

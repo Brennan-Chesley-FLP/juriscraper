@@ -16,7 +16,11 @@ class Site(OralArgumentSite):
         self.url = "http://www.ca4.uscourts.gov/oral-argument/listen-to-oral-arguments"
 
     def _get_download_urls(self):
-        return list(self.html.xpath("//tr/td[2]//a/@href"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//tr/td[2]//a/@href"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_names(self):
         return self.text_from_cell(3)
@@ -33,5 +37,7 @@ class Site(OralArgumentSite):
     def text_from_cell(self, cell_number):
         return [
             cell.text_content().strip()
-            for cell in self.html.xpath("//tr/td[%d]" % cell_number)
+            for cell in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//tr/td[%d]" % cell_number
+            )  # ty: ignore[possibly-missing-attribute]
         ]

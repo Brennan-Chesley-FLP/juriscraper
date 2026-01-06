@@ -34,12 +34,14 @@ class PacerDocketReportTest(unittest.TestCase):
         self.report.query(self.pacer_case_id)
         self.assertIn(
             "Foley v. Bates",
-            self.report.response.text,
+            self.report.response.text,  # ty: ignore[possibly-missing-attribute]
             msg="Super basic query failed",
         )
 
         self.report.query(self.pacer_case_id, date_start=date(2007, 11, 1))
-        row_count = self._count_rows(self.report.response.text)
+        row_count = self._count_rows(
+            self.report.response.text  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         self.assertEqual(
             2,
             row_count,
@@ -53,7 +55,9 @@ class PacerDocketReportTest(unittest.TestCase):
             date_start=date(2007, 11, 1),
             date_end=date(2007, 11, 28),
         )
-        row_count = self._count_rows(self.report.response.text)
+        row_count = self._count_rows(
+            self.report.response.text  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         self.assertEqual(
             1,
             row_count,
@@ -63,7 +67,9 @@ class PacerDocketReportTest(unittest.TestCase):
         )
 
         self.report.query(self.pacer_case_id, doc_num_start=5, doc_num_end=5)
-        row_count = self._count_rows(self.report.response.text)
+        row_count = self._count_rows(
+            self.report.response.text  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         self.assertEqual(
             1,
             row_count,
@@ -78,7 +84,9 @@ class PacerDocketReportTest(unittest.TestCase):
             date_end=date(2007, 11, 28),
             date_range_type="Entered",
         )
-        row_count = self._count_rows(self.report.response.text)
+        row_count = self._count_rows(
+            self.report.response.text  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
         self.assertEqual(
             1,
             row_count,
@@ -95,7 +103,7 @@ class PacerDocketReportTest(unittest.TestCase):
         )
         self.assertIn(
             "Cheema",
-            self.report.response.text,
+            self.report.response.text,  # ty: ignore[possibly-missing-attribute]
             msg="Didn't find party info when it was explicitly requested.",
         )
         self.report.query(
@@ -105,7 +113,7 @@ class PacerDocketReportTest(unittest.TestCase):
         )
         self.assertNotIn(
             "Cheema",
-            self.report.response.text,
+            self.report.response.text,  # ty: ignore[possibly-missing-attribute]
             msg="Got party info but it was not requested.",
         )
 

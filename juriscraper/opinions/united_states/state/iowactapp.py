@@ -13,7 +13,7 @@ class Site(iowa.Site):
         self.court_id = self.__module__
         self.url = "https://www.iowacourts.gov/iowa-courts/court-of-appeals/court-of-appeals-court-opinions/"
 
-    def _download_backwards(self, _):
+    def _download_backwards(self, _):  # ty: ignore[invalid-method-override]
         """Overriding this method from parent iowa class because the
         site link/page structure for archived Court of Appeals opinions
         is different than that of Archived Supreme Court opinions

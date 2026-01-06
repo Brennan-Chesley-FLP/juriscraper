@@ -49,7 +49,7 @@ class Site(OpinionSiteLinear):
             self.html = self._download()
             self.is_first_request = False
 
-        for row in self.html.xpath(
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             ".//table[@id='MainContent_gvResults']//tr[not(.//a[contains(@href, 'javascript')])]"
         ):
             # Filter out the case announcements and rulings (ie non-opinions)
@@ -86,13 +86,16 @@ class Site(OpinionSiteLinear):
                 if web_cite not in citation_or_county:
                     citation = citation_or_county
                 case["parallel_citation"] = citation
-            elif "ohioctapp" in self.court_id:
+            elif (
+                "ohioctapp"
+                in self.court_id  # ty: ignore[unsupported-operator]
+            ):  # ty: ignore[unsupported-operator]
                 # For ohioctapp cases. This will be important to disambiguate
                 # docket numbers, which may be repeated across districts
                 case["lower_court"] = f"{citation_or_county} County Court"
 
             if (
-                f"https://www.supremecourt.ohio.gov/rod/docs/pdf/{self.court_index}/"
+                f"https://www.supremecourt.ohio.gov/rod/docs/pdf/{self.court_index}/"  # ty: ignore[unsupported-operator]
                 not in case["url"]
             ):
                 logger.warning("Wrong appellate page detected.")
@@ -104,8 +107,14 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        event_validation = self.html.xpath("//input[@id='__EVENTVALIDATION']")
-        view_state = self.html.xpath("//input[@id='__VIEWSTATE']")
+        event_validation = (
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//input[@id='__EVENTVALIDATION']"
+            )
+        )  # ty: ignore[possibly-missing-attribute]
+        view_state = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//input[@id='__VIEWSTATE']"
+        )  # ty: ignore[possibly-missing-attribute]
         self.parameters = {
             "__VIEWSTATEENCRYPTED": "",
             "ctl00$MainContent$ddlCourt": f"{self.court_index}",
@@ -140,7 +149,7 @@ class Site(OpinionSiteLinear):
         start_date, end_date = d
         self.rows_per_page = "200"
         self.year = str(start_date.year)
-        self.url = self.url.replace(
+        self.url = self.url.replace(  # ty: ignore[possibly-missing-attribute]
             "PageSize=50", f"PageSize={self.rows_per_page}"
         )
 
@@ -175,8 +184,16 @@ class Site(OpinionSiteLinear):
 
     def make_backscrape_iterable(self, kwargs: dict) -> None:
         super().make_backscrape_iterable(kwargs)
-        start_date = self.back_scrape_iterable[0][0]
-        end_date = self.back_scrape_iterable[0][-1]
+        start_date = self.back_scrape_iterable[
+            0
+        ][  # ty: ignore[not-subscriptable]
+            0
+        ]  # ty: ignore[not-subscriptable]
+        end_date = self.back_scrape_iterable[
+            0
+        ][  # ty: ignore[not-subscriptable]
+            -1
+        ]  # ty: ignore[not-subscriptable]
 
         self.back_scrape_iterable = []
         # Generate a tuple for each year

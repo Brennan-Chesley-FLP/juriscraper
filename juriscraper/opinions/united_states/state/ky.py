@@ -87,7 +87,9 @@ class Site(OpinionSiteLinear):
         """
         result_json = self.html
 
-        for result in result_json["resultItems"]:
+        for result in result_json[
+            "resultItems"
+        ]:  # ty: ignore[not-subscriptable]
             case_name = ""
             row = result["rowMap"]
             date_filed = row["filedDate"]
@@ -179,7 +181,9 @@ class Site(OpinionSiteLinear):
         self._post_process_response()
         return self._return_response_text_object()
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Set date range from backscraping args and scrape
 
         :param dates: (start_date, end_date) tuple

@@ -23,7 +23,9 @@ class Site(OpinionSiteLinear):
         return f"https://www.courts.mo.gov/page.jsp?id=12086&dist=Opinions%20{self.court}&date=all&year={year}#all"
 
     def _process_html(self):
-        for row in self.html.xpath("//div[@class='margin-bottom-15']"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//div[@class='margin-bottom-15']"
+        ):  # ty: ignore[possibly-missing-attribute]
             date = row.xpath(".//input")[0].value
             for opinion in row.xpath(".//div[@class='list-group-item-text']"):
                 links = opinion.xpath("a")

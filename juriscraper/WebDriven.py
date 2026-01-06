@@ -111,13 +111,19 @@ class WebDriven:
         )
 
     def wait_for_id_then_click(self, id: str):
-        self.wait.until(EC.element_to_be_clickable((By.ID, id))).click()
+        self.wait.until(  # ty: ignore[possibly-missing-attribute]
+            EC.element_to_be_clickable((By.ID, id))
+        ).click()  # ty: ignore[possibly-missing-attribute]
 
     def wait_for_path_then_click(self, xpath: str):
-        self.wait.until(EC.element_to_be_clickable((By.XPATH, xpath))).click()
+        self.wait.until(  # ty: ignore[possibly-missing-attribute]
+            EC.element_to_be_clickable((By.XPATH, xpath))
+        ).click()  # ty: ignore[possibly-missing-attribute]
 
     def wait_for_id(self, id_attr):
-        self.wait.until(EC.presence_of_element_located((By.ID, id_attr)))
+        self.wait.until(  # ty: ignore[possibly-missing-attribute]
+            EC.presence_of_element_located((By.ID, id_attr))
+        )  # ty: ignore[possibly-missing-attribute]
 
     def take_screenshot(self, name: Optional[str] = None):
         """Use this method to snap screenshots during debugging"""

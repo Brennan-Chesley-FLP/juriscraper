@@ -19,7 +19,9 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        cases = self.html.xpath("//div[@class='sidebar-ag-opinion-content']")
+        cases = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//div[@class='sidebar-ag-opinion-content']"
+        )  # ty: ignore[possibly-missing-attribute]
         for case in cases:
             docket = case.xpath(".//h4")[0].text_content().strip()
             summary = case.xpath(".//p")[0].text_content().strip()

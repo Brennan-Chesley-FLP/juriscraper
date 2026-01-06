@@ -51,7 +51,9 @@ class Site(OpinionSiteLinear):
         # consecutive duplicates
         seen_urls = set()
 
-        for row in self.html.xpath('//table//div[@class="row"]'):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//table//div[@class="row"]'
+        ):  # ty: ignore[possibly-missing-attribute]
             raw_name, *values = list(
                 map(str.strip, row.xpath("./div[1]/p[1]/text()"))
             )
@@ -203,7 +205,9 @@ class Site(OpinionSiteLinear):
 
         return metadata
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range request
 
         :param dates: (start_date, end_date) tuple

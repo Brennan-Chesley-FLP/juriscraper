@@ -46,7 +46,7 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for item in self.html["searchItems"]:
+        for item in self.html["searchItems"]:  # ty: ignore[not-subscriptable]
             if match := self.title_re.search(item["title"]):
                 docket = match.group("docket")
                 name = self.cleanup_case_name(match.group("name"))
@@ -68,7 +68,12 @@ class Site(OpinionSiteLinear):
                     "date": item["filingDate"],
                     "docket": docket,
                     "name": name,
-                    "url": urljoin(self.url, item["documentUrl"].strip()),
+                    "url": urljoin(
+                        self.url,  # ty: ignore[invalid-argument-type]
+                        item[
+                            "documentUrl"
+                        ].strip(),  # ty: ignore[invalid-argument-type]
+                    ),  # ty: ignore[invalid-argument-type]
                     "lower_court": self.parse_lower_courts(item["courts"]),
                     "status": status,
                     "per_curiam": per_curiam,

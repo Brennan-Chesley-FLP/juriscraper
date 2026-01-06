@@ -155,4 +155,6 @@ class OpinionSite(AbstractSite):
         return {}
 
     def _get_date_filed_is_approximate(self):
-        return [False] * len(self.case_names)
+        return [False] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]

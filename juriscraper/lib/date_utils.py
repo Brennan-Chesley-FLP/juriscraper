@@ -155,7 +155,7 @@ def make_date_range_tuples(start, end, gap):
     return list(zip_longest(start_dates, end_dates, fillvalue=end))
 
 
-def unique_year_month(
+def unique_year_month(  # ty: ignore[invalid-argument-type]
     date_list: list[Union[date, datetime.datetime, tuple[date]]],
 ) -> list[Union[date, datetime.datetime]]:
     """Takes a list of dates or date tuples, and reduces it

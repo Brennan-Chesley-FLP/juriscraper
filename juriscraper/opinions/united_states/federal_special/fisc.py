@@ -18,7 +18,9 @@ class Site(OpinionSiteLinear):
 
         :return None
         """
-        for row in self.html.xpath("//tr[td/a]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr[td/a]"
+        ):  # ty: ignore[possibly-missing-attribute]
             filing_name, *_, filename = row.xpath("td/a/text()")
             if "opinion" not in filing_name.lower():
                 continue
@@ -39,11 +41,18 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-            next_page = self.html.xpath("//a[@title='Go to next page']/@href")
+            next_page = (
+                self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                    "//a[@title='Go to next page']/@href"
+                )
+            )  # ty: ignore[possibly-missing-attribute]
             if self.do_backscrape and next_page:
                 # Perform download since we are not yielding a site for each
                 # element in the backscrape iterable
-                self.url = urljoin(self.url, next_page[0])
+                self.url = urljoin(
+                    self.url,  # ty: ignore[invalid-argument-type]
+                    next_page[0],  # ty: ignore[invalid-argument-type]
+                )  # ty: ignore[invalid-argument-type]
                 self.html = self._download()
                 self._process_html()
 
@@ -57,7 +66,9 @@ class Site(OpinionSiteLinear):
         """
         return "FISCR" in docket or "FISCR" in filename
 
-    def _download_backwards(self, _) -> None:
+    def _download_backwards(
+        self, _
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Start from second page up to last page
 
         :return None

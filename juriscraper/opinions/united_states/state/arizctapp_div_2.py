@@ -27,7 +27,9 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self) -> None:
         path = "//table//a[contains(@href, '.pdf')]"
-        for item in self.html.xpath(path):
+        for item in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            path
+        ):  # ty: ignore[possibly-missing-attribute]
             docket = item.xpath("./text()")[0]
             url = item.xpath("./@href")[0]
             names = item.xpath("./following::td[1]/*/text()")

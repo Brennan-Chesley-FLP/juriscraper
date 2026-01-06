@@ -22,7 +22,9 @@ class Site(OpinionSiteLinear):
         self.make_backscrape_iterable(kwargs)
 
     def _process_html(self) -> None:
-        for link in self.html.xpath("//li/a[contains(@href, '.pdf')]"):
+        for link in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//li/a[contains(@href, '.pdf')]"
+        ):  # ty: ignore[possibly-missing-attribute]
             url = link.get("href")
             # Expected title content:
             # - "S20A1505, S20A1506. PENDER v. THE STATE"
@@ -71,7 +73,9 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         self.url = self.url_template.format(year)
         logger.info("Backscraping for year %s %s", year, self.url)
         self.html = self._download()

@@ -21,7 +21,11 @@ class Site(okla.Site):
         self.expected_content_types = ["text/html"]
 
     def _process_html(self):
-        for row in self.html.xpath("//div/p['@class=document']")[::-1]:
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//div/p['@class=document']"
+        )[  # ty: ignore[possibly-missing-attribute]
+            ::-1
+        ]:  # ty: ignore[possibly-missing-attribute]
             if "OK" not in row.text_content() or "EMAIL" in row.text_content():
                 continue
             citation, date, name = row.text_content().split(",", 2)

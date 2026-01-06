@@ -35,7 +35,7 @@ class Site(OpinionSiteLinear):
         :return: List of cases to download
         """
         cases = []
-        for case in self.html:
+        for case in self.html:  # ty: ignore[not-iterable]
             advances = [case["advanceNumber"] for case in cases]
             if (
                 "COA" in case["caseNumber"]
@@ -86,7 +86,9 @@ class Site(OpinionSiteLinear):
             "submitValue": "Search",
         }
         self._request_url_post(self.search)
-        content = self.request["response"].text
+        content = self.request[
+            "response"
+        ].text  # ty: ignore[possibly-missing-attribute]
         slug = fromstring(content).xpath(self.xp)[-1]
         return f"https://caseinfo.nvsupremecourt.us{slug}"
 

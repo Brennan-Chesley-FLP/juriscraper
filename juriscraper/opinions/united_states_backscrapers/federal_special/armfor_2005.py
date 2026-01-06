@@ -15,18 +15,22 @@ class Site(OpinionSite):
         self.court_id = self.__module__
 
     def _get_case_names(self):
-        return list(self.html.xpath("//table//tr/td[1]/font/text()"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table//tr/td[1]/font/text()"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_download_urls(self):
         return list(
-            self.html.xpath(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
                 '//table//tr/td[2]/font/a/@href[contains(., ".pdf")]'
             )
         )
 
     def _get_case_dates(self):
         dates = []
-        for e in self.html.xpath(
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table/tr[3]/td[2]/blockquote/table/tbody/tr[position() > 1]/td[3]"
         ):
             s = html.tostring(e, method="text", encoding="unicode").strip()
@@ -37,17 +41,21 @@ class Site(OpinionSite):
 
     def _get_docket_numbers(self):
         docket_numbers = []
-        for e in self.html.xpath("//table//table//tr[position() > 1]/td[2]"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table//table//tr[position() > 1]/td[2]"
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode")
             docket_numbers.append(s.strip()[:-5])
         return docket_numbers
 
     def _get_precedential_statuses(self):
-        return ["Published"] * len(self.case_names)
+        return ["Published"] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
 
     def _get_citations(self):
         neutral_citations = []
-        for e in self.html.xpath(
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table/tr[3]/td[2]/blockquote/table/tbody/tr[position() > 1]/td[4]"
         ):
             s = html.tostring(e, method="text", encoding="unicode")

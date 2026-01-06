@@ -20,11 +20,17 @@ class Site(OpinionSite):
         self.should_have_results = True
 
     def _get_download_urls(self):
-        return list(self.html.xpath(f"{self.base}/td[1]/a/@href"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                f"{self.base}/td[1]/a/@href"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_citations(self):
         neutral_citations = []
-        for t in self.html.xpath(f"{self.base}/td[1]/a/text()"):
+        for t in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            f"{self.base}/td[1]/a/text()"
+        ):  # ty: ignore[possibly-missing-attribute]
             year, item_number = t.split("-")
             neutral_citations.append(f"20{year} CIT {item_number}")
         return neutral_citations
@@ -34,7 +40,9 @@ class Site(OpinionSite):
         # contains an anchor (which confidential cases do not)
         case_names = []
         path = f"{self.base}/td[2][../td/a]"
-        for e in self.html.xpath(path):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            path
+        ):  # ty: ignore[possibly-missing-attribute]
             text = e.text_content().strip()
             case_name = text.split("\n")[0]
             case_names.append(case_name)
@@ -42,7 +50,9 @@ class Site(OpinionSite):
 
     def _get_precedential_statuses(self):
         statuses = []
-        for e in self.html.xpath(f"{self.base}/td[2][../td/a]"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            f"{self.base}/td[2][../td/a]"
+        ):  # ty: ignore[possibly-missing-attribute]
             s = (
                 html.tostring(e, method="text", encoding="unicode")
                 .lower()
@@ -60,7 +70,9 @@ class Site(OpinionSite):
         # original release date instead.
         dates = []
         date_formats = ["%m/%d/%Y", "%m/%d/%y"]
-        for date_string in self.html.xpath(
+        for (
+            date_string
+        ) in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             f"{self.base}/td[3][../td/a]//text()"
         ):
             for date_format in date_formats:
@@ -79,7 +91,9 @@ class Site(OpinionSite):
 
     def _get_docket_numbers(self):
         docket_numbers = []
-        for e in self.html.xpath(f"{self.base}/td[4][../td/a]"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            f"{self.base}/td[4][../td/a]"
+        ):  # ty: ignore[possibly-missing-attribute]
             docket_numbers.append(
                 html.tostring(e, method="text", encoding="unicode").strip()
             )
@@ -87,10 +101,16 @@ class Site(OpinionSite):
 
     def _get_judges(self):
         judges = []
-        for e in self.html.xpath(f"{self.base}/td[5][../td/a]"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            f"{self.base}/td[5][../td/a]"
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode")
             judges.append(s)
         return judges
 
     def _get_nature_of_suit(self):
-        return list(self.html.xpath(f"{self.base}/td[6][../td/a]/text()"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                f"{self.base}/td[6][../td/a]/text()"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]

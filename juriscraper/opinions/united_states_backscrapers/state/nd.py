@@ -26,7 +26,11 @@ class Site(nd.Site):
         def fetcher(html_link):
             if self.test_mode_enabled():
                 return html_link  # Can't fetch remote during tests
-            case_number = re.search(r"(\d+)", html_link).group(0)
+            case_number = re.search(
+                r"(\d+)", html_link
+            ).group(  # ty: ignore[possibly-missing-attribute]
+                0
+            )  # ty: ignore[possibly-missing-attribute]
             wpd_link = f"http://www.ndcourts.gov/wp/{case_number}.wpd"
             r = requests.head(
                 wpd_link,
@@ -40,19 +44,27 @@ class Site(nd.Site):
 
         if self.crawl_date >= date(1998, 10, 1):
             path = '//a/@href[contains(., "/court/opinions/")]'
-            seed = list(self.html.xpath(path))
+            seed = list(
+                self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
+            )  # ty: ignore[possibly-missing-attribute]
         else:
             path = "//ul//a[text()]/@href"
-            seed = list(self.html.xpath(path))
+            seed = list(
+                self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
+            )  # ty: ignore[possibly-missing-attribute]
         return DeferringList(seed=seed, fetcher=fetcher)
 
     def _get_case_names(self):
         if self.crawl_date >= date(1998, 10, 1):
             path = '//a[contains(@href, "/court/opinions/")]/text()'
-            return list(self.html.xpath(path))
+            return list(
+                self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
+            )  # ty: ignore[possibly-missing-attribute]
         else:
             path = "//ul//a/text()"
-            names = self.html.xpath(path)
+            names = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                path
+            )  # ty: ignore[possibly-missing-attribute]
             case_names = []
             if self.crawl_date < date(1996, 11, 1):
                 # A bad time.
@@ -69,23 +81,36 @@ class Site(nd.Site):
         case_dates = []
         if self.crawl_date >= date(1998, 10, 1):
             test_path = "//body/a"
-            if len(self.html.xpath(test_path)) == 0:
+            if (
+                len(
+                    self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                        test_path
+                    )  # ty: ignore[possibly-missing-attribute]
+                )  # ty: ignore[possibly-missing-attribute]
+                == 0  # ty: ignore[possibly-missing-attribute]
+            ):  # ty: ignore[possibly-missing-attribute]
                 # It's a month with no cases (like Jan, 2009)
                 return []
             path = "//body/a|//body/font"
-            for e in self.html.xpath(path):
+            for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                path
+            ):  # ty: ignore[possibly-missing-attribute]
                 if e.tag == "font":
                     date_str = e.text
                     dt = datetime.strptime(date_str, "%B %d, %Y").date()
                 elif e.tag == "a":
                     try:
-                        case_dates.append(dt)
+                        case_dates.append(
+                            dt  # ty: ignore[unresolved-reference]
+                        )  # ty: ignore[unresolved-reference]
                     except NameError:
                         # When we don't yet have the date
                         continue
         else:
             path = "//h4|//li"
-            for e in self.html.xpath(path):
+            for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                path
+            ):  # ty: ignore[possibly-missing-attribute]
                 if e.tag == "h4":
                     # We make dates on h4's because there's one h4 per date.
                     date_str = e.text.strip()
@@ -93,14 +118,18 @@ class Site(nd.Site):
                 elif e.tag == "li":
                     try:
                         # We append on li's, because there's one li per case.
-                        case_dates.append(dt)
+                        case_dates.append(
+                            dt  # ty: ignore[unresolved-reference]
+                        )  # ty: ignore[unresolved-reference]
                     except NameError:
                         # When we don't yet have the date
                         continue
         return case_dates
 
     def _get_precedential_statuses(self):
-        return ["Published"] * len(self.case_names)
+        return ["Published"] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
 
     def _get_docket_numbers(self):
         if self.crawl_date >= date(1998, 10, 1):
@@ -108,9 +137,19 @@ class Site(nd.Site):
         else:
             path = "//ul//a[text()]/@href"
         docket_numbers = []
-        for html_link in self.html.xpath(path):
+        for (
+            html_link
+        ) in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            path
+        ):  # ty: ignore[possibly-missing-attribute]
             try:
-                docket_numbers.append(re.search(r"(\d+)", html_link).group(0))
+                docket_numbers.append(
+                    re.search(
+                        r"(\d+)", html_link
+                    ).group(  # ty: ignore[possibly-missing-attribute]
+                        0
+                    )  # ty: ignore[possibly-missing-attribute]
+                )  # ty: ignore[possibly-missing-attribute]
             except AttributeError:
                 continue
         return docket_numbers
@@ -126,10 +165,12 @@ class Site(nd.Site):
             # New format with: 1997 ND 30
             path = "//body/text()"
         neutral_cites = []
-        for t in self.html.xpath(path):
+        for t in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            path
+        ):  # ty: ignore[possibly-missing-attribute]
             try:
                 neutral_cites.append(
-                    re.search(
+                    re.search(  # ty: ignore[possibly-missing-attribute]
                         r"^.{0,5}(\d{4} ND (?:App )?\d{1,4})", t, re.MULTILINE
                     ).group(1)
                 )
@@ -139,24 +180,38 @@ class Site(nd.Site):
 
     def _post_parse(self):
         # Remove any information that applies to non-appellate cases.
-        if self.neutral_citations:
+        if self.neutral_citations:  # ty: ignore[unresolved-attribute]
             delete_items = []
-            for i in range(0, len(self.neutral_citations)):
-                if "App" in self.neutral_citations[i]:
+            for i in range(
+                0,
+                len(
+                    self.neutral_citations  # ty: ignore[unresolved-attribute]
+                ),  # ty: ignore[unresolved-attribute]
+            ):  # ty: ignore[unresolved-attribute]
+                if (
+                    "App"
+                    in self.neutral_citations[  # ty: ignore[unresolved-attribute]
+                        i
+                    ]  # ty: ignore[unresolved-attribute]
+                ):  # ty: ignore[unresolved-attribute]
                     delete_items.append(i)
 
             for i in sorted(delete_items, reverse=True):
-                del self.download_urls[i]
-                del self.case_names[i]
-                del self.case_dates[i]
-                del self.precedential_statuses[i]
-                del self.docket_numbers[i]
-                del self.neutral_citations[i]
+                del self.download_urls[i]  # ty: ignore[unresolved-attribute]
+                del self.case_names[i]  # ty: ignore[unresolved-attribute]
+                del self.case_dates[i]  # ty: ignore[unresolved-attribute]
+                del self.precedential_statuses[  # ty: ignore[unresolved-attribute]
+                    i
+                ]  # ty: ignore[unresolved-attribute]
+                del self.docket_numbers[i]  # ty: ignore[unresolved-attribute]
+                del self.neutral_citations[  # ty: ignore[unresolved-attribute]
+                    i
+                ]  # ty: ignore[unresolved-attribute]
         else:
             # When there aren't any neutral cites that means they're all supreme court cases.
             pass
 
-    def _download_backwards(self, d):
+    def _download_backwards(self, d):  # ty: ignore[invalid-method-override]
         self.crawl_date = d
         self.url = "http://www.ndcourts.gov/opinions/month/%s.htm" % (
             d.strftime("%b%Y")

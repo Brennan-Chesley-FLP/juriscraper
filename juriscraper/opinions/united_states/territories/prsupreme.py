@@ -22,7 +22,9 @@ class Site(OpinionSiteLinear):
         self.status = "Published"
 
     def _process_html(self):
-        for row in self.html.xpath(".//table/tbody/tr/td/a/@href/../../.."):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//table/tbody/tr/td/a/@href/../../.."
+        ):  # ty: ignore[possibly-missing-attribute]
             cells = row.xpath("following-sibling::tr[position() <= 5]")
             citation = row.text_content()
             url = row.xpath(".//a/@href")[0]

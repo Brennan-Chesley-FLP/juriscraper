@@ -484,7 +484,7 @@ def get_pacer_case_id_from_doc1_url(url):
         return None
 
 
-def get_pacer_magic_num_from_doc1_url(
+def get_pacer_magic_num_from_doc1_url(  # ty: ignore[invalid-argument-type]
     url: str,
     appellate: bool = False,
 ) -> Optional[str]:
@@ -793,7 +793,7 @@ def get_pdf_url(court, pacer_case_id, document_number, attachment_number):
     )
 
 
-def set_pacer_doc_id_as_appellate_document_number(
+def set_pacer_doc_id_as_appellate_document_number(  # ty: ignore[invalid-argument-type]
     de: dict[str, Union[str, date, datetime]],
 ) -> None:
     """For appellate courts that don't use numbers, if available set the

@@ -33,7 +33,9 @@ class Site(wis.Site):
 
         :return: None
         """
-        for row in self.html.xpath(".//table/tbody/tr"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//table/tbody/tr"
+        ):  # ty: ignore[possibly-missing-attribute]
             date, docket, caption, district, county, link = row.xpath("./td")
             long_caption = caption.text_content()
             if "[Decision/Opinion withdrawn" in long_caption:

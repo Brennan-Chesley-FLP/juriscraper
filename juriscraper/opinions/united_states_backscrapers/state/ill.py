@@ -28,19 +28,27 @@ class Site(OpinionSite):
         self.neutral_citations_path = None
 
     def _get_download_urls(self):
-        return list(self.html.xpath(self.download_url_path))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                self.download_url_path
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_names(self):
         case_names = [
             " ".join(i.strip() for i in e.xpath(".//text()")).strip()
-            for e in self.html.xpath(self.case_name_path)
+            for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                self.case_name_path
+            )  # ty: ignore[possibly-missing-attribute]
         ]
         return case_names
 
     def _get_case_dates(self):
         if self.year <= 2006:
             case_dates = []
-            for e in self.html.xpath(self.case_dates_path):
+            for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                self.case_dates_path
+            ):  # ty: ignore[possibly-missing-attribute]
                 month = "".join(e.xpath(self.case_dates_path_month)).strip()
                 day = "".join(e.xpath(self.case_dates_path_day)).strip()
                 month = month.replace("Decemberr", "December")
@@ -59,14 +67,18 @@ class Site(OpinionSite):
                     "".join(i.strip() for i in d.xpath(".//text()")),
                     fuzzy=True,
                 )
-                for d in self.html.xpath(self.case_dates_path)
+                for d in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                    self.case_dates_path
+                )  # ty: ignore[possibly-missing-attribute]
             ]
 
         return case_dates
 
     def _get_precedential_statuses(self):
         statuses = []
-        for e in self.html.xpath(self.precedential_statuses_path):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            self.precedential_statuses_path
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode")
             if "NRel" in s:
                 statuses.append("Unpublished")
@@ -76,7 +88,9 @@ class Site(OpinionSite):
 
     def _get_docket_numbers(self):
         docket_numbers = []
-        for e in self.html.xpath(self.docket_numbers_path):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            self.docket_numbers_path
+        ):  # ty: ignore[possibly-missing-attribute]
             nums = " ".join(i.strip() for i in e.xpath(".//text()"))
             nums = nums.replace("Official Reports", "")
             docket_numbers.append(nums)
@@ -86,7 +100,9 @@ class Site(OpinionSite):
         neutral_citations = None
         if self.neutral_citations_path:
             neutral_citations = []
-            for e in self.html.xpath(self.neutral_citations_path):
+            for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                self.neutral_citations_path
+            ):  # ty: ignore[possibly-missing-attribute]
                 neutral_citations.append(
                     " ".join(i.strip() for i in e.xpath(".//text()")).strip()
                 )

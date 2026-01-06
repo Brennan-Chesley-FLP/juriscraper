@@ -87,7 +87,11 @@ class FreeOpinionReport(BaseReport):
             )
 
             # Get the first page, grab the nonce, and submit using that.
-            response = self.session.get(self.url)
+            response = (
+                self.session.get(  # ty: ignore[possibly-missing-attribute]
+                    self.url
+                )
+            )  # ty: ignore[possibly-missing-attribute]
             nonce = get_nonce_from_form(response)
             logger.info("Got nonce of %s", nonce)
 
@@ -98,7 +102,11 @@ class FreeOpinionReport(BaseReport):
                 "Key1": self._normalize_sort_param(sort),
                 "all_case_ids": "0",
             }
-            response = self.session.post(f"{self.url}?{nonce}", data=data)
+            response = (
+                self.session.post(  # ty: ignore[possibly-missing-attribute]
+                    f"{self.url}?{nonce}", data=data
+                )
+            )  # ty: ignore[possibly-missing-attribute]
             responses.append(response)
             responses_with_params.append(
                 {

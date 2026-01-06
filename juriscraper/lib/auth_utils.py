@@ -26,7 +26,9 @@ def set_api_token_header(site: OpinionSite) -> None:
             f"It is required for scraping New York Court: {site.court_id}"
         )
         return
-    site.request["headers"]["X-APIKEY"] = api_token
+    site.request["headers"]["X-APIKEY"] = (  # ty: ignore[invalid-assignment]
+        api_token  # ty: ignore[invalid-assignment]
+    )
     site.needs_special_headers = True
 
 

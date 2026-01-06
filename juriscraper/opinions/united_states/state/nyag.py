@@ -19,7 +19,9 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self):
         """"""
-        for row in self.html.xpath("//div[@class='views-row']"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//div[@class='views-row']"
+        ):  # ty: ignore[possibly-missing-attribute]
             docket, _, _, summary, *_ = row.xpath(".//div/text()")
             url = row.xpath(".//div/span/p/a")[0].get("href")
             case = row.xpath(".//div/span/p/a/text()")[0]

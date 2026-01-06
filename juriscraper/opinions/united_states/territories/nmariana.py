@@ -52,7 +52,9 @@ class Site(OpinionSiteLinear):
         return author
 
     def _process_html(self):
-        for s in self.html.xpath(".//td/a/@href[contains(., 'pdf')]/../../.."):
+        for s in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//td/a/@href[contains(., 'pdf')]/../../.."
+        ):  # ty: ignore[possibly-missing-attribute]
             cells = s.xpath(".//td")
             judge_text = cells[3].text_content()
             author = self._fetch_author(judge_text)

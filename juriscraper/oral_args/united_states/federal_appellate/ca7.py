@@ -19,15 +19,26 @@ class Site(OralArgumentSite):
 
     def _get_download_urls(self):
         path = "//tr[@bgcolor]/td[5]//@href"
-        return list(self.html.xpath(path))
+        return list(
+            self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_names(self):
         path = "//tr[@bgcolor]/td[2]/text()"
-        return list(self.html.xpath(path))
+        return list(
+            self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_dates(self):
         path = "//tr[@bgcolor]/td[4]/text()"
-        return list(map(self._return_case_date, self.html.xpath(path)))
+        return list(
+            map(
+                self._return_case_date,
+                self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                    path
+                ),  # ty: ignore[possibly-missing-attribute]
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     @staticmethod
     def _return_case_date(s):
@@ -35,4 +46,6 @@ class Site(OralArgumentSite):
 
     def _get_docket_numbers(self):
         path = "//tr[@bgcolor]/td[1]/text()"
-        return list(self.html.xpath(path))
+        return list(
+            self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]

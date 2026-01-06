@@ -20,7 +20,9 @@ from .string_utils import (
 logger = make_default_logger()
 
 
-def sanity_check_dates(dates_and_names: list[tuple], court_id: str) -> None:
+def sanity_check_dates(  # ty: ignore[invalid-argument-type]
+    dates_and_names: list[tuple], court_id: str
+) -> None:  # ty: ignore[invalid-argument-type]
     """Checks that dates are datetime.date objects and that they are not in the future
 
     :param dates_and_names: a 3 member tuple (case_date, case_name, date_is_approximate)

@@ -42,7 +42,7 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     @staticmethod
-    def get_term(
+    def get_term(  # ty: ignore[invalid-argument-type]
         date_of_interest: Union[date, datetime, None] = None,
     ) -> int:
         """The URLs for SCOTUS correspond to the term, not the calendar.
@@ -60,7 +60,9 @@ class Site(OpinionSiteLinear):
         return year - 1 if date_of_interest < term_cutoff else year
 
     def _process_html(self):
-        for row in self.html.xpath("//tr"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr"
+        ):  # ty: ignore[possibly-missing-attribute]
             cells = row.xpath(".//td")
             if len(cells) != 6:
                 continue
@@ -87,8 +89,16 @@ class Site(OpinionSiteLinear):
         :return: a list of URLs
         """
         super().make_backscrape_iterable(kwargs)
-        start = self.get_term(self.back_scrape_iterable[0][0])
-        end = self.get_term(self.back_scrape_iterable[-1][1])
+        start = self.get_term(
+            self.back_scrape_iterable[0][  # ty: ignore[not-subscriptable]
+                0
+            ]  # ty: ignore[invalid-argument-type, not-subscriptable]
+        )  # ty: ignore[invalid-argument-type, not-subscriptable]
+        end = self.get_term(
+            self.back_scrape_iterable[-1][  # ty: ignore[not-subscriptable]
+                1
+            ]  # ty: ignore[invalid-argument-type, not-subscriptable]
+        )  # ty: ignore[invalid-argument-type, not-subscriptable]
         if start == end:
             self.back_scrape_iterable = [f"{self.base_url}/{start}"]
         else:

@@ -68,7 +68,9 @@ class AttachmentPage(BaseReport):
         if self.is_valid is False:
             return {}
 
-        rows = self.tree.xpath("//tr[.//a]")
+        rows = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr[.//a]"
+        )  # ty: ignore[possibly-missing-attribute]
         if not rows:
             logger.info("No documents found on attachment page.")
             return {}
@@ -123,7 +125,9 @@ class AttachmentPage(BaseReport):
         XPath. In bankruptcy cases, it's sometimes not there.
         """
         # First try inspecting the input elements
-        input_els = self.tree.xpath("//input")
+        input_els = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//input"
+        )  # ty: ignore[possibly-missing-attribute]
         for input_el in input_els:
             try:
                 name = input_el.xpath("./@name")[0]
@@ -152,7 +156,13 @@ class AttachmentPage(BaseReport):
         )
         for path in paths:
             try:
-                return int(self.tree.xpath(path)[0].strip())
+                return int(
+                    self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                        path
+                    )[  # ty: ignore[possibly-missing-attribute]
+                        0
+                    ].strip()  # ty: ignore[possibly-missing-attribute]
+                )  # ty: ignore[possibly-missing-attribute]
             except IndexError:
                 continue
         return None
@@ -344,7 +354,9 @@ class AttachmentPage(BaseReport):
                 go_dls_parts = reverse_goDLS_function(onclick[0])
                 return go_dls_parts["de_seq_num"]
 
-        input_els = self.tree.xpath("//input")
+        input_els = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//input"
+        )  # ty: ignore[possibly-missing-attribute]
         for input_el in input_els:
             try:
                 onclick = input_el.xpath("./@onclick")[0]
@@ -368,7 +380,7 @@ class AttachmentPage(BaseReport):
         :returns str: The pacer_case_id value
         """
         # Start by inspecting all the links
-        urls = self.tree.xpath("//a")
+        urls = self.tree.xpath("//a")  # ty: ignore[possibly-missing-attribute]
         for url in urls:
             try:
                 onclick = url.xpath("./@onclick")[0]
@@ -382,7 +394,9 @@ class AttachmentPage(BaseReport):
                 return go_dls_parts["caseid"]
 
         # If that fails, try inspecting the input elements
-        input_els = self.tree.xpath("//input")
+        input_els = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//input"
+        )  # ty: ignore[possibly-missing-attribute]
         for input_el in input_els:
             try:
                 onclick = input_el.xpath("./@onclick")[0]
@@ -403,7 +417,7 @@ def _main():
     filepath = sys.argv[1]
     print(f"Parsing HTML file at {filepath}")
     with open(filepath) as f:
-        text = f.read().decode("utf-8")
+        text = f.read().decode("utf-8")  # ty: ignore[unresolved-attribute]
     report._parse_text(text)
     pprint.pprint(report.data, indent=2)
 

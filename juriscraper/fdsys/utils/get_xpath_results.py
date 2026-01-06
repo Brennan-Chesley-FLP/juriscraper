@@ -35,7 +35,11 @@ def print_xpath_results(query):
                 else:
                     result = etree.tostring(result).strip()
                     print(f"{indent}{count}.\t{result}")
-                    s.add("".join(result.split()))
+                    s.add(
+                        "".join(
+                            result.split()
+                        )  # ty: ignore[no-matching-overload]
+                    )  # ty: ignore[no-matching-overload]
                 count += 1
             if len(s) == 1:
                 print(f"\n{indent}All items were equal!")

@@ -10,4 +10,6 @@ class Site(idahoctapp_civil.Site):
         self.court_id = self.__module__
 
     def _get_precedential_statuses(self):
-        return ["Unpublished"] * len(self.case_names)
+        return ["Unpublished"] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]

@@ -39,13 +39,22 @@ class Site(OpinionSiteLinear):
             )
         ]
 
-    def _download(self):
-        r = self.request["session"].get(self.url)
-        html = fromstring(r.text)
+    def _download(self):  # ty: ignore[invalid-method-override]
+        r = self.request[
+            "session"
+        ].get(  # ty: ignore[possibly-missing-attribute]
+            self.url  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type, possibly-missing-attribute]
+        html = fromstring(r.text)  # ty: ignore[possibly-missing-attribute]
         self._update_query_params(html)
 
         # Get first set of dates
-        r = self.request["session"].post(self.url, data=self.data)
+        r = self.request[
+            "session"
+        ].post(  # ty: ignore[possibly-missing-attribute]
+            self.url,  # ty: ignore[invalid-argument-type]
+            data=self.data,  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type, possibly-missing-attribute]
         return fromstring(r.text)
 
     def _process_html(self) -> None:
@@ -60,7 +69,9 @@ class Site(OpinionSiteLinear):
         """
 
         row_xpath = f"{self.y}_radGridOpinions_ctl00"
-        more_rows = self.html.xpath(f"//tr[contains(@id, '{row_xpath}')]")
+        more_rows = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            f"//tr[contains(@id, '{row_xpath}')]"
+        )  # ty: ignore[possibly-missing-attribute]
         for row in more_rows:
             self.cases.append(
                 {
@@ -85,17 +96,30 @@ class Site(OpinionSiteLinear):
         self.data["RadAJAXControlID"] = f"{self.y}_radAjaxManager1"
         self.data["ctl00$RadScriptManager1"] = rad_script
 
-        last = self.html.xpath(
+        last = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//div[@class='rgWrap rgNumPart']/a/span/text()"
         )[-1]
 
         page_content = None
         current_xp = "//a[@class='rgCurrentPage']/span/text()"
-        while last != (current_page := self.html.xpath(current_xp)[0]):
+        while last != (
+            current_page
+            := self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                current_xp
+            )[  # ty: ignore[possibly-missing-attribute]
+                0
+            ]  # ty: ignore[possibly-missing-attribute]
+        ):  # ty: ignore[possibly-missing-attribute]
             self._update_pagination_data(page_content, current_page)
             page_content = (
-                self.request["session"]
-                .post(self.url, headers=self.headers, data=self.data)
+                self.request[  # ty: ignore[possibly-missing-attribute]
+                    "session"
+                ]  # ty: ignore[possibly-missing-attribute]
+                .post(
+                    self.url,  # ty: ignore[invalid-argument-type]
+                    headers=self.headers,
+                    data=self.data,  # ty: ignore[invalid-argument-type]
+                )  # ty: ignore[invalid-argument-type]
                 .text
             )
             self.html = fromstring(page_content)
@@ -158,7 +182,11 @@ class Site(OpinionSiteLinear):
 
     def _update_pagination_data(self, page_content, current):
         """Update subsequent pagination data if required."""
-        target = self.html.xpath("//input[@class='rgPageNext']")[0].attrib[
+        target = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//input[@class='rgPageNext']"
+        )[  # ty: ignore[possibly-missing-attribute]
+            0
+        ].attrib[  # ty: ignore[possibly-missing-attribute]
             "name"
         ]
         if int(current) > 1:
@@ -168,14 +196,32 @@ class Site(OpinionSiteLinear):
                 0
             ]
         else:
-            viewstate = self.html.xpath(self.vs_xpath)[0].attrib["value"]
-            valiation = self.html.xpath(self.ev_xpath)[0].attrib["value"]
+            viewstate = (
+                self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                    self.vs_xpath
+                )[  # ty: ignore[possibly-missing-attribute]
+                    0
+                ].attrib[  # ty: ignore[possibly-missing-attribute]
+                    "value"
+                ]
+            )  # ty: ignore[possibly-missing-attribute]
+            valiation = (
+                self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                    self.ev_xpath
+                )[  # ty: ignore[possibly-missing-attribute]
+                    0
+                ].attrib[  # ty: ignore[possibly-missing-attribute]
+                    "value"
+                ]
+            )  # ty: ignore[possibly-missing-attribute]
 
         self.data["__EVENTTARGET"] = target
         self.data["__VIEWSTATE"] = viewstate
         self.data["__EVENTVALIDATION"] = valiation
 
-    def _download_backwards(self, case_date):
+    def _download_backwards(
+        self, case_date
+    ):  # ty: ignore[invalid-method-override]
         logger.info(
             "Running backscraper with date range: %s to %s"
             % (

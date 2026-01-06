@@ -15,7 +15,9 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        for item in self.html.xpath('//li[contains(.//a/@href, ".pdf")]'):
+        for item in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//li[contains(.//a/@href, ".pdf")]'
+        ):  # ty: ignore[possibly-missing-attribute]
             text = clean_string(item.text_content())
             date_string = " ".join(text.split()[0:3])
             try:

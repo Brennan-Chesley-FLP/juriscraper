@@ -1,11 +1,11 @@
 import requests
+import urllib3
+import urllib3.exceptions as urllib3_exceptions
 from lxml.html import fromstring
 
 from juriscraper.lib.log_tools import make_default_logger
 
-requests.packages.urllib3.disable_warnings(
-    requests.packages.urllib3.exceptions.InsecureRequestWarning
-)
+urllib3.disable_warnings(urllib3_exceptions.InsecureRequestWarning)
 
 logger = make_default_logger()
 
@@ -70,7 +70,9 @@ class LASCSession(requests.Session):
 
         return super().get(url, **kwargs)
 
-    def post(self, url, auto_login=False, **kwargs):
+    def post(
+        self, url, auto_login=False, **kwargs
+    ):  # ty: ignore[invalid-method-override]
         """Overrides request.Session.post with session retry logic.
 
         :param url: url string to GET

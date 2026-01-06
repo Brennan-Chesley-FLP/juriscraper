@@ -38,7 +38,11 @@ class Site(OralArgumentSiteLinear):
         Parsing the URL helps simplifying the backscraper which has a different
         HTML structure than the regular page
         """
-        for link in self.html.xpath("//a[text()='Play']/@href")[: self.limit]:
+        for link in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//a[text()='Play']/@href"
+        )[  # ty: ignore[possibly-missing-attribute]
+            : self.limit
+        ]:  # ty: ignore[possibly-missing-attribute]
             *_, date_str, case = link.split("/")
             docket_match = re.search(r"(\d{2}-\d{4}\s?)+", case)
             if not docket_match:
@@ -56,7 +60,9 @@ class Site(OralArgumentSiteLinear):
                 }
             )
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Downloads and parses older records according to input dates"""
         logger.info("Backscraping for range %s", *dates)
         self.limit = 10000  # disable limit

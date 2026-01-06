@@ -53,7 +53,9 @@ class Site(mich.Site):
 
         url = f"https://www.courts.michigan.gov/c/courts/getcourtofappealscasedetaildata/{docket_number}"
         self._request_url_get(url)
-        response = self.request["response"].json()
+        response = self.request[
+            "response"
+        ].json()  # ty: ignore[possibly-missing-attribute]
         return self.cleanup_case_name(response["title"]), docket_number
 
     def get_disposition(self, item: dict) -> str:

@@ -27,7 +27,9 @@ class Site(OpinionSiteLinear):
         self.td = date.today()
         today = self.td.strftime("%m/%d/%Y")
         last_month = (self.td - timedelta(days=31)).strftime("%m/%d/%Y")
-        self.params = self.request["parameters"]["params"] = {
+        self.params = self.request["parameters"][
+            "params"
+        ] = {  # ty: ignore[invalid-assignment]
             "dateRange": "customDates",
             "startDate": last_month,
             "endDate": today,
@@ -50,8 +52,15 @@ class Site(OpinionSiteLinear):
             return super()._download()
 
         if not self.set_blue_green:
-            check = self.request["session"].get(self.url)
-            if check.status_code != 200:
+            check = self.request[
+                "session"
+            ].get(  # ty: ignore[possibly-missing-attribute]
+                self.url  # ty: ignore[invalid-argument-type]
+            )  # ty: ignore[invalid-argument-type, possibly-missing-attribute]
+            if (
+                check.status_code  # ty: ignore[possibly-missing-attribute]
+                != 200  # ty: ignore[possibly-missing-attribute]
+            ):  # ty: ignore[possibly-missing-attribute]
                 self.base_url = (
                     "https://public-api-blue.dawson.ustaxcourt.gov/public-api"
                 )
@@ -68,7 +77,9 @@ class Site(OpinionSiteLinear):
         """
         self.json = self.html
 
-        for case in self.json.get("results", []):
+        for case in self.json.get(  # ty: ignore[possibly-missing-attribute]
+            "results", []
+        ):  # ty: ignore[possibly-missing-attribute]
             url = self._get_url(case["docketNumber"], case["docketEntryId"])
             status = (
                 "Published"
@@ -104,7 +115,9 @@ class Site(OpinionSiteLinear):
         pdf_url = super()._download()["url"]
         return pdf_url
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range request to the API
 
         Note that the API returns 100 results or less, so the
@@ -119,12 +132,12 @@ class Site(OpinionSiteLinear):
         logger.info(
             "Backscraping for range %s %s\n%s cases found",
             *dates,
-            len(self.json),
+            len(self.json),  # ty: ignore[invalid-argument-type]
         )
         self._process_html()
 
         # Using time.sleep to prevent rate limiting
         # {'message': 'you are only allowed 15 requests in a 60 second window time', 'type': 'ip-limiter'}
-        if len(self.json) > 0:
+        if len(self.json) > 0:  # ty: ignore[invalid-argument-type]
             logger.info("Sleeping for 61 seconds to prevent rate limit")
             time.sleep(61)

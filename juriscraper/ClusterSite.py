@@ -215,7 +215,10 @@ class ClusterSite(OpinionSiteLinear):
             )
 
         sanity_check_case_names(case_names)
-        sanity_check_dates(dates_and_names, self.court_id)
+        sanity_check_dates(
+            dates_and_names,
+            self.court_id,  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type]
 
         logger.info(
             f"{self.court_id}: Successfully found {len(self.cases)} items."

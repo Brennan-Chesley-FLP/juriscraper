@@ -54,7 +54,7 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for row in self.html["resultSet"]:
+        for row in self.html["resultSet"]:  # ty: ignore[not-subscriptable]
             line2 = row.get("line2")
             if (
                 "OPINION" not in line2
@@ -132,7 +132,9 @@ class Site(OpinionSiteLinear):
     def update_parameters(self):
         """Update the date range parameter"""
 
-        self.request["parameters"]["json"] = {
+        self.request["parameters"][
+            "json"
+        ] = {  # ty: ignore[invalid-assignment]
             "historical": True,
             "offset": 0,
             "query": f"collection:(USCOURTS) AND publishdate:range({self.date_range})  AND  courtname:(United States Court of Appeals for the Fourth Circuit)",
@@ -140,7 +142,9 @@ class Site(OpinionSiteLinear):
             "sortBy": "2",  # 2 -> newest to oldest
         }
 
-    def _download_backwards(self, date_range) -> None:
+    def _download_backwards(
+        self, date_range
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Download backward
 
         :param date_range: the date range as a string

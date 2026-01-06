@@ -31,7 +31,9 @@ class Site(OpinionSiteLinear):
         """
         if self.test_mode_enabled():
             self.last_month = datetime.datetime(2022, 12, 27).date()
-        cases = self.html.xpath(".//tbody/tr/td/a/parent::td/parent::tr")
+        cases = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//tbody/tr/td/a/parent::td/parent::tr"
+        )  # ty: ignore[possibly-missing-attribute]
         for case in cases:
             try:
                 _, date = case.xpath(".//td/text()")

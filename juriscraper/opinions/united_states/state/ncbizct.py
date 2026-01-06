@@ -26,7 +26,7 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        for row in self.html.xpath(
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             ".//div[contains(@class,'list__items')]/article"
         ):
             # Extract case name and citation
@@ -105,7 +105,9 @@ class Site(OpinionSiteLinear):
 
         return case_name, citation
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Build URL with year input and scrape
 
         :param dates: (start_date, end_date) tuple

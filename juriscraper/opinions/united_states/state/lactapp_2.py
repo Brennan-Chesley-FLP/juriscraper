@@ -34,7 +34,9 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self):
         """Process the HTML and extract case information"""
-        rows = self.html.xpath('//table[@id="datatable"]/tbody/tr')
+        rows = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//table[@id="datatable"]/tbody/tr'
+        )  # ty: ignore[possibly-missing-attribute]
 
         for row in rows:
             author_str = get_row_column_text(row, 4)
@@ -89,7 +91,9 @@ class Site(OpinionSiteLinear):
 
         self.back_scrape_iterable = [(start, end)]
 
-    def _download_backwards(self, dates):
+    def _download_backwards(
+        self, dates
+    ):  # ty: ignore[invalid-method-override]
         """Called when backscraping
 
         :param dates: (start_date, end_date) tuple

@@ -26,7 +26,9 @@ class Site(OpinionSiteLinear):
         :return None
         """
 
-        rows = self.html.xpath("//table/tbody/tr")
+        rows = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table/tbody/tr"
+        )  # ty: ignore[possibly-missing-attribute]
         for row in rows:
             cells = row.xpath(".//td")
             link = cells[2].xpath(".//a")

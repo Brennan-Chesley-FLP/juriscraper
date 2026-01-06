@@ -173,7 +173,7 @@ class FDSysSite(AbstractSite):
         """
         return get_tree(self.url)
 
-    def _download_backwards(self, year):
+    def _download_backwards(self, year):  # ty: ignore[invalid-method-override]
         self.url = self.base_url.format(year=year)
         self.html = self._download()
         if self.html is not None:
@@ -199,8 +199,16 @@ def get_court_locations_list():
     # parse all the example files
     for f in glob.glob("./examples/*/*.xml"):
         fm = FDSysModsContent(f)
-        print(f, fm.court_id, fm.court_location)
-        court_locations_list[fm.court_id].add(fm.court_location)
+        print(
+            f,
+            fm.court_id,  # ty: ignore[unresolved-attribute]
+            fm.court_location,  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
+        court_locations_list[
+            fm.court_id  # ty: ignore[unresolved-attribute]
+        ].add(  # ty: ignore[unresolved-attribute]
+            fm.court_location  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
 
     # change set to list
     cl = {}
@@ -218,8 +226,12 @@ def get_the_first_5_words():
     word_counter = defaultdict(int)
     for f in glob.glob("./examples/*/*.xml"):
         fm = FDSysModsContent(f)
-        print(f, fm.court_id, fm.court_location)
-        for document in fm.documents:
+        print(
+            f,
+            fm.court_id,  # ty: ignore[unresolved-attribute]
+            fm.court_location,  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
+        for document in fm.documents:  # ty: ignore[unresolved-attribute]
             try:
                 words_to_use = document["description"].split()[:8]
             except IndexError:

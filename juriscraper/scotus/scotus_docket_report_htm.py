@@ -359,7 +359,11 @@ class SCOTUSDocketReportHTM(SCOTUSDocketReportHTML):
                     "_email": None,
                 }
                 if address_col:
-                    current_attorney["_raw_lines"].append(address_col)
+                    current_attorney[
+                        "_raw_lines"
+                    ].append(  # ty: ignore[possibly-missing-attribute]
+                        address_col
+                    )  # ty: ignore[possibly-missing-attribute]
                 continue
 
             # Address parsing continuation for the current attorney.

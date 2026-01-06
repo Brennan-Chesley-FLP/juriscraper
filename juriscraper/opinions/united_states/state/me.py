@@ -41,7 +41,9 @@ class Site(OpinionSiteLinear):
         self.make_backscrape_iterable(kwargs)
 
     def _process_html(self):
-        for row in self.html.xpath(self.path_root):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            self.path_root
+        ):  # ty: ignore[possibly-missing-attribute]
             cite, name, date = row.xpath("./td")
 
             # handle the one typo
@@ -114,7 +116,9 @@ class Site(OpinionSiteLinear):
 
         return metadata
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         self.url = self.url_template.format(year)
         logger.info("Backscraping for year %s %s", year, self.url)
         self.html = self._download()

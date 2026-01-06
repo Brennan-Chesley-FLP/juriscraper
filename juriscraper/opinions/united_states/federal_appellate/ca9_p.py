@@ -26,7 +26,9 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self) -> None:
-        feed = feedparser.parse(tostring(self.html))
+        feed = feedparser.parse(
+            tostring(self.html)  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type]
         for item in feed["entries"]:
             case = {
                 "name": titlecase(item["title"]),

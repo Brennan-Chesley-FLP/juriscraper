@@ -41,7 +41,7 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self):
         xpath = "//a[contains(@href, 'opinions') and contains(@href, 'pdf')]"
-        for html in self.html:
+        for html in self.html:  # ty: ignore[not-iterable]
             for anchor in html.xpath(xpath):
                 date_string = self._get_date_for_opinions(html)
                 text = anchor.text_content()

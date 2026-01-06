@@ -54,7 +54,9 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        for row in self.html.xpath("//table/tr[not(th)]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table/tr[not(th)]"
+        ):  # ty: ignore[possibly-missing-attribute]
             filename = row.xpath("td[1]/a/text()")[0].lower()
             lower_court = row.xpath("td[4]/font/text()")[0]
 
@@ -88,7 +90,12 @@ class Site(OpinionSiteLinear):
 
             self.cases.append(
                 {
-                    "url": urljoin(self.url, row.xpath("td[1]/a/@href")[0]),
+                    "url": urljoin(
+                        self.url,  # ty: ignore[invalid-argument-type]
+                        row.xpath("td[1]/a/@href")[
+                            0
+                        ],  # ty: ignore[invalid-argument-type]
+                    ),  # ty: ignore[invalid-argument-type]
                     "docket": row.xpath("string(td[2])").strip(),
                     "date": row.xpath("td[3]/text()")[0],
                     "name": row.xpath("td[4]/text()")[0],

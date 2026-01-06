@@ -3,7 +3,11 @@ from pathlib import Path
 
 import juriscraper
 
-JURISCRAPER_ROOT = Path(juriscraper.__file__).resolve().parent
+JURISCRAPER_ROOT = (
+    Path(juriscraper.__file__)  # ty: ignore[invalid-argument-type]
+    .resolve()
+    .parent  # ty: ignore[invalid-argument-type]
+)  # ty: ignore[invalid-argument-type]
 TESTS_ROOT = JURISCRAPER_ROOT.parent / "tests"
 TESTS_ROOT_EXAMPLES = TESTS_ROOT / "examples"
 TESTS_ROOT_EXAMPLES_PACER = TESTS_ROOT_EXAMPLES / "pacer"

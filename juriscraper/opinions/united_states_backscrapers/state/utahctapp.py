@@ -16,7 +16,9 @@ class Site(utahctapp.Site):
         super().__init__(*args, **kwargs)
         self.back_scrape_iterable = list(range(2012, date.today().year))
 
-    def _download_backwards(self, year: str) -> None:
+    def _download_backwards(
+        self, year: str
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Download the page for each year in the backscrape_iterable.
 
         :param year: The year to download

@@ -19,7 +19,9 @@ class Site(OralArgumentSiteLinear):
         self.back_scrape_iterable = list(range(0, 52))
 
     def _process_html(self):
-        for row in self.html.xpath("//tr[not(th)]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr[not(th)]"
+        ):  # ty: ignore[possibly-missing-attribute]
             # normalize docket numbers
             # get rid of "consolidated with" text
             # parse docket numbers like docketnum1 & docketnum2
@@ -43,7 +45,7 @@ class Site(OralArgumentSiteLinear):
                 {"name": name, "url": url, "date": date, "docket": docket}
             )
 
-    def _download_backwards(self, i):
+    def _download_backwards(self, i):  # ty: ignore[invalid-method-override]
         self.url = f"{self.base_url}?page={i}"
         self.html = self._download()
         self._process_html()

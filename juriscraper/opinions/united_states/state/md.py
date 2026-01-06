@@ -33,7 +33,9 @@ class Site(OpinionSiteLinear):
 
         :return None
         """
-        for row in self.html.xpath("//table//tr[td and not (.//h2)]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table//tr[td and not (.//h2)]"
+        ):  # ty: ignore[possibly-missing-attribute]
             url = row.xpath("td//a[contains(@href,'pdf')]/@href")[0]
             docket = row.xpath("td[1]//text()")[0]
             date_filed, _, other_date = row.xpath("td[3]/font/text()")[
@@ -82,7 +84,9 @@ class Site(OpinionSiteLinear):
 
         self.back_scrape_iterable = range(start, end)
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Build URL with year input and scrape
 
         :param year: year to scrape

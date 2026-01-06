@@ -87,7 +87,9 @@ class AppellateAttachmentPage(BaseReport):
             return {}
 
         # Find the table/tr/td containing a link and return the tr's
-        rows = self.tree.xpath("//tbody/tr/td/a/parent::td/parent::tr")
+        rows = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tbody/tr/td/a/parent::td/parent::tr"
+        )  # ty: ignore[possibly-missing-attribute]
         if not rows:
             logger.info("No documents found on attachment page.")
             return {}
@@ -109,7 +111,11 @@ class AppellateAttachmentPage(BaseReport):
             file_size_bytes = self._get_file_size_bytes_from_tr(row)
             if file_size_bytes is not None:
                 attachment["file_size_bytes"] = file_size_bytes
-            result["attachments"].append(attachment)
+            result[
+                "attachments"
+            ].append(  # ty: ignore[possibly-missing-attribute]
+                attachment
+            )  # ty: ignore[possibly-missing-attribute]
         return result
 
     def _get_main_pacer_doc_id(self):
@@ -122,7 +128,9 @@ class AppellateAttachmentPage(BaseReport):
         :return: main pacer_doc_id
         """
         try:
-            rows = self.tree.xpath("//tbody/tr/td/a/@href")
+            rows = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//tbody/tr/td/a/@href"
+            )  # ty: ignore[possibly-missing-attribute]
             pacer_doc_ids = []
             for url_row in rows:
                 pacer_doc_ids.append(get_pacer_doc_id_from_doc1_url(url_row))
@@ -211,7 +219,13 @@ class AppellateAttachmentPage(BaseReport):
 
         :returns str: The pacer_case_id value
         """
-        script_html = html.tostring(self.tree.xpath(".//script")[0]).decode()
+        script_html = html.tostring(
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                ".//script"
+            )[  # ty: ignore[possibly-missing-attribute]
+                0
+            ]  # ty: ignore[possibly-missing-attribute]
+        ).decode()  # ty: ignore[possibly-missing-attribute]
         m = re.search(r"[?&]caseid=(\d+)", script_html, flags=re.I)
         if m:
             return m.group(1)
@@ -222,7 +236,13 @@ class AppellateAttachmentPage(BaseReport):
 
         :return: The pacer_seq_no
         """
-        script_html = html.tostring(self.tree.xpath(".//script")[0]).decode()
+        script_html = html.tostring(
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                ".//script"
+            )[  # ty: ignore[possibly-missing-attribute]
+                0
+            ]  # ty: ignore[possibly-missing-attribute]
+        ).decode()  # ty: ignore[possibly-missing-attribute]
         m = re.search(r"[?&]d=(\d+)&outputForm", script_html, flags=re.I)
         if m:
             return m.group(1)

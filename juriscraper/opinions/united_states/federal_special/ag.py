@@ -15,7 +15,9 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        for row in self.html.xpath(".//article"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//article"
+        ):  # ty: ignore[possibly-missing-attribute]
             name = row.xpath(".//h2")[0].text_content().strip()
             url = row.xpath(".//a/@href")[0]
             date = row.xpath(".//time")[0].text_content()

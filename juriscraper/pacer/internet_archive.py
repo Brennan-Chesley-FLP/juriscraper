@@ -70,8 +70,10 @@ class InternetArchive(BaseDocketReport):
     def parse(self):
         """Parse the item, but clear the cache before you do so."""
         self._clear_caches()
-        self.response.raise_for_status()
-        self._parse_text(self.response.text)
+        self.response.raise_for_status()  # ty: ignore[possibly-missing-attribute]
+        self._parse_text(
+            self.response.text  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _parse_text(self, text):
         assert isinstance(text, str), (
@@ -117,7 +119,11 @@ class InternetArchive(BaseDocketReport):
         if self._parties is not None:
             return self._parties
 
-        party_nodes = self.tree.xpath("//party_list/party")
+        party_nodes = (
+            self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//party_list/party"
+            )
+        )  # ty: ignore[possibly-missing-attribute]
 
         parties = []
         for _prev, party_node, _next in previous_and_next(party_nodes):
@@ -178,7 +184,9 @@ class InternetArchive(BaseDocketReport):
         if self._docket_entries is not None:
             return self._docket_entries
 
-        de_nodes = self.tree.xpath("//document_list/document")
+        de_nodes = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//document_list/document"
+        )  # ty: ignore[possibly-missing-attribute]
         docket_entries = []
         for de_node in de_nodes:
             de = {
@@ -217,7 +225,9 @@ class InternetArchive(BaseDocketReport):
                 self._xpath_text_0(de_node, "./pacer_doc_id") or None
             )
 
-            if not de["document_number"].isdigit():
+            if not de[
+                "document_number"
+            ].isdigit():  # ty: ignore[possibly-missing-attribute]
                 # Some courts put weird stuff in this column.
                 continue
             if de.get("attachment_number"):

@@ -56,7 +56,11 @@ class MobileQuery(BaseDocketReport, BaseReport):
         # Pages: 1,
         # Cost: 0.10
 
-        ui_title = self.tree.xpath('.//div[@class="ui-title"]')[0]
+        ui_title = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            './/div[@class="ui-title"]'
+        )[  # ty: ignore[possibly-missing-attribute]
+            0
+        ]  # ty: ignore[possibly-missing-attribute]
         cost_raw = ui_title.text_content().strip()
         if (
             "Cost:" in cost_raw
@@ -65,7 +69,11 @@ class MobileQuery(BaseDocketReport, BaseReport):
             data = {"cost": cost, "cost_raw": cost_raw}
             self._metadata = data
             return data
-        span = self.tree.xpath('.//a[@id="entriesLink"]//span')[0]
+        span = self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+            './/a[@id="entriesLink"]//span'
+        )[  # ty: ignore[possibly-missing-attribute]
+            0
+        ]  # ty: ignore[possibly-missing-attribute]
         entry_count = int(span.text_content().strip())
         data = {
             "court_id": self.court_id,
@@ -150,7 +158,7 @@ def _main():
     filepath = sys.argv[1]
     print(f"Parsing HTML file at {filepath}")
     with open(filepath) as f:
-        text = f.read().decode("utf-8")
+        text = f.read().decode("utf-8")  # ty: ignore[unresolved-attribute]
     report._parse_text(text)
     pprint.pprint(report.data, indent=2)
 

@@ -28,15 +28,23 @@ class Site(OpinionSite):
 
     def _get_case_names(self):
         return list(
-            self.html.xpath(f"{self.base}/td[@class='case-name']/text()")
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                f"{self.base}/td[@class='case-name']/text()"
+            )  # ty: ignore[possibly-missing-attribute]
         )
 
     def _get_download_urls(self):
-        return list(self.html.xpath(f"{self.base}/td[@class='link']/a/@href"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                f"{self.base}/td[@class='link']/a/@href"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_dates(self):
         dates = []
-        for date_string in self.html.xpath(
+        for (
+            date_string
+        ) in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             f"{self.base}/td[@class='publish-date']/text()"
         ):
             # ex: Nov-02-1995
@@ -49,14 +57,22 @@ class Site(OpinionSite):
 
     def _get_docket_numbers(self):
         return list(
-            self.html.xpath(f"{self.base}/td[@class='case-no']/text()")
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                f"{self.base}/td[@class='case-no']/text()"
+            )  # ty: ignore[possibly-missing-attribute]
         )
 
     def _get_precedential_statuses(self):
-        return ["Published"] * len(self.case_names)
+        return ["Published"] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
 
     def _get_lower_courts(self):
-        return list(self.html.xpath(f"{self.base}/td[@class='origin']/text()"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                f"{self.base}/td[@class='origin']/text()"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _download_backwards(self, d):
         self.url = "http://www.ca10.uscourts.gov/opinion/search/results?query=%20date%3A{}".format(

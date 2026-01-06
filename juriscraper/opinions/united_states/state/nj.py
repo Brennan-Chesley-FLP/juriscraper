@@ -26,7 +26,9 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for row in self.html.xpath("//div[@class='card-body']"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//div[@class='card-body']"
+        ):  # ty: ignore[possibly-missing-attribute]
             container = row.xpath(".//a[@class='text-underline-hover']")
             if not container:
                 logger.warning(
@@ -96,7 +98,9 @@ class Site(OpinionSiteLinear):
 
         return {}
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range request
 
         :param dates: (start_date, end_date) tuple

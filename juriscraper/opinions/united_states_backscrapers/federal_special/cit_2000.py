@@ -19,12 +19,14 @@ class Site(OpinionSite):
 
     def _get_download_urls(self):
         return list(
-            self.html.xpath("//table[3]//tr[position() > 1]/td//font//a/@href")
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table[3]//tr[position() > 1]/td//font//a/@href"
+            )  # ty: ignore[possibly-missing-attribute]
         )
 
     def _get_citations(self):
         neutral_citations = []
-        for e in self.html.xpath(
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             "//table[3]//tr[position() > 1]/td[1]//font//a"
         ):
             s = html.tostring(e, method="text", encoding="unicode").strip()
@@ -33,7 +35,9 @@ class Site(OpinionSite):
 
     def _get_case_names(self):
         case_names = []
-        for e in self.html.xpath("//table[3]//tr[position() > 1]/td[2]/*"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table[3]//tr[position() > 1]/td[2]/*"
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode").strip()
             # We strip "erratum: mm/dd/yyyy" from the case names of errata docs.
             if "errat" in s:
@@ -43,11 +47,15 @@ class Site(OpinionSite):
         return case_names
 
     def _get_precedential_statuses(self):
-        return ["Published"] * len(self.case_names)
+        return ["Published"] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
 
     def _get_case_dates(self):
         case_dates = []
-        for e in self.html.xpath("//table[3]//tr[position() > 1]/td[3]//font"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table[3]//tr[position() > 1]/td[3]//font"
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode").strip()
             case_dates.append(
                 date.fromtimestamp(
@@ -59,7 +67,9 @@ class Site(OpinionSite):
     # Because there can be multiple docket numbers we have to replace some newlines.
     def _get_docket_numbers(self):
         docket_numbers = []
-        for e in self.html.xpath("//table[3]//tr[position() > 1]/td[4]//font"):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table[3]//tr[position() > 1]/td[4]//font"
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode").strip()
             docket_numbers.append(s.replace("\r\n", " &"))
         return docket_numbers

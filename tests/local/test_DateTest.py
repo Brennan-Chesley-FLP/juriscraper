@@ -78,6 +78,8 @@ class DateTest(unittest.TestCase):
             },
         )
         for test in q_a:
-            result = make_date_range_tuples(**test["q"])
+            result = make_date_range_tuples(
+                **test["q"]  # ty: ignore[invalid-argument-type]
+            )  # ty: ignore[invalid-argument-type]
             with self.subTest("Checking dates", test=test["q"]):
                 self.assertEqual(result, test["a"])

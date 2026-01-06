@@ -62,18 +62,24 @@ class Site(OralArgumentSiteLinear):
             }
         )
 
-    def _download(self):
+    def _download(self):  # ty: ignore[invalid-method-override]
         """Build and download the table to parse
 
         :return: json data
         """
         if self.test_mode_enabled():
-            return json.load(open(self.url))
+            return json.load(
+                open(self.url)  # ty: ignore[invalid-argument-type]
+            )  # ty: ignore[invalid-argument-type]
 
         sess = self.request["session"]
 
         # fetch for credentials
-        res = sess.post(self.url, headers=self.headers, json=self.params)
+        res = sess.post(  # ty: ignore[possibly-missing-attribute]
+            self.url,  # ty: ignore[invalid-argument-type]
+            headers=self.headers,
+            json=self.params,  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type, possibly-missing-attribute]
         creds = res.json().get("Credentials")
 
         # fetch signed headers
@@ -84,8 +90,10 @@ class Site(OralArgumentSiteLinear):
             % (self.url, self.payload)
         )
         # Fetch media table
-        self.request["response"] = sess.post(
-            self.query_url, headers=sig, data=self.payload
+        self.request["response"] = (
+            sess.post(  # ty: ignore[possibly-missing-attribute]
+                self.query_url, headers=sig, data=self.payload
+            )
         )
 
         if self.save_response:
@@ -97,7 +105,7 @@ class Site(OralArgumentSiteLinear):
     def _process_html(self):
         """Process the json response"""
 
-        for record in self.html:
+        for record in self.html:  # ty: ignore[not-iterable]
             date_str = record.get("hearing_date", {}).get("S")
             try:
                 # validate ISO date
@@ -122,7 +130,9 @@ class Site(OralArgumentSiteLinear):
                 }
             )
 
-    def _download_backwards(self, dates: tuple[str, str]) -> None:
+    def _download_backwards(
+        self, dates: tuple[str, str]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Download backwards
 
         :param dates: (start_str, end_str) in "%Y/%m/%d" or empty.

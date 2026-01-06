@@ -49,12 +49,14 @@ class Site(OpinionSite):
         return [convert_date_string(case["date"]) for case in self.cases]
 
     def _get_precedential_statuses(self):
-        return ["Published"] * len(self.case_dates)
+        return ["Published"] * len(
+            self.case_dates  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]
 
     def _get_docket_numbers(self):
         return [case["docket"] for case in self.cases]
 
-    def _download_backwards(self, _):
+    def _download_backwards(self, _):  # ty: ignore[invalid-method-override]
         """Walk over all "Archive" links on Archive page,
         extract cases dictionaries, and add to self.cases
         """

@@ -59,7 +59,9 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for row in self.html.xpath("//div[@data-rowtype]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//div[@data-rowtype]"
+        ):  # ty: ignore[possibly-missing-attribute]
             docket, name, date = row.xpath(
                 ".//div[@class='col-md-7 font-bold']/text()"
             )

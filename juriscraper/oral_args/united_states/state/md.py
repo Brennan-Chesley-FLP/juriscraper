@@ -34,7 +34,7 @@ class Site(OralArgumentSiteLinear):
         path = (
             "//tr[.//td[2]//a/@href][not(contains(.//@href, 'baradmission'))]"
         )
-        rows = self.html.xpath(path)
+        rows = self.html.xpath(path)  # ty: ignore[possibly-missing-attribute]
 
         for row in rows:
             cell_two = row.xpath("./td[2]")[0]

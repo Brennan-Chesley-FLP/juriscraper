@@ -24,7 +24,9 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        for row in self.html.xpath(".//li[@class='decision']"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//li[@class='decision']"
+        ):  # ty: ignore[possibly-missing-attribute]
             name, citation = row.xpath(".//a/text()")
             url = row.xpath(".//a/@href")[0]
             date_filed_raw = row.xpath(".//span[@class='decidedDate']/text()")

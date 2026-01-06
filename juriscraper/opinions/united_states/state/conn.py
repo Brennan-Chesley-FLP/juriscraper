@@ -97,7 +97,9 @@ class Site(OpinionSiteLinear):
 
         :return: None
         """
-        for row in self.html.xpath(".//*[contains(@href, '.pdf')]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//*[contains(@href, '.pdf')]"
+        ):  # ty: ignore[possibly-missing-attribute]
             pub = row.xpath('preceding::*[contains(., "Published")][1]/text()')
             date_filed_is_approximate = True
             if pub:
@@ -211,7 +213,9 @@ class Site(OpinionSiteLinear):
 
         return metadata
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Build URL with year input and scrape
 
         :param year: year to scrape

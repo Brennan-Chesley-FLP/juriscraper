@@ -44,7 +44,7 @@ class Site(OralArgumentSiteLinear):
         }
 
     def _process_html(self):
-        for row in self.html.xpath(
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             './/table[@id="ctl04_gvArguments"]/tr[not(th)]'
         ):
             url = row.xpath(".//a/@data-audio")

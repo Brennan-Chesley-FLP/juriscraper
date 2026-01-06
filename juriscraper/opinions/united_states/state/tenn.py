@@ -35,7 +35,9 @@ class Site(ClusterSite):
         docket number, judge, lower court judge, summary, per curiam status, and opinion type.
         Appends a dictionary with these details to self.cases.
         """
-        for row in self.html.xpath("//tr"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr"
+        ):  # ty: ignore[possibly-missing-attribute]
             date = (
                 row.xpath(
                     ".//td[contains(@class, 'views-field-field-opinions-date-filed')]"
@@ -240,7 +242,9 @@ class Site(ClusterSite):
 
         return raw_name, op_type.value  # type: ignore[attr-defined]
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         r"""Download cases within a given date range.
 
         :param dates: Tuple containing the start and end dates \(`date`, `date`\) for the query.
@@ -248,7 +252,7 @@ class Site(ClusterSite):
         """
         start, end = dates
         self.url = urljoin(
-            self.url,
+            self.url,  # ty: ignore[invalid-argument-type]
             f"?field_opinions_date_filed={start.strftime('%Y-%m-%d')}&field_opinions_date_filed_1={end.strftime('%Y-%m-%d')}",
         )
         self.html = self._download()

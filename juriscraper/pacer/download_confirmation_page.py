@@ -98,7 +98,9 @@ class DownloadConfirmationPage(BaseReport):
         """
 
         try:
-            self.tree.re_xpath('//*[re:match(text(), "Transaction Receipt")]')[
+            self.tree.re_xpath(  # ty: ignore[possibly-missing-attribute]
+                '//*[re:match(text(), "Transaction Receipt")]'
+            )[  # ty: ignore[possibly-missing-attribute]
                 0
             ]
         except IndexError:
@@ -112,9 +114,11 @@ class DownloadConfirmationPage(BaseReport):
         """
 
         try:
-            document_and_case_number = self.tree.xpath(
-                '//strong[contains(., "Document: PDF Document")]'
-            )[0].text_content()
+            document_and_case_number = (
+                self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                    '//strong[contains(., "Document: PDF Document")]'
+                )[0].text_content()
+            )
         except IndexError:
             return None
 
@@ -130,10 +134,12 @@ class DownloadConfirmationPage(BaseReport):
         :return: The PACER document cost if available, otherwise None.
         """
         try:
-            cost_str = self.tree.re_xpath(
-                '//*[re:match(text(), "Cost:")]/'
-                "/ancestor::th[1]/following-sibling::td[1]/font[1]"
-            )[0].text_content()
+            cost_str = (
+                self.tree.re_xpath(  # ty: ignore[possibly-missing-attribute]
+                    '//*[re:match(text(), "Cost:")]/'
+                    "/ancestor::th[1]/following-sibling::td[1]/font[1]"
+                )[0].text_content()
+            )
         except IndexError:
             return None
 
@@ -149,11 +155,13 @@ class DownloadConfirmationPage(BaseReport):
 
         try:
             if self.is_appellate:
-                document_and_case_number = self.tree.xpath(
-                    '//strong[contains(., "Document: PDF Document")]'
-                )[0].text_content()
+                document_and_case_number = (
+                    self.tree.xpath(  # ty: ignore[possibly-missing-attribute]
+                        '//strong[contains(., "Document: PDF Document")]'
+                    )[0].text_content()
+                )
             else:
-                docket_number = self.tree.re_xpath(
+                docket_number = self.tree.re_xpath(  # ty: ignore[possibly-missing-attribute]
                     '//*[re:match(text(), "Case Number:")]/'
                     "/ancestor::th[1]/following-sibling::td[1]/font[1]"
                 )[0].text_content()
@@ -175,10 +183,12 @@ class DownloadConfirmationPage(BaseReport):
         :return: The document billable pages if available, otherwise None.
         """
         try:
-            billable_pages_str = self.tree.re_xpath(
-                '//*[re:match(text(), "Billable Pages:")]/'
-                "/ancestor::th[1]/following-sibling::td[1]/font[1]"
-            )[0].text_content()
+            billable_pages_str = (
+                self.tree.re_xpath(  # ty: ignore[possibly-missing-attribute]
+                    '//*[re:match(text(), "Billable Pages:")]/'
+                    "/ancestor::th[1]/following-sibling::td[1]/font[1]"
+                )[0].text_content()
+            )
         except IndexError:
             return None
 
@@ -192,10 +202,12 @@ class DownloadConfirmationPage(BaseReport):
         :return: The PACER document description if available, otherwise None.
         """
         try:
-            document_description_str = self.tree.re_xpath(
-                '//*[re:match(text(), "Description:")]/'
-                "/ancestor::th[1]/following-sibling::td[1]/font[1]"
-            )[0].text_content()
+            document_description_str = (
+                self.tree.re_xpath(  # ty: ignore[possibly-missing-attribute]
+                    '//*[re:match(text(), "Description:")]/'
+                    "/ancestor::th[1]/following-sibling::td[1]/font[1]"
+                )[0].text_content()
+            )
         except IndexError:
             return None
 
@@ -210,10 +222,12 @@ class DownloadConfirmationPage(BaseReport):
         """
 
         try:
-            transaction_date_str = self.tree.re_xpath(
-                '//*[re:match(text(), "Transaction Receipt")]/'
-                "/ancestor::tr[1]/following-sibling::tr[3]"
-            )[0].text_content()
+            transaction_date_str = (
+                self.tree.re_xpath(  # ty: ignore[possibly-missing-attribute]
+                    '//*[re:match(text(), "Transaction Receipt")]/'
+                    "/ancestor::tr[1]/following-sibling::tr[3]"
+                )[0].text_content()
+            )
         except IndexError:
             return None
 

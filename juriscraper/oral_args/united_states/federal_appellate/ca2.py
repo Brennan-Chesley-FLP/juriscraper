@@ -28,7 +28,9 @@ class Site(OralArgumentSiteLinear):
 
         self.method = "POST"
         self.expected_content_types = ["audio/mpeg3"]
-        self.parameters = self.request["parameters"]["params"] = {
+        self.parameters = self.request["parameters"][
+            "params"
+        ] = {  # ty: ignore[invalid-assignment]
             "IW_SORT": "-DATE",
             "IW_BATCHSIZE": "50",
             "IW_FILTER_DATE_BEFORE": "",
@@ -41,7 +43,9 @@ class Site(OralArgumentSiteLinear):
         self.back_scrape_iterable = ["placeholder"]
 
     def _process_html(self):
-        for row in self.html.xpath("//table[@border='1']"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table[@border='1']"
+        ):  # ty: ignore[possibly-missing-attribute]
             link = row.xpath(".//a")[0].get("href")
 
             if ".mp3" not in link:

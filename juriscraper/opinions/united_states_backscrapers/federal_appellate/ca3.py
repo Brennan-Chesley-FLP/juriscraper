@@ -70,7 +70,7 @@ class Site(OpinionSite):
 
     def _get_case_names(self):
         data = []
-        for html_tree in self.html:
+        for html_tree in self.html:  # ty: ignore[not-iterable]
             try:
                 data.append(html_tree.xpath("//div[@id='title']//a/text()")[0])
             except IndexError:
@@ -79,7 +79,7 @@ class Site(OpinionSite):
 
     def _get_download_urls(self):
         data = []
-        for html_tree in self.html:
+        for html_tree in self.html:  # ty: ignore[not-iterable]
             try:
                 data.append(html_tree.xpath("//div[@id='title']//a/@href")[0])
             except IndexError:
@@ -88,7 +88,7 @@ class Site(OpinionSite):
 
     def _get_case_dates(self):
         data = []
-        for html_tree in self.html:
+        for html_tree in self.html:  # ty: ignore[not-iterable]
             try:
                 date__ = html_tree.xpath(
                     "//div[@id='publication_date']/p/text()"
@@ -104,7 +104,7 @@ class Site(OpinionSite):
 
     def _get_docket_numbers(self):
         data = []
-        for html_tree in self.html:
+        for html_tree in self.html:  # ty: ignore[not-iterable]
             try:
                 data.append(
                     html_tree.xpath("//div[@id='comments']//p/text()")[0]
@@ -117,7 +117,7 @@ class Site(OpinionSite):
 
     def _get_precedential_statuses(self):
         data = []
-        for html_tree in self.html:
+        for html_tree in self.html:  # ty: ignore[not-iterable]
             try:
                 status = html_tree.xpath("//div[@id='precedent']//p/text()")[0]
                 if "non" in status.lower():
@@ -130,7 +130,7 @@ class Site(OpinionSite):
 
     def _get_lower_courts(self):
         data = []
-        for html_tree in self.html:
+        for html_tree in self.html:  # ty: ignore[not-iterable]
             try:
                 data.append(
                     html_tree.xpath("//div[@id='abstract']//p/text()")[0]
@@ -151,7 +151,9 @@ class Site(OpinionSite):
         """This will remove the cases without a case name"""
         to_be_removed = [
             index
-            for index, case_name in enumerate(self.case_names)
+            for index, case_name in enumerate(
+                self.case_names  # ty: ignore[unresolved-attribute]
+            )  # ty: ignore[unresolved-attribute]
             if not case_name
         ]
 

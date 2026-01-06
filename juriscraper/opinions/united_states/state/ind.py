@@ -28,7 +28,7 @@ class Site(OpinionSiteLinear):
 
         :return None
         """
-        for case in self.html:
+        for case in self.html:  # ty: ignore[not-iterable]
             lower_court, lower_court_number = self.parse_court_info(case)
 
             disposition = case["decision"]

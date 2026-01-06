@@ -53,12 +53,20 @@ class Site(OpinionSiteLinear):
         if self.test_mode_enabled():
             return
         self.parameters = self.data_xml
-        content = html.tostring(self.html)
+        content = html.tostring(self.html)  # ty: ignore[invalid-argument-type]
         request_digest = (
             str(content).split("formDigestElement.value")[3].split("'")[1]
         )
-        self.request["headers"]["X-RequestDigest"] = request_digest
-        self.request["headers"]["X-Requested-With"] = "XMLHttpRequest"
+        self.request["headers"][
+            "X-RequestDigest"
+        ] = (  # ty: ignore[invalid-assignment]
+            request_digest  # ty: ignore[invalid-assignment]
+        )
+        self.request["headers"][
+            "X-Requested-With"
+        ] = (  # ty: ignore[invalid-assignment]
+            "XMLHttpRequest"  # ty: ignore[invalid-assignment]
+        )
         self._request_url_post(self.json_url)
 
     def _process_html(self) -> None:
@@ -67,7 +75,13 @@ class Site(OpinionSiteLinear):
         :return: None
         """
         self.fetch_json()
-        rows = self.request["response"].json()[-3][self.search_key][
+        rows = self.request[
+            "response"
+        ].json()[  # ty: ignore[possibly-missing-attribute]
+            -3
+        ][  # ty: ignore[possibly-missing-attribute]
+            self.search_key
+        ][  # ty: ignore[possibly-missing-attribute]
             "ResultTables"
         ][0]["ResultRows"]
         for row in rows:

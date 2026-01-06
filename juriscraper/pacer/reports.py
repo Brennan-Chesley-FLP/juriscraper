@@ -82,9 +82,11 @@ class BaseReport:
 
         :return: None
         """
-        self.response.raise_for_status()
+        self.response.raise_for_status()  # ty: ignore[possibly-missing-attribute]
         set_response_encoding(self.response)
-        self._parse_text(self.response.text)
+        self._parse_text(
+            self.response.text  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _parse_text(self, text):
         """Parse the HTML as unicode text and set self.tree
@@ -104,7 +106,9 @@ class BaseReport:
         self.check_validity(text)
         if self.is_valid:
             self._strip_bad_html_tags_insecure(text)
-            self.tree.rewrite_links(fix_links_in_lxml_tree, base_href=self.url)
+            self.tree.rewrite_links(  # ty: ignore[possibly-missing-attribute]
+                fix_links_in_lxml_tree, base_href=self.url
+            )  # ty: ignore[possibly-missing-attribute]
 
     def _strip_bad_html_tags_insecure(self, text: str) -> None:
         """Remove bad tags from HTML
@@ -188,7 +192,9 @@ class BaseReport:
 
         timeout = (60, 300)
         logger.info(f"POSTing URL: {url} with params: {data}")
-        r = self.session.post(url, data=data, timeout=timeout)
+        r = self.session.post(  # ty: ignore[possibly-missing-attribute]
+            url, data=data, timeout=timeout
+        )  # ty: ignore[possibly-missing-attribute]
         return r, url
 
     def download_pdf(
@@ -369,7 +375,9 @@ class BaseReport:
             m = redirect_re.search(r.content)
             if m is not None:
                 redirect_url = m.group(1).decode("utf-8")
-                r = self.session.get(urljoin(url, redirect_url))
+                r = self.session.get(  # ty: ignore[possibly-missing-attribute]
+                    urljoin(url, redirect_url)
+                )  # ty: ignore[possibly-missing-attribute]
                 r.raise_for_status()
 
         # The request above sometimes generates an HTML page with an iframe
@@ -409,7 +417,9 @@ class BaseReport:
             r = requests.get(iframe_src, timeout=req_timeout)
         else:
             # Use PACER session to fetch the document from iframe_src
-            r = self.session.get(iframe_src)
+            r = self.session.get(  # ty: ignore[possibly-missing-attribute]
+                iframe_src
+            )  # ty: ignore[possibly-missing-attribute]
         if is_pdf(r):
             logger.info(
                 f"Got iframed PDF data for case {url} at: {iframe_src}"
@@ -425,7 +435,7 @@ class BaseReport:
             pacer_case_id, pacer_doc_id, pacer_magic_num, got_receipt="0"
         )
         sealed = "You do not have permission to view this document."
-        return sealed in r.content
+        return sealed in r.content  # ty: ignore[unsupported-operator]
 
     def is_entry_sealed(
         self,

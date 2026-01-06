@@ -25,7 +25,9 @@ class Site(OpinionSiteLinear):
         self.make_backscrape_iterable(kwargs)
         self.url = self.base_url.format(self.current_year)
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Sets the URL for the backwards download based on the given year.
 
         :param year: year to scrape
@@ -44,7 +46,11 @@ class Site(OpinionSiteLinear):
         :return: None
         """
 
-        for row in self.html.xpath("//tr")[1:]:
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr"
+        )[  # ty: ignore[possibly-missing-attribute]
+            1:
+        ]:  # ty: ignore[possibly-missing-attribute]
             docket_number = row.xpath(".//td//a/text()")[0].strip()
             date = row.xpath(".//td/text()")[-1].strip()
             plaintiff = row.xpath(".//td/a/text()")[1].strip()

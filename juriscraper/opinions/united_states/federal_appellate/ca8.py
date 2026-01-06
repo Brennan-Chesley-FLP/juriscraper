@@ -30,7 +30,9 @@ class Site(OpinionSiteLinear):
         self.make_backscrape_iterable(kwargs)
 
     def _process_html(self):
-        for link in self.html.xpath('//a[contains(@href, "opndir")]'):
+        for link in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//a[contains(@href, "opndir")]'
+        ):  # ty: ignore[possibly-missing-attribute]
             url = link.get("href")
             text = link.xpath("following-sibling::text()")[0].strip()
 
@@ -87,8 +89,16 @@ class Site(OpinionSiteLinear):
             i.date()
             for i in rrule(
                 MONTHLY,
-                dtstart=self.back_scrape_iterable[0][0],
-                until=self.back_scrape_iterable[0][1],
+                dtstart=self.back_scrape_iterable[
+                    0
+                ][  # ty: ignore[not-subscriptable]
+                    0
+                ],  # ty: ignore[not-subscriptable]
+                until=self.back_scrape_iterable[
+                    0
+                ][  # ty: ignore[not-subscriptable]
+                    1
+                ],  # ty: ignore[not-subscriptable]
             )
         ]
 

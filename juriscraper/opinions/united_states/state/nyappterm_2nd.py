@@ -12,4 +12,6 @@ class Site(nyappterm_1st.Site):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.court = "Appellate Term, 2d Dept"
-        self.parameters.update({"court": self.court})
+        self.parameters.update(  # ty: ignore[possibly-missing-attribute]
+            {"court": self.court}
+        )  # ty: ignore[possibly-missing-attribute]

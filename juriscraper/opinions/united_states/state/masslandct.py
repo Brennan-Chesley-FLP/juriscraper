@@ -27,13 +27,13 @@ class Site(OpinionSite):
         self.should_have_results = True
 
     def _get_download_urls(self) -> list[str]:
-        links = self.html.xpath(
+        links = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             f'//*[@id="{self.year}"]/../following-sibling::section/table//tr/td[2]/a'
         )
         return [row.get("href") for row in links]
 
     def _get_docket_numbers(self) -> list[str]:
-        links = self.html.xpath(
+        links = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
             f'//*[@id="{self.year}"]/../following-sibling::section/table//tr/td[2]/a'
         )
         return [row.text for row in links]
@@ -41,13 +41,17 @@ class Site(OpinionSite):
     def _get_case_names(self) -> list[str]:
         return [
             titlecase(case_name)
-            for case_name in self.html.xpath(
+            for case_name in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
                 f'//*[@id="{self.year}"]/../following-sibling::section/table//tr/td[3]/text()'
             )
         ]
 
     def _get_case_dates(self) -> list[datetime.date]:
-        self.year = self.html.xpath('//li[@class="menuitems"]/a/text()')[-1]
+        self.year = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//li[@class="menuitems"]/a/text()'
+        )[  # ty: ignore[possibly-missing-attribute]
+            -1
+        ]  # ty: ignore[possibly-missing-attribute]
         return [
             convert_date_string(
                 date_text.replace("AUGUSET", "August").replace(
@@ -55,7 +59,7 @@ class Site(OpinionSite):
                 ),
                 fuzzy=True,
             )
-            for date_text in self.html.xpath(
+            for date_text in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
                 f'//*[@id="{self.year}"]/../following-sibling::section/table//tr/td[1]/text()'
             )
         ]

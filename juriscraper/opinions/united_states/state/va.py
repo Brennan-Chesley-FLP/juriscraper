@@ -25,7 +25,9 @@ class Site(OpinionSiteLinear):
         else:
             today = date.today()
 
-        for row in self.html.xpath("//p"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//p"
+        ):  # ty: ignore[possibly-missing-attribute]
             links = row.xpath(".//a")
             if len(links) != 2:
                 continue

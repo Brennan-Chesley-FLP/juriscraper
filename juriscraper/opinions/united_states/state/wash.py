@@ -12,7 +12,11 @@ class Site(OpinionSiteLinear):
         self.status = "Published"
 
     def _process_html(self):
-        for row in self.html.xpath('//tr/td[@valign="top"]/..')[::-1]:
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//tr/td[@valign="top"]/..'
+        )[  # ty: ignore[possibly-missing-attribute]
+            ::-1
+        ]:  # ty: ignore[possibly-missing-attribute]
             if len(row.xpath(".//td")) != 4:
                 continue
             date, middle, name, op_type = row.xpath(".//td")

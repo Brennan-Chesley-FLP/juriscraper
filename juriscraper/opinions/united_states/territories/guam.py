@@ -46,7 +46,9 @@ class Site(OpinionSiteLinear):
         middle_of_the_year = f"{self._year}/07/13"
 
         row_xpath = '//a[@id="Opinion"]/following-sibling::table'
-        for table in self.html.xpath(row_xpath):
+        for table in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            row_xpath
+        ):  # ty: ignore[possibly-missing-attribute]
             text = table.xpath(".//td/text()")[0]
 
             # Seen formats: 2021-Guam 3, 2021 Guam 29, 2020 Guam15,
@@ -96,7 +98,9 @@ class Site(OpinionSiteLinear):
             except ParserError:
                 pass
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Sets up the download of past records
 
         :param year: search filter for the page

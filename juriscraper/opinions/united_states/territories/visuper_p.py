@@ -26,7 +26,9 @@ class Site(OpinionSiteLinear):
         :return: None
         """
         row_xpath = ".//table[@id='rfp-table']//tbody//tr[.//a[text() and not(@title='Summary')]]"
-        for row in self.html.xpath(row_xpath):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            row_xpath
+        ):  # ty: ignore[possibly-missing-attribute]
             (
                 case_name,
                 date_filed,

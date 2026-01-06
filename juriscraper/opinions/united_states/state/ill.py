@@ -68,7 +68,11 @@ class Site(OpinionSiteLinear):
 
         Return: None
         """
-        rows = self.html.xpath("//table[@id='ctl04_gvDecisions']/tr")[1:]
+        rows = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table[@id='ctl04_gvDecisions']/tr"
+        )[  # ty: ignore[possibly-missing-attribute]
+            1:
+        ]  # ty: ignore[possibly-missing-attribute]
         for row in rows:
             # Don't parse rows for pagination, headers, footers or announcements
             if len(row.xpath(".//td")) != 7 or row.xpath(".//table"):
@@ -113,7 +117,9 @@ class Site(OpinionSiteLinear):
                 "This source paginates at 150 results. There are 150 results for this page. Some opinions may be lost"
             )
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range POST request
 
         :param dates: (start_date, end_date) tuple
@@ -153,6 +159,10 @@ class Site(OpinionSiteLinear):
         # Due to the `site_yielder` used when backscraping, each backscrape
         # iterable seed uses a new scraper object, so we can't reuse viewstates
         for _ in range(2):
-            vs = self.html.xpath("//input[@name='__VIEWSTATE']/@value")[0]
+            vs = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//input[@name='__VIEWSTATE']/@value"
+            )[  # ty: ignore[possibly-missing-attribute]
+                0
+            ]  # ty: ignore[possibly-missing-attribute]
             self.parameters["__VIEWSTATE"] = vs
             self.html = self._download()

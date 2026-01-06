@@ -417,7 +417,11 @@ def force_unicode(s, encoding="utf-8", strings_only=False, errors="strict"):
                 s = str(s)
             else:
                 try:
-                    s = str(str(s), encoding, errors)
+                    s = str(
+                        str(s),  # ty: ignore[invalid-argument-type]
+                        encoding,
+                        errors,  # ty: ignore[invalid-argument-type]
+                    )  # ty: ignore[invalid-argument-type]
                 except UnicodeEncodeError:
                     if not isinstance(s, Exception):
                         raise

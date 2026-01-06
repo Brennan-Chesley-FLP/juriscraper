@@ -67,8 +67,14 @@ class Site(OpinionSiteLinear):
 
         :return None
         """
-        date = self.html.xpath(self.date_xp)[0].strip()
-        links = self.html.xpath('//a[contains(@href, ".pdf")]')
+        date = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            self.date_xp
+        )[  # ty: ignore[possibly-missing-attribute]
+            0
+        ].strip()  # ty: ignore[possibly-missing-attribute]
+        links = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//a[contains(@href, ".pdf")]'
+        )  # ty: ignore[possibly-missing-attribute]
         for link in links:
             if link.getparent() is None or link.getparent().get(
                 "class"
@@ -213,15 +219,19 @@ class Site(OpinionSiteLinear):
         super().make_backscrape_iterable(kwargs)
 
         # use the parsed values to compute the actual iterable
-        start = self.back_scrape_iterable[0][0]
-        end = self.back_scrape_iterable[-1][-1]
+        start = self.back_scrape_iterable[0][  # ty: ignore[not-subscriptable]
+            0
+        ]  # ty: ignore[not-subscriptable]
+        end = self.back_scrape_iterable[-1][  # ty: ignore[not-subscriptable]
+            -1
+        ]  # ty: ignore[not-subscriptable]
 
         dates = []
         for year in list(range(start.year, end.year + 1)):
             dates.append((year, start, end))
         self.back_scrape_iterable = dates
 
-    def _download_backwards(
+    def _download_backwards(  # ty: ignore[invalid-method-override]
         self, analysis_window: tuple[int, date, date]
     ) -> None:
         """Downloads and processes opinions for a given year within a specified date range.
@@ -234,7 +244,9 @@ class Site(OpinionSiteLinear):
         self.url = self.base_url.format(year)
         self._download()
 
-        for path in self.html.xpath(self.link_xp):
+        for path in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            self.link_xp
+        ):  # ty: ignore[possibly-missing-attribute]
             if "historical" in path:
                 # in 2014 they have an extra link for pre-2014 ops
                 continue

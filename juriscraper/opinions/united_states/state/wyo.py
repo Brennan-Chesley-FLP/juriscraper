@@ -37,7 +37,7 @@ class Site(OpinionSiteLinear):
         """
         self.json = self.html
 
-        for opinion in self.json:
+        for opinion in self.json:  # ty: ignore[not-iterable]
             pdf_file_name = opinion["DocumentName"]
             if pdf_file_name[:5] == "../..":
                 pdf_file_name = pdf_file_name[5:]
@@ -82,7 +82,9 @@ class Site(OpinionSiteLinear):
         else:
             self.url = self.api_url
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range request
 
         :param dates: (start_date, end_date) tuple

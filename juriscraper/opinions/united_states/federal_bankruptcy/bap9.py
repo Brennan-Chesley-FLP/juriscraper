@@ -69,18 +69,24 @@ class Site(OpinionSiteLinear):
             }
         )
 
-    def _download(self):
+    def _download(self):  # ty: ignore[invalid-method-override]
         """Download data from DynamoDB for oral arguments.
 
         :return: The JSON response from DynamoDB containing oral argument records.
         """
         if self.test_mode_enabled():
-            return json.load(open(self.url))
+            return json.load(
+                open(self.url)  # ty: ignore[invalid-argument-type]
+            )  # ty: ignore[invalid-argument-type]
 
         sess = self.request["session"]
 
         # fetch for credentials
-        res = sess.post(self.url, headers=self.headers, json=self.params)
+        res = sess.post(  # ty: ignore[possibly-missing-attribute]
+            self.url,  # ty: ignore[invalid-argument-type]
+            headers=self.headers,
+            json=self.params,  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type, possibly-missing-attribute]
         creds = res.json().get("Credentials")
 
         # fetch signed headers
@@ -92,8 +98,10 @@ class Site(OpinionSiteLinear):
         )
 
         # fetch bap table
-        self.request["response"] = sess.post(
-            self.query_url, headers=sig, data=self.payload
+        self.request["response"] = (
+            sess.post(  # ty: ignore[possibly-missing-attribute]
+                self.query_url, headers=sig, data=self.payload
+            )
         )
 
         if self.save_response:
@@ -110,7 +118,7 @@ class Site(OpinionSiteLinear):
 
         :return: None; updates self.cases with extracted case details.
         """
-        for item in self.html:
+        for item in self.html:  # ty: ignore[not-iterable]
             date_str = item.get("date_filed").get("S")
             try:
                 d = datetime.strptime(date_str, "%m/%d/%Y")
@@ -156,7 +164,9 @@ class Site(OpinionSiteLinear):
 
         return {}
 
-    def _download_backwards(self, date: date) -> None:
+    def _download_backwards(
+        self, date: date
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Download cases for a specific date range.
 
         :param dates: A tuple containing start and end dates.

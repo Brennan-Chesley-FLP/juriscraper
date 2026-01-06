@@ -34,7 +34,13 @@ class Site(OpinionSiteLinear):
         self.make_backscrape_iterable(kwargs)
 
     def _process_html(self):
-        for row in self.html.xpath("//tr")[::-1][:-1]:
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr"
+        )[
+            ::-1
+        ][  # ty: ignore[possibly-missing-attribute]
+            :-1
+        ]:  # ty: ignore[possibly-missing-attribute]
             docket, name, date_el, disposition, _, url_el = row.xpath(".//td")
             url = url_el.xpath(".//a")[0].get("href")
             if url == "https://efast.gaappeals.us/download?filingId=":
@@ -49,7 +55,9 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def _download_backwards(self, date_range: str) -> None:
+    def _download_backwards(
+        self, date_range: str
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Backscrape one weekly date range (start,end)."""
         start, end = date_range.split(",")
         self.url = (

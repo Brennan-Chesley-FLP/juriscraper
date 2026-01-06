@@ -121,7 +121,9 @@ class Site(OpinionSiteLinear):
                 }
             )
 
-    def _download_backwards(self, dates: tuple[date, date]):
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ):  # ty: ignore[invalid-method-override]
         logger.info("Backscraping for range %s - %s", *dates)
         params = {**self.base_params}
         params.update(

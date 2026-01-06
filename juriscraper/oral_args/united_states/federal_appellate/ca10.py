@@ -33,13 +33,22 @@ class Site(OralArgumentSite):
         ) % (start, end)
 
     def _get_download_urls(self):
-        return get_table_column_links(self.html, 6)
+        return get_table_column_links(
+            self.html,  # ty: ignore[invalid-argument-type]
+            6,  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type]
 
     def _get_case_names(self):
-        return get_table_column_text(self.html, 3)
+        return get_table_column_text(
+            self.html,  # ty: ignore[invalid-argument-type]
+            3,  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type]
 
     def _get_docket_numbers(self):
-        dockets = get_table_column_text(self.html, 2)
+        dockets = get_table_column_text(
+            self.html,  # ty: ignore[invalid-argument-type]
+            2,  # ty: ignore[invalid-argument-type]
+        )  # ty: ignore[invalid-argument-type]
         # Handle case where "no results" message is put in table cell, see: ca10_example_2.html
         return (
             []
@@ -50,5 +59,8 @@ class Site(OralArgumentSite):
     def _get_case_dates(self):
         return [
             convert_date_string(ds)
-            for ds in get_table_column_text(self.html, 4)
+            for ds in get_table_column_text(
+                self.html,  # ty: ignore[invalid-argument-type]
+                4,  # ty: ignore[invalid-argument-type]
+            )  # ty: ignore[invalid-argument-type]
         ]

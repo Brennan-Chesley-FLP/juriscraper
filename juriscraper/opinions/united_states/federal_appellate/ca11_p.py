@@ -21,7 +21,9 @@ class Site(OpinionSiteLinear):
         self.status = "Published"
 
     def _process_html(self):
-        rows = self.html.xpath("//tr")
+        rows = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//tr"
+        )  # ty: ignore[possibly-missing-attribute]
         for row in rows:
             # Extract values from each <td> in the row
             tds = row.xpath("td")
@@ -36,7 +38,11 @@ class Site(OpinionSiteLinear):
             date = tds[4].xpath(".//text()")[0]
 
             s = clean_string(date)
-            if s == "00-00-0000" and "begin=21160" in self.url:
+            if (
+                s == "00-00-0000"
+                and "begin=21160"
+                in self.url  # ty: ignore[unsupported-operator]
+            ):  # ty: ignore[unsupported-operator]
                 s = "12-13-2006"
             date_cleaned = clean_string(s)
 
@@ -84,7 +90,7 @@ class Site(OpinionSiteLinear):
 
         return {}
 
-    def _download_backwards(self, n):
+    def _download_backwards(self, n):  # ty: ignore[invalid-method-override]
         self.url = f"http://media.ca11.uscourts.gov/opinions/pub/logname.php?begin={n}&num={n / 20 - 1}&numBegin=1"
         self.html = self._download()
         self._process_html()

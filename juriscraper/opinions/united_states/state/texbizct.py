@@ -28,7 +28,9 @@ class Site(OpinionSiteLinear):
         :return None
         """
 
-        links = self.html.xpath('//div[@class="panel-content"]//a')
+        links = self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//div[@class="panel-content"]//a'
+        )  # ty: ignore[possibly-missing-attribute]
         for link in links:
             title = link.get("title")
             short_title = link.text_content()
@@ -106,9 +108,11 @@ class Site(OpinionSiteLinear):
         """
         if self.test_mode_enabled():
             return "2025-01-01"
-        resp = self.request["session"].head(
+        resp = self.request[
+            "session"
+        ].head(  # ty: ignore[possibly-missing-attribute]
             url, allow_redirects=True, timeout=30
         )
         lm = resp.headers.get("Last-Modified")
-        dt = parser.parse(lm)
+        dt = parser.parse(lm)  # ty: ignore[invalid-argument-type]
         return dt.strftime("%Y-%m-%d")

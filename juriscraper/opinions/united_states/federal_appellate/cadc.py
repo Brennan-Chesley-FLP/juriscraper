@@ -24,7 +24,9 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self):
         link_xpath = "a[contains(@href, '.pdf')]"
-        for row in self.html.xpath(f"//div[div[div[div[{link_xpath}]]]]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            f"//div[div[div[div[{link_xpath}]]]]"
+        ):  # ty: ignore[possibly-missing-attribute]
             self.cases.append(
                 {
                     "url": row.xpath(f".//{link_xpath}/@href")[0],

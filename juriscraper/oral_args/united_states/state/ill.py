@@ -43,7 +43,11 @@ class Site(OralArgumentSiteLinear):
         }
 
     def _process_html(self):
-        for row in self.html.xpath(".//tr")[1:]:
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            ".//tr"
+        )[  # ty: ignore[possibly-missing-attribute]
+            1:
+        ]:  # ty: ignore[possibly-missing-attribute]
             audio_anchor = row.xpath(".//a/@data-audio")
             if not audio_anchor:
                 logger.warning(

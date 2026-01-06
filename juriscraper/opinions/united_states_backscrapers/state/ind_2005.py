@@ -23,11 +23,19 @@ class Site(OpinionSite):
         self.court_id = self.__module__
 
     def _get_case_names(self):
-        return list(self.html.xpath("//table/tr/td[1]/font/a/text()"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table/tr/td[1]/font/a/text()"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_dates(self):
         dates = []
-        for link_string in self.html.xpath("//table/tr/td[4]/font/a/@href"):
+        for (
+            link_string
+        ) in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table/tr/td[4]/font/a/@href"
+        ):  # ty: ignore[possibly-missing-attribute]
             date_string = link_string.split("/")[-1].split(".")[0][:-2]
             if date_string == "12319701-fs":
                 # special case (there's always *one*)
@@ -61,13 +69,21 @@ class Site(OpinionSite):
         return dates
 
     def _get_download_urls(self):
-        return list(self.html.xpath("//table/tr/td[4]/font/a/@href"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table/tr/td[4]/font/a/@href"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_docket_numbers(self):
         return [
             html.tostring(e, method="text")
-            for e in self.html.xpath("//table/tr/td[2]")
+            for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                "//table/tr/td[2]"
+            )  # ty: ignore[possibly-missing-attribute]
         ]
 
     def _get_precedential_statuses(self):
-        return ["Published"] * len(self.case_names)
+        return ["Published"] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]

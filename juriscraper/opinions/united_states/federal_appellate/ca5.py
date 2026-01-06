@@ -15,7 +15,9 @@ class Site(OpinionSiteLinear):
         self.court_id = self.__module__
 
     def _process_html(self):
-        for item in self.html.xpath("//item"):
+        for item in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//item"
+        ):  # ty: ignore[possibly-missing-attribute]
             case_name = item.xpath("description/text()[2]")[0]
             download_url = item.xpath("link")[0].tail
             case_date = item.xpath("description/text()[5]")[0]

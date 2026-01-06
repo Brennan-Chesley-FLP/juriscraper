@@ -10,7 +10,9 @@ class Site(OpinionSiteLinear):
         self.should_have_results = True
 
     def _process_html(self):
-        for row in self.html.xpath("//p"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//p"
+        ):  # ty: ignore[possibly-missing-attribute]
             links = row.xpath(".//a")
             name = row.xpath(".//b/text()")
             if not name:

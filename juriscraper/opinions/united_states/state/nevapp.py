@@ -14,7 +14,7 @@ class Site(nev.Site):
     def filter_cases(self):
         """"""
         cases = []
-        for case in self.html:
+        for case in self.html:  # ty: ignore[not-iterable]
             advances = [case["advanceNumber"] for case in cases]
             if (
                 "COA" not in case["caseNumber"]

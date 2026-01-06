@@ -22,11 +22,17 @@ class Site(OpinionSite):
         many unknown characters are displayed to the user. Setting the
         character encoding manually fixes the issue.
         """
-        self.request["response"].encoding = "ISO-8859-1"
+        self.request[
+            "response"
+        ].encoding = "ISO-8859-1"  # ty: ignore[invalid-assignment]
 
     def _get_case_names(self):
         case_names = []
-        for xelement in self.html.xpath('//li[@class="MsoNormal"]/span/a[1]'):
+        for (
+            xelement
+        ) in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//li[@class="MsoNormal"]/span/a[1]'
+        ):  # ty: ignore[possibly-missing-attribute]
             # Our text nodes are randomly surrounded by HTML spans, so we start
             # at a high level node, and strip down to just what we want.
             data_html = html.tostring(xelement, encoding=str)
@@ -41,7 +47,13 @@ class Site(OpinionSite):
             ]
             for regex in regexes:
                 try:
-                    case_names.append(re.search(regex, data_string).group(2))
+                    case_names.append(
+                        re.search(
+                            regex, data_string
+                        ).group(  # ty: ignore[possibly-missing-attribute]
+                            2
+                        )  # ty: ignore[possibly-missing-attribute]
+                    )  # ty: ignore[possibly-missing-attribute]
                     # Found what we're looking for...
                     break
                 except AttributeError:
@@ -52,13 +64,17 @@ class Site(OpinionSite):
 
     def _get_download_urls(self):
         download_urls = []
-        for e in self.html.xpath('//li[@class="MsoNormal"]/span/a[1]/@href'):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//li[@class="MsoNormal"]/span/a[1]/@href'
+        ):  # ty: ignore[possibly-missing-attribute]
             download_urls.append(e)
         return download_urls
 
     def _get_case_dates(self):
         case_dates = []
-        for e in self.html.xpath('//li[@class="MsoNormal"]/span/a[1]'):
+        for e in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            '//li[@class="MsoNormal"]/span/a[1]'
+        ):  # ty: ignore[possibly-missing-attribute]
             s = html.tostring(e, method="text", encoding="unicode")
             # Cleanup...
             s = s.split("-")[0]
@@ -75,4 +91,6 @@ class Site(OpinionSite):
         return case_dates
 
     def _get_precedential_statuses(self):
-        return ["Published"] * len(self.case_names)
+        return ["Published"] * len(
+            self.case_names  # ty: ignore[unresolved-attribute]
+        )  # ty: ignore[unresolved-attribute]

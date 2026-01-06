@@ -28,7 +28,7 @@ class Site(OpinionSiteLinear):
         self.make_backscrape_iterable(kwargs)
 
     def _process_html(self):
-        for row in self.html["items"]:
+        for row in self.html["items"]:  # ty: ignore[not-subscriptable]
             docket, name, citation, date = (
                 x["value"] for x in row["metadataFields"]
             )
@@ -88,7 +88,9 @@ class Site(OpinionSiteLinear):
             url = f"https://cdm17027.contentdm.oclc.org/digital/api/collections/{self.court_code}/items/{item_id}/false"
             logger.debug("Getting detail JSON from %s", url)
             self._request_url_get(url)
-            json = self.request["response"].json()
+            json = self.request[
+                "response"
+            ].json()  # ty: ignore[possibly-missing-attribute]
 
         if len(json["fields"]) == 1:
             fields = json["parent"]["fields"]
@@ -113,14 +115,18 @@ class Site(OpinionSiteLinear):
                 field["key"] == "relhapt"
                 # For orctapp this field may be populated with consolidated docket
                 # numbers
-                and self.court_id.endswith("or")
+                and self.court_id.endswith(  # ty: ignore[possibly-missing-attribute]
+                    "or"
+                )  # ty: ignore[possibly-missing-attribute]
                 and not field["value"].startswith("S")
             ):
                 lower_court_number = field["value"]
 
         return judge, disposition, status, lower_court_number
 
-    def _download_backwards(self, dates: tuple[datetime, datetime]) -> None:
+    def _download_backwards(
+        self, dates: tuple[datetime, datetime]
+    ) -> None:  # ty: ignore[invalid-method-override]
         logger.info("Backscraping for range %s %s", *dates)
         self.url = self.format_url(*dates)
         self.html = self._download()

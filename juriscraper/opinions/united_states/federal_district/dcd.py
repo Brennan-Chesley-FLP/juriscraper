@@ -32,7 +32,9 @@ class Site(OpinionSiteLinear):
         Some rows have mutliple documents and hence urls for each case.
         We will "pad" every other metadata field to match the urls
         """
-        for row in self.html.xpath("//table[2]//tr[not(th)]"):
+        for row in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            "//table[2]//tr[not(th)]"
+        ):  # ty: ignore[possibly-missing-attribute]
             case_name = titlecase(
                 row.xpath("td[2]//text()[preceding-sibling::br]")[0].lower()
             )
@@ -44,7 +46,9 @@ class Site(OpinionSiteLinear):
             judge_string = html.tostring(
                 judge_element, method="text", encoding="unicode"
             )
-            judge = re.search(r"(by\s)(.*)", judge_string, re.MULTILINE).group(
+            judge = re.search(
+                r"(by\s)(.*)", judge_string, re.MULTILINE
+            ).group(  # ty: ignore[possibly-missing-attribute]
                 2
             )
 
@@ -73,7 +77,9 @@ class Site(OpinionSiteLinear):
 
         return doc_number  # type: ignore[return-value]
 
-    def _download_backwards(self, year: int) -> None:
+    def _download_backwards(
+        self, year: int
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Build URL with year input and scrape
 
         :param year: year to scrape

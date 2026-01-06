@@ -23,9 +23,9 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self):
         if self.test_mode_enabled():
-            with open(self.url) as file:
+            with open(self.url) as file:  # ty: ignore[invalid-argument-type]
                 self.html = json.load(file)
-        for row in self.html["data"]:
+        for row in self.html["data"]:  # ty: ignore[not-subscriptable]
             url = row["FILE_NAME"]
             name = f"{row['APL_FIRST_NAME']} {row['APL_LAST_NAME']} v. {row['AGENCY']}"
             self.cases.append(

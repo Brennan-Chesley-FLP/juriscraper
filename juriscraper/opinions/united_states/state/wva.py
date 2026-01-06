@@ -13,22 +13,32 @@ class Site(OpinionSite):
     def _get_case_names(self):
         return [
             anchor.text_content()
-            for anchor in self.html.xpath(f"{self.cell_path % 3}/a[1]")
+            for anchor in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                f"{self.cell_path % 3}/a[1]"
+            )  # ty: ignore[possibly-missing-attribute]
         ]
 
     def _get_download_urls(self):
-        return list(self.html.xpath(f"{self.cell_path % 3}/a[1]/@href"))
+        return list(
+            self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                f"{self.cell_path % 3}/a[1]/@href"
+            )  # ty: ignore[possibly-missing-attribute]
+        )  # ty: ignore[possibly-missing-attribute]
 
     def _get_case_dates(self):
         return [
             convert_date_string(cell.text_content().strip())
-            for cell in self.html.xpath(self.cell_path % 1)
+            for cell in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                self.cell_path % 1
+            )  # ty: ignore[possibly-missing-attribute]
         ]
 
     def _get_docket_numbers(self):
         return [
             cell.text_content().lower().strip()
-            for cell in self.html.xpath(self.cell_path % 2)
+            for cell in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+                self.cell_path % 2
+            )  # ty: ignore[possibly-missing-attribute]
         ]
 
     def _get_precedential_statuses(self):
@@ -70,7 +80,9 @@ class Site(OpinionSite):
 
     def decode_cell_text(self, path, codes):
         results = []
-        for cell in self.html.xpath(path):
+        for cell in self.html.xpath(  # ty: ignore[possibly-missing-attribute]
+            path
+        ):  # ty: ignore[possibly-missing-attribute]
             code = cell.text_content().strip()
             results.append(codes.get(code, "Unknown"))
         return results

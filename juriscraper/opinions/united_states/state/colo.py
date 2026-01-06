@@ -59,11 +59,17 @@ class Site(OpinionSiteLinear):
             "hide_ct6": "true",
         }
         self.dates = self.update_url()
-        self.request["headers"]["User-Agent"] = "Courtlistener"
+        self.request["headers"][
+            "User-Agent"
+        ] = (  # ty: ignore[invalid-assignment]
+            "Courtlistener"  # ty: ignore[invalid-assignment]
+        )
 
         # https://www.coloradojudicial.gov/system/files/opinions-2024-11/24SC459.pdf
         # Request won't work without some of these X- headers
-        self.request["headers"].update(
+        self.request[
+            "headers"
+        ].update(  # ty: ignore[possibly-missing-attribute]
             {
                 "X-Requested-With": "XMLHttpRequest",
                 "X-Root-Account-Email": "colorado@vlex.com",
@@ -144,8 +150,10 @@ class Site(OpinionSiteLinear):
 
     def _process_html(self) -> None:
         search_json = self.html
-        total_count = search_json["count"]
-        results_in_page = len(search_json["results"])
+        total_count = search_json["count"]  # ty: ignore[not-subscriptable]
+        results_in_page = len(
+            search_json["results"]  # ty: ignore[not-subscriptable]
+        )  # ty: ignore[not-subscriptable]
 
         logger.info(
             "Number of results %s; %s in page",
@@ -159,7 +167,7 @@ class Site(OpinionSiteLinear):
                 total_count, results_in_page, self.dates
             )
 
-        for result in search_json["results"]:
+        for result in search_json["results"]:  # ty: ignore[not-subscriptable]
             case = {"citation": "", "parallel_citation": ""}
             timestamp = str(datetime.now().timestamp())[:10]
             url = self.detail_url.format(result["id"], timestamp)
@@ -171,7 +179,9 @@ class Site(OpinionSiteLinear):
                 # Full case name and docket number are only available
                 # on the detail page
                 self._request_url_get(url)
-                detail_json = self.request["response"].json()
+                detail_json = self.request[
+                    "response"
+                ].json()  # ty: ignore[possibly-missing-attribute]
 
             if (
                 self.court_id
@@ -205,13 +215,19 @@ class Site(OpinionSiteLinear):
 
             if not case.get("date"):
                 case["date_filed_is_approximate"] = True  # type: ignore[assignment]
-                case["date"] = self.dates[1].strftime("%Y-%m-%d")
+                case["date"] = self.dates[  # ty: ignore[index-out-of-bounds]
+                    1
+                ].strftime(  # ty: ignore[index-out-of-bounds]
+                    "%Y-%m-%d"
+                )  # ty: ignore[index-out-of-bounds]
 
             if not case.get("docket"):
                 case["docket"] = ""
             self.cases.append(case)
 
-    def _download_backwards(self, dates: tuple[date, date]) -> None:
+    def _download_backwards(
+        self, dates: tuple[date, date]
+    ) -> None:  # ty: ignore[invalid-method-override]
         """Make custom date range request
 
         :param dates: (start_date, end_date) tuple

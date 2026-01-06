@@ -304,7 +304,7 @@ def parse_table(table: HtmlElement) -> dict[str, list[HtmlElement]]:
         rows = table.findall("./tr")
     else:
         rows = table.findall("./tbody/tr")
-    columns = {header: [] for header in headers}
+    columns: dict[str, list] = {header: [] for header in headers}
 
     for row in rows:
         cells = row.xpath("./td")

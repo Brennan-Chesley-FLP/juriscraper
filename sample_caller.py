@@ -262,7 +262,7 @@ def scrape_court(
     Nonetheless, this caller is useful for testing, and for demonstrating some
     basic pitfalls that a caller will run into.
     """
-    exceptions = defaultdict(list)
+    exceptions: dict[str, list[str]] = defaultdict(list)
     for index, item in enumerate(site):
         if index == limit:
             break

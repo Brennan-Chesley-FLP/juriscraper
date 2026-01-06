@@ -479,12 +479,13 @@ class TexasCommonScraper(AbstractParser[TexasCommonData]):
         # it as a person's name, assume that the comma indicates a list of
         # parties
         # Strip out acronyms like LLC, MD, and PA so they don't clutter things
-        party_name_parts = filter(
+        party_name_parts_filtered = filter(
             lambda part: not self.BUSINESS_AND_TITLE_STRIP_RE.fullmatch(part),
             party_name_parts,
         )
         party_name_parts = [
-            part.removeprefix("the ").strip() for part in party_name_parts
+            part.removeprefix("the ").strip()
+            for part in party_name_parts_filtered
         ]
         party_name_parts_indexed = [
             (self.case_name_full.lower().find(part), part)
@@ -561,7 +562,7 @@ class TexasCommonScraper(AbstractParser[TexasCommonData]):
         if len(name_part_2) == 0:
             return harmonize(name_part_1)
 
-        grouped_parties = {}
+        grouped_parties: dict[str, list[TexasCaseParty]] = {}
         for k, g in groupby(self.parties, lambda party: party["type"]):
             if k in grouped_parties:
                 grouped_parties[k].extend(list(g))

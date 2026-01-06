@@ -53,7 +53,7 @@ class Site(OpinionSiteLinear):
             return None
 
     def _process_html(self) -> None:
-        if not self.html:
+        if self.html is None:
             logger.info(
                 "HTML was not downloaded from source page. Should retry"
             )

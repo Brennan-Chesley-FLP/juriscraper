@@ -15,11 +15,11 @@ logger = make_default_logger()
 
 class SSLAdapter(HTTPAdapter):
     def __init__(
-        self, ssl_version=ssl.PROTOCOL_TLSv1_2, ciphers=None, **kwargs
+        self, ssl_version=ssl.TLSVersion.TLSv1_2, ciphers=None, **kwargs
     ):
-        self.ssl_version = ssl_version or ssl.PROTOCOL_TLS
+        self.ssl_version = ssl_version or ssl.TLSVersion.TLSv1_2
         self.ssl_context = create_urllib3_context(
-            ssl_version=self.ssl_version, ciphers=ciphers
+            ssl_minimum_version=self.ssl_version, ciphers=ciphers
         )
         super().__init__(**kwargs)
 

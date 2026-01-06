@@ -125,7 +125,7 @@ class Site(OpinionSiteLinear):
         :return lxml.html.HtmlElement: The downloaded HTML content.
         """
         if not self.test_mode_enabled():
-            if not self.html:
+            if self.html is None:
                 self.html = super()._download()
 
             self.update_parameters()

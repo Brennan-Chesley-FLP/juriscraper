@@ -42,7 +42,7 @@ class Site(OpinionSiteLinear):
         """
         if self.test_mode_enabled():
             return super()._download()
-        if not self.html:
+        if self.html is None:
             self.html = super()._download()
 
         if not self.is_backscrape:

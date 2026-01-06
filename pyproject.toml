@@ -58,9 +58,11 @@ dev = [
   "jinja2",
   "pytest",
   "mypy>=1.19.0",
+  "types-certifi",
   "types-python-dateutil>=2.9.0.20251115",
   "types-requests>=2.32.4.20250913",
   "types-lxml>=2025.11.25",
+  "types-selenium",
   "responses>=0.25.8",
 ]
 
@@ -108,3 +110,22 @@ lint.ignore = [
   # printf-string-formatting
   "UP031",
 ]
+
+[tool.mypy]
+# Packages without type stubs
+[[tool.mypy.overrides]]
+module = [
+  "charset_normalizer",
+  "dateparser",
+  "feedparser",
+  "geonamescache",
+  "jsondate3",
+  "nh3",
+  "requests.packages",
+  "requests.packages.urllib3",
+  "requests.packages.urllib3.*",
+  "responses",
+  "tldextract",
+  "urllib3.*",
+]
+ignore_missing_imports = true

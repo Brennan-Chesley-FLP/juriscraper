@@ -15,7 +15,7 @@ license-files = [ "LICENSE" ]
 authors = [
   { name = "Free Law Project", email = "info@free.law" },
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
@@ -23,7 +23,6 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -44,12 +43,15 @@ dependencies = [
   "feedparser>=6.0.11",
   "geonamescache>=2.0.0",
   "html5lib",
+  "httpx>=0.28.1",
   "lxml>=5.2",
   "nh3",
+  "pydantic>=2.12.5",
   "python-dateutil>=2.8.2",
   "requests>=2.20.0",
   "selenium>=4.9.1",
   "tldextract",
+  "typing-extensions>=4.0.0",
 ]
 
 [dependency-groups]
@@ -57,6 +59,7 @@ dev = [
   "jsondate3-aware",
   "jinja2",
   "pytest",
+  "pytest-asyncio>=0.24.0",
   "mypy>=1.19.0",
   "types-certifi",
   "types-python-dateutil>=2.9.0.20251115",
@@ -65,6 +68,28 @@ dev = [
   "types-selenium",
   "responses>=0.25.8",
   "ty>=0.0.9",
+  "aiohttp>=3.13.3",
+  "warcio>=1.7.5",
+  "pyrate-limiter>=3.9.0",
+  "tomli>=2.0.0;python_version<'3.11'",
+  "tomli-w>=1.2.0",
+  "sphinx>=7.4.7",
+  "sphinxcontrib-mermaid>=1.2.3",
+  "sphinx-rtd-theme>=0.5.1",
+  "sphinx-autobuild>=2024.10.3",
+  "types-docutils>=0.22.3.20251115",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    # Warnings from external libraries we can't fix
+    "ignore:'count' is passed as positional argument:DeprecationWarning",
+    "ignore:tzname .* identified but not understood:dateutil.parser.UnknownTimezoneWarning",
+    "ignore:Parsing dates involving a day of month without a year:DeprecationWarning",
+    "ignore:Unverified HTTPS request:urllib3.exceptions.InsecureRequestWarning",
+    "ignore:Setting per-request cookies=:DeprecationWarning",
 ]
 
 [tool.setuptools]

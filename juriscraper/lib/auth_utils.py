@@ -54,7 +54,7 @@ def generate_aws_sigv4_headers(
     :return: signed headers to use to query db
     """
     # 1. Prepare SigV4 signing
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     amz_date = now.strftime("%Y%m%dT%H%M%SZ")
     date_stamp = now.strftime("%Y%m%d")
     payload_hash = hashlib.sha256(payload.encode()).hexdigest()

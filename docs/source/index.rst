@@ -8,6 +8,7 @@ Juriscraper is a Python library for scraping legal opinions, oral arguments, leg
    :caption: Contents:
 
    courts/index
+   site_reports/index
    scraper_driver/index
    api/index
 

@@ -26,6 +26,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinxcontrib.mermaid",
     "court_coverage",  # Custom extension for court coverage docs
+    "site_reports",  # Custom extension for site research reports
 ]
 
 templates_path = ["_templates"]

@@ -1,0 +1,414 @@
+# Court Site Research Report: Alabama Unified Judicial System
+#
+# This report documents the judicial.alabama.gov website and related
+# infrastructure serving Alabama's appellate courts.
+
+[meta]
+domain = "judicial.alabama.gov"
+court_ids = ["ala", "alacivapp", "alacrimapp"]
+court_name = "Alabama Unified Judicial System - Appellate Courts"
+court_url = "https://judicial.alabama.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = "Oral argument recordings are available for purchase through the State Law Library"
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = true
+javascript_framework = "jquery"
+
+# What platform/vendor does the site use?
+platform = "custom"
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = true
+api_documented = false
+api_url = "https://publicportal-api.alappeals.gov/courts/"
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = false
+robots_txt_url = "https://judicial.alabama.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = []
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Opinions are available via two systems:
+1. Historical (before May 19, 2023): PDF files hosted on judicial.alabama.gov with links organized by date
+2. Current (after May 19, 2023): Alabama Appellate Courts Public Portal (publicportal.alappeals.gov)
+   - Uses publicportal-api.alappeals.gov JSON API
+   - Existing scrapers use this API successfully
+Slip opinions are provided but noted as "neither final nor official" and subject to correction.
+"""
+url_pattern = "https://publicportal-api.alappeals.gov/courts/cms/publications?courtID={court_uuid}&page=0&size=25&sort=publicationDate%2Cdesc"
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinions are grouped by publication/release date in the API"
+url_pattern = ""
+
+[content.citations]
+status = "partial"
+notes = "Case numbers and Southern Reporter citations visible in opinion documents but not extracted as structured data"
+url_pattern = ""
+
+[content.oral_arguments]
+status = "partial"
+notes = """
+Oral argument information available:
+- Docket sheets: Supreme Court from 1987-present, Civil Appeals from 1989-present, Criminal Appeals from 1987-present
+- Audio/video recordings: Available for purchase through State Law Library
+- Live streams: Available on YouTube channel
+- Search available at publicportal.alappeals.gov/portal/search/calendar
+Not freely downloadable in bulk.
+"""
+url_pattern = "https://publicportal.alappeals.gov/portal/search/calendar"
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Transcripts may be available through State Law Library but not confirmed"
+url_pattern = ""
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Case docket information available through public portal API"
+url_pattern = "https://publicportal-api.alappeals.gov/courts/{court_uuid}/cms/case/{case_uuid}"
+
+[content.docket_entries]
+status = "available"
+notes = "Docket entries with document links available through API"
+url_pattern = "https://publicportal-api.alappeals.gov/courts/{court_uuid}/cms/case/{case_uuid}/docketentrydocuments/{document_uuid}"
+
+[content.recap_documents]
+status = "available"
+notes = "Briefs, petitions, and other filings accessible through public portal"
+url_pattern = ""
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Party names visible in case titles"
+url_pattern = ""
+
+[content.party_types]
+status = "partial"
+notes = "Some party role information may be extractable from case titles (e.g., 'v.' patterns)"
+url_pattern = ""
+
+[content.attorneys]
+status = "unknown"
+notes = "Attorney information may be in docket entries"
+url_pattern = ""
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+[content.roles]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Current justices/judges listed on website with bio links"
+url_pattern = "https://judicial.alabama.gov/Appellate/SupremeCourt"
+
+[content.positions]
+status = "partial"
+notes = "Current positions visible; historical positions may be in judicial history resources"
+url_pattern = ""
+
+[content.education]
+status = "unknown"
+notes = "May be in judge biography pages"
+url_pattern = ""
+
+[content.political_affiliations]
+status = "unavailable"
+notes = "Not provided on court website"
+url_pattern = ""
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Not provided on court website"
+url_pattern = ""
+
+[content.retention_events]
+status = "unavailable"
+notes = "Not provided on court website"
+url_pattern = ""
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Three appellate courts: Supreme Court, Court of Civil Appeals, Court of Criminal Appeals. Court metadata available via API."
+url_pattern = "https://publicportal-api.alappeals.gov/courts/"
+
+[content.courthouses]
+status = "available"
+notes = "Location: 300 Dexter Avenue, Montgomery, AL 36104"
+url_pattern = ""
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State appellate courts - bankruptcy handled in federal courts"
+url_pattern = ""
+
+[content.claims]
+status = "unavailable"
+notes = ""
+url_pattern = ""
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+url_pattern = ""
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "Criminal case details in Court of Criminal Appeals cases"
+url_pattern = ""
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State courts"
+url_pattern = ""
+
+[content.originating_court_information]
+status = "available"
+notes = "Lower court information extracted from opinion titles via regex pattern: (Appeal from <court>: <number>)"
+url_pattern = ""
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State courts"
+url_pattern = ""
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "State courts"
+url_pattern = ""
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "May be extractable from opinion text"
+url_pattern = ""
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+url_pattern = ""
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+url_pattern = ""
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+earliest_date = "2013-10-04"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = """
+Historical records available through different sources:
+- Opinions on judicial.alabama.gov: October 2013 - May 2023
+- Minute Books on microfilm: 1820-1983 (at State Law Library)
+- Briefs on microfilm: 1965-1995
+- Records on Appeal: 1974-1995
+Current opinions (post-May 2023) through public portal.
+"""
+
+# How often does the site appear to be updated?
+update_frequency = "daily"
+
+# Is there a way to subscribe to updates?
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["date_range", "case_number", "party_name"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.ala",
+    "juriscraper.opinions.united_states.state.alacivapp",
+    "juriscraper.opinions.united_states.state.alacrimapp"
+]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = """
+- System changed in May 2023: opinions moved from judicial.alabama.gov to publicportal.alappeals.gov
+- Existing scrapers already use the new API (publicportal-api.alappeals.gov)
+- Three distinct courts served by same infrastructure with different court UUIDs:
+  - Supreme Court: 68f021c4-6a44-4735-9a76-5360b2e8af13
+  - Court of Civil Appeals: 1da1a297-c391-4e4f-9480-1bc68b46f21a
+  - Court of Criminal Appeals: b82b30d5-bd3c-46d7-9451-1cb05e470873
+"""
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = ["Advisory Opinions", "Clerk Opinions"]
+
+# Any known data quality issues?
+data_quality_notes = "Slip opinions are unofficial and subject to correction before Southern Reporter publication"
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = "Court offices open Monday-Friday 8:00 AM - 5:00 PM"
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Alabama Unified Judicial System serves three appellate courts through a well-designed
+infrastructure with both a public website (judicial.alabama.gov) and a JSON API
+(publicportal-api.alappeals.gov).
+
+Key findings:
+1. Existing scrapers are working and use the correct API
+2. Opinions are freely available without login or payment
+3. The API returns JSON data with HATEOAS-style navigation
+4. robots.txt returns 404 (no restrictions found)
+5. Oral argument recordings require purchase but docket info is free
+6. No RSS feeds available for subscription
+
+The existing opinion scrapers appear functional and up-to-date. No immediate changes needed
+for opinion scraping. Potential future work could add oral argument docket scraping or
+party/attorney data extraction.
+"""
+
+priority = "low"
+priority_reasoning = "Existing scrapers are functional and cover all three appellate courts for opinions"
+
+complexity = "simple"
+complexity_reasoning = "Clean JSON API, no authentication, existing working scrapers to reference"
+
+blockers = []

@@ -238,3 +238,6 @@ Dockerfile        text
 # Note: .db, .p, and .pkl files are associated with the python modules
 # ``pickle``, ``dbm.*``, ``shelve``, ``marshal``, ``anydbm``, & ``bsddb``
 # (among others).
+
+# Use bd merge for beads JSONL files
+.beads/issues.jsonl merge=beads

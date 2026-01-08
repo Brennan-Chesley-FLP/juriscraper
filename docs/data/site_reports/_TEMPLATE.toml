@@ -1,0 +1,384 @@
+# Court Site Research Report Template
+#
+# This file documents the schema for court website research reports.
+# Use this as a template when researching new court sites.
+#
+# File naming: {domain_name}.toml (e.g., "judicial.alabama.gov.toml", "ecf.ca9.uscourts.gov.toml")
+
+[meta]
+domain = "example.gov"                  # Domain name (used for file naming)
+court_ids = ["example"]                 # All court_ids from courts.toml served by this domain
+court_name = "Example Court"            # Primary court name (or shared system name)
+court_url = "https://example.gov/courts"
+research_date = "2026-01-08"
+researcher = "agent"                    # "agent" or human name
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""                      # "open", "invitation_only", "government_only", "attorney_only", ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""                    # Description of costs if applicable
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""                       # "recaptcha", "hcaptcha", "custom", ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = false
+javascript_framework = ""               # "react", "angular", "vue", "jquery", "vanilla", ""
+
+# What platform/vendor does the site use?
+platform = ""                           # "tyler", "thomson_reuters", "tybera", "pacer", "custom", ""
+
+# Is this a statewide portal or court-specific?
+scope = "court_specific"                # "statewide", "court_specific", "regional"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []              # List of other court_ids using same system
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]              # "pdf", "html", "doc", "docx", "txt", "rtf"
+
+# Session/authentication mechanism
+auth_mechanism = ""                     # "session_cookie", "token", "basic_auth", ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = false
+robots_txt_url = ""
+
+# What does robots.txt say about our target paths?
+allows_scraping = true                  # Based on robots.txt analysis
+disallowed_paths = []                   # Paths explicitly disallowed
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0                 # 0 if not specified
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""                  # Quote any relevant text
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""                   # Quote relevant restrictions if any
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+# Reference: juriscraper/scraper_driver/common/models/base.py
+#
+# Mark each as: "available", "unavailable", "unknown", "partial"
+# Use "partial" if only some records of that type are available
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "unknown"                      # "available", "unavailable", "unknown", "partial"
+notes = ""
+url_pattern = ""                        # Example URL or pattern
+
+[content.opinion_clusters]
+status = "unknown"                      # Groups of related opinions
+notes = ""
+url_pattern = ""
+
+[content.citations]
+status = "unknown"                      # Citation information
+notes = ""
+url_pattern = ""
+
+[content.oral_arguments]
+status = "unknown"                      # Audio recordings
+notes = ""
+url_pattern = ""
+
+[content.audio_transcripts]
+status = "unknown"                      # Transcripts of oral arguments
+notes = ""
+url_pattern = ""
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+[content.docket_entries]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+[content.recap_documents]
+status = "unknown"                      # Court filings, briefs, attachments
+notes = ""
+url_pattern = ""
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+[content.party_types]
+status = "unknown"                      # Role information (plaintiff, defendant, etc.)
+notes = ""
+url_pattern = ""
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+[content.attorney_organizations]
+status = "unknown"                      # Law firms
+notes = ""
+url_pattern = ""
+
+[content.roles]
+status = "unknown"                      # Attorney-party relationships
+notes = ""
+url_pattern = ""
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unknown"                      # Judges, lawyers, other legal professionals
+notes = ""
+url_pattern = ""
+
+[content.positions]
+status = "unknown"                      # Judicial positions held
+notes = ""
+url_pattern = ""
+
+[content.education]
+status = "unknown"                      # Education records for judges
+notes = ""
+url_pattern = ""
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+[content.aba_ratings]
+status = "unknown"                      # ABA ratings for judges
+notes = ""
+url_pattern = ""
+
+[content.retention_events]
+status = "unknown"                      # Judicial retention elections
+notes = ""
+url_pattern = ""
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "unknown"                      # Court metadata
+notes = ""
+url_pattern = ""
+
+[content.courthouses]
+status = "unknown"                      # Physical courthouse locations
+notes = ""
+url_pattern = ""
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+[content.claims]
+status = "unknown"                      # Bankruptcy claims
+notes = ""
+url_pattern = ""
+
+[content.claim_history]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unknown"                      # FJC IDB entries
+notes = ""
+url_pattern = ""
+
+[content.originating_court_information]
+status = "unknown"                      # Lower court info for appeals
+notes = ""
+url_pattern = ""
+
+[content.pacer_html_files]
+status = "unknown"                      # Raw PACER HTML
+notes = ""
+url_pattern = ""
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unknown"
+notes = ""
+url_pattern = ""
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"                      # Citation relationships
+notes = ""
+url_pattern = ""
+
+[content.parentheticals]
+status = "unknown"                      # How cases are cited
+notes = ""
+url_pattern = ""
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"                      # User-facing tags
+notes = ""
+url_pattern = ""
+
+[content.search_queries]
+status = "unknown"                      # Saved searches (if exposed)
+notes = ""
+url_pattern = ""
+
+# Add other content types as discovered
+# [content.other_type]
+# status = "available"
+# notes = "Description of what this contains"
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+earliest_date = ""                      # "YYYY-MM-DD" or "unknown"
+latest_date = ""                        # "YYYY-MM-DD" or "ongoing"
+
+# Are historical records available?
+has_historical = false
+historical_notes = ""
+
+# How often does the site appear to be updated?
+update_frequency = ""                   # "daily", "weekly", "monthly", "irregular", "unknown"
+
+# Is there a way to subscribe to updates?
+has_subscription = false
+subscription_type = ""                  # "rss", "email", "api_webhook", ""
+subscription_url = ""
+
+# Is there a searchable index?
+has_search = false
+search_capabilities = []                # "date_range", "case_number", "party_name", "full_text", etc.
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = false
+
+# What module path(s)?
+scraper_modules = []                    # e.g., ["juriscraper.opinions.united_states.state.ala"]
+
+# What data types does the existing scraper cover?
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []                       # GitHub issue numbers or descriptions
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = ""
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = []
+
+# Any known data quality issues?
+data_quality_notes = ""
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+Brief summary of findings and recommendations for scraping this site.
+"""
+
+# Recommended priority for building a scraper
+priority = ""                           # "high", "medium", "low", "skip"
+priority_reasoning = ""
+
+# Estimated complexity
+complexity = ""                         # "simple", "moderate", "complex"
+complexity_reasoning = ""
+
+# Any blockers or concerns?
+blockers = []

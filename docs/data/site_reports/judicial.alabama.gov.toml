@@ -54,7 +54,33 @@ shared_infrastructure = []
 # Does the site have an API?
 has_api = true
 api_documented = false
-api_url = "https://publicportal-api.alappeals.gov/courts/"
+api_url = "https://publicportal-api.alappeals.gov/"
+
+# API Endpoints discovered via browser network inspection:
+# Base: https://publicportal-api.alappeals.gov
+#
+# Court metadata:
+#   GET /courts?size=500&fields=*,locations(*)
+#   Returns: List of courts with UUIDs, display names, active status
+#
+# Publications (opinion releases):
+#   GET /courts/cms/publications?page=0&size=25&sort=publicationDate,desc
+#   GET /courts/{courtUUID}/cms/publication/{publicationUUID}
+#   Returns: Paginated list of opinion release bundles with case items
+#
+# Supporting endpoints (called on page load):
+#   GET /locales?size=500
+#   GET /manage/info
+#   GET /currentuser?fields=*,actor(*,mailingAddress(*)),locale(localeCode),court(*),interpreterInfo(*,languages(*)),userTypes(*)
+#   GET /kiosk
+#   GET /messageresources
+#   GET /cms/countries
+#   GET /cms/regions
+#   GET /quicklinks?sort=orderBy,asc&size=500
+#   GET /announcements?homePage=true&size=500&sort=orderBy,asc&sort=startDate,desc
+#
+# Document download pattern:
+#   GET /courts/{courtUUID}/cms/case/{caseUUID}/docketentrydocuments/{documentUUID}
 
 # Are bulk downloads available?
 bulk_download_available = false
@@ -106,17 +132,23 @@ Opinions are available via two systems:
    - Existing scrapers use this API successfully
 Slip opinions are provided but noted as "neither final nor official" and subject to correction.
 """
-url_pattern = "https://publicportal-api.alappeals.gov/courts/cms/publications?courtID={court_uuid}&page=0&size=25&sort=publicationDate%2Cdesc"
+example_urls = [
+    "https://publicportal-api.alappeals.gov/courts/68f021c4-6a44-4735-9a76-5360b2e8af13/cms/case/D28B7C55-86E3-4659-AF31-9FB6CE8C2D76/docketentrydocuments/A01A2C33-A918-4F08-AC2F-146D532F4037",
+    "https://publicportal-api.alappeals.gov/courts/68f021c4-6a44-4735-9a76-5360b2e8af13/cms/case/693AED9A-FC30-4BB9-B122-046295FE5E15/docketentrydocuments/1FE32E8D-4CE8-4E37-8F67-18FBB9FFBD84",
+    "https://publicportal.alappeals.gov/portal/search/publication/results?criteria=~(advanced~false~courtID~'68f021c4-6a44-4735-9a76-5360b2e8af13~page~(size~25~number~0~totalElements~0~totalPages~0)~sort~(sortBy~'publicationDate~sortDesc~true)~publication~())"
+]
 
 [content.opinion_clusters]
 status = "available"
 notes = "Opinions are grouped by publication/release date in the API"
-url_pattern = ""
+example_urls = [
+    "https://publicportal-api.alappeals.gov/courts/cms/publications?courtID=68f021c4-6a44-4735-9a76-5360b2e8af13&page=0&size=25&sort=publicationDate%2Cdesc"
+]
 
 [content.citations]
 status = "partial"
 notes = "Case numbers and Southern Reporter citations visible in opinion documents but not extracted as structured data"
-url_pattern = ""
+example_urls = []
 
 [content.oral_arguments]
 status = "partial"
@@ -128,177 +160,185 @@ Oral argument information available:
 - Search available at publicportal.alappeals.gov/portal/search/calendar
 Not freely downloadable in bulk.
 """
-url_pattern = "https://publicportal.alappeals.gov/portal/search/calendar"
+example_urls = [
+    "https://publicportal.alappeals.gov/portal/search/calendar"
+]
 
 [content.audio_transcripts]
 status = "unknown"
 notes = "Transcripts may be available through State Law Library but not confirmed"
-url_pattern = ""
+example_urls = []
 
 # --- Docket Data ---
 
 [content.dockets]
 status = "available"
 notes = "Case docket information available through public portal API"
-url_pattern = "https://publicportal-api.alappeals.gov/courts/{court_uuid}/cms/case/{case_uuid}"
+example_urls = [
+    "https://publicportal.alappeals.gov/portal/search/case"
+]
 
 [content.docket_entries]
 status = "available"
 notes = "Docket entries with document links available through API"
-url_pattern = "https://publicportal-api.alappeals.gov/courts/{court_uuid}/cms/case/{case_uuid}/docketentrydocuments/{document_uuid}"
+example_urls = []
 
 [content.recap_documents]
 status = "available"
 notes = "Briefs, petitions, and other filings accessible through public portal"
-url_pattern = ""
+example_urls = []
 
 # --- Party & Attorney Data ---
 
 [content.parties]
 status = "available"
 notes = "Party names visible in case titles"
-url_pattern = ""
+example_urls = []
 
 [content.party_types]
 status = "partial"
 notes = "Some party role information may be extractable from case titles (e.g., 'v.' patterns)"
-url_pattern = ""
+example_urls = []
 
 [content.attorneys]
 status = "unknown"
 notes = "Attorney information may be in docket entries"
-url_pattern = ""
+example_urls = []
 
 [content.attorney_organizations]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.roles]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- People & Judges ---
 
 [content.persons]
 status = "available"
 notes = "Current justices/judges listed on website with bio links"
-url_pattern = "https://judicial.alabama.gov/Appellate/SupremeCourt"
+example_urls = [
+    "https://judicial.alabama.gov/Appellate/SupremeCourt"
+]
 
 [content.positions]
 status = "partial"
 notes = "Current positions visible; historical positions may be in judicial history resources"
-url_pattern = ""
+example_urls = []
 
 [content.education]
 status = "unknown"
 notes = "May be in judge biography pages"
-url_pattern = ""
+example_urls = []
 
 [content.political_affiliations]
 status = "unavailable"
 notes = "Not provided on court website"
-url_pattern = ""
+example_urls = []
 
 [content.aba_ratings]
 status = "unavailable"
 notes = "Not provided on court website"
-url_pattern = ""
+example_urls = []
 
 [content.retention_events]
 status = "unavailable"
 notes = "Not provided on court website"
-url_pattern = ""
+example_urls = []
 
 # --- Court & Location Data ---
 
 [content.courts]
 status = "available"
 notes = "Three appellate courts: Supreme Court, Court of Civil Appeals, Court of Criminal Appeals. Court metadata available via API."
-url_pattern = "https://publicportal-api.alappeals.gov/courts/"
+example_urls = [
+    "https://publicportal-api.alappeals.gov/courts/"
+]
 
 [content.courthouses]
 status = "available"
 notes = "Location: 300 Dexter Avenue, Montgomery, AL 36104"
-url_pattern = ""
+example_urls = []
 
 # --- Bankruptcy-Specific ---
 
 [content.bankruptcy_information]
 status = "unavailable"
 notes = "State appellate courts - bankruptcy handled in federal courts"
-url_pattern = ""
+example_urls = []
 
 [content.claims]
 status = "unavailable"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.claim_history]
 status = "unavailable"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Criminal-Specific ---
 
 [content.criminal_counts]
 status = "unknown"
 notes = "Criminal case details in Court of Criminal Appeals cases"
-url_pattern = ""
+example_urls = []
 
 [content.criminal_complaints]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Federal-Specific ---
 
 [content.fjc_integrated_database]
 status = "unavailable"
 notes = "State courts"
-url_pattern = ""
+example_urls = []
 
 [content.originating_court_information]
 status = "available"
 notes = "Lower court information extracted from opinion titles via regex pattern: (Appeal from <court>: <number>)"
-url_pattern = ""
+example_urls = []
 
 [content.pacer_html_files]
 status = "unavailable"
 notes = "State courts"
-url_pattern = ""
+example_urls = []
 
 # --- SCOTUS-Specific ---
 
 [content.scotus_docket_metadata]
 status = "unavailable"
 notes = "State courts"
-url_pattern = ""
+example_urls = []
 
 # --- Citation Analysis ---
 
 [content.opinions_cited]
 status = "unknown"
 notes = "May be extractable from opinion text"
-url_pattern = ""
+example_urls = []
 
 [content.parentheticals]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Other ---
 
 [content.tags]
 status = "unavailable"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.search_queries]
 status = "unavailable"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # =============================================================================
 # COVERAGE & FRESHNESS
@@ -392,6 +432,8 @@ The Alabama Unified Judicial System serves three appellate courts through a well
 infrastructure with both a public website (judicial.alabama.gov) and a JSON API
 (publicportal-api.alappeals.gov).
 
+**Verified via Playwright browser automation (2026-01-08):**
+
 Key findings:
 1. Existing scrapers are working and use the correct API
 2. Opinions are freely available without login or payment
@@ -399,6 +441,13 @@ Key findings:
 4. robots.txt returns 404 (no restrictions found)
 5. Oral argument recordings require purchase but docket info is free
 6. No RSS feeds available for subscription
+
+API Discovery via Network Inspection:
+- The frontend is a Vue.js SPA that makes XHR requests to publicportal-api.alappeals.gov
+- All API endpoints return JSON with consistent pagination (_embedded, page fields)
+- Court UUIDs are stable identifiers used across all API calls
+- Document downloads use a predictable URL pattern with court/case/document UUIDs
+- No authentication required for public endpoints
 
 The existing opinion scrapers appear functional and up-to-date. No immediate changes needed
 for opinion scraping. Potential future work could add oral argument docket scraping or

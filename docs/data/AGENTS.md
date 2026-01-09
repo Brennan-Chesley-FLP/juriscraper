@@ -67,11 +67,43 @@ Read the beads task to understand:
    - Are there captchas?
    - What platform/vendor appears to power the site? (Look for Tyler, Thomson Reuters, etc.)
 
-### 3. Explore Available Content
+### 3. Discover Hidden APIs via Network Inspection
+Many modern court websites are Single Page Applications (SPAs) that fetch data from JSON APIs. These APIs are often easier to scrape than the HTML frontend.
+
+**Using Playwright to discover APIs:**
+1. Navigate to the site and use `browser_network_requests` to see all XHR/fetch calls
+2. Look for requests to API subdomains (e.g., `api.`, `publicportal-api.`)
+3. Look for requests returning `application/json` content type
+4. Note the URL patterns, query parameters, and pagination structure
+
+**Common API patterns to look for:**
+- `/api/v1/`, `/api/`, `/rest/` path prefixes
+- Separate API subdomain (e.g., `api.courts.gov` vs `www.courts.gov`)
+- Query parameters like `page=`, `size=`, `sort=`, `fields=`
+- HATEOAS-style responses with `_embedded`, `_links`, `page` fields
+- GraphQL endpoints (`/graphql`)
+
+**What to document:**
+- Base API URL
+- Key endpoints for opinions, cases, documents
+- Pagination parameters
+- Any required headers or authentication
+- Document download URL patterns
+
+**Example workflow:**
+```
+1. browser_navigate to court portal
+2. browser_network_requests to capture API calls
+3. WebFetch on discovered API endpoints to examine JSON structure
+4. Document endpoints in [technical] section with comments
+```
+
+### 4. Explore Available Content
 For each content type in the template, try to determine:
 - Is this data type available on the site?
 - What URL pattern leads to this data?
 - Is it behind a paywall or login?
+- **Collect 1-3 example URLs** for each available content type
 
 **Priority content types to investigate:**
 1. Opinions (court decisions)
@@ -85,7 +117,13 @@ For each content type in the template, try to determine:
 - Check for RSS feeds or "Recent" sections
 - Look for bulk download or data export options
 
-### 4. Check for Existing Scrapers
+**Collecting Example URLs:**
+For each content type marked as "available" or "partial", provide 1-3 real example URLs in the `example_urls` field. These should be:
+- Actual working URLs to real content (not placeholders)
+- Representative examples showing typical URL patterns
+- Different examples if the site has multiple URL formats
+
+### 5. Check for Existing Scrapers
 Search the codebase for existing coverage:
 ```
 juriscraper/opinions/united_states/state/{state_abbrev}*.py
@@ -97,22 +135,22 @@ If a scraper exists, note:
 - When it was last updated (check git history)
 - Any known issues (search GitHub issues)
 
-### 5. Assess Technical Requirements
+### 6. Assess Technical Requirements
 Determine what would be needed to scrape the site:
 - **Simple**: Static HTML, no auth, standard pagination
 - **Moderate**: Requires JavaScript, has search forms, session management
 - **Complex**: Requires login, has captchas, JavaScript-heavy SPA, rate limiting
 
-### 6. Write the Report
+### 7. Write the Report
 Fill out all sections of the template. Key guidelines:
 - Use `"unknown"` for content types you couldn't verify
 - Use `"unavailable"` only if you confirmed the data doesn't exist
 - Use `"partial"` if only some records are available (e.g., only recent years)
-- Include example URLs in `url_pattern` fields when available
+- Include 1-3 real example URLs in `example_urls` for each available content type
 - Be specific in notes - future agents/humans will rely on this
 - In `[meta]`, list ALL court_ids served by this domain
 
-### 7. Prioritize
+### 8. Prioritize
 Assign priority based on:
 - **High**: Public access, opinions available, no major blockers, existing scraper is broken/missing
 - **Medium**: Some barriers but workable, partial data available
@@ -134,17 +172,27 @@ Court IDs: ala, alacivapp, alacrimapp
    - Find: Search functionality for cases
    - Note: Site serves multiple Alabama courts
 
-3. Browser: Navigate to opinions section
+3. Browser: Navigate to opinions portal (publicportal.alappeals.gov)
+   - Use browser_network_requests to capture API calls
+   - Discover: API at publicportal-api.alappeals.gov
+   - Document key endpoints:
+     * GET /courts?size=500 - returns court UUIDs
+     * GET /courts/cms/publications?page=0&size=25 - opinion releases
+     * GET /courts/{courtUUID}/cms/publication/{pubUUID} - publication details
+   - Use WebFetch to examine JSON structure
+
+4. Browser: Navigate to opinions section
    - Note URL pattern for opinion pages
    - Check date range of available opinions
    - Check document formats (PDF, HTML)
 
-4. Search codebase for existing scrapers:
+5. Search codebase for existing scrapers:
    - Found: juriscraper/opinions/united_states/state/ala.py
    - Check what it covers, last update
 
-5. Write report to docs/data/site_reports/judicial.alabama.gov.toml
+6. Write report to docs/data/site_reports/judicial.alabama.gov.toml
    - In [meta], list court_ids = ["ala", "alacivapp", "alacrimapp"]
+   - Document discovered API endpoints in [technical] section
 ```
 
 ## Important Notes

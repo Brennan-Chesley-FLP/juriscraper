@@ -1,0 +1,400 @@
+# Court Site Research Report Template
+#
+# Research for New Mexico Court of Appeals website
+# File naming: {domain_name}.toml
+
+[meta]
+domain = "coa.nmcourts.gov"
+court_ids = ["nmctapp"]
+court_name = "New Mexico Court of Appeals"
+court_url = "https://coa.nmcourts.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = false
+javascript_framework = "jquery"
+
+# What platform/vendor does the site use?
+platform = "wordpress"
+
+# Is this a statewide portal or court-specific?
+scope = "court_specific"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = "The site references New Mexico Compilation Commission's website (https://www.nmcompcomm.us/nmcases/NMCases.aspx) for opinions in WordPerfect, Word, and Adobe Acrobat formats, which may offer different access patterns."
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = false
+robots_txt_url = "https://coa.nmcourts.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = []
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Both formal opinions and memorandum opinions are available. Formal opinions date back to 2009. Memorandum opinions date back to 2018. All opinions organized by year and month. PDFs are directly downloadable. Note: Site warns that slip opinions may contain errors and are replaced when formally released."
+example_urls = [
+    "https://coa.nmcourts.gov/wp-content/uploads/sites/43/2026/01/January-2-2026-State-of-New-Mexico-v.-Edgar-Guzman-No.-A-1-CA-41682.pdf",
+    "https://coa.nmcourts.gov/wp-content/uploads/sites/43/2025/12/December-30-2025-Citibank-N.A.-v.-Leanne-Moyer-No.-A-1-CA-42426.pdf",
+    "https://coa.nmcourts.gov/wp-content/uploads/sites/43/2025/12/December-24-2025-State-of-New-Mexico-v.-Gabriel-Ashley-No.-A-1-CA-41817-1.pdf"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Audio recordings (MP3 format) of oral arguments are posted within 72 hours of the argument. Available from September 2020 onward. Older recordings available by contacting Clerk's Office. Organized by year."
+example_urls = [
+    "https://coa.nmcourts.gov/wp-content/uploads/sites/43/2025/10/October-9-2025-Pegasus-Legal-Services-for-Children-v.-Board-of-Regents-of-UNM-No.-A-1-CA-41413.mp3",
+    "https://coa.nmcourts.gov/wp-content/uploads/sites/43/2025/10/October-8-2025-State-of-New-Mexico-v.-Stephen-Charles-Bailey-No.-A-1-CA-41442.mp3",
+    "https://coa.nmcourts.gov/wp-content/uploads/sites/43/2025/03/March-6-2025-State-of-New-Mexico-v.-Candice-North-No.-A-1-CA-41228.mp3"
+]
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "Only audio recordings are provided, not transcripts."
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "unavailable"
+notes = "Not available on this website. Docket information may be available through case management systems."
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - this is an appellate court."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable - this is an appellate court."
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable - this is an appellate court."
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - this is a state court."
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - this is not a PACER site."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+
+# What is the apparent date range of available records?
+earliest_date = "2009-01-01"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Formal opinions go back to 2009. Memorandum opinions go back to 2018. Oral arguments (audio) go back to September 2020. Earlier oral arguments available by contacting Clerk's Office."
+
+# How often does the site appear to be updated?
+update_frequency = "daily"
+
+# Is there a way to subscribe to updates?
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["site_search"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = ["juriscraper.opinions.united_states.state.nmctapp"]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = ["Existing scraper uses NMOneSource (nmonesource.com) system, which is a different website than coa.nmcourts.gov. The two sites may have different coverage or timing."]
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "Site distinguishes between 'Formal Opinions' and 'Memorandum Opinions'. Memorandum opinions of sealed cases are not posted on the website. Site notes that slip opinions may contain errors and technical changes may be made prior to publication."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = ["memorandum_opinion", "formal_opinion"]
+
+# Any known data quality issues?
+data_quality_notes = "Slip opinions posted on this site are provisional and may differ from the final published versions on the Supreme Court website. Site warns that slip opinions may contain computer-generated errors."
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+New Mexico Court of Appeals website (coa.nmcourts.gov) is a WordPress site running LiteSpeed with public access to opinions and oral arguments.
+
+**Opinions**: Both formal and memorandum opinions are available as PDFs, organized by year and month in accordion-style menus. Formal opinions date back to 2009, memorandum opinions to 2018. URL pattern is predictable: wp-content/uploads/sites/43/YYYY/MM/[date-case-name-number].pdf
+
+**Oral Arguments**: Audio recordings (MP3 format) are posted within 72 hours of arguments, available from September 2020 onward. Similar URL pattern to opinions but with .mp3 extension.
+
+**Existing Coverage**: The court already has a scraper (nmctapp.py) that uses NMOneSource (nmonesource.com), which is a different platform. This suggests there may be two separate systems serving New Mexico Court of Appeals content.
+
+**Alternative Source**: Site references New Mexico Compilation Commission's website (www.nmcompcomm.us) for opinions in multiple formats (WordPerfect, Word, PDF).
+
+**Scraping Considerations**:
+- Static HTML with accordion menus
+- No API detected
+- No robots.txt restrictions
+- No authentication required
+- Predictable URL patterns for direct file access
+- Site appears to be the primary public-facing website, while NMOneSource may be a legal research platform
+"""
+
+# Recommended priority for building a scraper
+priority = "medium"
+priority_reasoning = "Court already has opinion coverage through NMOneSource scraper. However, coa.nmcourts.gov may provide more immediate access to slip opinions and adds oral argument audio capability not currently captured. The two sources should be evaluated to determine if they provide complementary coverage or if one is more authoritative/timely."
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = "Static HTML with predictable URL patterns. Simple accordion-based navigation. PDFs and MP3s directly accessible. No JavaScript rendering required for scraping. Main challenge would be coordinating with existing NMOneSource scraper to avoid duplication."
+
+# Any blockers or concerns?
+blockers = ["Need to understand relationship between coa.nmcourts.gov and NMOneSource to avoid duplicate or conflicting data", "Should verify whether slip opinions on coa.nmcourts.gov are interim versions that get superseded by NMOneSource versions"]

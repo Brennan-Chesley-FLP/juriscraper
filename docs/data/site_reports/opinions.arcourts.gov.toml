@@ -1,0 +1,420 @@
+# Court Site Research Report Template
+#
+# Arkansas Courts Opinions Portal
+# Serves both Arkansas Supreme Court and Court of Appeals
+#
+# File naming: opinions.arcourts.gov.toml
+
+[meta]
+domain = "opinions.arcourts.gov"
+domain_aliases = ["courts.arkansas.gov"]
+court_ids = ["ark", "arkctapp"]  # Arkansas Supreme Court and Court of Appeals
+court_name = "Arkansas Courts - Opinions Portal"
+court_url = "https://opinions.arcourts.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = true
+javascript_framework = "custom"  # Appears to be Lexum's Norma/Decisia platform with iframe-based content
+
+# What platform/vendor does the site use?
+platform = "lexum"  # Powered by "Norma by Lexum" as shown in footer
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []  # Need to research if other states use Lexum/Norma
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf", "html"]  # Documents available in both PDF and HTML view
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://opinions.arcourts.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true  # Only blocks BUbiNG user agent and specific opinion items
+disallowed_paths = [
+    "/icm/icm/en/item/120620/index.do",
+    "/icm/icm/en/120620/1/document.do",
+    "/icm/icm/en/item/111322/index.do",
+    "/icm/icm/en/111322/1/document.do"
+]
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Supreme Court and Court of Appeals opinions available from 1837 to present. Opinions include full text, metadata (docket number, citation, author, opinion type, county, term, disposition). Browse by date, case name, neutral citation, or report citation. Advanced search with multiple filters available."
+example_urls = [
+    "https://opinions.arcourts.gov/ark/courtofappeals/en/item/524052/index.do",  # Court of Appeals opinion
+    "https://opinions.arcourts.gov/ark/supremecourt/en/nav_date.do",  # Supreme Court browse by date
+    "https://opinions.arcourts.gov/ark/en/d/s/index.do"  # Advanced search interface
+]
+
+[content.opinion_clusters]
+status = "partial"
+notes = "Opinions are organized by term and date. Related opinions (majority, concurring, dissenting) appear to be grouped. Neutral citations provided (e.g., '2026 Ark. App. 2')."
+example_urls = [
+    "https://opinions.arcourts.gov/ark/courtofappeals/en/item/524052/index.do"
+]
+
+[content.citations]
+status = "available"
+notes = "Both neutral citations (e.g., '2026 Ark. App. 2') and report citations (e.g., '2026 Ark. 100') are provided. Searchable by citation through advanced search."
+example_urls = [
+    "https://opinions.arcourts.gov/ark/courtofappeals/en/item/524052/index.do"
+]
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "No oral argument audio or video found on opinions portal."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "No oral argument transcripts found."
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Docket numbers are available in opinion metadata. A separate case search system exists at caseinfo.arcourts.gov but that is a different domain/system."
+example_urls = [
+    "https://caseinfo.arcourts.gov/cconnect/PROD/public/ck_public_qry_main.cp_main_idx"  # Separate case search system
+]
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Not available on opinions portal. May be available on separate case search system (caseinfo.arcourts.gov)."
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "This is a state court system, not federal PACER."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names available in opinion titles and full text, but not as structured data."
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "Not available as structured data."
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "Attorney names appear in opinion text (counsel listings at end of opinions)."
+example_urls = []
+
+[content.attorney_organizations]
+status = "partial"
+notes = "Law firms mentioned in counsel listings within opinion text."
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = "Not available as structured data."
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judge/author names available in opinion metadata. Searchable by author name in advanced search."
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = "Not available."
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = "Not available."
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = "Not available."
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Not available."
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = "Not available."
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "partial"
+notes = "Court metadata available (Supreme Court vs Court of Appeals). County information available in opinion metadata."
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = "Not available on opinions portal."
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable to state supreme court."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable."
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable."
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Not available as structured data (though criminal cases are present in opinions)."
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Not available."
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable to state courts."
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Lower court information sometimes mentioned in appellate opinions (e.g., 'APPEAL FROM THE BENTON COUNTY CIRCUIT COURT')."
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable to state courts."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "partial"
+notes = "Citations to other cases appear in opinion text but not as structured citation graph data."
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = "Not available as structured data."
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = "Not available."
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = "Not available."
+example_urls = []
+
+[content.court_rules]
+status = "available"
+notes = "Court Rules and Administrative Orders available in separate section of the portal."
+example_urls = [
+    "https://opinions.arcourts.gov/ark/cr/en/nav_date.do",  # Court Rules
+    "https://opinions.arcourts.gov/ark/ao/en/nav_date.do"   # Administrative Orders
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1837"  # Supreme Court has opinions dating back to 1837
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Extensive historical coverage back to 1837 for Supreme Court, 1979 for Court of Appeals based on date browse navigation."
+
+# How often does the site appear to be updated?
+update_frequency = "daily"  # Recent opinions from January 2026 visible
+
+# Is there a way to subscribe to updates?
+has_subscription = true
+subscription_type = "rss"  # RSS Feeds link visible in footer
+subscription_url = "https://opinions.arcourts.gov/ark/en/rss/index.do"
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["date_range", "case_number", "party_name", "full_text", "citation", "author", "opinion_type", "county", "disposition", "court", "term"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.ark",
+    "juriscraper.opinions.united_states.state.arkctapp"
+]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []  # Would need to check GitHub issues
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "Site uses iframe-based content delivery which may complicate scraping. The Lexum/Norma platform appears to load content dynamically within iframes. The existing scraper uses the advanced search endpoint (/ark/en/d/s/index.do) with date range parameters rather than browsing."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = ["Syllabus"]  # Arkansas publishes syllabi separately
+
+# Any known data quality issues?
+data_quality_notes = "Site appears well-maintained and current."
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = "Opinions organized by 'Term' (e.g., '2026 Spring Term')"
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+Arkansas Courts maintains a modern opinion portal powered by Lexum's Norma platform. The site provides comprehensive coverage of Supreme Court opinions (dating back to 1837) and Court of Appeals opinions (dating back to 1979).
+
+The site uses an iframe-based architecture which may require JavaScript rendering for scraping. However, existing scrapers successfully access opinions via the advanced search endpoint (https://opinions.arcourts.gov/ark/en/d/s/index.do) using date range queries, which is the approach currently used by ark.py and arkctapp.py.
+
+Key features:
+- Both courts accessible from single domain
+- Advanced search with extensive filters
+- RSS feeds available for updates
+- No authentication required
+- Robots.txt permits scraping (only blocks specific opinions and BUbiNG user agent)
+- Documents available in PDF and HTML formats
+- Rich metadata including docket numbers, citations, author, opinion type, county, term, disposition
+
+The existing scrapers appear to work well, scraping by date range from the search endpoint. The site has a 25-result pagination limit that the existing scraper is aware of (logs a warning when 25 results are returned).
+
+Note: The task indicated the URL as "courts.arkansas.gov" which does not exist. The correct URL is "opinions.arcourts.gov" as discovered through the existing scraper code.
+"""
+
+# Recommended priority for building a scraper
+priority = "low"  # Existing scrapers already work well
+priority_reasoning = "Existing scrapers (ark.py and arkctapp.py) are already functional and appear to be actively maintained (last updated 2017). The scrapers use a date-range query approach that works around the site's pagination limitations. No immediate need for updates unless scraper functionality breaks."
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = "Site has clean HTML structure and existing scrapers demonstrate straightforward date-based queries work well. The iframe architecture is already handled by existing implementation. No authentication, captchas, or paywalls. The Lexum platform provides stable URL patterns."
+
+# Any blockers or concerns?
+blockers = []

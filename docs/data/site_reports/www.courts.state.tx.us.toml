@@ -1,0 +1,342 @@
+# Court Site Research Report
+#
+# Legacy URL: www.courts.state.tx.us
+# This domain is no longer functional. The modern infrastructure has been moved to search.txcourts.gov
+
+[meta]
+domain = "www.courts.state.tx.us"
+court_ids = ["texapp"]  # Originally served Court of Civil Appeals of Texas
+court_name = "Texas Courts Online (Legacy)"
+court_url = "http://www.courts.state.tx.us/courts/coa.asp"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = false
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = ""
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = []
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = "https://www.courts.state.tx.us/robots.txt"
+allows_scraping = false
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content.opinions]
+status = "unavailable"
+notes = "Domain is defunct/inaccessible"
+example_urls = []
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parties]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.opinions_cited]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "unknown"
+has_historical = false
+historical_notes = ""
+update_frequency = ""
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = false
+search_capabilities = []
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.tex",
+    "juriscraper.opinions.united_states.state.texcrimapp",
+    "juriscraper.opinions.united_states.state.texapp",
+    "juriscraper.opinions.united_states.state.texapp_1",
+    "juriscraper.opinions.united_states.state.texapp_2",
+    "juriscraper.opinions.united_states.state.texapp_3",
+    "juriscraper.opinions.united_states.state.texapp_4",
+    "juriscraper.opinions.united_states.state.texapp_5",
+    "juriscraper.opinions.united_states.state.texapp_6",
+    "juriscraper.opinions.united_states.state.texapp_7",
+    "juriscraper.opinions.united_states.state.texapp_8",
+    "juriscraper.opinions.united_states.state.texapp_9",
+    "juriscraper.opinions.united_states.state.texapp_10",
+    "juriscraper.opinions.united_states.state.texapp_11",
+    "juriscraper.opinions.united_states.state.texapp_12",
+    "juriscraper.opinions.united_states.state.texapp_13",
+    "juriscraper.opinions.united_states.state.texapp_14",
+    "juriscraper.opinions.united_states.state.texapp_15",
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "This is a legacy URL that is no longer functional."
+special_document_types = []
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+LEGACY DOMAIN - NO LONGER FUNCTIONAL
+
+The domain www.courts.state.tx.us is no longer accessible. Research findings:
+1. HTTPS connections fail with certificate errors (ERR_CERT_COMMON_NAME_INVALID)
+2. HTTP connections time out (ERR_CONNECTION_TIMED_OUT)
+3. The domain appears to be completely defunct
+
+This URL was historically listed in courts.toml for the "texapp" court ID:
+court_url = "http://www.courts.state.tx.us/courts/coa.asp"
+
+MODERN INFRASTRUCTURE:
+The Texas appellate court system has migrated to:
+- search.txcourts.gov - TAMES (Texas Appellate Management & E-Filing System)
+- www.txcourts.gov - Main informational site with Orders & Opinions pages
+
+See search.txcourts.gov.toml for comprehensive research on the current system.
+
+EXISTING SCRAPERS:
+All Texas appellate court scrapers (17 total) have been updated to use the modern
+search.txcourts.gov infrastructure. The scrapers work correctly despite the
+legacy URL being listed in courts.toml.
+
+RECOMMENDATION:
+Update courts.toml to reflect the modern URLs:
+- tex: https://www.txcourts.gov/supreme/
+- texcrimapp: https://www.txcourts.gov/criminal-appeals/
+- texapp: https://search.txcourts.gov/
+"""
+
+priority = "skip"
+priority_reasoning = """
+This is a defunct legacy domain. No development needed because:
+1. The domain is completely inaccessible
+2. Modern infrastructure at search.txcourts.gov is fully functional
+3. Existing scrapers (17 total) cover all Texas appellate courts using modern URLs
+4. Comprehensive research already exists in search.txcourts.gov.toml
+
+The only action needed is updating courts.toml to reflect modern URLs.
+"""
+
+complexity = "n/a"
+complexity_reasoning = "Domain is defunct - no scraping possible"
+
+blockers = ["Domain completely inaccessible - appears to be decommissioned"]

@@ -1,0 +1,358 @@
+# Court Site Research Report: Texas Courts Search Portal
+#
+# This portal serves multiple Texas courts including the Supreme Court,
+# Court of Criminal Appeals, and all 14 Courts of Appeals.
+
+[meta]
+domain = "search.txcourts.gov"
+domain_aliases = ["www.supreme.courts.state.tx.us", "www.cca.courts.state.tx.us"]
+court_ids = ["tex", "texcrimapp", "texapp1", "texapp2", "texapp3", "texapp4", "texapp5", "texapp6", "texapp7", "texapp8", "texapp9", "texapp10", "texapp11", "texapp12", "texapp13", "texapp14"]
+court_name = "Texas Appellate Courts Search Portal (TAMES)"
+court_url = "https://search.txcourts.gov/CaseSearch.aspx"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "aspnet"  # ASP.NET with Telerik controls
+
+platform = "custom"  # Custom ASP.NET application called TAMES
+scope = "statewide"  # Serves all Texas appellate courts
+
+# Shared by all Texas appellate courts
+shared_infrastructure = ["tex", "texcrimapp", "texapp1", "texapp2", "texapp3", "texapp4", "texapp5", "texapp6", "texapp7", "texapp8", "texapp9", "texapp10", "texapp11", "texapp12", "texapp13", "texapp14"]
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf", "doc"]  # Opinions available in PDF and Word formats
+
+auth_mechanism = "session_cookie"  # ASP.NET ViewState mechanism for search forms
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://search.txcourts.gov/robots.txt"
+allows_scraping = false  # robots.txt has "User-Agent: * Disallow: /"
+disallowed_paths = ["/"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content.opinions]
+status = "available"
+notes = "Opinions available via Document Search and Hand Down lists. Searchable by date range, court, case number, party name. Search uses ASP.NET POST with complex ViewState parameters. Hand down lists organized by date showing recent releases."
+example_urls = [
+    "https://search.txcourts.gov/CaseSearch.aspx?coa=coscca&s=d&d=1",  # Document search for CCA
+    "https://search.txcourts.gov/DocketSrch.aspx?coa=coscca",  # Hand down list for CCA
+    "https://search.txcourts.gov/handdown.aspx?coa=coscca&fulldate=01/08/2025"  # Specific hand down date
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Citations available as part of case metadata in search results"
+example_urls = []
+
+[content.oral_arguments]
+status = "partial"
+notes = "Oral argument videos available but hosted externally at texasbarcle.com for Supreme Court and CCA"
+example_urls = [
+    "https://www.texasbarcle.com/CLE/TSC.asp",  # Supreme Court oral arguments
+    "https://www.texasbarcle.com/CLE/sc.asp"     # Alternative link
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.dockets]
+status = "available"
+notes = "Case search available with detailed case information including docket numbers, parties, and filing dates"
+example_urls = [
+    "https://search.txcourts.gov/CaseSearch.aspx?coa=coscca&s=c"  # Case search for CCA
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Event reports available showing case activity and filings"
+example_urls = [
+    "https://search.txcourts.gov/Events/default.aspx?coa=coscca"  # Events for CCA
+]
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable - this is a state court system, not federal PACER"
+example_urls = []
+
+[content.parties]
+status = "available"
+notes = "Party names searchable and displayed in case search results"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "Attorney search available by name or bar number in case search"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "available"
+notes = "Search interface allows selection from all Texas appellate courts via checkboxes"
+example_urls = []
+
+[content.courthouses]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - these are state appellate courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Trial court information searchable including court name and county"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2002-01-24"  # From texapp.py first_opinion_date
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Opinions available from 2002 to present via search. Pre-October 2014 opinions have separate archive: https://search.txcourts.gov/historical/recent.htm"
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://casemail.txcourts.gov/"
+has_search = true
+search_capabilities = ["date_range", "case_number", "party_name", "full_text", "attorney_name", "trial_court", "county"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.tex",
+    "juriscraper.opinions.united_states.state.texcrimapp",
+    "juriscraper.opinions.united_states.state.texapp"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Texas has a unique dual supreme court system:
+- Supreme Court of Texas (tex) handles civil cases
+- Court of Criminal Appeals (texcrimapp) handles criminal cases
+
+The search portal uses complex ASP.NET ViewState and requires POST requests with
+hidden form fields. Each court is selected via checkbox parameter like:
+- ctl00$ContentPlaceHolder1$chkListCourts$0 for Supreme Court
+- ctl00$ContentPlaceHolder1$chkListCourts$1 for Court of Criminal Appeals
+- ctl00$ContentPlaceHolder1$chkListCourts$2-15 for the 14 Courts of Appeals
+
+Hand down lists are released on Thursday mornings at 9:00 AM for CCA.
+
+The site has a disclaimer: "The data and documents in Case Search are refreshed
+nightly. This data is not real-time."
+"""
+special_document_types = []
+data_quality_notes = "Data refreshed nightly, not real-time"
+seasonal_notes = "CCA hand downs released Thursday mornings at 9:00 AM"
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Texas Appellate Management & E-Filing System (TAMES) is a shared statewide
+portal serving all Texas appellate courts. The existing scrapers use POST requests
+with complex ASP.NET ViewState parameters to search for opinions by date range.
+
+Key findings:
+1. Robots.txt disallows all crawling (Disallow: /)
+2. Existing scrapers (tex, texcrimapp, texapp) are working and use this portal
+3. Opinions available in PDF and DOC formats
+4. Search requires JavaScript and complex POST parameters
+5. Alternative access via "Hand Down" lists showing recent releases by date
+6. Email subscription service (Case Mail) available for updates
+7. Oral argument videos hosted externally at texasbarcle.com
+
+The scraper in juriscraper/opinions/united_states/state/texapp.py handles the
+complexity of ASP.NET ViewState and pagination. The texcrimapp scraper inherits
+from texapp and just sets checkbox=1 to select the Court of Criminal Appeals.
+
+Priority: LOW - Existing scrapers are functional. Robots.txt technically disallows
+scraping but the system has been scraped successfully for years.
+"""
+
+priority = "low"
+priority_reasoning = """
+Existing scrapers are functional and have been maintained since 2014. The robots.txt
+disallows crawling, but the scrapers have been operating without issues. No urgent
+need for new development.
+"""
+
+complexity = "complex"
+complexity_reasoning = """
+The site requires:
+1. JavaScript execution for proper rendering
+2. Complex ASP.NET ViewState management
+3. POST requests with hidden fields and ViewState
+4. Pagination handling via ASP.NET controls
+5. Multiple HTTP requests per opinion (search results + case page for names)
+
+The existing scraper handles all this complexity well.
+"""
+
+blockers = []

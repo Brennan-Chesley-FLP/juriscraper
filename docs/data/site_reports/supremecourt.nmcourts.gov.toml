@@ -1,0 +1,405 @@
+# Court Site Research Report: New Mexico Supreme Court
+#
+# This report documents supremecourt.nmcourts.gov (redirects from nmsupremecourt.nmcourts.gov),
+# the official website for the New Mexico Supreme Court.
+#
+# Note: Opinions are published via nmonesource.com (NM Compilation Commission),
+# not directly on this site. This site is primarily informational.
+
+[meta]
+domain = "supremecourt.nmcourts.gov"
+domain_aliases = ["nmsupremecourt.nmcourts.gov"]
+court_ids = ["nm"]
+court_name = "Supreme Court of New Mexico"
+court_url = "https://supremecourt.nmcourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "jquery"
+platform = "wordpress"
+scope = "court_specific"
+shared_infrastructure = ["coa.nmcourts.gov", "nmcourts.gov"]
+
+# This is an informational site; opinions are on nmonesource.com
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://supremecourt.nmcourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "redirect"
+notes = """
+The Supreme Court website does NOT host opinions directly. Users are redirected to
+nmonesource.com (New Mexico Compilation Commission) for official opinions.
+
+The existing scraper (nm.py) correctly uses nmonesource.com as the source:
+- Base URL: https://nmonesource.com/nmos/en/d/s/index.do
+- Court code: 182 (Supreme Court)
+- Rate limit: 50 requests/minute, 100 requests/5 minutes
+
+Supreme Court opinions are available when officially released by the Court.
+Email alerts for new opinions are available via listserv subscription.
+"""
+example_urls = [
+    "https://nmonesource.com/nmos/nmsc/en/nav_date.do",
+    "https://supremecourt.nmcourts.gov/rules-forms-files/opinions/"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Citations available via nmonesource.com in format like '2025 NMSC 123'"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral argument livestream available via court calendar page"
+example_urls = [
+    "https://supremecourt.nmcourts.gov/about-this-court/court-calendar-and-oral-argument-livestream/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Livestream available but recordings/transcripts not confirmed"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Case Lookup available at caselookup.nmcourts.gov for all New Mexico courts"
+example_urls = [
+    "https://caselookup.nmcourts.gov/caselookup/"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available via Case Lookup system"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "State courts - not PACER-related"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Available via Case Lookup and in opinion titles"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Justice information available on About This Court pages"
+example_urls = []
+
+[content.positions]
+status = "partial"
+notes = "Current justices listed on the website"
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court information, hours, and contact details available"
+example_urls = [
+    "https://supremecourt.nmcourts.gov/location-hours-contact/"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Physical location information available"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Existing scraper extracts lower court info from opinion text via regex"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State courts"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.administrative_orders]
+status = "available"
+notes = "Administrative orders available on the website"
+example_urls = [
+    "https://supremecourt.nmcourts.gov/rules-forms-files/administrative-orders/"
+]
+
+[content.rules_and_forms]
+status = "available"
+notes = "Court rules and forms available, with proposed amendments open for comment"
+example_urls = [
+    "https://supremecourt.nmcourts.gov/rules-forms-files/rules-forms/",
+    "https://supremecourt.nmcourts.gov/rules-forms-files/approved-amendments-to-rules-and-forms/"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = ["https://nmonesource.com/nmos/nmsc/en/nav_date.do"]
+alternate_url_notes = "Opinions are published on nmonesource.com, not on the court website directly"
+earliest_date = "1900-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Historical opinions available via nmonesource.com back to 1900"
+update_frequency = "twice_weekly"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://supremecourt.nmcourts.gov/supreme-court/opinions-rules-and-forms/email-notifications-listserv/"
+has_search = true
+search_capabilities = ["full_text"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = ["juriscraper.opinions.united_states.state.nm"]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = [
+    "Rate limit of 50/minute and 100/5 minutes on nmonesource.com",
+    "Scraper only requests first 10 opinions to avoid rate limits",
+    "Docket number extracted from PDF text, not from listing"
+]
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- URL redirects from nmsupremecourt.nmcourts.gov to supremecourt.nmcourts.gov
+- WordPress-based site with LiteSpeed caching
+- Spanish translation available (?lang=es)
+- Opinions NOT published on court website - redirects to nmonesource.com
+- nmonesource.com is the official legal publisher (NM Compilation Commission)
+- Email listserv available for new opinion notifications
+- Site supports language access services at languageaccess.nmcourts.gov
+- AI-generated opinion summaries now available on nmonesource.com
+"""
+
+special_document_types = ["Administrative Orders", "Rule Amendments", "Bar Exam Results"]
+
+data_quality_notes = "Opinions on nmonesource.com include both 'Reported' (published) and unreported opinions"
+
+seasonal_notes = "Court closed for holidays (Dec 24-25, Jan 1); opinions generally filed Mondays and Thursdays at 11 AM"
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The New Mexico Supreme Court website (supremecourt.nmcourts.gov) is primarily an
+informational portal. Opinions are NOT published on this site - users are redirected
+to nmonesource.com, the official legal publisher operated by the NM Compilation Commission.
+
+**Key Findings:**
+
+1. **Existing Coverage**: Working scraper (nm.py) uses nmonesource.com with:
+   - Base URL: https://nmonesource.com/nmos/en/d/s/index.do
+   - Court code: 182
+   - Date-range based searches
+
+2. **Opinion Publishing**:
+   - Opinions filed Mondays and Thursdays at 11 AM
+   - Email listserv available for notifications
+   - Both Supreme Court and Court of Appeals opinions on nmonesource.com
+
+3. **Rate Limiting**: nmonesource.com has artificial limits:
+   - 50 requests/minute
+   - 100 requests/5 minutes
+   - Scraper limits to first 10 results per query
+
+4. **URL Redirect**: nmsupremecourt.nmcourts.gov → supremecourt.nmcourts.gov
+
+5. **Related Systems**:
+   - caselookup.nmcourts.gov - Case lookup for all NM courts
+   - languageaccess.nmcourts.gov - Language services
+   - nmcourts.gov - Main NM courts portal
+
+6. **New Feature**: AI-generated opinion summaries now available on nmonesource.com
+
+**Recommendations:**
+- Existing scraper works correctly via nmonesource.com
+- No scraping needed from this court website directly
+- Consider oral argument scraping if livestream archives are available
+- Monitor nmonesource.com rate limits for changes
+"""
+
+priority = "low"
+priority_reasoning = "Existing scraper on nmonesource.com provides full opinion coverage; this site is informational only"
+
+complexity = "simple"
+complexity_reasoning = "No scraping needed from this domain - existing nmonesource.com scraper handles opinions"
+
+blockers = []

@@ -1,0 +1,399 @@
+# Court Site Research Report Template
+#
+# Nebraska Supreme Court and Court of Appeals Website
+
+[meta]
+domain = "nebraskajudicial.gov"
+domain_aliases = ["supremecourt.ne.gov"]
+court_ids = ["neb", "nebctapp"]
+court_name = "Nebraska Judicial Branch (Supreme Court & Court of Appeals)"
+court_url = "https://nebraskajudicial.gov/"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = false
+javascript_framework = ""
+
+# What platform/vendor does the site use?
+platform = "drupal"
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = true
+api_documented = false
+api_url = "https://www.nebraska.gov/apps-courts-epub/"
+
+# Are bulk downloads available?
+bulk_download_available = true
+bulk_download_details = "Opinions can be downloaded as PDFs. Full volumes available for download. The ePublication system provides access to opinions via docId parameters (e.g., /apps-courts-epub/public/viewOpinion?docId=N00012911PUB, /apps-courts-epub/public/viewAdvanced?docId=N00012910PUB)"
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://nebraskajudicial.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = ["/admin/", "/comment/reply/", "/filter/tips", "/node/add/", "/search/", "/user/register", "/user/password", "/user/login", "/user/logout", "/media/oembed"]
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Supreme Court and Court of Appeals opinions available via ePublication system. Opinions are released Fridays (Supreme Court, 8am) and Tuesdays (Court of Appeals, 8am). Available in PDF format through the Online Library system at nebraska.gov/apps-courts-epub/. Extensive historical coverage going back many years (volume 301 Neb. starts in 2018, goes back further)."
+example_urls = [
+    "https://www.nebraska.gov/apps-courts-epub/public/viewOpinion?docId=N00012911PUB",
+    "https://www.nebraska.gov/apps-courts-epub/public/viewAdvanced?docId=N00012910PUB",
+    "https://nebraskajudicial.gov/courts/supreme-court/opinions"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinions are organized by volume (e.g., 320 Neb.) with citation information, docket numbers, and case captions"
+example_urls = [
+    "https://www.nebraska.gov/apps-courts-epub/public/supreme",
+    "https://www.nebraska.gov/apps-courts-epub/public/appeals"
+]
+
+[content.citations]
+status = "available"
+notes = "Citations provided in Nebraska Reporter format (e.g., 320 Neb. 599)"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Audio and video recordings of oral arguments available. Both Supreme Court and Court of Appeals oral arguments are archived. Audio available for individual cases, video available for full sessions. Arguments uploaded within 24 hours of close. Can be viewed live via Nebraska Public Media."
+example_urls = [
+    "https://nebraskajudicial.gov/courts/supreme-court/supreme-court-oral-argument-archive",
+    "http://www.netnebraska.org/capitol"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Docket numbers are available for opinions, but full docket information (case filings, etc.) is not readily available through this public portal"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Detailed docket entries not available on public site"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "This is a state court system, not PACER/federal"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names available in case captions but detailed party information not structured"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Information about Supreme Court Justices available on the website"
+example_urls = ["https://nebraskajudicial.gov/courts/supreme-court/supreme-court-justices"]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Information about all Nebraska courts available including Supreme Court, Court of Appeals, District Courts, County Courts, etc."
+example_urls = ["https://nebraskajudicial.gov/courts"]
+
+[content.courthouses]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Lower court information sometimes included in opinions"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "available"
+notes = "Search functionality available on the ePublication library"
+example_urls = ["https://www.nebraska.gov/apps-courts-epub/public/supreme"]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Historical opinions available through the ePublication system going back many years. Volume 301 Neb. starts in Sep 2018 and the system has at least 13 pages of volumes (25 per page), suggesting coverage back to at least the early 2000s or earlier."
+
+# How often does the site appear to be updated?
+update_frequency = "weekly"
+
+# Is there a way to subscribe to updates?
+has_subscription = true
+subscription_type = "email"
+subscription_url = "http://supremecourt.us4.list-manage.com/subscribe?u=ae8e96284b7e00297615727f9&id=e24ff22789"
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["full_text"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.neb",
+    "juriscraper.opinions.united_states.state.nebctapp"
+]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = ["Scraper uses old domain (supremecourt.nebraska.gov) which redirects to nebraskajudicial.gov. The scraper appears functional but may benefit from update to use new domain and potentially leverage the ePublication API system."]
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "Site has redirected from supremecourt.ne.gov to nebraskajudicial.gov. The ePublication system uses docId parameters to access documents which appear to be sequential identifiers."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = ["Memorandum Opinions", "Disposed Without Opinion (DWO)", "Petition for Further Review (PFR)"]
+
+# Any known data quality issues?
+data_quality_notes = ""
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = "Opinion releases paused for holidays (e.g., Christmas week noted on site)"
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+The Nebraska Judicial Branch website (nebraskajudicial.gov) provides comprehensive access to Supreme Court and Court of Appeals opinions through an ePublication system hosted at nebraska.gov/apps-courts-epub/.
+
+Key findings:
+1. **Domain Change**: Site has transitioned from supremecourt.ne.gov to nebraskajudicial.gov (redirects in place)
+2. **ePublication System**: Robust opinion library system with PDF downloads, organized by volume
+3. **Release Schedule**: Opinions released Fridays (Supreme Court) and Tuesdays (Court of Appeals) at 8am
+4. **Historical Coverage**: Extensive historical archive going back many years
+5. **Oral Arguments**: Both audio and video available, uploaded within 24 hours
+6. **API Potential**: The ePublication system appears to use structured URLs with docId parameters that could potentially be scraped systematically
+7. **Existing Scrapers**: Both neb.py and nebctapp.py scrapers exist and appear functional, scraping from the HTML pages
+
+The existing scrapers work by parsing the HTML tables on the opinions pages. There may be an opportunity to improve scraping by using the ePublication API endpoints more directly, though the current approach appears to be working.
+"""
+
+# Recommended priority for building a scraper
+priority = "low"
+priority_reasoning = "Existing scrapers are already in place and functional for both Supreme Court and Court of Appeals opinions. While there are enhancement opportunities (oral arguments, using API endpoints, updating to new domain), the core opinion scraping is already covered."
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = "The site is straightforward HTML with clear structure. The ePublication system provides predictable URL patterns. No authentication, JavaScript requirements, or captchas. Existing scrapers demonstrate the site is scrapable."
+
+# Any blockers or concerns?
+blockers = []

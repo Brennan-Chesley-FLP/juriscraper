@@ -1,0 +1,415 @@
+# Court Site Research Report
+#
+# Washington State Courts
+# Domain: www.courts.wa.gov
+
+[meta]
+domain = "www.courts.wa.gov"
+court_ids = ["washctapp", "washsuperct", "wash"]
+court_name = "Washington State Courts"
+court_url = "https://www.courts.wa.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+
+# ColdFusion-based site (evident from .cfm extensions)
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+
+# No public API discovered via network inspection
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+# Opinions are available as PDFs
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.courts.wa.gov/robots.txt"
+
+# robots.txt disallows various internal paths but does not block opinion scraping
+allows_scraping = true
+disallowed_paths = [
+    "/_mm/",
+    "/_notes/",
+    "/_baks/",
+    "/MMWIP/",
+    "/content/Briefs/",
+    "/content/guardianGrievance/",
+    "/appellate_trial_courts/coaBriefs/",
+    "/publicftp/"
+]
+
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Slip opinions from Supreme Court and Court of Appeals available from 2013 onwards.
+- Supreme Court: Published opinions
+- Court of Appeals: Published, unpublished, and "published in part" opinions
+- All opinions available as PDF downloads
+- Opinions organized by year and month
+- Search functionality available (by date range, keywords, court level, publication status)
+- RSS feeds available for new opinions
+- Email notification subscription available
+"""
+example_urls = [
+    "https://www.courts.wa.gov/opinions/pdf/1025866.pdf",
+    "https://www.courts.wa.gov/opinions/pdf/1026587.pdf",
+    "https://www.courts.wa.gov/opinions/index.cfm?fa=opinions.byYear&fileYear=2025&crtLevel=S&pubStatus=PUB"
+]
+
+[content.opinion_clusters]
+status = "partial"
+notes = "Opinions include both majority and concurring/dissenting opinions in single PDFs where applicable"
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Case numbers and citations included in opinion metadata"
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = "Not found during initial exploration. May be available elsewhere on site or at court-specific pages."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = """
+Docket access is available through multiple systems:
+- Odyssey Portal (https://odysseyportal.courts.wa.gov/odyportal) - Tyler Odyssey-based portal
+- JIS Link (/jislink/) - Judicial Information System access
+- Case Records search (https://dw.courts.wa.gov) - search by name, number, date
+- Appellate Court Public Document Portal for appellate documents
+Not all docket data is on www.courts.wa.gov directly, but accessible via linked systems.
+"""
+example_urls = [
+    "https://dw.courts.wa.gov",
+    "https://odysseyportal.courts.wa.gov/odyportal"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through Odyssey Portal and JIS Link systems (separate from main site)"
+example_urls = []
+
+[content.recap_documents]
+status = "partial"
+notes = "Appellate briefs and documents available through Appellate Court Public Document Portal"
+example_urls = [
+    "https://www.courts.wa.gov/appellate_trial_courts/?fa=atc.display_divs&folderID=div1&fileID=documentsearchportal"
+]
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Party names included in opinion titles and case metadata"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Supreme Court justice information available on court-specific pages"
+example_urls = [
+    "https://www.courts.wa.gov/appellate_trial_courts/SupremeCourt/?fa=supremecourt.welcome"
+]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court directory available with contact information for all Washington courts"
+example_urls = [
+    "https://www.courts.wa.gov/court_dir/"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Court directory includes location information"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State courts do not handle bankruptcy cases"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Available for appeals in opinion text"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "available"
+notes = "Citations available within opinion PDFs"
+example_urls = []
+
+[content.parentheticals]
+status = "available"
+notes = "Available within opinion text"
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2013-02-22"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Slip opinions available from February 22, 2013 onwards. Official published opinions available via LexisNexis Washington State Judicial Opinions Website (free access)."
+
+update_frequency = "daily"
+
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://www.courts.wa.gov/opinions/ (multiple RSS feeds for different courts/publication statuses)"
+
+has_search = true
+search_capabilities = [
+    "date_range",
+    "court_level",
+    "publication_status",
+    "full_text",
+    "keywords"
+]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.wash",
+    "juriscraper.opinions.united_states.state.washctapp_p",
+    "juriscraper.opinions.united_states.state.washctapp_u"
+]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Slip opinions vs. official reports: The site hosts "slip opinions" which are the initial versions filed on the decision date. These may be revised before publication in official reports (Washington Reports 2d and Washington Appellate Reports). Revised opinions are marked with asterisks.
+- Official versions available via free LexisNexis portal: https://www.lexisnexis.com/clients/wareports/
+- Court of Appeals unpublished opinions lack precedential value under RCW 2.06.040 and cannot be cited as binding authority under GR 14.1
+- Court of Appeals opinions are organized by three divisions (Division I, II, III)
+"""
+
+special_document_types = [
+    "Slip opinions",
+    "Opinions published in part",
+    "Supreme Court orders"
+]
+
+data_quality_notes = "Slip opinions may not match final published versions. Asterisks mark opinions that have been revised."
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Washington State Courts operates a well-structured, publicly accessible website for court opinions.
+The site provides:
+- Supreme Court published opinions (2013-present)
+- Court of Appeals published, unpublished, and "published in part" opinions (2013-present)
+- Search and browse functionality
+- RSS feeds and email notifications
+- PDF downloads for all opinions
+
+Existing juriscraper coverage includes all three court types (Supreme Court, Court of Appeals published, Court of Appeals unpublished) and appears to be working correctly with current site structure.
+
+The site uses ColdFusion (.cfm URLs) and serves static HTML that does not require JavaScript.
+No undocumented APIs were discovered during research.
+
+Docket access is handled through separate systems (Odyssey Portal, JIS Link) which may warrant separate research.
+"""
+
+priority = "low"
+priority_reasoning = """
+Existing scrapers are in place and functional. The site structure appears stable and well-maintained.
+Priority is low because current coverage is good. Potential improvements:
+1. Add scraper for Superior Court if opinions are available
+2. Research oral arguments availability
+3. Research docket access via Odyssey Portal/JIS Link integration
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Static HTML site with clear URL patterns and consistent structure.
+Existing scrapers demonstrate the simplicity of the implementation.
+No authentication, JavaScript rendering, or complex pagination required.
+"""
+
+blockers = []

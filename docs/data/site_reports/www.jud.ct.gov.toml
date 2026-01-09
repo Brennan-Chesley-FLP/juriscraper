@@ -1,0 +1,443 @@
+# Court Site Research Report: Connecticut Judicial Branch
+#
+# File naming: {domain_name}.toml
+
+[meta]
+domain = "jud.ct.gov"
+domain_aliases = ["www.jud.ct.gov", "www.jud.state.ct.us", "jud.state.ct.us"]
+court_ids = ["conn", "connappct", "connsuperct"]
+court_name = "Connecticut Judicial Branch (Supreme Court, Appellate Court, Superior Court)"
+court_url = "https://www.jud.ct.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.jud.ct.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = [
+    "/external/supapp/Cases/AROap/70ap350.pdf",
+    "/external/news/jobs/",
+    "/superiorcourt/MODDocs/",
+    "/Superiorcourt/MOD/DocumentPreview.aspx",
+    "/ArchivedNoIndexPDFs/",
+    "/elp/paralegal.htm",
+    "/external/supapp/appJudge_alexander.htm",
+    "/jury/accom/norwalk.htm",
+    "/Publications/CR137C.pdf",
+    "/HomePDFs/QDROApprovalv2.pdf"
+]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Opinions are available for both Connecticut Supreme Court and Appellate Court.
+Advance Release Opinions (ARO) are organized by subject categories through the Law Library.
+Opinions are scraped from archive pages with year-based URLs:
+- Supreme Court: http://www.jud.ct.gov/external/supapp/archiveAROsupYY.htm
+- Appellate Court: http://www.jud.ct.gov/external/supapp/archiveAROapYY.htm
+
+Opinions organized by subject include: Administrative Appeal, Business, Civil Rights, Contract,
+Declaratory Judgment, Employment, Environmental, Family, Foreclosure, FOI, Habeas Corpus,
+Insurance, Juvenile, Land Use, Landlord/Tenant, Legal Malpractice, Medical Malpractice,
+Probate, Property, Tort, Workers' Compensation.
+
+Historical archives available from 2000 onwards.
+"""
+example_urls = [
+    "http://www.jud.ct.gov/external/supapp/archiveAROsup26.htm",
+    "http://www.jud.ct.gov/external/supapp/archiveAROap26.htm",
+    "https://jud.ct.gov/LawLib/LawLibNews/Default.aspx?CatID=1"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citations appear within opinion PDFs. Opinions published in Connecticut Law Journal."
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """
+Civil and Housing Livestreams are available at https://jud.ct.gov/PublicAccess/
+Remote proceedings information available.
+"""
+example_urls = [
+    "https://jud.ct.gov/PublicAccess/",
+    "https://jud.ct.gov/RemoteJustice/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """
+Dockets available through Civil/Family Case Look-up system at civilinquiry.jud.ct.gov
+Searchable by:
+- Party Name
+- Docket Number
+- Attorney/Firm Juris Number
+- Property Address (summary process and foreclosure only)
+
+Covers Civil, Family, Housing, and Small Claims cases.
+Case information includes court events, short calendars, and legal notices.
+
+Disclaimer: Cases older than specified retention period may not be displayed.
+Some information may be sealed or exempt from public disclosure.
+"""
+example_urls = [
+    "https://civilinquiry.jud.ct.gov/",
+    "https://civilinquiry.jud.ct.gov/PartySearch.aspx",
+    "https://civilinquiry.jud.ct.gov/GetDocket.aspx"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Available through civil inquiry system with detailed case events and court calendars"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "RECAP is specific to federal PACER system, not applicable to state courts"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Party names searchable in civil inquiry system. Party information in docket details."
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "available"
+notes = """
+Attorney information available through:
+- Attorney/Firm Juris Number Look-up system
+- Case searches by Attorney/Firm Juris Number
+Attorney registration information managed through Judicial Branch
+"""
+example_urls = [
+    "https://www.jud.ct.gov/attorneyfirminquiry/AttorneyFirmInquiry.aspx"
+]
+
+[content.attorney_organizations]
+status = "partial"
+notes = "Firm information available through Attorney/Firm Juris Number system"
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unknown"
+notes = "Judge information likely available but not explored in this research session"
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court directories and contact information available"
+example_urls = [
+    "https://www.jud.ct.gov/directory/court_directions.htm"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Judicial District Clerks' Offices and Housing Session Clerks' Offices directories available"
+example_urls = [
+    "https://www.jud.ct.gov/directory/court_directions.htm#JD",
+    "https://www.jud.ct.gov/directory/directory/housing.htm"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - bankruptcy cases are in federal courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "Criminal case information may be in separate lookup system not explored"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable to state courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Appellate opinions include procedural history. Existing scrapers extract this information."
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - PACER is federal system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable to state courts"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Citations within opinions but no structured citation database exposed"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "available"
+notes = "Opinions categorized by subject area (20+ categories) in Law Library system"
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2000-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Opinion archives available from 2000 onwards. ARO archive pages organized by year."
+update_frequency = "daily"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["party_name", "docket_number", "attorney", "property_address"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.conn",
+    "juriscraper.opinions.united_states.state.connappct"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Opinions available through year-based archive pages (ARO = Advance Release Opinions)
+- Opinion URLs follow pattern: archiveARO{court_abbv}{YY}.htm (sup for Supreme, ap for Appellate)
+- Some opinions marked for "future publication" may not have dates initially
+- Existing scrapers handle complex parsing of docket numbers and case names from varied HTML formats
+- Opinions extract rich metadata: procedural history, syllabus, judges, date filed
+- Connecticut Law Journal is official reporter
+- E-Filing system available (E-Services)
+- Cases display on website for limited retention period
+- Separate systems for civil/family vs criminal case lookup
+- Foreclosure cases have separate pending sales system
+- MCLE (Minimum Continuing Legal Education) managed through Judicial Branch
+- Multilingual support: Spanish, Polish, Portuguese
+"""
+special_document_types = ["Advance Release Opinions"]
+data_quality_notes = """
+Existing scrapers have evolved significantly to handle:
+- Variable date formatting
+- Malformed HTML structures
+- Cases without dates (future publication)
+- Complex docket number patterns
+- Page numbers and headers in extracted text
+"""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Connecticut Judicial Branch website (jud.ct.gov) provides comprehensive public access to
+appellate court opinions and trial court dockets. The site uses custom-built systems with
+static HTML for opinions and ASP.NET for case lookup.
+
+EXISTING COVERAGE: Two scrapers exist for Connecticut Supreme Court and Appellate Court opinions,
+scraping year-based ARO (Advance Release Opinion) archive pages. Scrapers were recently updated
+(2023) and extract rich metadata including procedural history, syllabus, and judges from opinion text.
+Scraping works from 2000 onwards with backscraping support.
+
+DOCKET SYSTEM: Separate civil/family case lookup system (civilinquiry.jud.ct.gov) provides
+searchable access to Superior Court civil, family, housing, and small claims cases. Searchable
+by party name, docket number, attorney, and property address. Also includes short calendars,
+court events, and legal notices.
+
+ORAL ARGUMENTS: Civil and housing livestreams available through separate portal. Remote
+proceedings information available but not currently scraped.
+
+UNIQUE FEATURES:
+- Subject-based opinion categorization through Law Library
+- E-filing system (E-Services)
+- Attorney/Firm Juris Number lookup system
+- Foreclosure tracking system
+- Multilingual interface support
+
+RECOMMENDATION: Opinion coverage is excellent. Potential future work:
+1. Docket scraper for civil/family cases (moderately complex ASP.NET system)
+2. Oral argument/livestream scraper
+3. Criminal case lookup (separate system not explored)
+"""
+
+priority = "low"
+priority_reasoning = """
+Low priority for new opinion scraper development because:
+- Excellent existing coverage for appellate opinions
+- Recently updated scrapers (2023)
+- Public access, no technical barriers
+- Comprehensive metadata extraction
+- Backscraping support from 2000
+
+Medium priority for docket scraping if that becomes a focus area.
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Opinion scraping: Simple - static HTML archives, predictable year-based URLs, no JavaScript required
+Existing scrapers handle the complexity well.
+
+Docket scraping: Moderate - ASP.NET ViewState management, form-based search, session handling required.
+Multiple search entry points (party, docket, attorney, property address).
+
+Oral argument scraping: Unknown complexity - would need deeper exploration of streaming infrastructure.
+"""
+
+blockers = []

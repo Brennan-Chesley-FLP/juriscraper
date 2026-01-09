@@ -1,0 +1,346 @@
+# Court Site Research Report for Georgia Court of Appeals
+#
+# Domain: www.gaappeals.us (transitioning to www.gaappeals.gov)
+
+[meta]
+domain = "www.gaappeals.us"
+court_ids = ["gactapp"]
+court_name = "Court of Appeals of the State of Georgia"
+court_url = "https://www.gaappeals.gov/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "jquery"
+platform = "wordpress"
+scope = "court_specific"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.gaappeals.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/wp-admin/"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Opinions available via date-range search from January 2003 onwards. Searchable by date range through PHP endpoint. Returns case number, style, judgment date, disposition, and PDF links."
+example_urls = [
+    "https://www.gaappeals.gov/wp-content/themes/benjamin/docket/docketdate/results_all.php?OPstartDate=2024-12-01&OPendDate=2024-12-31&submit=Start+Opinions+Search",
+    "https://www.gaappeals.gov/opinion-search/",
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citations may be embedded in opinion PDFs but not exposed as structured data"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral argument videos hosted on Vimeo, organized by date. Archive goes back to at least 2025. Live streaming available when court is in session via Swagit."
+example_urls = [
+    "https://www.gaappeals.gov/oral-arguments/oral-argument-video-archive/",
+    "https://vimeo.com/1047910562",
+    "https://vimeo.com/user56418766",
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Videos available but transcripts not separately published"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Docket search available by case number, trial court case number, or case style. Coverage from January 2003 onwards. Real-time updates. Emergency Motions not displayed."
+example_urls = [
+    "https://www.gaappeals.gov/docket-search/",
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Web docket provides real-time case status information"
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = "Court filings and documents may be available through the docket system but not confirmed"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names visible in case style but not as structured data"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judge information available on website with photos and biographical information for current 15 judges"
+example_urls = [
+    "https://www.gaappeals.gov/judges/",
+    "https://www.gaappeals.gov/e-trenton-brown-iii/",
+]
+
+[content.positions]
+status = "partial"
+notes = "Current judicial positions listed"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court metadata and history available"
+example_urls = [
+    "https://www.gaappeals.gov/history/",
+]
+
+[content.courthouses]
+status = "available"
+notes = "Physical address: 330 Capitol Ave., S.E., 1st Floor, Suite 1601, Atlanta, Georgia 30334"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - Court of Appeals does not handle bankruptcy"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court - not applicable"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Trial court case numbers searchable"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court - not applicable"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2003-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Opinions available from January 2003 onwards"
+update_frequency = "daily"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["date_range", "case_number", "trial_court_case_number", "party_name"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = ["juriscraper.opinions.united_states.state.gactapp"]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = ["Scraper uses old domain www.gaappeals.us - needs update to www.gaappeals.gov"]
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+CRITICAL: Domain transition in progress from www.gaappeals.us to www.gaappeals.gov
+- Alert banner states: "The Court of Appeals of the State of Georgia has transitioned from gaappeals.us to gaappeals.gov"
+- Both domains currently functional but .us has auto-redirect warning
+- All employee email addresses now end with @gaappeals.gov
+- Existing scraper needs URL update
+
+Court structure: 15 judges serving in five divisions. Intermediate appellate court with statewide jurisdiction except constitutional questions, murder, and habeas corpus cases (which go directly to Supreme Court).
+
+Emergency Motions are not displayed on the Web Docket system.
+"""
+special_document_types = []
+data_quality_notes = "Web Docket is real-time updated"
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Georgia Court of Appeals website provides good public access to opinions and docket information. The site uses WordPress with static HTML pages and PHP-based search functionality. An existing juriscraper exists but needs updating for the domain migration from .us to .gov.
+
+Key findings:
+1. Opinions available via date-range search from 2003-present in PDF format
+2. Docket search supports multiple search methods (case number, trial court number, party name)
+3. Oral argument videos available on Vimeo with organized archive
+4. No JavaScript rendering required for core functionality
+5. robots.txt allows scraping except /wp-admin/
+6. URGENT: Domain transition from www.gaappeals.us to www.gaappeals.gov is in progress
+
+The existing scraper at juriscraper/opinions/united_states/state/gactapp.py successfully scrapes opinions by date range. The scraper needs a simple URL update to use the new .gov domain.
+"""
+
+priority = "high"
+priority_reasoning = "Existing scraper needs urgent update for domain migration. Good public access, structured data, and active court."
+
+complexity = "simple"
+complexity_reasoning = "Static HTML/PHP site with existing working scraper. Only needs URL domain update from .us to .gov."
+
+blockers = []

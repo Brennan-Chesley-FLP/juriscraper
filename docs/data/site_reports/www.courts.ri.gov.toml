@@ -1,0 +1,400 @@
+# Court Site Research Report Template
+#
+# Rhode Island Judiciary Website Research Report
+
+[meta]
+domain = "www.courts.ri.gov"
+court_ids = ["ri", "risuperct"]
+court_name = "Rhode Island Judiciary"
+court_url = "https://www.courts.ri.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = true
+javascript_framework = "sharepoint"
+
+# What platform/vendor does the site use?
+platform = "sharepoint"
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = true
+api_documented = false
+api_url = "https://www.courts.ri.gov/_vti_bin/client.svc/ProcessQuery"
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = "session_cookie"
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://www.courts.ri.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = ["/*AllItems.aspx", "/Lists/"]
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+# Reference: juriscraper/scraper_driver/common/models/base.py
+#
+# Mark each as: "available", "unavailable", "unknown", "partial"
+# Use "partial" if only some records of that type are available
+#
+# For each content type:
+#   status: availability status
+#   notes: description and context
+#   example_urls: 1-3 real URLs demonstrating this content type
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Supreme Court opinions, published orders, executive orders, administrative orders, and miscellaneous orders are available from 2013-present. Superior Court decisions and administrative orders are also available. All documents are in PDF format. Data is accessible via SharePoint search API."
+example_urls = [
+    "https://www.courts.ri.gov/Opinions/Supreme-24-324.pdf",
+    "https://www.courts.ri.gov/Decisions/Superior-PM-2022-04065.pdf",
+    "https://www.courts.ri.gov/Published Orders/Supreme-25-5.pdf"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Case numbers are available in metadata (e.g., '2024-0324-Appeal.', 'PM-2022-4065')"
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Public portal at publicportal.courts.ri.gov provides case search functionality via Tyler Technologies Odyssey system. However, requires reCAPTCHA for search functionality."
+example_urls = ["https://publicportal.courts.ri.gov/PublicPortal/Home/Dashboard/29"]
+
+[content.docket_entries]
+status = "unknown"
+notes = "May be available through the Tyler Odyssey public portal but requires investigation beyond captcha."
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "available"
+notes = "Courthouse location information appears to be available on the site."
+example_urls = ["https://www.courts.ri.gov/Courts/Pages/default.aspx"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2013-01-01"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Supreme Court opinions and orders available from 2013. Superior Court decisions available from approximately 2012."
+
+# How often does the site appear to be updated?
+update_frequency = "daily"
+
+# Is there a way to subscribe to updates?
+has_subscription = true
+subscription_type = "rss"
+subscription_url = ""
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["date_range", "case_number", "full_text", "court_filter", "document_type"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = ["juriscraper.opinions.united_states.state.ri"]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "Rhode Island judiciary uses SharePoint for document management. The site serves multiple courts including Supreme Court, Superior Court, Family Court, District Court, Workers' Compensation Court, and Traffic Tribunal. Each court has separate sections in the opinions search with different content type filters."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = ["Executive Orders", "Miscellaneous Orders", "Published Orders"]
+
+# Any known data quality issues?
+data_quality_notes = ""
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+Rhode Island Judiciary maintains a comprehensive SharePoint-based website serving all state courts. The existing scraper for the Supreme Court (ri.py) successfully uses the SharePoint API to retrieve opinions and orders. The same API pattern could be extended to cover Superior Court decisions.
+
+The site has a separate public portal (publicportal.courts.ri.gov) powered by Tyler Technologies Odyssey that provides case search and hearing search functionality, but it requires reCAPTCHA verification which limits automated access.
+
+Opinion data is well-structured with metadata including:
+- Case titles (RIJLongTitleOWSMTXT)
+- Case numbers (RIJLongNumberOWSMTXT)
+- Dates (RIJDateOWSDATE)
+- Case summaries (RIJCaseSummaryOWSMTXT)
+- Court type (RIJCourt)
+- Document type (ContentType)
+
+The SharePoint API returns JSON responses that can be parsed to extract all necessary metadata and PDF URLs.
+"""
+
+# Recommended priority for building a scraper
+priority = "medium"
+priority_reasoning = "Supreme Court scraper already exists and works well. Superior Court could be added using the same API pattern. The existing scraper appears to be functioning correctly based on code review. Priority is medium because extending to Superior Court would be straightforward but Supreme Court coverage already exists."
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = "The SharePoint API is already well-understood from the existing Supreme Court scraper. Extending to Superior Court would require minimal changes - primarily adjusting the search filters and court identifier. The API provides structured JSON responses with all necessary metadata."
+
+# Any blockers or concerns?
+blockers = []

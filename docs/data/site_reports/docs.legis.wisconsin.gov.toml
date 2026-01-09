@@ -1,0 +1,373 @@
+# Court Site Research Report: docs.legis.wisconsin.gov
+#
+# This is a legislative documents portal that hosts Wisconsin Attorney General opinions
+# among other legal documents.
+
+[meta]
+domain = "docs.legis.wisconsin.gov"
+court_ids = ["wisag"]
+court_name = "Wisconsin Attorney General Opinions"
+court_url = "https://docs.legis.wisconsin.gov/misc/oag"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+
+# Site appears to be a custom legislative document management system
+platform = "custom"
+
+# This is a statewide portal for legislative documents
+scope = "statewide"
+
+# No other courts share this exact infrastructure
+shared_infrastructure = []
+
+# No discoverable API - content is served as static HTML
+has_api = false
+api_documented = false
+api_url = ""
+
+# No bulk downloads available
+bulk_download_available = false
+bulk_download_details = ""
+
+# Documents are available in both PDF and HTML formats
+document_formats = ["pdf", "html"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://docs.legis.wisconsin.gov/robots.txt"
+
+# robots.txt only disallows internal mechanisms, search, and special features
+# The /misc/oag path is not disallowed
+allows_scraping = true
+disallowed_paths = [
+    "/frame$",
+    "/frame/",
+    "/scroll/",
+    "/feed/",
+    "/doc/feed/",
+    "/breadcrumbs/",
+    "/preferences$",
+    "/preferences/",
+    "/search/results$",
+    "/search/results?",
+    "/search/refs$",
+    "/search/refs?",
+    "/search/xref$",
+    "/search/xref?",
+    "/search/secaff$",
+    "/search/secaff?"
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Wisconsin Attorney General Opinions are available from 2000 to present in both HTML and PDF formats. Archival opinions from prior to 2000 are also available. Opinions are organized chronologically by year with numbered identifiers (e.g., oag1-24, oag2-24). These are formal legal opinions, not court opinions."
+example_urls = [
+    "https://docs.legis.wisconsin.gov/document/oag/oag1-24",
+    "https://docs.legis.wisconsin.gov/document/oag/oag1-23",
+    "https://docs.legis.wisconsin.gov/document/oag/oag2-22"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Not applicable - these are AG opinions, not grouped court opinions"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "AG opinions contain citations to statutes and court cases within the text, but citation metadata is not structured separately"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable - state AG opinions"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unavailable"
+notes = "Not tracked for AG opinions"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "Not tracked for AG opinions"
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Not tracked for AG opinions"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = "Not tracked for AG opinions"
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = "Not tracked for AG opinions"
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Attorney General name appears in opinions but not as structured data"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2000-01-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Archival opinions from prior to 2000 are available at https://docs.legis.wisconsin.gov/misc/oag/archival"
+
+update_frequency = "irregular"
+
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://docs.legis.wisconsin.gov/feed/misc/oag/recent"
+
+has_search = true
+search_capabilities = ["full_text"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+
+scraper_modules = []
+
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "This is a legislative documents portal, not a traditional court website. It hosts AG opinions as part of a broader collection of legislative materials including statutes, administrative code, bills, and other government documents."
+
+special_document_types = []
+
+data_quality_notes = "Opinions are well-formatted in both HTML and PDF. HTML versions include hyperlinks to cited statutes and court cases."
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+docs.legis.wisconsin.gov is the Wisconsin Legislative Documents portal that hosts
+Attorney General opinions among other legislative materials. AG opinions are available
+from 2000 to present in both HTML and PDF formats, with archival opinions from earlier
+periods also available.
+
+The site is publicly accessible, has no authentication requirements, and provides
+clean HTML and PDF documents. An RSS feed is available for updates. The content is
+organized chronologically with simple URL patterns (e.g., /document/oag/oag1-24).
+
+Note: The site also references https://www.wisdoj.gov/Pages/AboutUs/attorney-general-opinions-archive.aspx
+as an alternative Department of Justice archive for AG opinions.
+"""
+
+priority = "medium"
+priority_reasoning = "Attorney General opinions are valuable legal materials but less frequently cited than court opinions. The site is well-structured and scrapeable, but there's no existing scraper. Building one would be straightforward given the clean HTML structure and predictable URL patterns."
+
+complexity = "simple"
+complexity_reasoning = "Static HTML pages, no JavaScript required, no authentication, predictable URL patterns, and clean document structure. RSS feed available for discovering new opinions. Very straightforward to scrape."
+
+blockers = []

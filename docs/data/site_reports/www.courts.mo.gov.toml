@@ -1,0 +1,426 @@
+# Court Site Research Report: Missouri Courts
+#
+# This report documents www.courts.mo.gov, serving Missouri appellate courts
+# including the Supreme Court and Court of Appeals (Eastern, Southern, Western Districts).
+
+[meta]
+domain = "www.courts.mo.gov"
+domain_aliases = []
+court_ids = ["mo", "moctapp", "moctapped", "moctappsd", "moctappwd"]
+court_name = "Missouri Appellate Courts"
+court_url = "https://www.courts.mo.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+
+# No documented API, but site serves HTML pages with predictable URL patterns
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.courts.mo.gov/robots.txt"
+
+# robots.txt disallows several paths but allows the opinions pages
+allows_scraping = true
+disallowed_paths = [
+    "/cnet/",
+    "/casenet/",
+    "/ecf/",
+    "/fv/",
+    "/bench/",
+    "/page.jsp?id=236",
+    "/page.jsp?id=38917",
+    "/hosted/judedintra/",
+    "/cic/",
+    "/mod/",
+    "/page.jsp?id=105313",
+    "/page.jsp?id=55145",
+    "/smc-web/",
+    "/hosted/resourcecenter/",
+    "/exchanges/",
+    "/training/"
+]
+
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Opinions are available for all Missouri appellate courts:
+- Supreme Court
+- Court of Appeals - Eastern District
+- Court of Appeals - Southern District
+- Court of Appeals - Western District
+
+Opinions are organized by date with full metadata including:
+- Case number (docket)
+- Case title
+- Author (judge name)
+- Vote/disposition with concurrence/dissent information
+- Overview/Summary documents
+
+Opinions available from 1997 to present via the date-based browsing interface.
+Existing scrapers successfully parse this data.
+"""
+example_urls = [
+    "https://www.courts.mo.gov/page.jsp?id=12086&dist=Opinions",
+    "https://www.courts.mo.gov/page.jsp?id=12086&dist=Opinions%20Supreme",
+    "https://www.courts.mo.gov/file.jsp?id=229474"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Docket numbers available; reporter citations would need to be extracted from opinion text"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Dockets and oral arguments page exists at /page.jsp?id=1975"
+example_urls = [
+    "https://www.courts.mo.gov/page.jsp?id=1975"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Case.net provides public case search for all Missouri courts (but is disallowed in robots.txt)"
+example_urls = [
+    "https://www.courts.mo.gov/casenet"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through Case.net but access is disallowed by robots.txt"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "State courts - not PACER-related"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names appear in case titles in opinion listings"
+example_urls = []
+
+[content.party_types]
+status = "partial"
+notes = "Can be inferred from case titles (e.g., 'State of Missouri, Respondent, vs. ..., Appellant')"
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "May be available in Case.net"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judge/author names and concurring/dissenting judges are displayed with each opinion"
+example_urls = []
+
+[content.positions]
+status = "partial"
+notes = "Judicial personnel searchable by position (Supreme Court, Appellate Court, Circuit, etc.)"
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Comprehensive court finder by county, city, or zip code"
+example_urls = [
+    "https://www.courts.mo.gov/page.jsp?id=103114"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Court locator provides address and contact information for all Missouri courts"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State courts - bankruptcy handled by federal courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Lower court information may be available in opinion text"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State courts"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.minutes]
+status = "available"
+notes = """
+Court minutes available separately from opinions:
+- Supreme Court minutes at /SUP/index.nsf/TheMinutes?OpenView
+- Western District post-opinion rulings at /page.jsp?id=2557
+Minutes include rulings on motions for rehearing, transfer applications, writ petitions, etc.
+"""
+example_urls = [
+    "https://www.courts.mo.gov/SUP/index.nsf/TheMinutes?OpenView",
+    "https://www.courts.mo.gov/page.jsp?id=2557"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1997-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Opinions available from 1997 to present via year dropdown"
+update_frequency = "daily"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["full_text", "date_range", "court"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.mo",
+    "juriscraper.opinions.united_states.state.moctapp_eastern",
+    "juriscraper.opinions.united_states.state.moctapp_southern",
+    "juriscraper.opinions.united_states.state.moctapp_western"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Missouri Court of Appeals has three districts: Eastern (St. Louis), Southern (Springfield), Western (Kansas City)
+- The site uses Lotus Domino/Notes for some older content (e.g., minutes pages use .nsf URLs)
+- "Orders Pursuant to Rules 30.25(b) and/or 84.16(b)" are affirmance orders, not full opinions
+- Opinions include Overview/Summary links separate from the main opinion PDF
+- robots.txt blocks Case.net (/casenet/) and eFiling (/ecf/) but allows opinions pages
+- Site blocks AI training bots (Google-Extended, GPTBot) but not general crawlers
+"""
+
+special_document_types = ["Overview/Summary", "Orders Pursuant to Rules 30.25(b)/84.16(b)"]
+
+data_quality_notes = "Existing scrapers filter out summary orders that have only 2 links (not full opinions)"
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Missouri Courts (www.courts.mo.gov) is a well-maintained statewide portal providing
+public access to appellate opinions from the Supreme Court and all three Court of
+Appeals districts.
+
+**Key Findings:**
+
+1. **Existing Coverage**: Working scrapers exist for all four Missouri appellate courts:
+   - mo.py (Supreme Court)
+   - moctapp_eastern.py, moctapp_southern.py, moctapp_western.py (Court of Appeals districts)
+
+2. **Opinion Structure**: Opinions are organized by date with rich metadata including:
+   - Case number (docket)
+   - Case title with party names
+   - Author and vote information
+   - Concurrence/dissent details
+   - Separate Overview/Summary documents
+
+3. **URL Patterns**: Predictable structure makes scraping straightforward:
+   - Browse by year: /page.jsp?id=12086&dist=Opinions%20Supreme&date=all&year=2026
+   - Court-specific: dist=Opinions Eastern/Southern/Western
+   - Documents: /file.jsp?id={document_id}
+
+4. **Historical Data**: Available from 1997 to present.
+
+5. **Supplementary Content**:
+   - Court minutes (non-opinion rulings) via Lotus Notes
+   - Oral arguments schedule
+   - Case.net for docket search (though blocked by robots.txt)
+
+6. **robots.txt**: Allows scraping of opinions pages. Blocks Case.net, eFiling, and
+   training-specific AI bots (Google-Extended, GPTBot).
+
+**Recommendations:**
+- Existing opinion scrapers are functional - no changes needed
+- Oral arguments scraping could be added if audio/video is available
+- Case.net docket scraping would violate robots.txt directives
+"""
+
+priority = "low"
+priority_reasoning = "Existing scrapers already provide comprehensive opinion coverage for all four Missouri appellate courts"
+
+complexity = "simple"
+complexity_reasoning = "Static HTML pages with predictable URL patterns, no JavaScript required, no authentication, existing working scrapers"
+
+blockers = []

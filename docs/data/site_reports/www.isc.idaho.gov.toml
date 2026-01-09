@@ -1,0 +1,422 @@
+# Court Site Research Report: Idaho Supreme Court & Court of Appeals
+#
+# File naming: {domain_name}.toml
+
+[meta]
+domain = "isc.idaho.gov"
+domain_aliases = ["www.isc.idaho.gov"]
+court_ids = ["idaho", "idahoctapp"]
+court_name = "Idaho Supreme Court & Court of Appeals"
+court_url = "https://www.isc.idaho.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "jquery"
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://isc.idaho.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = [
+    "/includes/",
+    "/misc/",
+    "/modules/",
+    "/profiles/",
+    "/scripts/",
+    "/themes/",
+    "/admin/",
+    "/comment/reply/",
+    "/filter/tips/",
+    "/node/add/",
+    "/search/",
+    "/user/register/",
+    "/user/password/",
+    "/user/login/",
+    "/user/logout/"
+]
+crawl_delay_seconds = 10
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Opinions are available for both Idaho Supreme Court and Court of Appeals.
+Organized into separate pages for:
+- Idaho Supreme Court Civil Opinions (isc_civil)
+- Idaho Supreme Court Criminal Opinions (isc_criminal)
+- Court of Appeals Civil Opinions (coa_civil)
+- Court of Appeals Criminal & PC Opinions (coa_criminal)
+- Court of Appeals Unpublished Opinions (coaunpublished)
+- Court of Appeals Unpublished Per Curiam Opinions (Unpublished-Per-Curiam)
+
+All opinions appear to be available as PDFs with tables listing date, docket, case name, and links to opinion documents.
+"""
+example_urls = [
+    "https://isc.idaho.gov/appeals-court/isc_civil",
+    "https://isc.idaho.gov/appeals-court/isc_criminal",
+    "https://isc.idaho.gov/appeals-court/coa_civil",
+    "https://isc.idaho.gov/appeals-court/coa_criminal",
+    "https://isc.idaho.gov/appeals-court/coaunpublished"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citations appear within opinion PDFs. West Publishing publishes all cited opinions in Pacific Reporter and Idaho Reports."
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """
+Video archives of Supreme Court hearings are available.
+ISC Hearings Video Archive at /appeals-court/archive
+Court of Appeals Hearing Archive at /appeals-court/court-of-appeals-archive
+Also offers live streaming of oral arguments.
+"""
+example_urls = [
+    "https://isc.idaho.gov/appeals-court/archive",
+    "https://isc.idaho.gov/appeals-court/court-of-appeals-archive",
+    "https://isc.idaho.gov/appeals-court/isc-calendar"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Transcripts not observed, only video recordings of hearings"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """
+Dockets are available through the iCourt Portal, a separate Tyler Technologies Odyssey system.
+Portal redirects to: https://portal-idaho.tylertech.cloud/odysseyportal
+Provides case search, hearing search, and online payment functionality.
+Some records may be sealed under Idaho Court Administrative Rule 32.
+"""
+example_urls = [
+    "https://mycourts.idaho.gov",
+    "https://portal-idaho.tylertech.cloud/odysseyportal"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Available through iCourt Portal. Sealed entries not visible per court rules starting Sept 2024."
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = "RECAP is specific to federal PACER system, not applicable to state courts"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names visible in case titles on opinion pages. Full party information likely in iCourt Portal."
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "May be available in iCourt Portal or opinion documents"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = """
+Judge information available on the website:
+- Biographies of Supreme Court Justices
+- Biographies of Court of Appeals Judges
+- Senior Judge Roster
+- Various judicial rosters and committees
+"""
+example_urls = [
+    "https://isc.idaho.gov/main/Bevan",
+    "https://isc.idaho.gov/main/j_lorello",
+    "https://isc.idaho.gov/main/senior-judges-roster"
+]
+
+[content.positions]
+status = "partial"
+notes = "Current judicial positions listed with terms of office information"
+example_urls = []
+
+[content.education]
+status = "partial"
+notes = "May be included in judge biographies"
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Information about Idaho courts including district courts, county courthouse directory"
+example_urls = [
+    "https://isc.idaho.gov/district-courts",
+    "https://isc.idaho.gov/Courthouse"
+]
+
+[content.courthouses]
+status = "available"
+notes = "County Courthouse Directory with contact information and locations"
+example_urls = ["https://isc.idaho.gov/Courthouse"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - bankruptcy cases are in federal courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "May be available in iCourt Portal docket entries"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = "May be available in iCourt Portal"
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable to state courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Appeals indicate lower court information within opinion text. Existing scrapers extract this data."
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - PACER is federal system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable to state courts"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Citations within opinions but no structured citation database exposed"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Appears to have comprehensive historical opinions available in tables"
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://app.e2ma.net/app2/audience/signup/1992749/1942564/"
+has_search = true
+search_capabilities = ["full_text"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.idaho_civil",
+    "juriscraper.opinions.united_states.state.idaho_criminal",
+    "juriscraper.opinions.united_states.state.idahoctapp_civil",
+    "juriscraper.opinions.united_states.state.idahoctapp_criminal",
+    "juriscraper.opinions.united_states.state.idahoctapp_u"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Site uses Drupal CMS
+- Opinions organized by court (Supreme Court vs Court of Appeals) and case type (civil vs criminal)
+- Separate page for unpublished Court of Appeals opinions
+- Some opinions may have "Order" or "Amended" documents in addition to main opinion
+- Historical data quality issue: At least one date formatting typo found (Aug 22,2018 missing space)
+- iCourt Portal (Tyler Odyssey) is separate system for dockets and case records
+- Sealed case information not available per Idaho Court Administrative Rule 32
+"""
+special_document_types = ["Order", "Amended Opinion"]
+data_quality_notes = "Existing scrapers handle date formatting inconsistencies"
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Idaho Supreme Court website (isc.idaho.gov) provides comprehensive public access to court opinions
+for both the Idaho Supreme Court and Idaho Court of Appeals. The site uses a Drupal CMS with static
+HTML tables listing opinions, making it straightforward to scrape.
+
+EXISTING COVERAGE: Five scrapers already exist covering all opinion types (civil, criminal, published,
+unpublished) for both courts. The scrapers were recently updated in 2024-2025 and use the OpinionSiteLinear
+framework. They extract case metadata (date, docket, name, URL) and some scrapers extract lower court
+information from opinion text.
+
+DOCKET SYSTEM: Separate Tyler Technologies Odyssey portal (mycourts.idaho.gov) provides access to trial
+court dockets and case records statewide. This would require separate scraper development and may have
+access restrictions.
+
+ORAL ARGUMENTS: Video archives of hearings are available but not currently scraped. Could be valuable
+addition for audio/video content.
+
+RECOMMENDATION: The opinion scraping is well-covered. Potential future work includes:
+1. Oral argument video scraper
+2. iCourt Portal docket scraper (more complex, Tyler Odyssey platform)
+3. Monitoring existing scrapers for any site changes
+"""
+
+priority = "low"
+priority_reasoning = """
+Low priority for new scraper development because:
+- Excellent existing coverage for all opinion types
+- Recently updated scrapers (2024-2025)
+- Public access, no technical barriers
+- No known issues with existing scrapers
+
+If prioritizing new work, oral argument videos would be the highest value addition.
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Opinion scraping: Simple - static HTML tables, no JavaScript required, no authentication
+Oral argument scraping: Moderate - would need to handle video content and potentially streaming
+Docket scraping: Moderate to Complex - Tyler Odyssey platform, may have access controls,
+sealed records handling required per court rules
+"""
+
+blockers = []

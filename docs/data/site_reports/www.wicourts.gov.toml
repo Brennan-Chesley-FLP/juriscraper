@@ -1,0 +1,435 @@
+# Court Site Research Report: www.wicourts.gov
+#
+# Wisconsin Supreme Court and Court of Appeals
+
+[meta]
+domain = "www.wicourts.gov"
+court_ids = ["wis", "wisctapp"]
+court_name = "Wisconsin Court System (Supreme Court & Court of Appeals)"
+court_url = "https://www.wicourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = false
+javascript_framework = "jquery"
+
+# What platform/vendor does the site use?
+platform = "custom"
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = false
+robots_txt_url = "https://www.wicourts.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = []
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Supreme Court opinions available since September 1995. Court of Appeals opinions also available. Both courts have search functionality by date range, case number, party name, disposition, and keywords. Opinions are released at approximately 8:30 AM CDT on release days during the September-June session."
+example_urls = [
+    "https://www.wicourts.gov/supreme/scopin.jsp?begin_date=01-01-2025&end_date=12-31-2025&sortBy=date",
+    "https://www.wicourts.gov/other/appeals/caopin.jsp?begin_date=01-01-2025&end_date=12-31-2025&sortBy=date",
+    "https://www.wicourts.gov/sc/opinion/DisplayDocument.pdf?content=pdf&seqNo=980186"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Citations are embedded in opinions. Supreme Court uses format '20XX WI XXX' and Court of Appeals uses '20XX WI App XXX'. Both NW2d and Wis2d citation types are searchable."
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral arguments are available for listening/watching online. The site has an oral argument schedule and audio/video recordings. Supreme Court also does livestreaming and 'Justice on Wheels' outreach programs."
+example_urls = [
+    "https://www.wicourts.gov/supreme/sc_oralargs.jsp",
+    "https://www.wicourts.gov/opinions/soralarguments.htm",
+    "https://www.wicourts.gov/courts/livestream.htm"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Audio/video is available but unclear if transcripts are provided"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Docket information is available through separate portals: WCCA (Wisconsin Circuit Court Access) for circuit courts at https://wcca.wicourts.gov/, and WSCCA (Wisconsin Supreme Court and Court of Appeals Access) at https://wscca.wicourts.gov/. Briefs filed after July 1, 2009 are available through WSCCA."
+example_urls = [
+    "https://wcca.wicourts.gov/",
+    "https://wscca.wicourts.gov/"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Available through WCCA and WSCCA portals"
+example_urls = []
+
+[content.recap_documents]
+status = "available"
+notes = "Court filings and briefs available. Briefs filed after July 1, 2009 available via WSCCA. Earlier briefs (back to November 1992) available through University of Wisconsin Law Library."
+example_urls = [
+    "http://digital.library.wisc.edu/1711.web/wi-briefs"
+]
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names searchable in opinion search interface (last name field available)"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judge/justice names appear in opinions. Site has biographical information about current justices and judges."
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Site provides comprehensive information about Wisconsin Supreme Court, Court of Appeals, Circuit Courts, and Municipal Courts"
+example_urls = [
+    "https://www.wicourts.gov/courts/supreme/index.htm",
+    "https://www.wicourts.gov/courts/appeals/index.htm",
+    "https://www.wicourts.gov/courts/circuit/index.htm"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Contact information and directories for all courts available"
+example_urls = [
+    "https://www.wicourts.gov/contact/directories.htm"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State court system does not handle bankruptcy"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Court of Appeals opinions include lower court information (circuit court county)"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# Additional content types
+
+[content.administrative_orders]
+status = "available"
+notes = "Administrative and interim orders available, not tied to specific cases"
+example_urls = [
+    "https://www.wicourts.gov/adminorders.htm",
+    "https://www.wicourts.gov/supreme/sc_orders.jsp"
+]
+
+[content.disposition_tables]
+status = "available"
+notes = "Disposition tables list actions on petitions for review, bypass certifications, motions for reconsideration. Updated ~6 times per year."
+example_urls = [
+    "https://www.wicourts.gov/supreme/sc_disptab.jsp"
+]
+
+[content.orders]
+status = "available"
+notes = "Supreme Court orders available since January 2023"
+example_urls = [
+    "https://www.wicourts.gov/opinions/sorders.htm"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1995-09-01"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Supreme Court opinions available since September 1995. Court of Appeals opinions also available from similar timeframe. Briefs available back to November 1992 through UW Law Library."
+
+# How often does the site appear to be updated?
+update_frequency = "daily"
+
+# Is there a way to subscribe to updates?
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://www.wicourts.gov/rss.htm"
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["date_range", "case_number", "party_name", "disposition", "citation", "full_text"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.wis",
+    "juriscraper.opinions.united_states.state.wisctapp"
+]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "Court of Appeals generates a row for every docket number in combined cases - the existing scraper handles this by combining duplicate opinions pointing to the same document. Court of Appeals opinions may be Published, Unpublished, or Errata status. Opinions can be withdrawn."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = ["Errata", "Recommended for Publication"]
+
+# Any known data quality issues?
+data_quality_notes = ""
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = "Opinions are released during September-June session. Release time is approximately 8:30 AM CDT."
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+Wisconsin Court System has a well-organized public website with comprehensive coverage of Supreme Court and Court of Appeals opinions dating back to 1995. The site uses static HTML with some jQuery, making it straightforward to scrape.
+
+Key findings:
+1. Existing scrapers already cover both courts (wis.py for Supreme Court, wisctapp.py for Court of Appeals)
+2. Scrapers use date-range-based queries to search endpoints (scopin.jsp and caopin.jsp)
+3. Opinions are provided as PDFs
+4. The site has good search functionality with multiple criteria
+5. RSS feeds are available for updates
+6. Oral arguments are available but not currently scraped
+7. Separate portals (WCCA and WSCCA) provide docket and case information
+8. No robots.txt restrictions
+
+The existing opinion scrapers appear to be working well. Potential enhancements:
+- Add oral arguments scraper
+- Consider scraping WSCCA/WCCA for docket data
+- Add scraper for administrative orders and other document types
+"""
+
+# Recommended priority for building a scraper
+priority = "low"
+priority_reasoning = "Existing scrapers already cover opinions for both Supreme Court and Court of Appeals. The scrapers appear to be functional and well-maintained. Oral arguments would be the main enhancement opportunity but this is lower priority than courts without any coverage."
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = "The site uses straightforward HTML forms with predictable URL patterns. No JavaScript rendering required, no authentication, no rate limiting. Existing scrapers demonstrate the simplicity. Adding oral arguments scraper would also be straightforward."
+
+# Any blockers or concerns?
+blockers = []

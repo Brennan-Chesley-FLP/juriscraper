@@ -1,0 +1,386 @@
+# Court Site Research Report: New Hampshire Judicial Branch
+# Domain: www.courts.nh.gov (redirects from www.courts.state.nh.us)
+# Research Date: 2026-01-09
+
+[meta]
+domain = "www.courts.nh.gov"
+domain_aliases = ["www.courts.state.nh.us"]
+court_ids = ["nh", "nhsuperct"]
+court_name = "New Hampshire Judicial Branch"
+court_url = "https://www.courts.nh.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "vanilla"
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = []
+
+has_api = true
+api_documented = false
+api_url = "https://www.courts.nh.gov/content/api/documents"
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.courts.nh.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = [
+    "/core/",
+    "/profiles/",
+    "/admin/",
+    "/comment/reply/",
+    "/filter/tips",
+    "/node/add/",
+    "/search/",
+    "/user/register",
+    "/user/password",
+    "/user/login",
+    "/user/logout",
+    "/media/oembed"
+]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = """
+Supreme Court opinions are available from 2002-present, organized by year.
+Opinions from 2024-present use neutral citation format (e.g., 2025 N.H. 54).
+Opinions are accessed via an undocumented JSON API that requires specific
+query parameters for year-based filtering. Each year has a unique
+field_document_subcategory ID that must be discovered.
+"""
+example_urls = [
+    "https://www.courts.nh.gov/our-courts/supreme-court/orders-and-opinions/opinions/2025",
+    "https://www.courts.nh.gov/sites/g/files/ehbemt471/files/documents/2025-12/2025054peregrine.pdf",
+    "https://www.courts.nh.gov/sites/g/files/ehbemt471/files/documents/2025-12/2025053-g-w.pdf"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Citations are embedded in opinion titles for 2024+ opinions using neutral citation format (YYYY N.H. ##)"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """
+Supreme Court oral arguments are available with both audio and video recordings.
+Arguments are streamed live and archived on the website. Calendar is published
+one month in advance. Confidential cases are excluded from streaming/recording.
+"""
+example_urls = [
+    "https://www.courts.nh.gov/our-courts/supreme-court/oral-argument",
+    "https://www.courts.nh.gov/our-courts/supreme-court/oral-argument/calendar",
+    "https://www.courts.nh.gov/our-courts/supreme-court/oral-argument/live-stream"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Audio and video recordings are available, but text transcripts were not observed"
+example_urls = []
+
+[content.dockets]
+status = "partial"
+notes = "Docket numbers are included with opinions. Case status reports available but specific access method not researched in detail."
+example_urls = [
+    "https://www.courts.nh.gov/our-courts/supreme-court/case-status-report"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.parties]
+status = "partial"
+notes = "Party names are embedded in case names/titles"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "available"
+notes = "Court structure information available describing Supreme Court, Superior Court, and Circuit Court (with District, Family, and Probate divisions)"
+example_urls = [
+    "https://www.courts.nh.gov/our-courts",
+    "https://www.courts.nh.gov/our-courts/supreme-court",
+    "https://www.courts.nh.gov/our-courts/superior-court"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Court location finder available"
+example_urls = [
+    "https://www.courts.nh.gov/your-visit/find-court"
+]
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Case numbers suggest which court issued the opinion (Supreme Court handles appeals)"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2002-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Supreme Court opinions available from 2002-present"
+update_frequency = "ongoing"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://www.courts.nh.gov/media/list-service"
+has_search = true
+search_capabilities = ["keyword", "date_range"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.nh_p",
+    "juriscraper.opinions.united_states.state.nh_u"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = [
+    "Scraper requires manual updates for new years - each year has a unique field_document_subcategory ID that must be added to year_to_filter mapping",
+    "2025 and 2026 subcategory IDs need to be added to the scraper",
+    "No oral arguments scraper exists"
+]
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Starting January 1, 2024, NH Supreme Court adopted neutral citation format
+- Opinions issued 2024+ are listed in reverse chronological order by opinion number
+- Pre-2024 opinions are listed by Supreme Court case number
+- Each year requires a different API filter parameter (field_document_subcategory or field_tags)
+- The site redirects from www.courts.state.nh.us to www.courts.nh.gov
+"""
+special_document_types = [
+    "Supervisory Orders",
+    "3JX Final Orders",
+    "Case Orders (unpublished)"
+]
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The New Hampshire Judicial Branch website provides public access to Supreme Court
+opinions dating back to 2002. The site uses an undocumented JSON API that requires
+JavaScript and specific query parameters including year-specific subcategory IDs.
+
+Existing scrapers (nh_p.py and nh_u.py) cover published and unpublished Supreme
+Court opinions using the API, but require annual maintenance to add new year filters.
+
+The site also provides oral argument recordings (audio/video) with a published
+calendar, but no scraper currently exists for this content.
+
+Superior Court opinions were not located during this research session and may
+require additional investigation.
+
+The API structure is:
+- Base URL: https://www.courts.nh.gov/content/api/documents
+- Query parameters: iterate_nodes, q (filter), sort, filter_mode, type, page, size
+- Each year requires specific field_document_subcategory or field_tags values
+- Responses are paginated JSON with case metadata and PDF URLs
+"""
+
+priority = "medium"
+priority_reasoning = """
+- Medium priority: Existing scrapers cover Supreme Court opinions but need maintenance
+- Scrapers require annual updates for new year filters (2025, 2026 need to be added)
+- Oral arguments are available but no scraper exists
+- Superior Court coverage unclear and needs investigation
+- Public access with no major barriers
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+- Moderate complexity due to:
+  - Requires JavaScript for content loading
+  - Undocumented API with year-specific filter parameters
+  - Need to discover new subcategory IDs each year
+  - Pagination handling required for complete coverage
+- Existing scrapers provide good template for maintenance
+- API is relatively stable but requires specific headers (User-Agent, Referer, X-Requested-With)
+"""
+
+blockers = [
+    "Each year requires discovering new field_document_subcategory or field_tags values",
+    "Superior Court opinion location/access method unclear",
+    "No existing oral arguments scraper"
+]

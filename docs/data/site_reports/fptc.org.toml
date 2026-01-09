@@ -1,0 +1,362 @@
+# Court Site Research Report
+# Fort Peck Tribal Court
+
+[meta]
+domain = "fptc.org"
+court_ids = ["ftpeckctapp", "ftpecktrialct"]
+court_name = "Fort Peck Tribal Court"
+court_url = "https://fptc.org"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "react"
+platform = "squarespace"
+scope = "court_specific"
+shared_infrastructure = []
+
+# No API - content is hosted on Squarespace with documents on Google Drive
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = true
+bulk_download_details = "Complete appellate opinions PDF available at https://drive.google.com/file/d/1UmEBIXNZn9s4vMlkTTlgUKgbyNFIArYj/view?usp=sharing. Individual opinions organized in batches on Google Drive."
+
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://fptc.org/robots.txt"
+
+# Squarespace robots.txt blocks AI bots (ClaudeBot, anthropic-ai, GPTBot, etc.)
+# but allows general crawling except for specific paths
+allows_scraping = true
+disallowed_paths = ["/config", "/search", "/account", "/api/*", "/static/*"]
+
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Appellate opinions available from case #001 to approximately #1000+. Organized in batches of 100. Some individual PDFs hosted on site, bulk collections on Google Drive."
+example_urls = [
+    "https://tribal-courts.squarespace.com/opinions_001100",
+    "https://fptc.org/s/001.pdf",
+    "https://drive.google.com/file/d/1UmEBIXNZn9s4vMlkTTlgUKgbyNFIArYj/view?usp=sharing"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "No clustering of opinions apparent"
+example_urls = []
+
+[content.citations]
+status = "unknown"
+notes = "Would need to examine PDFs to determine citation information"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "No oral arguments section found"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "unavailable"
+notes = "No public docket access found"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names visible in opinion titles (e.g., 'Tribes-vs-Red Fox') but no structured party data"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judge information available on main page: Chief Judge Stacie Fourstar, Associate Judges Imogene Lilley, Lonnie 'Dino' Headdress, and Michael Headdress"
+example_urls = ["https://fptc.org/"]
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court information and contact details available"
+example_urls = ["https://fptc.org/"]
+
+[content.courthouses]
+status = "available"
+notes = "Physical location: 807 Court Avenue, P.O. Box 1027, Poplar, MT 59255"
+example_urls = ["https://fptc.org/"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.administrative_orders]
+status = "available"
+notes = "Administrative orders from 2014-2023 available as PDFs"
+example_urls = [
+    "https://fptc.org/administrative-orders",
+    "https://fptc.org/s/Admin-Order-on-filing-fee-waiver-2023-50.pdf"
+]
+
+[content.tribal_code]
+status = "available"
+notes = "2024 Comprehensive Code of Justice available"
+example_urls = [
+    "https://fptc.org/s/Fort-Peck-Tribes-CCOJ-Supplemental-A-2024-wa7m.pdf"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Appellate opinions numbered 001-1000+ suggest extensive historical coverage. Administrative orders date back to 2014."
+
+update_frequency = "irregular"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://fptc.org/appellate-opinions"
+
+has_search = true
+search_capabilities = ["full_text"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "Fort Peck is a tribal court serving both Assiniboine and Sioux Tribes. Established 1965. Uses email notification system for new appellate opinions."
+special_document_types = []
+data_quality_notes = "Some opinion PDFs are missing from individual pages (017-100 in first batch shown as text only), but may be available in Google Drive bulk downloads."
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Fort Peck Tribal Court maintains a Squarespace website with good public access to appellate opinions and administrative orders. Key findings:
+
+1. **Appellate Opinions**: 1000+ opinions available, organized in batches of 100. Complete archive available as single PDF on Google Drive. Individual PDFs available for many (but not all) opinions.
+
+2. **Administrative Orders**: PDFs available from 2014-2023 covering various court procedures and policies.
+
+3. **Tribal Code**: 2024 Comprehensive Code of Justice with Supplemental A available.
+
+4. **Access**: Fully public, no login or payment required. Documents hosted on Google Drive with some PDFs on Squarespace CDN.
+
+5. **Technical**: Squarespace platform with React frontend. Requires JavaScript. Documents in PDF format only.
+
+6. **Search**: FreeFind search engine integrated for site-wide and opinion-specific searches.
+
+The site structure is straightforward and scraping would primarily involve:
+- Parsing opinion list pages to get case numbers and titles
+- Downloading PDFs from Google Drive and/or Squarespace CDN
+- Handling both individual opinion PDFs and bulk downloads
+
+Challenges:
+- Google Drive hosting means URLs may change
+- Some opinions listed but PDFs not individually linked (may only be in bulk download)
+- robots.txt blocks many AI crawlers (but not general scraping)
+"""
+
+priority = "medium"
+priority_reasoning = "Good public access to tribal court opinions which are underrepresented in legal databases. 1000+ opinions available. However, Google Drive hosting adds complexity and PDFs would need parsing for metadata."
+
+complexity = "moderate"
+complexity_reasoning = "Straightforward HTML structure but requires handling Google Drive downloads, potential missing individual PDFs, and PDF parsing for case metadata. No API available."
+
+blockers = []

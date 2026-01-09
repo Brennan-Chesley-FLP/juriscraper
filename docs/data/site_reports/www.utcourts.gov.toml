@@ -1,0 +1,361 @@
+# Court Site Research Report: Utah Courts
+
+[meta]
+domain = "www.utcourts.gov"
+court_ids = ["utah", "utahctapp"]
+court_name = "Utah Supreme Court and Court of Appeals"
+court_url = "https://www.utcourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf", "mp3"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.utcourts.gov/robots.txt"
+
+allows_scraping = true
+disallowed_paths = [
+    "/opinions/*.pdf$",
+    "/OPINIONS/*.pdf$",
+    "/opinions/supopin/",
+    "/opinions/appopin/",
+    "/opinions/mds/",
+    "/opinions/juv/",
+    "/cgi-bin/",
+    "*/search/*"
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "Supreme Court opinions available 1997-2025, Court of Appeals opinions 1997-2025. Static HTML pages with links to PDFs. Opinions include summaries. RSS feed available."
+example_urls = [
+    "https://legacy.utcourts.gov/opinions/supopin/",
+    "https://legacy.utcourts.gov/opinions/appopin/",
+    "https://legacy.utcourts.gov/opinions/supopin/State v. Najera20251128.pdf"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinions are organized by date and year on landing pages"
+example_urls = [
+    "https://legacy.utcourts.gov/opinions/supopin/",
+    "https://legacy.utcourts.gov/opinions/appopin/"
+]
+
+[content.citations]
+status = "available"
+notes = "Neutral citations in format '2025 UT 61' for Supreme Court and '2025 UT App XX' for Court of Appeals"
+example_urls = [
+    "https://legacy.utcourts.gov/opinions/supopin/"
+]
+
+[content.oral_arguments]
+status = "available"
+notes = "Audio recordings of oral arguments available from 2004-2025 for Supreme Court and Court of Appeals. Live streaming and on-demand archives available. Files in MP3 format."
+example_urls = [
+    "https://legacy.utcourts.gov/opinions/streams/?court=sup",
+    "https://legacy.utcourts.gov/opinions/streams/?court=coa"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.dockets]
+status = "available"
+notes = "Available through Xchange system (https://apps.utcourts.gov/XchangeWEB). Requires free account. Covers district courts and justice courts since 1998. Includes case information, party names, addresses, judges, attorneys, documents filed, hearings, judgments."
+example_urls = [
+    "https://apps.utcourts.gov/XchangeWEB",
+    "https://www.utcourts.gov/en/court-records-publications/records/xchange.html"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Available through Xchange. Minute entries of public hearings are available."
+example_urls = [
+    "https://apps.utcourts.gov/XchangeWEB"
+]
+
+[content.recap_documents]
+status = "partial"
+notes = "District court public documents in electronic format filed since July 1, 2010 are available on Xchange. Documents available for purchase."
+example_urls = [
+    "https://apps.utcourts.gov/XchangeWEB"
+]
+
+[content.parties]
+status = "available"
+notes = "Party information available through Xchange"
+example_urls = [
+    "https://apps.utcourts.gov/XchangeWEB"
+]
+
+[content.party_types]
+status = "available"
+notes = "Party type codes available at https://www.utcourts.gov/en/court-records-publications/records/xchange/party.html"
+example_urls = [
+    "https://www.utcourts.gov/en/court-records-publications/records/xchange/party.html"
+]
+
+[content.attorneys]
+status = "available"
+notes = "Attorney information available through Xchange"
+example_urls = [
+    "https://apps.utcourts.gov/XchangeWEB"
+]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "available"
+notes = "Attorney-party relationships available through Xchange"
+example_urls = [
+    "https://apps.utcourts.gov/XchangeWEB"
+]
+
+[content.persons]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1997-01-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Opinions available back to 1997. Oral arguments audio back to 2004. Xchange covers most district courts from 1998 onwards."
+
+update_frequency = "ongoing"
+
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://legacy.utcourts.gov/rss/opinions/index.xml"
+
+has_search = true
+search_capabilities = ["full_text", "case_number", "party_name", "date_range"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.utah",
+    "juriscraper.opinions.united_states.state.utahctapp"
+]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "Utah has a statewide case management system (CORIS) that powers the Xchange system. Some family law cases have restricted access per Utah Code of Judicial Administration 4-202.02 (effective April 1, 2012). The site uses a 'legacy' subdomain for opinions (legacy.utcourts.gov) while the main site is at www.utcourts.gov."
+
+special_document_types = [
+    "Business and Chancery Court Orders (available from 2025 onwards)"
+]
+
+data_quality_notes = "Superseded opinions are noted inline. Each justice court began using CORIS at different times, so coverage varies by court."
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Utah Courts provides comprehensive public access to appellate court opinions and oral arguments.
+The site has existing scrapers for both Supreme Court and Court of Appeals opinions that work well.
+The opinions portal uses simple HTML pages with clear structure - no JavaScript required.
+Oral arguments are available as streaming audio archives going back to 2004.
+
+The Xchange system provides access to trial court dockets and documents, but requires a free account
+and charges for document downloads. This would require authentication to scrape effectively.
+
+Key findings:
+- Opinions: Well-structured HTML pages with PDF links, existing scrapers working
+- Oral arguments: Available from 2004-2025, organized by month, no existing scraper
+- Dockets: Behind authentication wall (Xchange), but free signup
+- robots.txt blocks direct PDF access but allows HTML pages
+- RSS feed available for new opinions
+"""
+
+priority = "medium"
+priority_reasoning = "Opinions already have working scrapers. Oral arguments could be added. Docket access requires authentication which adds complexity."
+
+complexity = "simple"
+complexity_reasoning = "Opinions are simple HTML parsing (already working). Oral arguments would be straightforward to scrape. Dockets require authentication but Xchange appears to be a standard web application."
+
+blockers = []

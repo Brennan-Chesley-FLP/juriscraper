@@ -1,0 +1,346 @@
+# Court Site Research Report
+# Louisiana Attorney General
+# Research Date: 2026-01-08
+
+[meta]
+domain = "www.ag.state.la.us"
+court_ids = ["laag"]
+court_name = "Louisiana Attorney General Reports"
+court_url = "https://www.ag.state.la.us/Opinions"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = true
+captcha_type = "recaptcha"
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "vanilla"
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+has_api = true
+api_documented = false
+api_url = "https://www.ag.state.la.us/Opinion/Search"
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# API Notes:
+# - POST endpoint at /Opinion/Search for searching opinions
+# - Search accepts parameters: search text, from date, to date
+# - Returns HTML results (not JSON)
+# - Opinion number format: yy-xxxx (e.g., 01-0435)
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = "https://www.ag.state.la.us/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "AG opinions are available through a search interface at /Opinions. Opinions are advisory legal counsel to Louisiana governmental entities. Format appears to be yy-xxxx (e.g., 01-0435). Search interface allows filtering by text and date range."
+example_urls = [
+    "https://www.ag.state.la.us/Opinions"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Attorney General opinions do not involve oral arguments"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "Attorney General opinions do not involve oral arguments"
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "AG opinions are not cases with dockets"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = "AG opinions are not cases with dockets"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable to AG opinions"
+example_urls = []
+
+[content.parties]
+status = "unavailable"
+notes = "AG opinions are advisory, not adversarial proceedings"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "AG opinions are advisory, not adversarial proceedings"
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "AG opinions are issued by the AG's office, no adversarial representation"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "partial"
+notes = "The Attorney General who issued each opinion would be identifiable from the opinion metadata"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = "AG opinions may cite other legal authorities, but this would need to be extracted from opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "The search interface suggests historical opinions are available, with opinion numbers dating back to at least 2001 based on the format examples (01-0435)"
+update_frequency = "irregular"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["date_range", "full_text", "opinion_number"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Louisiana AG opinions are advisory legal counsel to state governmental entities,
+not binding court decisions. They can be requested only by:
+- Governor
+- State legislators
+- State departments and agencies
+- District attorneys
+- Local governing bodies and their officers
+- Certain local officials
+- Private individuals (only on dual officeholding or dual employment matters)
+
+Opinions can be revised due to court rulings or legislative changes.
+"""
+special_document_types = []
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Louisiana AG website provides access to Attorney General opinions through a
+search interface. The site uses JavaScript and has a POST API endpoint at
+/Opinion/Search. The search interface allows filtering by text and date range.
+
+Key findings:
+- No robots.txt file present (defaults to allowing scraping)
+- Search interface has reCAPTCHA on contact forms but not on opinion search
+- POST endpoint at /Opinion/Search returns HTML results
+- Opinion number format: yy-xxxx (e.g., 01-0435)
+- No existing scraper for laag court_id
+- Site appears to serve opinions in PDF format
+- Some JavaScript errors present but page still functional
+
+The search interface provides a way to query opinions, but the exact data format
+returned and individual opinion URL patterns would need further investigation by
+performing actual searches (requires browser interaction permissions).
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority because:
+- Public access, no payment required
+- AG opinions are legal documents of public interest
+- No existing scraper for this court_id
+- Requires JavaScript rendering
+- Search interface present but exact URL patterns for individual opinions unclear
+- Would require investigating the POST endpoint response format to build scraper
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+Moderate complexity because:
+- Requires JavaScript rendering
+- Uses POST endpoint for search (not simple URL pagination)
+- Need to reverse-engineer the search API or extract results from HTML
+- Individual opinion URLs not immediately visible (need to perform searches)
+- May require session management if search results are session-dependent
+- reCAPTCHA present on site (though unclear if it protects opinion search)
+"""
+
+blockers = [
+    "Need to investigate POST /Opinion/Search endpoint response format",
+    "Need to determine individual opinion URL patterns",
+    "Requires JavaScript rendering",
+    "May encounter reCAPTCHA depending on usage patterns"
+]

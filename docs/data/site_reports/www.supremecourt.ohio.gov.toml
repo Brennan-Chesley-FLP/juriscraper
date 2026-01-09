@@ -1,0 +1,347 @@
+# Court Site Research Report: Ohio Supreme Court Opinion Database
+#
+# This site serves opinions for all Ohio appellate courts including the Supreme Court,
+# all 12 Courts of Appeals, and the Court of Claims.
+
+[meta]
+domain = "www.supremecourt.ohio.gov"
+court_ids = ["ohio", "ohioctcl", "ohioctapp1", "ohioctapp2", "ohioctapp3", "ohioctapp4", "ohioctapp5", "ohioctapp6", "ohioctapp7", "ohioctapp8", "ohioctapp9", "ohioctapp10", "ohioctapp11", "ohioctapp12"]
+court_name = "Ohio Supreme Court - Reporter of Decisions"
+court_url = "https://www.supremecourt.ohio.gov/rod/docs/"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false  # Works with static HTML forms
+javascript_framework = ""
+
+platform = "custom"  # Custom ASP.NET application
+scope = "statewide"  # Serves all Ohio appellate courts
+
+shared_infrastructure = ["ohio", "ohioctcl", "ohioctapp1", "ohioctapp2", "ohioctapp3", "ohioctapp4", "ohioctapp5", "ohioctapp6", "ohioctapp7", "ohioctapp8", "ohioctapp9", "ohioctapp10", "ohioctapp11", "ohioctapp12"]
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""  # Simple forms, no auth required
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.supremecourt.ohio.gov/robots.txt"
+allows_scraping = true  # Only disallows /cms/ and /Content/ODCMB/ directories
+disallowed_paths = ["/cms/", "/Content/ODCMB/"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content.opinions]
+status = "available"
+notes = "Comprehensive opinion database searchable by year, court, county, case number, author, topics/issues, and full text. Results include case name, docket, summary, judge, date decided, PDF URLs. Coverage from 1992 to present for Supreme Court and Court of Claims."
+example_urls = [
+    "https://www.supremecourt.ohio.gov/rod/docs/?Source=13",  # Court of Claims search
+    "https://www.supremecourt.ohio.gov/rod/docs/?Source=0"    # Supreme Court search
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "WebCite numbers and traditional citations available in search results"
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.dockets]
+status = "partial"
+notes = "Case numbers and docket information available in search results"
+example_urls = []
+
+[content.docket_entries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.parties]
+status = "partial"
+notes = "Party names appear in case names"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "partial"
+notes = "Judge/author names available in search results and searchable"
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "available"
+notes = "Search allows filtering by 16 different sources: Supreme Court, 12 District Courts of Appeals, Court of Claims, Miscellaneous, All Sources, All District Courts"
+example_urls = []
+
+[content.courthouses]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "County information available for Courts of Appeals cases"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "partial"
+notes = "Topics and Issues field available for searching and display"
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1992-01-01"  # From ohio.py first_opinion_date
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Complete coverage from 1992 to present"
+update_frequency = "daily"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["date_range", "case_number", "full_text", "county", "author", "topics_issues", "webcite", "citation"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.ohio",
+    "juriscraper.opinions.united_states.state.ohioctcl",
+    "juriscraper.opinions.united_states.state.ohioctcl_beginningofyear"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Ohio hosts all state appellate court opinions on a single centralized database run by
+the Supreme Court's Reporter of Decisions office. Each court is assigned a "Source" index:
+- 0: Supreme Court of Ohio
+- 1-12: First through Twelfth District Courts of Appeals
+- 13: Court of Claims
+- 14: Miscellaneous
+- 15: All Sources
+- 16: All District Courts
+
+The site uses standard HTML forms with ASP.NET ViewState. The scraper sets a `court_index`
+parameter to select which court to scrape.
+
+For Courts of Appeals cases, the county field indicates the originating county, which is
+important for disambiguating docket numbers that may repeat across districts.
+
+The site has detailed help documentation explaining each search field.
+"""
+special_document_types = []
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Ohio Supreme Court operates a centralized opinion database (Reporter of Decisions)
+serving all appellate courts in Ohio. The system is well-organized with comprehensive
+search functionality.
+
+Key findings:
+1. Robots.txt allows scraping (only blocks /cms/ and /Content/ODCMB/)
+2. Existing scrapers functional and well-maintained since 2014
+3. Clean HTML forms without complex JavaScript requirements
+4. Comprehensive search with multiple filter options
+5. Opinions available in PDF format
+6. Coverage from 1992 to present
+7. Single unified database for all appellate courts
+
+The existing scraper in juriscraper/opinions/united_states.state/ohio.py uses POST
+requests with standard form parameters. Each court-specific scraper (ohioctcl, ohioctapp*)
+inherits from ohio.Site and just sets a different court_index parameter.
+
+The site's comment from 2015 says "their site used to be great, but now it's terribly
+frustrating" and they had to remove selenium, but the current implementation appears to
+work well without it.
+
+Priority: LOW - Existing scrapers are functional and the site is well-designed for scraping.
+"""
+
+priority = "low"
+priority_reasoning = """
+Existing scrapers are functional and well-maintained. The site is scraper-friendly with
+robots.txt allowing access. No urgent need for new development.
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+The site uses standard HTML forms with straightforward POST parameters. No JavaScript
+required, no complex authentication, good documentation. The existing scraper handles
+the simple pagination well.
+"""
+
+blockers = []

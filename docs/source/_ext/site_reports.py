@@ -34,33 +34,57 @@ if TYPE_CHECKING:
 
 # Cache for reports and domain counts
 _reports_cache: dict | None = None
-_domain_count_cache: int | None = None
+_domain_counts_cache: dict | None = None
+_domain_alias_map: dict | None = None
 
 
-def get_total_domains(app: Sphinx) -> int:
-    """Count unique domains from courts.toml."""
-    global _domain_count_cache
-    if _domain_count_cache is not None:
-        return _domain_count_cache
+def is_pacer_domain(domain: str) -> bool:
+    """Check if a domain is a PACER/uscourts.gov domain."""
+    return domain.endswith("uscourts.gov") or ".uscourts.gov" in domain
+
+
+def get_domain_counts(app: Sphinx) -> dict[str, int]:
+    """Count unique domains from courts.toml, split by PACER vs non-PACER.
+
+    Returns dict with keys: 'total', 'pacer', 'non_pacer'
+    """
+    global _domain_counts_cache
+    if _domain_counts_cache is not None:
+        return _domain_counts_cache
 
     courts_toml = Path(app.srcdir).parent / "data" / "courts.toml"
     if not courts_toml.exists():
         _logger.warning(f"courts.toml not found at {courts_toml}")
-        _domain_count_cache = 0
-        return 0
+        _domain_counts_cache = {"total": 0, "pacer": 0, "non_pacer": 0}
+        return _domain_counts_cache
 
     with open(courts_toml, "rb") as f:
         data = tomllib.load(f)
 
-    domains = set()
+    pacer_domains = set()
+    non_pacer_domains = set()
+
     for court_data in data.get("courts", {}).values():
         if url := court_data.get("court_url"):
             parsed = urlparse(url)
             if parsed.netloc:
-                domains.add(parsed.netloc)
+                domain = parsed.netloc
+                if is_pacer_domain(domain):
+                    pacer_domains.add(domain)
+                else:
+                    non_pacer_domains.add(domain)
 
-    _domain_count_cache = len(domains)
-    return _domain_count_cache
+    _domain_counts_cache = {
+        "total": len(pacer_domains) + len(non_pacer_domains),
+        "pacer": len(pacer_domains),
+        "non_pacer": len(non_pacer_domains),
+    }
+    return _domain_counts_cache
+
+
+def get_total_domains(app: Sphinx) -> int:
+    """Count unique domains from courts.toml (for backward compatibility)."""
+    return get_domain_counts(app)["total"]
 
 
 def get_reports(app: Sphinx) -> dict[str, dict]:
@@ -93,6 +117,40 @@ def get_reports(app: Sphinx) -> dict[str, dict]:
     return _reports_cache
 
 
+def get_domain_alias_map(app: Sphinx) -> dict[str, str]:
+    """Build a mapping from domain aliases to canonical domains.
+
+    Returns dict mapping alias domain -> canonical domain from reports.
+    """
+    global _domain_alias_map
+    if _domain_alias_map is not None:
+        return _domain_alias_map
+
+    reports = get_reports(app)
+    _domain_alias_map = {}
+
+    for domain, report in reports.items():
+        meta = report.get("meta", {})
+        aliases = meta.get("domain_aliases", [])
+        for alias in aliases:
+            _domain_alias_map[alias] = domain
+
+    return _domain_alias_map
+
+
+def resolve_domain(app: Sphinx, domain: str) -> str | None:
+    """Resolve a domain to its canonical form if an alias exists.
+
+    Returns the canonical domain if found in reports or aliases, else None.
+    """
+    reports = get_reports(app)
+    if domain in reports:
+        return domain
+
+    alias_map = get_domain_alias_map(app)
+    return alias_map.get(domain)
+
+
 class SiteReportStatsDirective(SphinxDirective):
     """Directive to display site report progress statistics.
 
@@ -108,35 +166,70 @@ class SiteReportStatsDirective(SphinxDirective):
     def run(self) -> list[nodes.Node]:
         """Generate statistics block."""
         reports = get_reports(self.env.app)
-        total_domains = get_total_domains(self.env.app)
-        completed = len(reports)
-        remaining = total_domains - completed
-        pct = (completed / total_domains * 100) if total_domains > 0 else 0
+        domain_counts = get_domain_counts(self.env.app)
+        total_domains = domain_counts["total"]
+        pacer_total = domain_counts["pacer"]
+        non_pacer_total = domain_counts["non_pacer"]
 
-        # Count by priority
+        # Split completed reports by PACER vs non-PACER
+        pacer_completed = 0
+        non_pacer_completed = 0
         priority_counts: dict[str, int] = {}
-        for report in reports.values():
+
+        for domain, report in reports.items():
+            if is_pacer_domain(domain):
+                pacer_completed += 1
+            else:
+                non_pacer_completed += 1
+
             priority = report.get("research_notes", {}).get(
                 "priority", "unknown"
             )
             priority_counts[priority] = priority_counts.get(priority, 0) + 1
 
+        completed = len(reports)
+        pct = (completed / total_domains * 100) if total_domains > 0 else 0
+
+        # Calculate percentages for each category
+        pacer_pct = (
+            (pacer_completed / pacer_total * 100) if pacer_total > 0 else 0
+        )
+        non_pacer_pct = (
+            (non_pacer_completed / non_pacer_total * 100)
+            if non_pacer_total > 0
+            else 0
+        )
+
         # Create container
         container = nodes.container()
 
-        # Progress summary
+        # Overall progress summary
         para = nodes.paragraph()
-        para += nodes.strong(text="Progress: ")
+        para += nodes.strong(text="Overall Progress: ")
         para += nodes.Text(
             f"{completed} of {total_domains} domains researched ({pct:.1f}%)"
         )
         container += para
 
-        # Remaining count
-        para2 = nodes.paragraph()
-        para2 += nodes.strong(text="Remaining: ")
-        para2 += nodes.Text(f"{remaining} domains")
-        container += para2
+        # Non-PACER (State Courts) progress
+        para_state = nodes.paragraph()
+        para_state += nodes.strong(text="State Courts: ")
+        para_state += nodes.Text(
+            f"{non_pacer_completed} of {non_pacer_total} "
+            f"({non_pacer_pct:.1f}%) - "
+            f"{non_pacer_total - non_pacer_completed} remaining"
+        )
+        container += para_state
+
+        # PACER (Federal Courts) progress
+        para_pacer = nodes.paragraph()
+        para_pacer += nodes.strong(text="Federal (PACER): ")
+        para_pacer += nodes.Text(
+            f"{pacer_completed} of {pacer_total} "
+            f"({pacer_pct:.1f}%) - "
+            f"{pacer_total - pacer_completed} remaining"
+        )
+        container += para_pacer
 
         # Priority breakdown if we have reports
         if priority_counts:
@@ -150,6 +243,698 @@ class SiteReportStatsDirective(SphinxDirective):
             container += para3
 
         return [container]
+
+
+def get_courts_by_domain(app: Sphinx) -> dict[str, list[dict]]:
+    """Get all courts grouped by domain from courts.toml.
+
+    Returns dict mapping domain -> list of court data dicts
+    """
+    courts_toml = Path(app.srcdir).parent / "data" / "courts.toml"
+    if not courts_toml.exists():
+        return {}
+
+    with open(courts_toml, "rb") as f:
+        data = tomllib.load(f)
+
+    domain_courts: dict[str, list[dict]] = {}
+
+    for court_id, court_data in data.get("courts", {}).items():
+        if url := court_data.get("court_url"):
+            parsed = urlparse(url)
+            if parsed.netloc:
+                domain = parsed.netloc
+                if domain not in domain_courts:
+                    domain_courts[domain] = []
+                court_info = dict(court_data)
+                court_info["court_id"] = court_id
+                domain_courts[domain].append(court_info)
+
+    return domain_courts
+
+
+def get_court_counts(app: Sphinx) -> dict[str, int]:
+    """Count total courts from courts.toml, split by PACER vs non-PACER.
+
+    Returns dict with keys: 'total', 'pacer', 'non_pacer', 'no_url'
+    """
+    courts_toml = Path(app.srcdir).parent / "data" / "courts.toml"
+    if not courts_toml.exists():
+        return {"total": 0, "pacer": 0, "non_pacer": 0, "no_url": 0}
+
+    with open(courts_toml, "rb") as f:
+        data = tomllib.load(f)
+
+    pacer_courts = 0
+    non_pacer_courts = 0
+    no_url_courts = 0
+
+    for court_data in data.get("courts", {}).values():
+        if url := court_data.get("court_url"):
+            parsed = urlparse(url)
+            if parsed.netloc:
+                if is_pacer_domain(parsed.netloc):
+                    pacer_courts += 1
+                else:
+                    non_pacer_courts += 1
+            else:
+                no_url_courts += 1
+        else:
+            no_url_courts += 1
+
+    return {
+        "total": pacer_courts + non_pacer_courts + no_url_courts,
+        "pacer": pacer_courts,
+        "non_pacer": non_pacer_courts,
+        "no_url": no_url_courts,
+    }
+
+
+class SiteReportAnalyticsDirective(SphinxDirective):
+    """Directive to display comprehensive analytics for site reports.
+
+    Generates statistics about:
+    - URL validity (url_is_current field)
+    - Scraper coverage
+    - Subscription availability
+    - Technical characteristics (JS required, has API, etc.)
+    - Content availability
+    - Courts without site reports
+
+    Usage::
+
+        .. site-report-analytics::
+    """
+
+    has_content = False
+    required_arguments = 0
+    optional_arguments = 0
+
+    def run(self) -> list[nodes.Node]:
+        """Generate comprehensive analytics."""
+        reports = get_reports(self.env.app)
+        domain_counts = get_domain_counts(self.env.app)
+        court_counts = get_court_counts(self.env.app)
+        courts_by_domain = get_courts_by_domain(self.env.app)
+
+        # Filter to non-PACER reports only
+        non_pacer_reports = {
+            d: r for d, r in reports.items() if not is_pacer_domain(d)
+        }
+
+        # Filter courts_by_domain to non-PACER only
+        non_pacer_courts_by_domain = {
+            d: courts
+            for d, courts in courts_by_domain.items()
+            if not is_pacer_domain(d)
+        }
+
+        result: list[nodes.Node] = []
+
+        # Summary section (domains and courts)
+        result.extend(
+            self._summary_section(
+                non_pacer_reports,
+                domain_counts,
+                court_counts,
+                non_pacer_courts_by_domain,
+            )
+        )
+
+        # URL validity section
+        result.extend(self._url_validity_section(non_pacer_reports))
+
+        # Scraper coverage section (now includes court counts)
+        result.extend(
+            self._scraper_section(
+                non_pacer_reports, non_pacer_courts_by_domain
+            )
+        )
+
+        # Subscription availability section
+        result.extend(self._subscription_section(non_pacer_reports))
+
+        # Technical characteristics section
+        result.extend(self._technical_section(non_pacer_reports))
+
+        # Content availability section
+        result.extend(self._content_section(non_pacer_reports))
+
+        # Missing reports section
+        result.extend(
+            self._missing_reports_section(
+                non_pacer_reports, courts_by_domain, domain_counts
+            )
+        )
+
+        return result
+
+    def _create_section(
+        self, title: str, content: list[nodes.Node]
+    ) -> list[nodes.Node]:
+        """Create a section with title and content."""
+        result: list[nodes.Node] = []
+        result.append(nodes.rubric(text=title))
+        result.extend(content)
+        return result
+
+    def _summary_section(
+        self,
+        reports: dict[str, dict],
+        domain_counts: dict[str, int],
+        court_counts: dict[str, int],
+        courts_by_domain: dict[str, list[dict]],
+    ) -> list[nodes.Node]:
+        """Generate summary statistics for both domains and courts."""
+        # Get alias map for resolving old domains
+        alias_map = get_domain_alias_map(self.env.app)
+
+        # Domain stats - count domains covered (directly or via alias)
+        non_pacer_domains = domain_counts["non_pacer"]
+        reported_domains = set(reports.keys())
+        # Count how many courts.toml domains are covered
+        covered_domain_count = 0
+        for domain in courts_by_domain:
+            if is_pacer_domain(domain):
+                continue
+            if domain in reported_domains or domain in alias_map:
+                covered_domain_count += 1
+
+        domain_pct = (
+            (covered_domain_count / non_pacer_domains * 100)
+            if non_pacer_domains > 0
+            else 0
+        )
+
+        # Court stats - count courts covered by completed reports
+        total_non_pacer_courts = court_counts["non_pacer"]
+        courts_with_no_url = court_counts["no_url"]
+
+        # Count courts covered by completed domain reports (including aliases)
+        courts_covered = 0
+        for domain, courts in courts_by_domain.items():
+            if is_pacer_domain(domain):
+                continue
+            if domain in reported_domains or domain in alias_map:
+                courts_covered += len(courts)
+
+        court_pct = (
+            (courts_covered / total_non_pacer_courts * 100)
+            if total_non_pacer_courts > 0
+            else 0
+        )
+
+        content: list[nodes.Node] = []
+
+        # Create summary table
+        table = nodes.table()
+        tgroup = nodes.tgroup(cols=4)
+        table += tgroup
+
+        tgroup += nodes.colspec(colwidth=25)
+        tgroup += nodes.colspec(colwidth=20)
+        tgroup += nodes.colspec(colwidth=20)
+        tgroup += nodes.colspec(colwidth=15)
+
+        # Header
+        thead = nodes.thead()
+        tgroup += thead
+        header_row = nodes.row()
+        thead += header_row
+        for header in ["Metric", "Researched", "Total", "Coverage"]:
+            header_row += nodes.entry("", nodes.paragraph(text=header))
+
+        # Body
+        tbody = nodes.tbody()
+        tgroup += tbody
+
+        # Domains row
+        row1 = nodes.row()
+        tbody += row1
+        row1 += nodes.entry("", nodes.paragraph(text="Domains"))
+        row1 += nodes.entry(
+            "", nodes.paragraph(text=str(covered_domain_count))
+        )
+        row1 += nodes.entry("", nodes.paragraph(text=str(non_pacer_domains)))
+        row1 += nodes.entry("", nodes.paragraph(text=f"{domain_pct:.1f}%"))
+
+        # Courts row
+        row2 = nodes.row()
+        tbody += row2
+        row2 += nodes.entry("", nodes.paragraph(text="Courts"))
+        row2 += nodes.entry("", nodes.paragraph(text=str(courts_covered)))
+        row2 += nodes.entry(
+            "", nodes.paragraph(text=str(total_non_pacer_courts))
+        )
+        row2 += nodes.entry("", nodes.paragraph(text=f"{court_pct:.1f}%"))
+
+        content.append(table)
+
+        # Note about courts without URLs
+        if courts_with_no_url > 0:
+            note = nodes.paragraph()
+            note += nodes.emphasis(
+                text=f"Note: {courts_with_no_url} courts in courts.toml "
+                f"have no court_url defined."
+            )
+            content.append(note)
+
+        return content
+
+    def _url_validity_section(
+        self, reports: dict[str, dict]
+    ) -> list[nodes.Node]:
+        """Generate URL validity statistics."""
+        current = 0
+        outdated = 0
+        unknown = 0
+        has_alternates = 0
+
+        for report in reports.values():
+            coverage = report.get("coverage", {})
+            url_current = coverage.get("url_is_current")
+            if url_current is True:
+                current += 1
+            elif url_current is False:
+                outdated += 1
+            else:
+                unknown += 1
+
+            alternate_urls = coverage.get("alternate_urls", [])
+            if alternate_urls:
+                has_alternates += 1
+
+        content: list[nodes.Node] = []
+
+        # Create a bullet list
+        bullet_list = nodes.bullet_list()
+
+        item1 = nodes.list_item()
+        item1 += nodes.paragraph(text=f"URLs confirmed current: {current}")
+        bullet_list += item1
+
+        item2 = nodes.list_item()
+        item2 += nodes.paragraph(text=f"URLs outdated/redirecting: {outdated}")
+        bullet_list += item2
+
+        item3 = nodes.list_item()
+        item3 += nodes.paragraph(text=f"URL status unknown: {unknown}")
+        bullet_list += item3
+
+        item4 = nodes.list_item()
+        item4 += nodes.paragraph(
+            text=f"Sites with alternate URLs documented: {has_alternates}"
+        )
+        bullet_list += item4
+
+        content.append(bullet_list)
+
+        return self._create_section("URL Validity", content)
+
+    def _scraper_section(
+        self,
+        reports: dict[str, dict],
+        courts_by_domain: dict[str, list[dict]],
+    ) -> list[nodes.Node]:
+        """Generate scraper coverage statistics for both domains and courts."""
+        # Domain-level stats
+        domains_with_scraper = 0
+        domains_covers_opinions = 0
+        domains_covers_oral_args = 0
+        domains_covers_dockets = 0
+        domains_no_scraper = 0
+
+        # Court-level stats
+        courts_with_scraper = 0
+        courts_covers_opinions = 0
+        courts_covers_oral_args = 0
+        courts_covers_dockets = 0
+        courts_no_scraper = 0
+
+        for domain, report in reports.items():
+            existing = report.get("existing_scraper", {})
+            court_count = len(courts_by_domain.get(domain, []))
+
+            if existing.get("has_scraper"):
+                domains_with_scraper += 1
+                courts_with_scraper += court_count
+                if existing.get("covers_opinions"):
+                    domains_covers_opinions += 1
+                    courts_covers_opinions += court_count
+                if existing.get("covers_oral_arguments"):
+                    domains_covers_oral_args += 1
+                    courts_covers_oral_args += court_count
+                if existing.get("covers_dockets"):
+                    domains_covers_dockets += 1
+                    courts_covers_dockets += court_count
+            else:
+                domains_no_scraper += 1
+                courts_no_scraper += court_count
+
+        content: list[nodes.Node] = []
+
+        # Create table comparing domains vs courts
+        table = nodes.table()
+        tgroup = nodes.tgroup(cols=3)
+        table += tgroup
+
+        tgroup += nodes.colspec(colwidth=40)
+        tgroup += nodes.colspec(colwidth=20)
+        tgroup += nodes.colspec(colwidth=20)
+
+        # Header
+        thead = nodes.thead()
+        tgroup += thead
+        header_row = nodes.row()
+        thead += header_row
+        for header in ["Metric", "Domains", "Courts"]:
+            header_row += nodes.entry("", nodes.paragraph(text=header))
+
+        # Body
+        tbody = nodes.tbody()
+        tgroup += tbody
+
+        stats = [
+            (
+                "With existing scrapers",
+                domains_with_scraper,
+                courts_with_scraper,
+            ),
+            ("Without scrapers", domains_no_scraper, courts_no_scraper),
+            (
+                "Opinions coverage",
+                domains_covers_opinions,
+                courts_covers_opinions,
+            ),
+            (
+                "Oral arguments coverage",
+                domains_covers_oral_args,
+                courts_covers_oral_args,
+            ),
+            (
+                "Dockets coverage",
+                domains_covers_dockets,
+                courts_covers_dockets,
+            ),
+        ]
+
+        for label, domain_count, court_count in stats:
+            row = nodes.row()
+            tbody += row
+            row += nodes.entry("", nodes.paragraph(text=label))
+            row += nodes.entry("", nodes.paragraph(text=str(domain_count)))
+            row += nodes.entry("", nodes.paragraph(text=str(court_count)))
+
+        content.append(table)
+
+        return self._create_section("Scraper Coverage", content)
+
+    def _subscription_section(
+        self, reports: dict[str, dict]
+    ) -> list[nodes.Node]:
+        """Generate subscription availability statistics."""
+        has_subscription = 0
+        subscription_types: dict[str, int] = {}
+
+        for report in reports.values():
+            coverage = report.get("coverage", {})
+            if coverage.get("has_subscription"):
+                has_subscription += 1
+                sub_type = coverage.get("subscription_type", "unknown")
+                if sub_type:
+                    subscription_types[sub_type] = (
+                        subscription_types.get(sub_type, 0) + 1
+                    )
+
+        content: list[nodes.Node] = []
+        bullet_list = nodes.bullet_list()
+
+        item1 = nodes.list_item()
+        item1 += nodes.paragraph(
+            text=f"Sites offering update subscriptions: {has_subscription}"
+        )
+        bullet_list += item1
+
+        if subscription_types:
+            item2 = nodes.list_item()
+            item2 += nodes.paragraph(text="Subscription types:")
+            sub_list = nodes.bullet_list()
+            for sub_type, count in sorted(subscription_types.items()):
+                sub_item = nodes.list_item()
+                sub_item += nodes.paragraph(text=f"{sub_type}: {count}")
+                sub_list += sub_item
+            item2 += sub_list
+            bullet_list += item2
+
+        content.append(bullet_list)
+
+        return self._create_section("Update Subscriptions", content)
+
+    def _technical_section(self, reports: dict[str, dict]) -> list[nodes.Node]:
+        """Generate technical characteristics statistics."""
+        requires_js = 0
+        has_api = 0
+        has_captcha = 0
+        requires_signup = 0
+        requires_payment = 0
+        bulk_download = 0
+        platforms: dict[str, int] = {}
+
+        for report in reports.values():
+            tech = report.get("technical", {})
+            access = report.get("access", {})
+
+            if tech.get("requires_javascript"):
+                requires_js += 1
+            if tech.get("has_api"):
+                has_api += 1
+            if tech.get("bulk_download_available"):
+                bulk_download += 1
+            if access.get("has_captcha"):
+                has_captcha += 1
+            if access.get("requires_signup"):
+                requires_signup += 1
+            if access.get("requires_payment"):
+                requires_payment += 1
+
+            platform = tech.get("platform", "")
+            if platform:
+                platforms[platform] = platforms.get(platform, 0) + 1
+
+        total = len(reports)
+        content: list[nodes.Node] = []
+
+        # Create table for technical stats
+        table = nodes.table()
+        tgroup = nodes.tgroup(cols=3)
+        table += tgroup
+
+        tgroup += nodes.colspec(colwidth=40)
+        tgroup += nodes.colspec(colwidth=15)
+        tgroup += nodes.colspec(colwidth=15)
+
+        # Header
+        thead = nodes.thead()
+        tgroup += thead
+        header_row = nodes.row()
+        thead += header_row
+        for header in ["Characteristic", "Count", "Percentage"]:
+            header_row += nodes.entry("", nodes.paragraph(text=header))
+
+        # Body
+        tbody = nodes.tbody()
+        tgroup += tbody
+
+        stats = [
+            ("Requires JavaScript", requires_js),
+            ("Has documented API", has_api),
+            ("Offers bulk downloads", bulk_download),
+            ("Has CAPTCHA", has_captcha),
+            ("Requires signup/login", requires_signup),
+            ("Requires payment", requires_payment),
+        ]
+
+        for label, count in stats:
+            row = nodes.row()
+            tbody += row
+            row += nodes.entry("", nodes.paragraph(text=label))
+            row += nodes.entry("", nodes.paragraph(text=str(count)))
+            pct = (count / total * 100) if total > 0 else 0
+            row += nodes.entry("", nodes.paragraph(text=f"{pct:.1f}%"))
+
+        content.append(table)
+
+        # Platform breakdown if we have data
+        if platforms:
+            para = nodes.paragraph()
+            para += nodes.strong(text="Platforms detected: ")
+            platform_parts = [
+                f"{p} ({c})"
+                for p, c in sorted(platforms.items(), key=lambda x: -x[1])[:5]
+            ]
+            para += nodes.Text(", ".join(platform_parts))
+            content.append(para)
+
+        return self._create_section("Technical Characteristics", content)
+
+    def _content_section(self, reports: dict[str, dict]) -> list[nodes.Node]:
+        """Generate content availability statistics."""
+        # Track availability of key content types
+        content_stats: dict[str, dict[str, int]] = {}
+        key_types = [
+            "opinions",
+            "oral_arguments",
+            "dockets",
+            "docket_entries",
+            "parties",
+            "attorneys",
+        ]
+
+        for content_type in key_types:
+            content_stats[content_type] = {
+                "available": 0,
+                "partial": 0,
+                "unavailable": 0,
+                "unknown": 0,
+            }
+
+        for report in reports.values():
+            c = report.get("content", {})
+            for content_type in key_types:
+                type_data = c.get(content_type, {})
+                status = type_data.get("status", "unknown")
+                if status in content_stats[content_type]:
+                    content_stats[content_type][status] += 1
+
+        content: list[nodes.Node] = []
+
+        # Create table
+        table = nodes.table()
+        tgroup = nodes.tgroup(cols=5)
+        table += tgroup
+
+        for _ in range(5):
+            tgroup += nodes.colspec(colwidth=20)
+
+        # Header
+        thead = nodes.thead()
+        tgroup += thead
+        header_row = nodes.row()
+        thead += header_row
+        for header in [
+            "Content Type",
+            "Available",
+            "Partial",
+            "Unavailable",
+            "Unknown",
+        ]:
+            header_row += nodes.entry("", nodes.paragraph(text=header))
+
+        # Body
+        tbody = nodes.tbody()
+        tgroup += tbody
+
+        for content_type in key_types:
+            stats = content_stats[content_type]
+            row = nodes.row()
+            tbody += row
+
+            name = content_type.replace("_", " ").title()
+            row += nodes.entry("", nodes.paragraph(text=name))
+            row += nodes.entry(
+                "", nodes.paragraph(text=str(stats["available"]))
+            )
+            row += nodes.entry("", nodes.paragraph(text=str(stats["partial"])))
+            row += nodes.entry(
+                "", nodes.paragraph(text=str(stats["unavailable"]))
+            )
+            row += nodes.entry("", nodes.paragraph(text=str(stats["unknown"])))
+
+        content.append(table)
+
+        return self._create_section("Content Availability", content)
+
+    def _missing_reports_section(
+        self,
+        reports: dict[str, dict],
+        courts_by_domain: dict[str, list[dict]],
+        domain_counts: dict[str, int],
+    ) -> list[nodes.Node]:
+        """Generate list of state court domains without reports."""
+        # Find non-PACER domains that don't have reports (including aliases)
+        reported_domains = set(reports.keys())
+        alias_map = get_domain_alias_map(self.env.app)
+        missing_domains: list[tuple[str, int, str]] = []
+
+        for domain, courts in courts_by_domain.items():
+            if is_pacer_domain(domain):
+                continue
+            # Check if domain is covered directly or via alias
+            if domain in reported_domains or domain in alias_map:
+                continue
+            # Get jurisdiction(s) for this domain
+            jurisdictions = {c.get("jurisdiction", "?") for c in courts}
+            jurisdiction_str = ", ".join(sorted(jurisdictions))
+            missing_domains.append((domain, len(courts), jurisdiction_str))
+
+        # Sort by number of courts (most courts first)
+        missing_domains.sort(key=lambda x: (-x[1], x[0]))
+
+        content: list[nodes.Node] = []
+
+        missing_count = len(missing_domains)
+        missing_courts = sum(
+            court_count for _, court_count, _ in missing_domains
+        )
+
+        para = nodes.paragraph()
+        para += nodes.Text(
+            f"{missing_count} state court domains without research reports "
+            f"(representing {missing_courts} courts):"
+        )
+        content.append(para)
+
+        if missing_domains:
+            # Show top 20 by court count
+            table = nodes.table()
+            tgroup = nodes.tgroup(cols=3)
+            table += tgroup
+
+            tgroup += nodes.colspec(colwidth=50)
+            tgroup += nodes.colspec(colwidth=15)
+            tgroup += nodes.colspec(colwidth=20)
+
+            # Header
+            thead = nodes.thead()
+            tgroup += thead
+            header_row = nodes.row()
+            thead += header_row
+            for header in ["Domain", "Courts", "Jurisdiction"]:
+                header_row += nodes.entry("", nodes.paragraph(text=header))
+
+            # Body (limit to 20)
+            tbody = nodes.tbody()
+            tgroup += tbody
+
+            for domain, court_count, jurisdiction in missing_domains[:20]:
+                row = nodes.row()
+                tbody += row
+                row += nodes.entry("", nodes.paragraph(text=domain))
+                row += nodes.entry("", nodes.paragraph(text=str(court_count)))
+                row += nodes.entry("", nodes.paragraph(text=jurisdiction))
+
+            content.append(table)
+
+            if len(missing_domains) > 20:
+                note = nodes.paragraph()
+                note += nodes.emphasis(
+                    text=f"... and {len(missing_domains) - 20} more domains"
+                )
+                content.append(note)
+
+        return self._create_section(
+            "State Court Domains Without Reports", content
+        )
 
 
 class SiteReportListDirective(SphinxDirective):
@@ -422,19 +1207,20 @@ class SiteReportDetailDirective(SphinxDirective):
         """Generate content availability table."""
         # Create table
         table = nodes.table()
-        tgroup = nodes.tgroup(cols=3)
+        tgroup = nodes.tgroup(cols=4)
         table += tgroup
 
-        tgroup += nodes.colspec(colwidth=30)
-        tgroup += nodes.colspec(colwidth=15)
-        tgroup += nodes.colspec(colwidth=55)
+        tgroup += nodes.colspec(colwidth=25)
+        tgroup += nodes.colspec(colwidth=12)
+        tgroup += nodes.colspec(colwidth=40)
+        tgroup += nodes.colspec(colwidth=23)
 
         # Header
         thead = nodes.thead()
         tgroup += thead
         header_row = nodes.row()
         thead += header_row
-        for header in ["Content Type", "Status", "Notes"]:
+        for header in ["Content Type", "Status", "Notes", "Examples"]:
             header_row += nodes.entry("", nodes.paragraph(text=header))
 
         # Body
@@ -504,6 +1290,24 @@ class SiteReportDetailDirective(SphinxDirective):
             notes = notes[:97] + "..."
         row += nodes.entry("", nodes.paragraph(text=notes))
 
+        # Example URLs
+        example_urls = content_data.get("example_urls", [])
+        urls_cell = nodes.entry()
+        if example_urls:
+            url_list = nodes.bullet_list()
+            for url in example_urls[:3]:  # Limit to 3
+                item = nodes.list_item()
+                para = nodes.paragraph()
+                # Truncate display text but keep full URL in link
+                display = url if len(url) <= 40 else url[:37] + "..."
+                para += nodes.reference("", display, refuri=url)
+                item += para
+                url_list += item
+            urls_cell += url_list
+        else:
+            urls_cell += nodes.paragraph(text="-")
+        row += urls_cell
+
     def _coverage_content(self, coverage: dict) -> list[nodes.Node]:
         """Generate coverage section content."""
         fields = [
@@ -561,7 +1365,14 @@ def generate_site_report_pages(app: Sphinx) -> None:
     individual report pages.
     """
     reports = get_reports(app)
-    total_domains = get_total_domains(app)
+    domain_counts = get_domain_counts(app)
+    total_domains = domain_counts["total"]
+    pacer_total = domain_counts["pacer"]
+    non_pacer_total = domain_counts["non_pacer"]
+
+    # Split completed reports by PACER vs non-PACER
+    pacer_completed = sum(1 for d in reports if is_pacer_domain(d))
+    non_pacer_completed = len(reports) - pacer_completed
 
     # Create site_reports directory in source
     reports_dir = Path(app.srcdir) / "site_reports"
@@ -577,7 +1388,6 @@ def generate_site_report_pages(app: Sphinx) -> None:
 
     # Generate index page
     completed = len(reports)
-    remaining = total_domains - completed
     pct = (completed / total_domains * 100) if total_domains > 0 else 0
 
     index_content = f""".. _site-reports:
@@ -594,9 +1404,12 @@ Progress
 
 .. site-report-stats::
 
-**{completed}** of **{total_domains}** domains researched ({pct:.1f}%)
+**{completed}** of **{total_domains}** total domains researched ({pct:.1f}%)
 
-{remaining} domains remaining.
+- **State Courts:** {non_pacer_completed} of {non_pacer_total} ({non_pacer_total - non_pacer_completed} remaining)
+- **Federal (PACER):** {pacer_completed} of {pacer_total} ({pacer_total - pacer_completed} remaining)
+
+For detailed statistics about state court sites, see the :doc:`statistics` page.
 
 Completed Reports
 -----------------
@@ -605,13 +1418,17 @@ Completed Reports
 
 """
 
+    # Always include statistics page in toctree
+    toctree_content = "statistics"
     if toctree_str:
-        index_content += f"""
+        toctree_content += f"\n   {toctree_str}"
+
+    index_content += f"""
 .. toctree::
    :maxdepth: 1
    :hidden:
 
-   {toctree_str}
+   {toctree_content}
 """
 
     (reports_dir / "index.rst").write_text(index_content)
@@ -646,6 +1463,7 @@ def setup(app: Sphinx) -> dict[str, Any]:
     app.add_directive("site-report-stats", SiteReportStatsDirective)
     app.add_directive("site-report-list", SiteReportListDirective)
     app.add_directive("site-report-detail", SiteReportDetailDirective)
+    app.add_directive("site-report-analytics", SiteReportAnalyticsDirective)
 
     # Register event handler to generate pages
     app.connect("builder-inited", generate_site_report_pages)

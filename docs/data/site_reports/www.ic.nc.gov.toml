@@ -1,0 +1,467 @@
+# Court Site Research Report: North Carolina Industrial Commission
+#
+# Research completed on 2026-01-09 using browser exploration and network analysis
+
+[meta]
+domain = "www.ic.nc.gov"
+court_ids = ["ncworkcompcom"]
+court_name = "North Carolina Industrial Commission"
+court_url = "https://www.ic.nc.gov/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Main site is publicly accessible, but database requires login
+public_access = true
+
+# Database system requires signup (public credentials)
+requires_signup = true
+
+# Public credentials provided: username "public", password "public"
+signup_method = "open"
+
+# No payment required
+requires_payment = false
+payment_details = ""
+
+# No captchas observed
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Portal system requires JavaScript; traditional pages do not
+requires_javascript = true
+javascript_framework = "salesforce"
+
+# Uses mix of custom and Salesforce Community platform
+platform = "custom"
+
+# Statewide workers' compensation tribunal
+scope = "statewide"
+
+# Workers' compensation commissions often share similar patterns
+shared_infrastructure = []
+
+# No documented API found
+has_api = false
+api_documented = false
+api_url = ""
+
+# No bulk downloads, but has comprehensive search database
+bulk_download_available = false
+bulk_download_details = ""
+
+# Primary format is PDF
+document_formats = ["pdf"]
+
+# Uses session cookies for OpenText Content Server
+auth_mechanism = "session_cookie"
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# No robots.txt file found (404)
+has_robots_txt = false
+robots_txt_url = "https://www.ic.nc.gov/robots.txt"
+
+# No robots.txt means no explicit restrictions
+allows_scraping = true
+disallowed_paths = []
+
+# No crawl-delay specified
+crawl_delay_seconds = 0
+
+# No rate limit notices observed
+rate_limit_notice = ""
+
+# No TOS restrictions found during research
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# Reference: juriscraper/scraper_driver/common/models/base.py
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Multiple sources of opinions available:
+1. OpenText Content Server Database (requires login: public/public)
+   - Full Commission Decisions since 1994
+   - Deputy Commissioner Decisions since 1994
+   - Searchable database: https://ic.nc.gov/livelink/livelink.exe
+2. Court Decisions Page
+   - NC Supreme Court and Court of Appeals decisions on WC matters
+   - Direct PDF access: https://www.ic.nc.gov/ncic/pages/court.htm
+All decisions available in PDF format.
+"""
+example_urls = [
+    "https://www.ic.nc.gov/ncic/pages/court/16-002725sup.pdf",
+    "https://www.ic.nc.gov/ncic/pages/court/15-048700sup.pdf",
+    "https://www.ic.nc.gov/ncic/pages/court/14-053926sup.pdf"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = "Decisions are individual PDFs; no apparent clustering in the interface"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citations appear within opinion PDFs but not as separate structured data"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "No oral arguments section found. Workers' compensation proceedings typically don't have oral arguments at deputy commissioner level."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "No audio or transcripts found"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """
+Available through multiple sources:
+1. Master List of Cases for Docketing (trial-ready cases)
+   - JavaScript-based portal: https://ncic.my.site.com/s/wc-master-docket
+   - Updated monthly (posted for second following month)
+2. Clerk's Office page for case status: https://www.ic.nc.gov/dockets.html
+3. Hearing search functionality through portal
+"""
+example_urls = [
+    "https://ncic.my.site.com/s/wc-master-docket?language=en_US",
+    "https://www.ic.nc.gov/dockets.html"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "Case status available through Clerk's Office but detailed entry-by-entry docket sheets not clearly accessible"
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = "Not applicable - this is a state workers' compensation commission, not a PACER/federal court"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unknown"
+notes = "Party information likely in case records but not separately accessible"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "Attorney information appears in opinions but not as separate database"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Deputy Commissioner and Full Commission member names appear on website but no biographical database"
+example_urls = []
+
+[content.positions]
+status = "partial"
+notes = "Commissioner assignments and hearing calendars available showing who is assigned to what"
+example_urls = [
+    "https://ncic.my.site.com/s/dc-hearing-calendars?language=en_US",
+    "https://www.ic.nc.gov/ncic/pages/fullcal.htm"
+]
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Not applicable - these are administrative commissioners, not judges"
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "partial"
+notes = "Information about the Industrial Commission structure available on site"
+example_urls = ["https://www.ic.nc.gov/"]
+
+[content.courthouses]
+status = "partial"
+notes = "Hearing locations mentioned in calendars but no comprehensive location database"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - workers' compensation tribunal"
+example_urls = []
+
+[content.claims]
+status = "unknown"
+notes = "Workers' compensation claims are filed here but claim details not publicly searchable"
+example_urls = []
+
+[content.claim_history]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Not applicable - civil workers' compensation matters"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state administrative tribunal"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - not a PACER court"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Citations appear in opinion text but no separate citation graph"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Additional Content Types ---
+
+[content.insurance_coverage]
+status = "available"
+notes = "Searchable database of workers' compensation insurance coverage information"
+example_urls = ["https://ccms.ic.nc.gov/insurancecoverage/inscov/insCoverageSearch"]
+
+[content.hearing_calendars]
+status = "available"
+notes = """
+Comprehensive hearing calendars available:
+1. Deputy Commissioner calendars (post-March 2024): JavaScript portal
+2. Full Commission calendars: Traditional HTML page
+"""
+example_urls = [
+    "https://ncic.my.site.com/s/dc-hearing-calendars?language=en_US",
+    "https://www.ic.nc.gov/ncic/pages/fullcal.htm"
+]
+
+[content.medical_fee_schedules]
+status = "partial"
+notes = "Medical fee information available through Medical Fees section"
+example_urls = ["https://www.ic.nc.gov/medfee.html"]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# Database coverage since 1994
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1994-01-01"
+latest_date = "ongoing"
+
+# Comprehensive historical records since 1994
+has_historical = true
+historical_notes = "Full Commission and Deputy Commissioner decisions available in searchable database since 1994"
+
+# Appears to be updated regularly
+update_frequency = "daily"
+
+# No RSS or subscription found
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+# Comprehensive search via OpenText
+has_search = true
+search_capabilities = ["full_text", "date_range", "database_specific", "enterprise_search"]
+
+# Not browse-only - has search
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# No existing scraper found
+has_scraper = false
+
+scraper_modules = []
+
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Workers' compensation administrative tribunal characteristics:
+- Two levels: Deputy Commissioners (initial hearings) and Full Commission (appeals)
+- Also includes appellate court decisions (NC Supreme Court and Court of Appeals) on WC matters
+- Decisions called "opinions" and "awards" interchangeably
+- Site migrating from traditional HTML to Salesforce Community portal for some features
+"""
+
+special_document_types = [
+    "Deputy Commissioner Opinion and Award",
+    "Full Commission Opinion and Award",
+    "Appellate Court Decisions on WC matters"
+]
+
+data_quality_notes = "PDFs are primary format; would require PDF parsing for full text extraction"
+
+seasonal_notes = "Hearing calendars posted monthly; finalized on fourth Monday of each month"
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The North Carolina Industrial Commission website provides comprehensive access to workers'
+compensation decisions through a searchable OpenText Content Server database (requires
+public/public login) and direct PDF links for appellate court decisions. Coverage extends
+back to 1994 for both Deputy Commissioner and Full Commission decisions.
+
+The site is in a transitional state with some features (hearing calendars, master docket)
+moved to a modern Salesforce Community portal while core decision databases remain on the
+legacy OpenText system.
+
+Key technical considerations:
+1. OpenText database requires session-based authentication (public credentials)
+2. Opinions are PDFs requiring parsing for structured data extraction
+3. New portal features require JavaScript rendering
+4. Search functionality is robust with full-text capability across databases
+5. No bulk download option but comprehensive search makes incremental scraping feasible
+
+Three types of opinions available:
+- Deputy Commissioner decisions (trial level)
+- Full Commission decisions (administrative appeals)
+- NC Supreme Court & Court of Appeals decisions (judicial review)
+
+Docket/calendar information available but hearing-level detail limited.
+"""
+
+# High priority - good public access, comprehensive historical coverage, no existing scraper
+priority = "high"
+priority_reasoning = """
+High priority because:
+1. No existing scraper for this court (ncworkcompcom)
+2. Comprehensive historical coverage (since 1994)
+3. Public access with simple authentication (public/public)
+4. Workers' compensation decisions are important for labor law research
+5. Well-organized content with multiple access points
+6. Active tribunal with ongoing updates
+"""
+
+# Moderate complexity due to authentication and PDF parsing
+complexity = "moderate"
+complexity_reasoning = """
+Moderate complexity:
+- Requires handling OpenText Content Server authentication
+- PDF parsing needed for full text extraction
+- Multiple data sources (legacy pages + new portal)
+- JavaScript rendering needed for some features (hearing calendars, master docket)
+- Search interface navigation for opinion discovery
+- No API, requires screen scraping and form interaction
+
+Not simple because of authentication requirement and dual platform architecture.
+Not complex because authentication is publicly documented and opinions are well-organized.
+"""
+
+blockers = []

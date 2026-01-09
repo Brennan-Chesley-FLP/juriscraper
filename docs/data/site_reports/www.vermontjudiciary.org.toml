@@ -1,0 +1,359 @@
+# Court Site Research Report: Vermont Judiciary
+
+[meta]
+domain = "www.vermontjudiciary.org"
+court_ids = ["vt"]
+court_name = "Supreme Court of Vermont"
+court_url = "https://www.vermontjudiciary.org"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = []
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.vermontjudiciary.org/robots.txt"
+
+allows_scraping = true
+disallowed_paths = [
+    "/admin/",
+    "/comment/reply/",
+    "/filter/tips",
+    "/node/add/",
+    "/search/",
+    "/user/register",
+    "/user/password",
+    "/user/login",
+    "/user/logout"
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "Supreme Court published opinions available 1999-2025 (browsable by year back to 1999). Unpublished entry orders also available. Opinions include neutral citations in format '2025 VT XX'. Opinions issued on Fridays and posted by 11 AM EST/EDT. Three-justice panels issue unpublished entry orders (not precedential). Five-justice panels issue published opinions (precedential)."
+example_urls = [
+    "https://www.vermontjudiciary.org/supreme-court/published-opinions-and-entry-orders",
+    "https://www.vermontjudiciary.org/supreme-court/unpublished-entry-orders",
+    "https://www.vermontjudiciary.org/media/19728"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinions organized by year with table structure showing case name, docket number, and date. Drupal-based views system with filtering."
+example_urls = [
+    "https://www.vermontjudiciary.org/supreme-court/published-opinions-and-entry-orders",
+    "https://www.vermontjudiciary.org/opinions-decisions?f%5B0%5D=court_division_opinions_library%3A7"
+]
+
+[content.citations]
+status = "available"
+notes = "Neutral citations in format '2025 VT 68'. Available in opinion metadata and PDFs."
+example_urls = [
+    "https://www.vermontjudiciary.org/supreme-court/published-opinions-and-entry-orders"
+]
+
+[content.oral_arguments]
+status = "unknown"
+notes = "Audio Recordings of Oral Arguments section exists on Supreme Court page but content was not verified during research"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.dockets]
+status = "available"
+notes = "Available through Vermont Judiciary Public Portal (Tyler Technologies Odyssey system). Anonymous public users can view case summaries for Civil Division and Judicial Bureau cases remotely. Document viewing and all other case types (criminal, family, probate) require elevated access or courthouse terminal access. Elevated access requires 2-step registration process. Electronic filing done through separate Odyssey File & Serve system."
+example_urls = [
+    "https://portal.vtcourts.gov/Portal",
+    "https://www.vermontjudiciary.org/about-vermont-judiciary/public-portal"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through Public Portal with appropriate access level"
+example_urls = [
+    "https://portal.vtcourts.gov/Portal"
+]
+
+[content.recap_documents]
+status = "partial"
+notes = "Court documents available through Public Portal. Civil and Judicial Bureau documents accessible remotely to anonymous users. Other case types require elevated access or courthouse terminal."
+example_urls = [
+    "https://portal.vtcourts.gov/Portal"
+]
+
+[content.parties]
+status = "available"
+notes = "Available through Public Portal. Note: As of 8/2/23, parties' home addresses no longer viewable on case summary page for privacy reasons, but still viewable on individual documents."
+example_urls = [
+    "https://portal.vtcourts.gov/Portal"
+]
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "available"
+notes = "Available through Public Portal"
+example_urls = [
+    "https://portal.vtcourts.gov/Portal"
+]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable - state courts"
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1999-05-26"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Published Supreme Court opinions available back to 1999. Unpublished entry orders also available. Superior Court opinions from various divisions (civil, criminal, environmental, family, probate) also available through same system."
+
+update_frequency = "weekly"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = ["date_range", "case_number", "full_text", "court_division"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.vt",
+    "juriscraper.opinions.united_states.state.vt_criminal",
+    "juriscraper.opinions.united_states.state.vtsuperct_civil",
+    "juriscraper.opinions.united_states.state.vtsuperct_environmental",
+    "juriscraper.opinions.united_states.state.vtsuperct_family",
+    "juriscraper.opinions.united_states.state.vtsuperct_probate"
+]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "Vermont distinguishes between published opinions (precedential, typically 5-justice panels) and unpublished entry orders (non-precedential, typically 3-justice panels). Three-justice decisions are explicitly marked as 'not to be considered as precedent before any tribunal.' However, some edge cases exist where 3-judge decisions have neutral citations. The site uses Drupal CMS with a views-based filtering system. Privacy policy changed 8/2/23 to hide party home addresses from Public Portal case summaries (but still visible in documents)."
+
+special_document_types = [
+    "Entry Orders (unpublished, non-precedential)",
+    "Published Entry Orders (precedential)"
+]
+
+data_quality_notes = "Site requires special User-Agent header for reliable scraping. The existing scraper uses custom date range requests with 30-day intervals. Some documents marked as 'Decisions' contain opinions, so document type filtering is not used."
+
+seasonal_notes = "Opinions issued on Fridays, posted by 11 AM EST/EDT."
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Vermont Judiciary provides comprehensive public access to Supreme Court opinions through a Drupal-based website.
+The site has existing, working scrapers for Supreme Court and all Superior Court divisions.
+
+Key findings:
+- Opinions: Well-structured Drupal views with filtering by date and division, existing scrapers working
+- Published opinions available 1999-present, unpublished entry orders also available
+- Public Portal (Tyler Odyssey): Civil and Judicial Bureau cases accessible remotely without login
+- Other case types require registration for elevated access or courthouse terminal
+- Electronic filing handled through separate Odyssey File & Serve system (vermont.tylertech.cloud)
+- Site uses Drupal CMS with standard robots.txt
+- Multiple scrapers already exist covering Supreme Court and all Superior Court divisions
+
+Contact: Monica Bombard (802) 828-4784 for site issues - noted as very responsive.
+"""
+
+priority = "low"
+priority_reasoning = "Supreme Court and all Superior Court divisions already have working scrapers. Public Portal access for dockets requires authentication and is a separate Tyler Technologies system."
+
+complexity = "simple"
+complexity_reasoning = "Opinions use standard Drupal structure with existing working scrapers. Public Portal is Tyler Odyssey (well-known system) but requires authentication for full access."
+
+blockers = []

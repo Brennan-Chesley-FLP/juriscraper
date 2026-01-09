@@ -1,0 +1,403 @@
+# Court Site Research Report
+#
+# Research of www.ustaxcourt.gov (United States Tax Court)
+
+[meta]
+domain = "www.ustaxcourt.gov"
+court_ids = ["tax"]
+court_name = "United States Tax Court"
+court_url = "https://www.ustaxcourt.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "react"
+platform = "custom"
+scope = "court_specific"
+shared_infrastructure = []
+
+has_api = true
+api_documented = false
+api_url = "https://public-api-blue.dawson.ustaxcourt.gov/public-api"
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.ustaxcourt.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/admin/"]
+
+crawl_delay_seconds = 0
+rate_limit_notice = "The API enforces rate limiting: 15 requests per 60 second window per IP address"
+tos_restrictions = "Government system warning: 'This is a U.S. government system. Your use indicates your consent to monitoring and recording. Therefore, no expectation of privacy is to be assumed. Misuse is subject to criminal and civil penalties.'"
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Comprehensive opinions database available through the DAWSON case management system. Search returns up to 5,000 results with advanced filtering. Opinions available from May 1, 1986 onward. Multiple opinion types: T.C. Opinion (published), Memorandum Opinion (unpublished), Summary Opinion, and Bench Opinion (Order of Service of Transcript). Opinions are PDFs served from AWS S3 bucket with signed URLs. Rich metadata includes case title, judge, filing date, docket number, page count, and opinion type. API endpoint: /public-api/opinion-search with parameters for date range, keywords, docket number, case title, judge filter, and opinion types."
+example_urls = [
+    "https://dawson.ustaxcourt.gov/todays-opinions",
+    "https://dawson.ustaxcourt.gov/",
+    "https://public-api-blue.dawson.ustaxcourt.gov/public-api/opinion-search"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Multiple opinions can be associated with a single case (multiple docket entries)"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Docket numbers provided. Online sourced citations in opinions filed after July 1, 2016 can be viewed directly from the associated docket record."
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = "Not immediately visible in the interface"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Full case search available through DAWSON with public access to cases filed on or after May 1, 1986. Search by petitioner name, docket number, date filed, case procedure (Regular/Small), case type (docket suffix), and country (US/International). Case records include limited information for non-affiliated users. Sealed cases are not displayed in search results."
+example_urls = [
+    "https://dawson.ustaxcourt.gov/",
+    "https://dawson.ustaxcourt.gov/case-detail/2801-24"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Docket entries accessible through case detail pages. Each entry shows filing date and document type."
+example_urls = []
+
+[content.recap_documents]
+status = "partial"
+notes = "Court filings available as PDFs through case docket pages, though access may be limited for non-affiliated users"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names included in case titles/captions"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "Practitioner search tab exists in DAWSON but detailed public information unclear"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judge names available in opinion metadata. Judges can be filtered in opinion search. Chief Judge identified: Patrick J. Urda. Clerk of the Court: Charles G. Jeane. Extensive judge list visible in opinion search dropdown (70+ judges)."
+example_urls = []
+
+[content.positions]
+status = "partial"
+notes = "Chief Judge position identified on homepage"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = "Federal judges have lifetime appointments"
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Federal court established under Article I of the Constitution with nationwide jurisdiction"
+example_urls = ["https://www.ustaxcourt.gov"]
+
+[content.courthouses]
+status = "available"
+notes = "Physical location: 400 Second Street, NW, Washington, DC 20217. The court also holds trial sessions in various locations nationwide (trial session search available)."
+example_urls = ["https://dawson.ustaxcourt.gov/trial-sessions"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Tax court, not bankruptcy court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Civil tax disputes, not criminal court"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "FJC data is for Article III courts; Tax Court is Article I"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = "Tax Court is trial court for tax disputes"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER court - uses DAWSON system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "partial"
+notes = "Online sourced citations in opinions filed after July 1, 2016 can be viewed directly from the associated docket record"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1986-05-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Cases and opinions available from May 1, 1986 onward as noted in search interface"
+
+update_frequency = "daily"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = [
+    "date_range",
+    "case_number",
+    "petitioner_name",
+    "keyword",
+    "judge_name",
+    "opinion_type",
+    "case_procedure",
+    "case_type",
+    "country"
+]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = ["juriscraper.opinions.united_states.federal_special.tax"]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+The U.S. Tax Court is an Article I federal court with nationwide jurisdiction to resolve disputes between taxpayers and the IRS.
+
+The court uses the DAWSON (not PACER) electronic filing and case management system.
+
+Blue-Green Deployment: The API switches between 'public-api-blue' and 'public-api-green' subdomains for zero-downtime deployments. The existing scraper handles this by testing which endpoint is active.
+
+Rate Limiting: API enforces 15 requests per 60 second window per IP address. The existing scraper includes 61-second sleep intervals during backscraping to avoid rate limits.
+
+Opinion Types:
+- T.C. Opinion: Published opinions (precedential)
+- Memorandum Opinion: Unpublished (non-precedential)
+- Summary Opinion: For small tax cases (under $50,000)
+- Bench Opinion (Order of Service of Transcript): Oral decisions transcribed
+
+Case Types: Multiple docket suffixes indicate case type (e.g., L for lien, S for small case, W for whistleblower)
+
+Search Limitations: Opinion search returns maximum of 5,000 results. API returns 100 results or less per request during backscraping.
+"""
+
+special_document_types = [
+    "T.C. Opinion",
+    "Memorandum Opinion",
+    "Summary Opinion",
+    "Bench Opinion (Order of Service of Transcript)"
+]
+
+data_quality_notes = "High-quality structured data through modern JSON API. PDF opinions stored in AWS S3 with signed URLs (120-second expiration). Comprehensive metadata for each opinion."
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The U.S. Tax Court has an excellent modern website with the DAWSON case management system providing comprehensive public access to opinions, dockets, and case information since May 1, 1986.
+
+**Existing Scraper**: A working scraper already exists at `juriscraper.opinions.united_states.federal_special.tax` that uses the public API endpoint. The scraper:
+- Uses the opinion-search API with date range queries
+- Handles blue-green deployment switching
+- Includes rate limiting mitigation (61-second sleep between backscrape requests)
+- Fetches PDF URLs via docket entry ID
+- Supports backscraping with 10-day intervals
+
+**API Endpoints Discovered**:
+- `GET /public-api/opinion-search` - Search opinions with filters
+- `GET /public-api/{docketNumber}/{docketEntryId}/public-document-download-url` - Get PDF URL
+- `GET /public-api/todays-opinions` - Today's filed opinions
+- `GET /public-api/maintenance-mode` - System status check
+- `GET /system/feature-flag/` - Feature flags
+
+**Technical Details**:
+- React-based SPA requiring JavaScript
+- API base URL switches between public-api-blue and public-api-green subdomains
+- PDFs served from AWS S3 with signed URLs (120-second expiration)
+- Rate limit: 15 requests per 60 seconds per IP
+- Search limited to 5,000 results maximum
+- No public authentication required for search and opinion access
+
+**Content Quality**:
+- Comprehensive coverage from May 1, 1986 onward
+- Rich metadata: case title, judge, filing date, docket number, opinion type, page count
+- Multiple opinion types properly categorized
+- Advanced search with keyword support (exact match "", AND +, OR |)
+- Judge filtering (70+ judges in dropdown)
+- Trial session calendar available
+
+**Recommended Actions**:
+- Existing scraper is functional and uses the API correctly
+- No urgent updates needed
+- Consider adding Order search capability (separate API endpoint for orders)
+- Consider adding case/docket detail scraping (currently only opinions)
+"""
+
+priority = "low"
+priority_reasoning = "Existing scraper is functional and covers opinions well. The court provides excellent API access that the scraper already utilizes. No urgent improvements needed, though expanding to cover orders and docket details could be valuable enhancements."
+
+complexity = "moderate"
+complexity_reasoning = "Requires JavaScript/React. API-based scraping is straightforward but requires handling blue-green deployments, rate limiting, and AWS signed URLs with expiration. Existing scraper demonstrates the correct approach."
+
+blockers = []

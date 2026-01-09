@@ -1,0 +1,483 @@
+# Court Site Research Report: Michigan Courts
+#
+# This report documents the courts.michigan.gov (www.courts.michigan.gov) website
+# serving Michigan's appellate courts.
+
+[meta]
+domain = "courts.michigan.gov"
+domain_aliases = ["courts.mi.gov"]
+court_ids = ["mich", "michctapp"]
+court_name = "Michigan Appellate Courts (Supreme Court and Court of Appeals)"
+court_url = "https://www.courts.michigan.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = true
+javascript_framework = "react"
+
+# What platform/vendor does the site use?
+platform = "custom"
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = true
+api_documented = false
+api_url = "https://www.courts.michigan.gov/api/"
+
+# API Endpoints discovered via existing scrapers and site structure:
+#
+# Case/Opinion Search API:
+#   GET /api/CaseSearch/SearchCaseOpinions
+#   Query parameters:
+#     - releaseDate: "Past Year", "Past Month", etc.
+#     - page: page number
+#     - sortOrder: "Newest", "Oldest"
+#     - searchQuery: search text
+#     - resultType: "opinions"
+#     - pageSize: results per page
+#     - resource: "supreme-court-opinion" or similar
+#     - aAppellateCourt: "Supreme Court", "Court Of Appeals", "Court Of Claims"
+#
+#   Returns: JSON with searchItems array containing:
+#     - title: opinion title with docket number
+#     - filingDate: filing date
+#     - documentUrl: path to PDF
+#     - courts: array of lower court names
+#     - decision: disposition text (Court of Appeals only)
+#
+# Secondary API for Court of Appeals case details:
+#   GET /c/courts/getcourtofappealscasedetaildata/{docket_number}
+#   Returns: JSON with case title and metadata
+
+# Are bulk downloads available?
+bulk_download_available = true
+bulk_download_details = """
+ZIP files available for daily opinion releases:
+- Court of Appeals: past 28 days at /courts/opinion-order-zip-files/
+- Supreme Court opinions: past 90 days
+- Supreme Court orders: past 28 days
+ZIP files include published, unpublished, and advance sheets (edited versions)
+"""
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://www.courts.michigan.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = []
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = "Bulk data downloads and commercial uses of the data from this site are prohibited."
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Opinions available via JSON API and bulk ZIP downloads.
+Supports both published and unpublished opinions.
+- Supreme Court: searchable via API, ZIP files past 90 days
+- Court of Appeals: searchable via API, ZIP files past 28 days
+- Court of Claims: searchable via API (same system)
+Existing scrapers use the API successfully.
+"""
+example_urls = [
+    "https://www.courts.michigan.gov/api/CaseSearch/SearchCaseOpinions?releaseDate=Past+Year&page=1&sortOrder=Newest&searchQuery=&resultType=opinions&pageSize=100&resource=supreme-court-opinion&aAppellateCourt=Supreme+Court",
+    "https://www.courts.michigan.gov/api/CaseSearch/SearchCaseOpinions?releaseDate=Past+Year&page=1&sortOrder=Newest&searchQuery=&resultType=opinions&pageSize=100&aAppellateCourt=Court+Of+Appeals",
+    "https://www.courts.michigan.gov/courts/opinion-order-zip-files/"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinions grouped by filing date in API results and ZIP files"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Docket numbers available in API; reporter citations in opinion text"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """
+Oral arguments available via livestreaming and YouTube archives:
+- Supreme Court: Live streams at michigansupremecourt.viebit.com and YouTube
+- Court of Appeals: Archived daily on YouTube
+- Court of Claims: Livestream and archive on YouTube
+All archived on court-specific YouTube channels.
+"""
+example_urls = [
+    "https://www.courts.michigan.gov/court-livestream/",
+    "https://www.youtube.com/user/MichiganCourts",
+    "https://www.youtube.com/channel/UCrkBzemdNGhqzmd3bTGI-6Q",
+    "https://www.youtube.com/channel/UCIUqxv2vFaEavHwIPryMriA"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "May be available but not confirmed during research"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Case search available at /case-search/ with advanced search options including case number, party name, attorney name, bar number"
+example_urls = [
+    "https://www.courts.michigan.gov/case-search/"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "May be available through case detail pages"
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Party names available in case titles and searchable in advanced search"
+example_urls = []
+
+[content.party_types]
+status = "partial"
+notes = "Can be inferred from case names (e.g., 'People of Michigan v.')"
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "Attorney name and bar number are searchable fields in advanced search"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Opinion authors and panel members available in advanced search dropdowns"
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Lower court names returned in API results; extensive dropdown list in advanced search"
+example_urls = []
+
+[content.courthouses]
+status = "available"
+notes = "Michigan Hall of Justice at 925 W. Ottawa St. in Lansing"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State courts - bankruptcy in federal courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "Case type search includes detailed criminal charge types"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "available"
+notes = "Lower court information available in API results and searchable"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State courts"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "State courts"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "May be extractable from opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = """
+ZIP files have limited retention:
+- Court of Appeals opinions: 28 days
+- Supreme Court opinions: 90 days
+- Supreme Court orders: 28 days
+API search covers "Past Year" filter, suggesting at least one year of history.
+Older opinions may be searchable but require investigation.
+"""
+
+# How often does the site appear to be updated?
+update_frequency = "daily"
+
+# Is there a way to subscribe to updates?
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://www.courts.michigan.gov/newsroom-social-media/subscribe/"
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["date_range", "case_number", "party_name", "full_text", "author", "panel_members", "case_type", "lower_court", "appellate_court", "attorney_name", "bar_number"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.mich",
+    "juriscraper.opinions.united_states.state.michctapp"
+]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = [
+    "mich.py comment notes: 'Currently blocked from Michigan so we drop the user agent for now'",
+    "Sometimes API returns bad title values requiring secondary request (issue #1648)"
+]
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = """
+- Site updated in 2022-01 to new platform (@satsuki-chan)
+- User-Agent header must be empty or scraper gets blocked (noted in mich.py)
+- Court of Appeals sometimes requires secondary API call to get proper case name
+- ZIP files expire after set retention periods (28 or 90 days)
+- Terms prohibit bulk commercial data downloads
+- Business Court opinions available separately (trial court level)
+"""
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = ["Advance Sheets"]
+
+# Any known data quality issues?
+data_quality_notes = "API sometimes returns malformed title values requiring secondary lookup or PDF text extraction"
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Michigan court system provides a well-structured public portal at courts.michigan.gov
+serving the Supreme Court, Court of Appeals, and Court of Claims with a unified search
+and opinion distribution system.
+
+**Key Findings:**
+
+1. **Existing Coverage**: Working scrapers exist for both Supreme Court (mich) and
+   Court of Appeals (michctapp) using the JSON API successfully.
+
+2. **API Architecture**: Clean JSON API at /api/CaseSearch/SearchCaseOpinions with
+   pagination, filtering by date/court/search terms, and returns structured data
+   including opinion metadata, lower court info, and PDF URLs.
+
+3. **Bulk Downloads**: ZIP files available for recent opinions with rolling retention:
+   - COA opinions: 28 days (published/unpublished/all/advance sheets)
+   - MSC opinions: 90 days
+   - MSC orders: 28 days
+   - Business Court: monthly
+
+4. **Oral Arguments**: Excellent coverage via live streaming and YouTube archives for
+   all three appellate courts. Could be target for future scraper development.
+
+5. **Search Capabilities**: Robust advanced search with filters for case number, parties,
+   attorneys, judges, case types, courts, and date ranges.
+
+6. **Known Issues**:
+   - Site blocks default user agents (scrapers must use empty User-Agent header)
+   - Some API responses have malformed titles requiring secondary lookups
+   - Terms of service prohibit bulk commercial downloads
+
+7. **robots.txt**: Allows all scraping (User-agent: * Disallow:)
+
+**Recommendations:**
+- Existing opinion scrapers are functional - no immediate action needed
+- Consider oral argument scraper using YouTube API for archived videos
+- Monitor for changes to user-agent blocking behavior
+- Future work: docket/case detail scraping via case search functionality
+"""
+
+priority = "low"
+priority_reasoning = "Existing scrapers functional and up-to-date; covers both Supreme Court and Court of Appeals for opinions"
+
+complexity = "moderate"
+complexity_reasoning = "API-based with some quirks (user-agent blocking, occasional malformed responses), but existing working scrapers demonstrate the patterns"
+
+blockers = []

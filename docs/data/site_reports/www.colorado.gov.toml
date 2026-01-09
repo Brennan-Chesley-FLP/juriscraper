@@ -1,0 +1,387 @@
+# Court Site Research Report for www.colorado.gov
+#
+# Research completed: 2026-01-09
+# Court served: Colorado Industrial Claim Appeals Office
+
+[meta]
+domain = "www.colorado.gov"
+court_ids = ["coloworkcompcom"]
+court_name = "Colorado Industrial Claim Appeals Office"
+court_url = "https://cdle.colorado.gov/icaowc"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Main site requires minimal JavaScript
+requires_javascript = false
+javascript_framework = ""
+
+# Part of Colorado Department of Labor and Employment website
+platform = "custom"
+
+# State agency
+scope = "statewide"
+
+shared_infrastructure = []
+
+# No API available
+has_api = false
+api_documented = false
+api_url = ""
+
+# No bulk downloads available
+bulk_download_available = false
+bulk_download_details = ""
+
+# No documents publicly available
+document_formats = []
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.colorado.gov/robots.txt"
+
+# Main colorado.gov robots.txt allows scraping of most public content
+allows_scraping = true
+disallowed_paths = [
+    "/archive/",
+    "/includes/",
+    "/images/",
+    "/js/",
+    "/search/site/",
+    "/registered-services"
+]
+
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "unavailable"
+notes = "ICAO does not appear to publish opinions or decisions publicly on its website. The Industrial Claim Appeals Panel (ICAP) reviews Workers' Compensation decisions from Administrative Law Judges and Unemployment Insurance decisions from Hearing Officers. Final orders can be appealed to the Colorado Court of Appeals, but ICAO decisions are not made publicly available online."
+example_urls = []
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "ICAP does not hold hearings; they review the record from the lower proceeding"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "unavailable"
+notes = "No public docket search available on the website"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Administrative Law Judge names are available on the website"
+example_urls = [
+    "https://cdle.colorado.gov/icao-administrative-law-judges-0"
+]
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Not applicable for administrative law judges"
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "ICAO is a unit of the Colorado Department of Labor and Employment. Contact information and description of jurisdiction available on website."
+example_urls = [
+    "https://cdle.colorado.gov/icaowc"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Office located at 707 17th Street, Suite 150, Denver, CO 80202-3660. Phone: 303-318-8133"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable for workers' compensation/unemployment appeals"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Not applicable for workers' compensation/unemployment appeals"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable for state administrative agency"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "ICAO reviews decisions from Division of Workers' Compensation ALJs and Division of Unemployment Insurance Hearing Officers. Appeals from ICAO go to Colorado Court of Appeals."
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "unknown"
+
+has_historical = false
+historical_notes = ""
+
+update_frequency = "unknown"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = false
+search_capabilities = []
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- ICAO is an administrative appeals body, not a court
+- Industrial Claim Appeals Panel (ICAP) consists of 5 Administrative Law Judges
+- Reviews Workers' Compensation decisions from ALJs and Unemployment Insurance decisions from Hearing Officers
+- At least 2 Panel members review each appeal
+- Review is restricted to evidence presented at the lower proceeding; no new evidence allowed
+- Panel does NOT hold hearings - reviews on the record only
+- Can affirm, correct, reverse, set aside, or remand decisions
+- Final orders from ICAP are the final action of the Colorado Department of Labor and Employment
+- Appeals from ICAP go to Colorado Court of Appeals
+"""
+
+special_document_types = []
+
+data_quality_notes = "No publicly available decisions or opinions to assess quality"
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Colorado Industrial Claim Appeals Office (ICAO) does not publish its decisions online. This is an
+administrative appeals panel within the Colorado Department of Labor and Employment that reviews Workers'
+Compensation and Unemployment Insurance decisions.
+
+The website provides:
+- Information about the appeals process
+- FAQs for Workers' Compensation appeals
+- Contact information
+- Links to Administrative Law Judges
+- Links to statutes and rules
+
+However, actual case decisions or opinions are not made publicly available on the website. Appeals from
+ICAO final orders go to the Colorado Court of Appeals.
+
+The court_url in courts.toml (https://www.colorado.gov/pacific/cdle/icao-wc) is outdated and returns a 404.
+The correct URL is: https://cdle.colorado.gov/icaowc
+"""
+
+priority = "skip"
+priority_reasoning = """
+Skip for scraping purposes:
+- No opinions or decisions are publicly available on the website
+- This is an administrative review body, not a publishing court
+- Decisions are not indexed or searchable online
+- Would likely require CORA (Colorado Open Records Act) requests to obtain decisions
+- Limited legal research value without published opinions
+- Higher-level review is available at Colorado Court of Appeals (which does publish opinions)
+"""
+
+complexity = "n/a"
+complexity_reasoning = """
+Not applicable - there is no content available to scrape. The ICAO website provides procedural information
+and contact details but does not publish decisions, opinions, dockets, or case information publicly.
+"""
+
+blockers = [
+    "No public access to opinions or decisions",
+    "No online case search or docket system",
+    "Would require CORA requests or other non-web methods to access decisions"
+]

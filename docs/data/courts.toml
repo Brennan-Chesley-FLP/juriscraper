@@ -3895,7 +3895,6 @@ data_types = [
     "oral_arguments",
     "dockets",
 ]
-court_url = "https://en.wikipedia.org/wiki/District_Court_of_Guam"
 
 [courts.hawcirct]
 name = "Hawaii Circuit Courts"
@@ -6384,7 +6383,6 @@ data_types = [
     "oral_arguments",
     "dockets",
 ]
-court_url = "http://louisiana.gov/Government/Judicial_Branch/#courtsofappeal"
 
 [courts.lasuperct]
 name = "Superior Court of The State of Louisiana"
@@ -19700,7 +19698,6 @@ data_types = [
     "oral_arguments",
     "dockets",
 ]
-court_url = "http://en.wikipedia.org/wiki/Oklahoma_Court_on_the_Judiciary"
 
 [courts.muscogee]
 name = "Muscogee (Creek) Nation Supreme Court"
@@ -21644,7 +21641,7 @@ data_types = [
     "oral_arguments",
     "dockets",
 ]
-court_url = "http://www.tsc.state.tn.us/courts/court-criminal-appeals"
+court_url = "https://www.tncourts.gov/courts/court-criminal-appeals"
 
 [courts.tennworkcompapp]
 name = "Tennessee Special Workers Compensation Appeals Panel"

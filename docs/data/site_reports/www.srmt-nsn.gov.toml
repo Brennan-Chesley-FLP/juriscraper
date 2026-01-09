@@ -1,0 +1,397 @@
+# Court Site Research Report: Saint Regis Mohawk Tribal Court
+#
+# Research date: 2026-01-09
+# Status: ACCESSIBLE - Excellent public access to court decisions
+
+[meta]
+domain = "www.srmt-nsn.gov"
+court_ids = ["strmohawkct"]
+court_name = "Saint Regis Mohawk Tribal Court"
+court_url = "https://www.srmt-nsn.gov/independent-officials/tribal-courts"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false  # Static HTML pages, content visible without JS
+javascript_framework = ""
+platform = "custom"  # CraftCMS-based site (based on /cpresources/ in robots.txt)
+scope = "court_specific"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.srmt-nsn.gov/robots.txt"
+allows_scraping = true  # No disallow for decision pages
+disallowed_paths = ["/cpresources/", "/vendor/", "/.env", "/cache/"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = """
+Excellent public access to court decisions organized by type:
+- Appellate decisions (dating back to 2015)
+- Civil decisions (dating back to 2010)
+- Land decisions
+- Probate decisions
+- Traffic decisions
+
+All decisions are published as PDFs with descriptive filenames including case numbers.
+URLs follow pattern: https://dvc479a3doke3.cloudfront.net/_uploads/education/{filename}.pdf
+or https://www.srmt-nsn.gov/_uploads/site_files/{filename}.pdf
+"""
+example_urls = [
+    "https://www.srmt-nsn.gov/independent-officials/tribal-courts/decisions/appellate",
+    "https://www.srmt-nsn.gov/independent-officials/tribal-courts/decisions/civil",
+    "https://dvc479a3doke3.cloudfront.net/_uploads/education/21-APP-00004-Hathaway-v-Jones-Decision-Order-11.05.2021.pdf"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Individual decisions only, not grouped"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Case citations visible in decision filenames and content, but no structured citation data"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "No oral argument audio/video found"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "No transcripts found"
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "Only final decisions are published, not full dockets"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Only final decisions, not individual docket entries"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable - not a PACER/federal court"
+example_urls = []
+
+[content.parties]
+status = "partial"
+notes = "Party names visible in decision titles and PDFs but not in structured format"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "Would need to parse PDFs to extract"
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "May be in PDF content but not structured"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = "Not structured"
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = "Not structured"
+example_urls = []
+
+[content.persons]
+status = "available"
+notes = "Judges and court staff information available"
+example_urls = [
+    "https://www.srmt-nsn.gov/independent-officials/tribal-courts/judges-and-court-staff"
+]
+
+[content.positions]
+status = "partial"
+notes = "Judge positions listed on court staff page"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = "May be on judge bio pages if they exist"
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = "Tribal court - not applicable"
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Tribal court - not applicable"
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = "Tribal court - not applicable"
+example_urls = []
+
+[content.courts]
+status = "available"
+notes = """
+Court information available describing the Saint Regis Mohawk Tribal Court system.
+Currently consists of Traffic and Civil Court.
+"""
+example_urls = [
+    "https://www.srmt-nsn.gov/independent-officials/tribal-courts"
+]
+
+[content.courthouses]
+status = "partial"
+notes = "Physical address available: 71 Margaret Terrance Memorial Way, Akwesasne, NY 13655"
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - tribal court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.criminal_counts]
+status = "unknown"
+notes = "May have criminal jurisdiction but no criminal decisions visible on site"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = "No criminal case documents visible"
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - not a federal court"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - not a PACER court"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.opinions_cited]
+status = "unavailable"
+notes = "Would need to parse PDF content"
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = "Would need to parse PDF content"
+example_urls = []
+
+[content.tags]
+status = "unavailable"
+notes = "No tagging system visible"
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = "Has site search but no saved queries"
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2010-01-20"  # Based on earliest civil decision visible
+latest_date = "2021-11-05"     # Based on most recent decision visible
+has_historical = true
+historical_notes = "Good historical coverage back to 2010 for civil cases, 2015 for appellate"
+update_frequency = "irregular"  # Updates as decisions are issued
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["full_text"]  # Site has general search functionality
+browse_only = false  # Can browse by decision type
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Saint Regis Mohawk Tribal Court is a sovereign tribal court serving the Saint Regis Mohawk
+Reservation at Akwesasne (which straddles US-Canada border in New York).
+
+The court has several specialized divisions:
+- Traffic Court
+- Civil Court
+- Land Court (for land disputes)
+- Probate Court
+
+Many decisions involve estate/probate matters and land disputes, which are common in
+tribal court systems.
+
+The site also provides:
+- Digital Law Library (at law.srmt-nsn.gov)
+- Court forms and publications
+- E-filing system (via srmt.tribalsites.com)
+- Online payment for fines/fees
+"""
+special_document_types = [
+    "Land decisions",
+    "Probate/estate decisions",
+    "Name change orders"
+]
+data_quality_notes = """
+Decision filenames are well-structured with case numbers and dates.
+Many recent decisions are redacted versions (marked with _Redacted suffix).
+"""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+**Excellent site for scraping tribal court decisions**
+
+The Saint Regis Mohawk Tribal Court website provides outstanding public access to court
+decisions dating back to 2010. All decisions are published as PDFs organized by case type
+(Appellate, Civil, Land, Probate, Traffic).
+
+**Key Findings:**
+1. All decisions are publicly accessible without login or payment
+2. Well-organized decision lists by case type
+3. Descriptive filenames include case numbers and dates
+4. PDF documents hosted on CloudFront CDN
+5. Good historical coverage (2010-2021 based on visible decisions)
+6. No robots.txt restrictions on decision pages
+
+**URL Patterns:**
+- Decision list pages: https://www.srmt-nsn.gov/independent-officials/tribal-courts/decisions/{type}
+  where {type} = appellate, civil, land, probate, traffic
+- PDF documents:
+  - https://dvc479a3doke3.cloudfront.net/_uploads/education/{filename}.pdf
+  - https://www.srmt-nsn.gov/_uploads/site_files/{filename}.pdf
+
+**Scraping Approach:**
+1. Scrape each decision type page to extract PDF links
+2. Parse filenames to extract case numbers and dates
+3. Download PDFs for text extraction
+4. Case numbers follow format: YY-TYPE-##### (e.g., 21-APP-00004, 19-CIV-00017)
+
+**Additional Resources:**
+- Digital Law Library at law.srmt-nsn.gov (separate domain, needs investigation)
+- Court rules and forms available
+- Judge information available
+
+This is an excellent candidate for a new scraper - clean HTML structure, public access,
+good historical data, and well-organized content.
+"""
+
+priority = "high"
+priority_reasoning = """
+High priority for scraper development because:
+1. Excellent public access with no barriers
+2. Well-structured, scrapable HTML pages
+3. Good historical coverage (10+ years)
+4. No existing scraper for this court
+5. Important tribal court with unique jurisdiction
+6. Clean, predictable URL patterns
+7. PDF documents easily accessible
+
+Only moderate complexity - primarily involves HTML parsing and PDF downloads.
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+Moderate complexity because:
+1. Static HTML pages - no JavaScript rendering needed
+2. Well-structured decision lists
+3. Predictable URL patterns
+4. No authentication or rate limiting apparent
+
+Challenges:
+1. Need to handle multiple decision types (5 categories)
+2. PDF text extraction required
+3. Some decisions span multiple related case numbers
+4. Redacted versions may have different content
+5. Older decisions may use different URL patterns
+
+Overall: Straightforward scraping with standard HTML parsing and PDF handling.
+"""
+
+blockers = []

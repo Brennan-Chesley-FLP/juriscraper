@@ -1,0 +1,470 @@
+# Court Site Research Report
+# Connecticut Workers' Compensation Commission
+# Domain: wcc.state.ct.us (redirects to portal.ct.gov/wcc)
+
+[meta]
+domain = "wcc.state.ct.us"
+court_ids = ["connworkcompcom"]
+court_name = "Connecticut Compensation Review Board"
+court_url = "https://wcc.state.ct.us"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "jquery"
+
+# Connecticut state portal platform (Sitecore-based)
+platform = "custom"
+
+scope = "court_specific"
+shared_infrastructure = []
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://portal.ct.gov/robots.txt"
+
+allows_scraping = true
+disallowed_paths = [
+    "/sitecore/*",
+    "/WCC-Beta",
+    "/WCC-beta",
+    "/wcc-Beta",
+    "/wcc-beta",
+    "/*/search-results/",
+    "/-/speak/"
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Compensation Review Board (CRB) opinions are available from 1993 to present.
+Coverage is split across two sites:
+- 1993-2021: Legacy site at wcc.state.ct.us/crb/menus/crb-opin.htm
+- 2013-2022: Portal site at portal.ct.gov/wcc/crb-opinions-and-annotations/crb-opinions-2013-2023
+- 2023-present: Portal site at portal.ct.gov/wcc/home-news/workers-compensation-news/crb-opinions-posted
+
+The site states over 2,500 CRB opinions are available. Opinions from 1993-June 1993
+are complete. Pre-1993 opinions (back to 1980 when CRB was created) are being added gradually.
+
+Opinions are organized by year and indexed both by case name and by statute/regulation.
+All opinions are in PDF format.
+"""
+example_urls = [
+    "https://portal.ct.gov/wcc/-/media/wcc/crb-opinions/2025/6532crb.pdf",
+    "https://portal.ct.gov/wcc/-/media/wcc/crb-opinions/2024/9-2024/6513crb.pdf",
+    "https://wcc.state.ct.us/crb/menus/2021/2021crb-n.htm"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = """
+Case numbers and claim numbers are provided for each opinion.
+Format: "Case No. XXXX CRB-X-XX-X : Claim No. XXXXXXXXX"
+"""
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Workers' compensation cases typically do not have oral arguments in the traditional sense."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = """
+Docket/case records are available through FOIA requests via the GovQA system.
+Not directly browsable or searchable on the public website.
+Access requires filing a FOIA request at wccct.govqa.us
+"""
+example_urls = ["https://wccct.govqa.us/WEBAPP/_rs"]
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Not publicly available through the website."
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "RECAP is for federal PACER documents only."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = """
+Party names appear in case titles (e.g., "Bocchino v. Joseph's Auto Body").
+Detailed party information not separately available.
+"""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Attorney information not included in published opinions."
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = """
+CRB panel member information may be available. The site mentions:
+'2026 CRB Panel Announced' and 'WCC welcomes new administrative law judges'
+suggesting judge/panel information is published in news items.
+"""
+example_urls = [
+    "https://portal.ct.gov/wcc/knowledge-base/articles/forms-and-publications/news-and-memos/2025/2026-crb-panel-announced"
+]
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Not applicable for administrative law judges."
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+Information about the Workers' Compensation Commission structure,
+district offices, and contact information is available.
+"""
+example_urls = [
+    "https://portal.ct.gov/wcc/knowledge-base/articles/workers/contacts-for-workers-compensation-help"
+]
+
+[content.courthouses]
+status = "available"
+notes = """
+Main WCC office location: 21 Oak Street, 4th Floor, Hartford, CT 06106
+District office information available through contact pages.
+"""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - this is a workers' compensation administrative body."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Workers' compensation claims data not directly available for browsing."
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Not applicable - workers' compensation is civil/administrative."
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Not applicable."
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system."
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court system."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "partial"
+notes = """
+Opinions can be searched by statute/regulation number on the legacy site,
+suggesting statutory citations are tracked. Case-to-case citations not separately indexed.
+"""
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.annotations]
+status = "available"
+notes = """
+CRB Annotations are available - these are one- or two-paragraph summaries
+of CRB opinions that usually link to the full opinion they summarize.
+Available for 1993-2021 period on legacy site.
+Recent annotations (2022+) are not available online.
+"""
+example_urls = [
+    "https://wcc.state.ct.us/crb/menus/crb-ann.htm"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1993-06-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = """
+Over 2,500 CRB opinions available from June 1, 1993 to present.
+The site is working backwards to add opinions from 1980 (when CRB was created)
+to June 1993, but this historical collection is incomplete.
+"""
+
+update_frequency = "irregular"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = ["case_name", "statute_regulation", "year"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+
+scraper_modules = []
+
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Site is in transition: legacy site (wcc.state.ct.us) is being migrated to
+  new portal (portal.ct.gov/wcc). CRB opinions and annotations remain on
+  legacy site during migration.
+
+- Domain redirect: wcc.state.ct.us redirects to portal.ct.gov/wcc for most content,
+  but opinions are still at wcc.state.ct.us/crb/
+
+- Multiple URL patterns for different time periods make comprehensive scraping
+  more complex
+
+- Workers' compensation administrative decisions, not traditional court opinions,
+  but they serve as binding precedent in Connecticut workers' comp cases
+
+- The site also provides "annotations" which are brief summaries of opinions
+"""
+
+special_document_types = [
+    "CRB Opinions (Compensation Review Board decisions)",
+    "CRB Annotations (case summaries)",
+    "Commission Memoranda",
+    "Hearing Calendars"
+]
+
+data_quality_notes = """
+Legacy site (1993-2021) uses older HTML format with year-based directory structure.
+New portal site (2023+) uses more modern format but opinions are still PDFs.
+Some overlap in coverage between legacy and new sites (2013-2022 on both).
+"""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Connecticut Workers' Compensation Commission provides public access to
+Compensation Review Board (CRB) opinions dating back to 1993, with over 2,500
+decisions available. The site is currently split between a legacy system
+(wcc.state.ct.us) and a new portal (portal.ct.gov/wcc).
+
+Key findings:
+- Opinions available from 1993-present (2,500+ decisions)
+- All opinions in PDF format
+- Organized by year and indexed by case name and statute
+- No existing scraper for this court in the repository
+- Site is in migration from legacy to new portal
+- No JavaScript rendering required for opinion lists
+- No API available
+- Public access, no authentication required
+
+The opinions represent administrative law decisions from Connecticut's workers'
+compensation appellate body. These are binding precedents for workers' compensation
+cases in Connecticut and would be valuable additions to a legal database.
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority due to:
++ Significant volume of decisions (2,500+)
++ Public access with no barriers
++ Clear URL patterns for scraping
++ Legal precedent value for workers' comp cases
++ No existing coverage in repository
+
+- Niche subject matter (workers' compensation only)
+- Site migration in progress may cause URL instability
+- PDF-only format requires additional processing
+- Split across two different site architectures
+- Administrative law rather than general judicial opinions
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+Moderate complexity because:
+- Multiple URL patterns across legacy and new sites
+- Year-based directory structure requires iteration
+- PDF extraction needed for full text
+- Site migration means scraper may need updates
+- Need to handle both legacy HTML structure and new portal
+- Three different time period ranges to handle (1993-2021, 2013-2022, 2023+)
+
+Simpler aspects:
+- No authentication required
+- Static HTML for opinion lists (minimal JavaScript)
+- No rate limiting observed
+- Clear organization by year
+- Consistent PDF naming patterns
+"""
+
+blockers = []

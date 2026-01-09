@@ -1,0 +1,385 @@
+# Court Site Research Report
+# Supreme Court of the United States
+
+[meta]
+domain = "supremecourt.gov"
+court_ids = ["scotus"]
+court_name = "Supreme Court of the United States"
+court_url = "https://supremecourt.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+
+platform = "asp.net"
+
+scope = "federal_supreme"
+
+shared_infrastructure = []
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.supremecourt.gov/robots.txt"
+
+allows_scraping = true
+disallowed_paths = ["/images/", "/rss/", "/cdn/"]
+
+crawl_delay_seconds = 1
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Slip opinions available organized by term year (2018-present visible, earlier available via U.S. Reports). Includes opinions of the court, opinions relating to orders, and in-chambers opinions."
+example_urls = [
+    "https://www.supremecourt.gov/opinions/slipopinion/25",
+    "https://www.supremecourt.gov/opinions/25pdf/25-180_8m59.pdf",
+    "https://www.supremecourt.gov/opinions/relatingtoorders/25"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinions are organized by term year and case"
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "U.S. Reports citations provided (e.g., 607/1)"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Argument transcripts and audio available"
+example_urls = [
+    "https://www.supremecourt.gov/oral_arguments/argument_transcript.aspx",
+    "https://www.supremecourt.gov/oral_arguments/argument_audio.aspx"
+]
+
+[content.audio_transcripts]
+status = "available"
+notes = "Argument transcripts available in PDF format"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Docket search available, case documents accessible"
+example_urls = [
+    "https://www.supremecourt.gov/docket/docket.aspx",
+    "https://www.supremecourt.gov/case_documents.aspx"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Orders of the Court and Journal available"
+example_urls = [
+    "https://www.supremecourt.gov/orders/ordersofthecourt/25"
+]
+
+[content.recap_documents]
+status = "partial"
+notes = "Original jurisdiction records & briefs available"
+example_urls = [
+    "https://www.supremecourt.gov/casedocuments/original_jurisdiction_cases.aspx"
+]
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names visible in case names"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "May be in case documents"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Justice information available"
+example_urls = [
+    "https://www.supremecourt.gov/about/justices.aspx"
+]
+
+[content.positions]
+status = "partial"
+notes = "Justice assignments visible in opinions (e.g., 'PC' for Per Curiam)"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Information about the Supreme Court available"
+example_urls = []
+
+[content.courthouses]
+status = "available"
+notes = "Building information and visiting details available"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Lower court information may be in case documents"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "available"
+notes = "Docket information, granted/noted cases lists, orders by circuit available"
+example_urls = [
+    "https://www.supremecourt.gov/orders/grantednotedlists.aspx",
+    "https://www.supremecourt.gov/orders/ordersbycircuit.aspx"
+]
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "May be in opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Slip opinions from 2018-present. U.S. Reports volumes available for earlier opinions. Case documents and dockets also available."
+
+update_frequency = "daily"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = ["full_text", "docket_number", "advanced_search"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.federal_appellate.scotus_slip",
+    "juriscraper.opinions.united_states.federal_appellate.scotus_relating",
+    "juriscraper.opinions.united_states.federal_appellate.scotus_chambers",
+    "juriscraper.oral_args.united_states.federal_appellate.scotus",
+    "juriscraper.scotus.scotus_docket_report",
+    "juriscraper.scotus.scotus_docket_report_htm",
+    "juriscraper.scotus.scotus_docket_report_html",
+    "juriscraper.scotus.scotus_email"
+]
+
+covers_opinions = true
+covers_oral_arguments = true
+covers_dockets = true
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "This is the Supreme Court of the United States, the highest court in the federal judiciary. Cases typically reach SCOTUS through appeals from lower courts or original jurisdiction matters. The Court operates on term years (October through June)."
+
+special_document_types = ["slip_opinions", "bench_opinions", "relating_to_orders", "in_chambers", "orders_lists", "journal"]
+
+data_quality_notes = "Slip opinions are posted immediately and later replaced with edited versions matching U.S. Reports publication style with final pagination."
+
+seasonal_notes = "Court operates on term years starting first Monday in October. Court is typically in recess during summer months (late June through September)."
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Supreme Court website (supremecourt.gov) provides comprehensive public access to opinions, oral arguments,
+dockets, and case documents. The site is built on ASP.NET and does not require JavaScript for basic functionality.
+
+Extensive existing scraper coverage exists:
+- Slip opinions (scotus_slip.py)
+- Opinions relating to orders (scotus_relating.py)
+- In-chambers opinions (scotus_chambers.py)
+- Oral arguments audio (scotus.py in oral_args)
+- Docket reports (multiple scrapers in scotus/ directory)
+
+The robots.txt file specifies a 1-second crawl delay and disallows /images/, /rss/, and /cdn/ paths.
+
+Key features:
+- Opinions organized by term year (2018-present easily accessible)
+- Docket search functionality
+- Oral argument transcripts and audio
+- Orders of the Court
+- Case documents including original jurisdiction records & briefs
+- Calendar of argument days and conference days
+- Electronic filing system
+
+The site provides a table-based listing of opinions with columns for docket number, case name, justice/author,
+and citation. Opinions are available as PDFs.
+"""
+
+priority = "skip"
+priority_reasoning = "Comprehensive scraper coverage already exists for all major content types (opinions, oral arguments, dockets). This is one of the most thoroughly covered courts in the system."
+
+complexity = "moderate"
+complexity_reasoning = "While the HTML is straightforward, SCOTUS has unique data structures (term years, slip opinions, relating-to-orders, etc.) and multiple content types that require specialized handling. The existing scrapers demonstrate this complexity."
+
+blockers = [
+    "robots.txt specifies 1-second crawl delay - must be respected"
+]

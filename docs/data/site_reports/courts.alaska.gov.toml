@@ -1,0 +1,348 @@
+# Court Site Research Report: Alaska Court System
+# Domain: courts.alaska.gov
+# Research Date: 2026-01-08
+
+[meta]
+domain = "courts.alaska.gov"
+court_ids = ["alaska", "alaskactapp"]
+court_name = "Alaska Court System (Supreme Court & Court of Appeals)"
+court_url = "https://courts.alaska.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://courts.alaska.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/cip/", "/mediation/", "/covid19/deleted/"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "Supreme Court slip opinions, MOJs, and published orders available via appellate-records.courts.alaska.gov. Court of Appeals opinions, MOJs, summary dispositions, bail orders, and case-related orders also available. Opinions published weekly on Fridays at 9AM. MOJs and Summary Dispositions published Wednesdays at 8AM."
+example_urls = [
+    "https://appellate-records.courts.alaska.gov/CMSPublic/Home/Opinions?isCOA=False",
+    "https://appellate-records.courts.alaska.gov/CMSPublic/Home/Opinions?isCOA=True",
+    "https://appellate-records.courts.alaska.gov/CMSPublic/Home/PublishedOrders?isCOA=False"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Citations are displayed in the opinion listings table on the appellate records site."
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Supreme Court oral arguments are broadcast live and archived on Gavel Alaska (KTOO public media). Court of Appeals oral arguments are streamed live but NOT archived. Supreme Court arguments held in Anchorage, Fairbanks, and Juneau."
+example_urls = [
+    "https://www.ktoo.org/gavel/supreme-court/",
+    "http://www.360north.org/alaska-supreme-court/",
+    "https://stream.akcourts.gov/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Not observed during research, but may exist in case files."
+example_urls = []
+
+[content.dockets]
+status = "available"
+notes = "Case search available through the appellate records case management system. Can search by case number or party name."
+example_urls = [
+    "https://appellate-records.courts.alaska.gov/CMSPublic/",
+    "https://appellate-records.courts.alaska.gov/CMSPublic/Search/Media"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "Not explored in detail, but case pages likely contain docket information."
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parties]
+status = "available"
+notes = "Party names visible in opinion listings and case search results."
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "Not observed in public listings, may be in detailed case records."
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "available"
+notes = "Judge information available on the main court site."
+example_urls = [
+    "https://courts.alaska.gov/judges/index.htm"
+]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "available"
+notes = "Court directory with locations and contact information available."
+example_urls = [
+    "https://courts.alaska.gov/courtdir/index.htm"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Courthouse locations listed in court directory with addresses and hours."
+example_urls = [
+    "https://courts.alaska.gov/courtdir/index.htm"
+]
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Alaska state courts do not handle bankruptcy cases."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "FJC IDB is federal court data only."
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Lower court information is extracted from opinion text by existing scrapers."
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER system."
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1960"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "All opinions and some MOJs back to 1960 are available in the Alaska Case Law Service (Westlaw). Slip opinions on website until published in Pacific Reporter."
+update_frequency = "weekly"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "http://list.state.ak.us/mailman/listinfo/ak-slip-opinions"
+has_search = true
+search_capabilities = ["case_number", "party_name"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.alaska",
+    "juriscraper.opinions.united_states.state.alaskactapp",
+    "juriscraper.opinions.united_states.state.alaska_slip"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = [
+    "User-agent 'juriscraper' is blocked by the site, must use 'Free Law Project' instead",
+    "About 2/3 of requests are rejected with ChunkedEncodingError, scrapers handle this gracefully"
+]
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Site blocks user-agent containing 'juriscraper' specifically
+- Frequent ChunkedEncodingError on downloads (site issue, not scraper issue)
+- MOJs (Memorandum Opinions) have no precedential value and cannot be cited per Appellate Rule 214
+- MOJs and Summary Dispositions only retained on website for 3 months
+- Oral arguments: Supreme Court archived via third-party (Gavel Alaska/KTOO), Court of Appeals live-only
+"""
+special_document_types = [
+    "MOJ (Memorandum Opinion and Judgment) - non-precedential",
+    "Summary Disposition - non-precedential",
+    "Published Orders"
+]
+data_quality_notes = "Website reliability issues cause encoding errors on ~2/3 of requests"
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Alaska's appellate courts use a custom case management system at appellate-records.courts.alaska.gov
+for opinions and case search. The main courts.alaska.gov site is static HTML with good navigation.
+
+Existing scrapers cover:
+- Alaska Supreme Court opinions (alaska.py) - since 2010
+- Court of Appeals opinions (alaskactapp.py) - since 1996
+- Supreme Court published orders (alaska_slip.py) - since 2000
+
+All three scrapers use the same CMS endpoint structure and share common code. The site has
+known reliability issues (frequent encoding errors) but scrapers handle this gracefully.
+
+Oral arguments are available for Supreme Court via third-party streaming (Gavel Alaska/KTOO)
+with archives. Court of Appeals arguments are live-streamed only without archives.
+
+The site provides email notifications for new opinions via a listserv, and all historical
+opinions back to 1960 are available via Westlaw Alaska Case Law Service.
+"""
+
+priority = "low"
+priority_reasoning = """
+Existing scrapers provide good coverage of the primary content (opinions). The known technical
+issues (user-agent blocking, encoding errors) are already handled. Oral arguments for Supreme
+Court would require scraping a third-party site (Gavel Alaska), and Court of Appeals arguments
+are not archived.
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+The site is mostly static HTML with clear structure. The appellate records CMS returns
+server-rendered HTML tables. No JavaScript required, no authentication. The main complexity
+is handling the reliability issues which existing scrapers already address.
+"""
+
+blockers = []

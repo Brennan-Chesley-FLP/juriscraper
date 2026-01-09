@@ -1,0 +1,354 @@
+# Court Site Research Report
+#
+# Arkansas Workers' Compensation Commission
+# Domain: www.awcc.state.ar.us (redirects to labor.arkansas.gov)
+
+[meta]
+domain = "www.awcc.state.ar.us"
+court_ids = ["arkworkcompcom"]
+court_name = "Arkansas Workers' Compensation Commission"
+court_url = "https://www.awcc.state.ar.us"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "jquery"
+platform = "wordpress"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://labor.arkansas.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 10
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Two types of opinions available: Administrative Law Judge Opinions and Full Commission Opinions. Organized by year with buttons for each year (2023-2026 visible). Opinions appear to be PDF documents hosted on WordPress."
+example_urls = [
+    "https://labor.arkansas.gov/workers-comp/awcc-opinions/administrative-law-judge-opinions/",
+    "https://labor.arkansas.gov/workers-comp/awcc-opinions/full-commission-opinions/"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "No oral arguments section found on the Workers' Compensation Commission website"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Online search functionality exists at https://labor.arkansas.gov/workers-comp/awcc-online-searches but requires further investigation to determine full capabilities"
+example_urls = ["https://labor.arkansas.gov/workers-comp/awcc-online-searches"]
+
+[content.docket_entries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Information about Commissioners and Executive Offices available but not in structured format"
+example_urls = [
+    "https://labor.arkansas.gov/workers-comp/awcc-about-us/awcc-commissioners/",
+    "https://labor.arkansas.gov/workers-comp/awcc-about-us/executive-offices/"
+]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Not applicable for administrative law judges"
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Basic court information available in About Us section"
+example_urls = ["https://labor.arkansas.gov/workers-comp/awcc-about-us/"]
+
+[content.courthouses]
+status = "available"
+notes = "Physical address available: 324 South Spring Street, Little Rock, AR 72203"
+example_urls = ["https://labor.arkansas.gov/workers-comp/awcc-about-us/contact-us/"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - Workers' Compensation Commission"
+example_urls = []
+
+[content.claims]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Not applicable - Workers' Compensation Commission handles civil matters"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Not applicable - Workers' Compensation Commission"
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state commission"
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - not a federal court"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Opinions organized by year, with years 2023-2026 visible. Likely more years available via expandable buttons."
+update_frequency = "ongoing"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["unknown"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+The Arkansas Workers' Compensation Commission is an administrative agency, not a traditional court.
+It handles workplace injury and workers' compensation disputes. Opinions come from two sources:
+1. Administrative Law Judges (ALJ) - initial decisions
+2. Full Commission - reviews of ALJ decisions
+
+The domain www.awcc.state.ar.us redirects to labor.arkansas.gov/workers-comp/, indicating it's part
+of the Arkansas Department of Labor and Licensing.
+"""
+special_document_types = ["Administrative Law Judge Opinions", "Full Commission Opinions"]
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Arkansas Workers' Compensation Commission website provides public access to two types of opinions:
+Administrative Law Judge (ALJ) opinions and Full Commission opinions. Both are organized by year and
+appear to be available as PDF documents. The site is WordPress-based, uses static HTML (minimal JS),
+and allows scraping with a 10-second crawl delay per robots.txt.
+
+The domain redirects from www.awcc.state.ar.us to labor.arkansas.gov/workers-comp/. The site also
+offers online search functionality and various forms/reports related to workers' compensation cases.
+
+No existing scraper exists for this court in the juriscraper codebase. The site structure appears
+straightforward - year-based organization with direct PDF links.
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority because:
+- Public access with no barriers
+- Opinions readily available in PDF format
+- Clear URL structure and organization
+- No existing scraper coverage
+- Workers' compensation opinions are valuable for legal research
+- However, as an administrative agency rather than a traditional court, it may have lower priority
+  compared to appellate courts
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Simple complexity because:
+- Static HTML with minimal JavaScript
+- Clear year-based organization
+- No authentication required
+- No captchas or paywalls
+- Standard PDF document format
+- Robots.txt explicitly allows crawling with reasonable delay
+- WordPress-based site with predictable structure
+"""
+
+blockers = []

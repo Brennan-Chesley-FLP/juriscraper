@@ -1,0 +1,314 @@
+# Court Site Research Report: Florida Attorney General
+# Research Date: 2026-01-09
+
+[meta]
+domain = "www.myfloridalegal.com"
+court_ids = ["flaag"]
+court_name = "Florida Attorney General"
+court_url = "https://www.myfloridalegal.com"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "drupal"
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf", "html"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.myfloridalegal.com/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/admin/", "/comment/reply/", "/filter/tips", "/node/add/", "/search/", "/user/register", "/user/password", "/user/login", "/user/logout", "/media/oembed"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "Attorney General Opinions are available through both a modern searchable database (5,020 opinions from ~1982-present) and a historical collection (16,962 opinions dating back to at least the 1950s). Opinions are available in both HTML and PDF format. The modern database has good search, filtering, and pagination. URL pattern: /node/{id} for modern opinions, /histago/* for historical."
+example_urls = [
+    "https://www.myfloridalegal.com/node/28076",
+    "https://www.myfloridalegal.com/ag-opinions/tourist-development-tax-use-for-design-engineering",
+    "https://www.myfloridalegal.com/histago/ago-91-29"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citations are included within opinion text but not as separate structured data"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.parties]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.persons]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.opinions_cited]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = "Not applicable for Attorney General opinions"
+example_urls = []
+
+[content.tags]
+status = "partial"
+notes = "Opinions have topics/keywords in the historical database"
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1951"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Historical collection contains 16,962 opinions dating back to at least 1951 (AGO 51-149). Modern database contains 5,020 opinions from approximately 1982-present."
+update_frequency = "irregular"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["date_range", "full_text", "year_filter", "keyword"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "Attorney General opinions are advisory legal opinions, not court decisions. They include both formal opinions (AGO series) and informal opinions. The site has two separate databases: modern (Drupal-based) and historical (older system at histago.nsf subdomain)."
+special_document_types = ["Formal Opinion", "Informal Opinion"]
+data_quality_notes = "Historical opinions may have OCR errors or incomplete metadata. Modern opinions are well-structured with consistent metadata."
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Florida Attorney General website provides comprehensive access to AG opinions through two databases:
+
+1. **Modern Database** (https://www.myfloridalegal.com/ag-opinions):
+   - 5,020 opinions from ~1982 to present (as of 2026-01-09)
+   - Good search and filtering capabilities
+   - Both HTML and PDF formats available
+   - Paginated results (30 per page default, configurable)
+   - Clean URL patterns: /node/{id} or /ag-opinions/{slug}
+
+2. **Historical Database** (https://www.myfloridalegal.com/histago.nsf/opinions):
+   - 16,962 opinions dating back to at least 1951
+   - Searchable by keyword and year
+   - Separate URL structure: /histago/*
+   - May have data quality issues in older entries
+
+Both databases are publicly accessible without authentication. The site runs on Drupal and uses static HTML rendering with minimal JavaScript requirements. Opinions include full text, issue dates, opinion numbers, and topics/subjects.
+
+**Scraping Recommendations:**
+- Start with modern database as it has cleaner data
+- Historical database provides valuable backfile but may need data cleaning
+- No rate limiting observed, but robots.txt should be respected
+- PDF versions available via /print/pdf/node/{id} pattern
+"""
+
+priority = "medium"
+priority_reasoning = "Attorney General opinions are valuable legal documents, but they are advisory opinions rather than binding case law. The site is scrapable with no major technical barriers. Medium priority because: (1) no existing scraper for flaag, (2) public access with good coverage back to 1951, (3) moderate legal importance (advisory vs binding), (4) well-structured modern interface."
+
+complexity = "simple"
+complexity_reasoning = "Static HTML pages with clear patterns, no authentication required, no JavaScript rendering needed for content access, standard pagination. The main complexity is handling two separate database systems (modern and historical) with different URL patterns."
+
+blockers = []

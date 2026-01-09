@@ -345,6 +345,13 @@ example_urls = []
 # =============================================================================
 
 [coverage]
+# Is the primary court_url still valid and current?
+url_is_current = true
+
+# Are there alternate URLs with court information?
+alternate_urls = ["https://publicportal.alappeals.gov"]
+alternate_url_notes = "New opinions portal launched May 2023; judicial.alabama.gov has historical opinions"
+
 # What is the apparent date range of available records?
 earliest_date = "2013-10-04"
 latest_date = "ongoing"

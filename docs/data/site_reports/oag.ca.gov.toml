@@ -1,0 +1,412 @@
+# Court Site Research Report Template
+#
+# This file documents the schema for court website research reports.
+# Use this as a template when researching new court sites.
+#
+# File naming: {domain_name}.toml (e.g., "judicial.alabama.gov.toml", "ecf.ca9.uscourts.gov.toml")
+
+[meta]
+domain = "oag.ca.gov"
+court_ids = ["calag"]
+court_name = "California Attorney General"
+court_url = "https://oag.ca.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = true
+captcha_type = "recaptcha"
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = false
+javascript_framework = "vanilla"
+
+# What platform/vendor does the site use?
+platform = "drupal"
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://oag.ca.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = ["/admin/", "/search/", "/user/"]
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 10
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+# Reference: juriscraper/scraper_driver/common/models/base.py
+#
+# Mark each as: "available", "unavailable", "unknown", "partial"
+# Use "partial" if only some records of that type are available
+#
+# For each content type:
+#   status: availability status
+#   notes: description and context
+#   example_urls: 1-3 real URLs demonstrating this content type
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Attorney General opinions available from 1978 to present. These are formal legal opinions issued by the California Attorney General on questions of law to designated state and local officials. Searchable by year, opinion number, citation, or keyword."
+example_urls = [
+    "https://oag.ca.gov/opinions/yearly-index?year=2024",
+    "https://oag.ca.gov/opinions/search",
+    "https://oag.ca.gov/opinions/monthly-report"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Not applicable - AG opinions are standalone documents"
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Opinions include official citations in the format 'XX Ops.Cal.Atty.Gen. XXX'"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "AG opinions are written documents only, no oral arguments"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "unavailable"
+notes = "AG opinions are not case dockets"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Opinion Unit Deputies are listed, showing the attorneys who author opinions"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Opinions may cite other cases but this data is not structured"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1978-01-01"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Opinions available from 1978 to present online. Hardbound volumes from 1943 to present are available for purchase via Lexis. Electronic opinions dating back to 1960 are available in the Lexis online database."
+
+# How often does the site appear to be updated?
+update_frequency = "irregular"
+
+# Is there a way to subscribe to updates?
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://oag.ca.gov/opinions"
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["date_range", "opinion_number", "citation", "full_text"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = ["juriscraper.opinions.united_states.state.calag"]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "These are formal legal opinions issued by the CA Attorney General, not court opinions. The Attorney General only issues opinions to specific authorized requesters (legislators, state department heads, district attorneys, county counsels, sheriffs, and city attorneys in their prosecutorial capacities). Not available to the general public for requests."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = ["quo_warranto"]
+
+# Any known data quality issues?
+data_quality_notes = "Recent opinions may not have citations yet. Some years (2024-2026) appear to have no opinions published."
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+The California Attorney General website (oag.ca.gov) provides public access to formal legal opinions
+issued by the Attorney General from 1978 to present. The site is a Drupal-based platform that does not
+require JavaScript for basic functionality, though it does use reCAPTCHA for some forms.
+
+An existing scraper (juriscraper.opinions.united_states.state.calag) already covers this site and scrapes
+opinions from the yearly index pages. The scraper works backwards from 1985 to present.
+
+Key features:
+- Yearly index pages organized by year
+- Search functionality by opinion number, citation, or keyword
+- Monthly opinion reports (PDFs)
+- Email subscription service for new opinions
+- No API available - must scrape HTML
+
+The robots.txt file specifies a 10-second crawl delay and disallows admin/search/user paths, but allows
+crawling of opinion pages.
+
+Documents are available as PDFs. The site includes both the question presented and the conclusion for
+each opinion, which the existing scraper captures in the summary field.
+"""
+
+# Recommended priority for building a scraper
+priority = "skip"
+priority_reasoning = "Existing scraper already covers this site effectively. No changes needed."
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = "Static HTML pages with consistent structure. No JavaScript required. The existing scraper demonstrates this is straightforward to scrape."
+
+# Any blockers or concerns?
+blockers = [
+    "robots.txt specifies 10-second crawl delay - must be respected",
+    "reCAPTCHA present on subscription forms but not on opinion pages"
+]

@@ -1,0 +1,330 @@
+# Court Site Research Report
+# Kansas Attorney General Website
+
+[meta]
+domain = "ag.ks.gov"
+court_ids = ["kanag"]
+court_name = "Kansas Attorney General Reports"
+court_url = "https://ag.ks.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "jquery"
+platform = "granicus"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.ag.ks.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/scripts", "/admin", "/*.asmx*"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "AG opinions are available from 2023 onwards on the website. Opinions prior to 2023 are hosted at Washburn Law School (http://ksag.washburnlaw.edu/). Each opinion is available as a PDF document with a unique document ID in the URL pattern: /home/showpublisheddocument/{id}/{timestamp}. Opinions are listed in a table format organized by year with opinion number, summary, and issue date."
+example_urls = [
+    "https://www.ag.ks.gov/home/showpublisheddocument/24710/639034658625145932",
+    "https://www.ag.ks.gov/home/showpublisheddocument/24704/639026187985070000",
+    "https://www.ag.ks.gov/home/showpublisheddocument/24708/639026192558330000"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citations to Kansas statutes are included in the opinion summaries and full text. Each opinion summary lists 'Cited herein:' with relevant statutes."
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Not applicable - AG opinions are written legal opinions, not court proceedings"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "Not applicable - AG opinions are not court case dockets"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parties]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Would need to examine PDF content to determine if opinions cite other cases"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = ["https://ksag.washburnlaw.edu"]
+alternate_url_notes = "Washburn Law School hosts historical opinions (1974-present); ag.ks.gov has 2023+ only"
+
+earliest_date = "1974-01-02"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Opinions from 2023 onwards are available on ag.ks.gov. Historical opinions from 1974-2026 are hosted at Washburn Law School (https://ksag.washburnlaw.edu/) with a different URL structure: /opinions/{year}/{opinion-number}.pdf (e.g., /opinions/2026/2026-001.pdf). The Washburn site has comprehensive coverage from 1974-1 (January 2, 1974) through present day."
+update_frequency = "irregular"
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://ksag.washburnlaw.edu/rss/ksagopinions.xml"
+has_search = true
+search_capabilities = ["full_text"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+These are Attorney General legal opinions, not court opinions. They are advisory opinions
+on state law interpretation requested by elected officials and government agencies. The site
+notes that many factors including subsequent legislation and court decisions can affect the
+validity of past opinions.
+
+DUAL SITE ARCHITECTURE: The Kansas AG opinions are published on two different websites:
+1. ag.ks.gov (official AG office site) - 2023-present, Granicus CMS, JavaScript required
+2. ksag.washburnlaw.edu (Washburn Law School mirror) - 1974-present, static HTML, RSS feed
+
+Both sites contain the same current opinions but with different URL structures. The Washburn
+site is maintained as an academic resource and provides better access for automated scraping.
+"""
+special_document_types = ["AG Opinion", "Comment Letters"]
+data_quality_notes = "The site includes a disclaimer that opinions are written to explain legal issues and law at the time the opinion is written, and their accuracy may change over time."
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Kansas AG website provides access to Attorney General opinions from 2023 onwards at
+https://ag.ks.gov/reports-resources/ag-opinions. These are legal advisory opinions, not
+court decisions. The opinions are presented in a table format organized by year, with each
+opinion having a number (e.g., 2026-1, 2025-26), a summary, cited statutes, and an issue
+date. The full opinions are available as PDF documents accessed via URLs with unique
+document IDs in the format: /home/showpublisheddocument/{id}/{timestamp}.
+
+The site is built on the Granicus platform and requires JavaScript. There is no JSON API
+exposed - opinions are served as static PDFs via document IDs. The robots.txt file allows
+scraping except for /admin and /scripts paths.
+
+IMPORTANT: For comprehensive historical coverage, the Washburn Law School database at
+https://ksag.washburnlaw.edu/ provides opinions from 1974-present with a much simpler URL
+structure: /opinions/{year}/{opinion-number}.pdf. This site also offers an RSS feed for
+new opinions at https://ksag.washburnlaw.edu/rss/ksagopinions.xml. The Washburn site uses
+static HTML and does not require JavaScript, making it significantly easier to scrape.
+
+RECOMMENDATION: A scraper should target the Washburn database primarily, as it offers:
+1. Complete historical coverage (1974-present) vs. partial coverage (2023-present) on ag.ks.gov
+2. Simpler, predictable URL patterns for PDFs
+3. No JavaScript requirement
+4. RSS feed for monitoring new opinions
+5. Both sites contain the same current opinions, but Washburn is more scraper-friendly
+
+The ag.ks.gov site could be used as a fallback or validation source.
+"""
+
+priority = "medium"
+priority_reasoning = "AG opinions are legally significant documents for understanding state law interpretation, and there is no existing scraper. However, they are advisory opinions rather than binding court precedent. The Washburn database provides excellent coverage and accessibility via RSS, making this a good candidate for a scraper."
+
+complexity = "simple"
+complexity_reasoning = "While the main ag.ks.gov site requires JavaScript and has complex document IDs, the Washburn Law School mirror site (https://ksag.washburnlaw.edu/) offers the same content with simple, predictable URL patterns (/opinions/{year}/{number}.pdf), static HTML, and an RSS feed. A scraper targeting Washburn would be straightforward to implement."
+
+blockers = []

@@ -1,0 +1,444 @@
+# Court Site Research Report: Ohio Court of Claims
+#
+# This report documents ohiocourtofclaims.gov, the official website for
+# the Ohio Court of Claims. Note: Published opinions are available from
+# www.supremecourt.ohio.gov (Reporter of Decisions), not directly from this site.
+#
+# The old domain www.cco.state.oh.us is defunct and redirects here.
+
+[meta]
+domain = "ohiocourtofclaims.gov"
+domain_aliases = ["www.cco.state.oh.us", "cco.state.oh.us"]
+court_ids = ["ohioctcl"]
+court_name = "Ohio Court of Claims"
+court_url = "https://ohiocourtofclaims.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "jquery"
+platform = "wordpress"
+scope = "court_specific"
+shared_infrastructure = []
+
+# No direct API - uses Tyler Tech portal for case search
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://ohiocourtofclaims.gov/robots.txt"
+
+# robots.txt allows scraping but has restrictions
+allows_scraping = true
+disallowed_paths = [
+    "/wp-admin/",
+    "/wp-includes/",
+    "/cgi-bin/"
+]
+
+crawl_delay_seconds = 1
+rate_limit_notice = ""
+
+# Blocks AI training bots
+tos_restrictions = """
+robots.txt blocks several AI bots including:
+- anthropic-ai
+- CCBot
+- ChatGPT-User
+- ClaudeBot
+- FacebookBot
+- Google-Extended
+- GPTBot
+- Omgilibot
+- PerplexityBot
+"""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "redirect"
+notes = """
+The Ohio Court of Claims website does NOT directly host opinions.
+Published opinions are available through the Ohio Supreme Court's
+Reporter of Decisions at www.supremecourt.ohio.gov/rod/docs/.
+
+The existing scraper (ohioctcl.py) correctly uses the supremecourt.ohio.gov
+source with court_index = 13. See www.supremecourt.ohio.gov.toml for details.
+
+The "Research Cases" link on this site redirects to an external Tyler Tech
+case search portal at portal-ohcoc.tylertech.cloud/portal.
+"""
+example_urls = [
+    "https://www.supremecourt.ohio.gov/rod/docs/?Source=13",
+    "https://portal-ohcoc.tylertech.cloud/portal"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "unavailable"
+notes = "Citations available via supremecourt.ohio.gov, not this site"
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = """
+Case search available via Tyler Tech portal at portal-ohcoc.tylertech.cloud.
+Accessible through "Research Cases" link. Portal provides:
+- Case Number search
+- Party Name search
+- Basic docket information
+"""
+example_urls = [
+    "https://portal-ohcoc.tylertech.cloud/portal"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "Would need to explore Tyler Tech portal in detail"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "State courts - not PACER-related"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party search available via Tyler Tech portal"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judge and Magistrate information available on the site"
+example_urls = [
+    "https://ohiocourtofclaims.gov/about/"
+]
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court information and contact details available"
+example_urls = [
+    "https://ohiocourtofclaims.gov/about/",
+    "https://ohiocourtofclaims.gov/contact/"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Located at Thomas J. Moyer Ohio Judicial Center, 65 S. Front Street, Columbus, OH 43215"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State courts - bankruptcy handled by federal courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Court of Claims handles civil matters against the state, not criminal cases"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State courts"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.open_data]
+status = "available"
+notes = "Open Data portal available with court data and case statistics"
+example_urls = [
+    "https://ohiocourtofclaims.gov/open-data/"
+]
+
+[content.efiling]
+status = "available"
+notes = "Electronic filing available through eFileOhio"
+example_urls = [
+    "https://ohiocourtofclaims.gov/electronic-filing/"
+]
+
+[content.victims_compensation]
+status = "available"
+notes = """
+The Court of Claims includes the Crime Victims Compensation Program,
+which is separate from the general claims court function.
+"""
+example_urls = [
+    "https://ohiocourtofclaims.gov/victims-of-crime/"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = ["https://www.supremecourt.ohio.gov/rod/docs/?Source=13"]
+alternate_url_notes = "Published opinions are on the Supreme Court's Reporter of Decisions, not this website"
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = false
+historical_notes = "Historical opinions available via supremecourt.ohio.gov"
+update_frequency = "unknown"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["case_number", "party_name"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.ohioctcl",
+    "juriscraper.opinions.united_states.state.ohioctcl_beginningofyear"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Old domain www.cco.state.oh.us is DEFUNCT (connection refused)
+- Current domain is ohiocourtofclaims.gov
+- Opinions are NOT published on this site - they're on supremecourt.ohio.gov
+- WordPress site with accessiBe accessibility widget
+- Tyler Tech portal for case search (separate external system)
+- Restrictive robots.txt blocks AI training bots with 1-second crawl delay
+
+The Ohio Court of Claims handles:
+1. Civil claims against the State of Ohio
+2. Public Records Complaints
+3. Crime Victims Compensation
+
+The existing scraper correctly uses supremecourt.ohio.gov with court_index=13,
+NOT this informational website.
+"""
+
+special_document_types = ["Crime Victims Compensation decisions"]
+
+data_quality_notes = ""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Ohio Court of Claims (ohiocourtofclaims.gov) is primarily an informational website.
+Published opinions are available through the Ohio Supreme Court's Reporter of Decisions
+at www.supremecourt.ohio.gov/rod/docs/ - NOT on this website.
+
+**Key Findings:**
+
+1. **Old Domain Defunct**: www.cco.state.oh.us no longer works (connection refused).
+   The current domain is ohiocourtofclaims.gov.
+
+2. **Existing Coverage**: Working scraper (ohioctcl.py) uses supremecourt.ohio.gov
+   with court_index = 13. No changes needed.
+
+3. **Site Content**:
+   - Court information and procedures
+   - Electronic filing links (eFileOhio)
+   - Case search via Tyler Tech portal (external)
+   - Open Data portal with statistics
+   - Crime Victims Compensation information
+
+4. **Technical**:
+   - WordPress-based with jQuery
+   - accessiBe accessibility widget
+   - 1-second crawl delay in robots.txt
+   - Blocks AI training bots
+
+5. **No Scraping Needed**:
+   - Opinions already scraped from supremecourt.ohio.gov
+   - Tyler Tech portal is a separate external system
+   - This site is informational only
+
+**Recommendations:**
+- Update courts.toml court_url from defunct www.cco.state.oh.us to ohiocourtofclaims.gov
+- No new scraper development needed
+- Tyler Tech portal could be explored for docket scraping if desired
+"""
+
+priority = "low"
+priority_reasoning = "Existing opinion scraper works via supremecourt.ohio.gov. This site is informational only."
+
+complexity = "simple"
+complexity_reasoning = "No scraping needed from this domain - existing supremecourt.ohio.gov scraper handles opinions"
+
+blockers = []

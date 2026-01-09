@@ -1,0 +1,404 @@
+# Court Site Research Report
+# Domain: www.iowacourts.gov
+# Research Date: 2026-01-09
+
+[meta]
+domain = "www.iowacourts.gov"
+court_ids = ["iowa", "iowactapp"]
+court_name = "Iowa Judicial Branch"
+court_url = "https://www.iowacourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "jquery"
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.iowacourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 30
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Opinions are available for both Iowa Supreme Court and Court of Appeals.
+Supreme Court: https://www.iowacourts.gov/iowa-courts/supreme-court/supreme-court-opinions/
+Court of Appeals: https://www.iowacourts.gov/iowa-courts/court-of-appeals/court-of-appeals-court-opinions/
+
+Each opinion includes:
+- Case number (docket number)
+- Case name with parties
+- Filing date
+- PDF link to full opinion
+- Links to briefs (PDF)
+- Case metadata (county, trial court case number, attorneys)
+"""
+example_urls = [
+    "https://www.iowacourts.gov/iowa-courts/supreme-court/supreme-court-opinions/",
+    "https://www.iowacourts.gov/iowa-courts/supreme-court/supreme-court-opinions/case/24-1752",
+    "https://www.iowacourts.gov/courtcases/24298/embed/SupremeCourtOpinion"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Opinions are presented individually, not explicitly grouped into clusters"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citations are included within the PDF opinion documents but not separately structured"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """
+Oral arguments are available as:
+1. YouTube videos embedded on case detail pages
+2. Live stream at https://www.iowacourts.gov/for-the-public/live-stream/
+3. Oral argument schedules published for both Supreme Court and Court of Appeals
+Supreme Court: https://www.iowacourts.gov/iowa-courts/supreme-court/supreme-court-oral-argument-schedule/
+Court of Appeals: https://www.iowacourts.gov/iowa-courts/court-of-appeals/court-of-appeals-oral-argument-schedules/
+"""
+example_urls = [
+    "https://www.youtube.com/watch?v=LlHXnjvQ1zY",
+    "https://www.iowacourts.gov/for-the-public/live-stream/",
+    "https://www.iowacourts.gov/iowa-courts/supreme-court/supreme-court-oral-argument-schedule/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "No transcripts observed on the pages examined"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = """
+Limited docket information available on opinion pages (case number, parties, attorneys, trial court).
+Full docket search available at: https://www.iowacourts.state.ia.us/ESAWebApp//SelectFrame
+"""
+example_urls = [
+    "https://www.iowacourts.state.ia.us/ESAWebApp//SelectFrame"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "May be available through the case search system but not directly observed"
+example_urls = []
+
+[content.recap_documents]
+status = "available"
+notes = "Briefs are available as PDFs on case detail pages for appellate cases"
+example_urls = [
+    "https://www.iowacourts.gov/courtcases/24298/briefs/8004/embedBrief",
+    "https://www.iowacourts.gov/courtcases/24298/briefs/8007/embedBrief"
+]
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names available in case titles and case detail pages"
+example_urls = []
+
+[content.party_types]
+status = "partial"
+notes = "Party roles (Appellant/Appellee) indicated on case detail pages"
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "Attorney names listed on case detail pages for appellate cases"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = "Not observed on pages examined"
+example_urls = []
+
+[content.roles]
+status = "partial"
+notes = "Attorney roles (for appellant/appellee) indicated"
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = """
+Judge/Justice information available:
+Supreme Court Justices: https://www.iowacourts.gov/iowa-courts/supreme-court/justices/
+Court of Appeals Judges: https://www.iowacourts.gov/iowa-courts/court-of-appeals/judges/
+"""
+example_urls = [
+    "https://www.iowacourts.gov/iowa-courts/supreme-court/justices/",
+    "https://www.iowacourts.gov/iowa-courts/court-of-appeals/judges/"
+]
+
+[content.positions]
+status = "partial"
+notes = "Current judicial positions listed on court pages"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = "May be available on individual judge biography pages"
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court directory with contact information and locations"
+example_urls = [
+    "https://www.iowacourts.gov/iowa-courts/court-directory/"
+]
+
+[content.courthouses]
+status = "available"
+notes = "County courthouse directory with addresses"
+example_urls = [
+    "https://www.iowacourts.gov/iowa-courts/court-directory/"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "May be available in full docket system"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = "May be available in full docket system"
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Trial court information (county, case number) available on appellate case pages"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Would need to parse opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = "Would need to parse opinion text"
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2017-11-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = """
+Supreme Court: Archived opinions prior to Nov 2017 available at:
+https://www.iowacourts.gov/iowa-courts/supreme-court/supreme-court-opinions/opinions-archive/
+Archives by year: 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025
+
+Court of Appeals: Similar archive structure available by year: 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026
+Note: Archive link text states "Archived Court of Appeals Opinions 2/7/2018 and Prior"
+"""
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://www.iowacourts.gov/iowa-courts/supreme-court/supreme-court-opinions/subscription/subscribe/"
+has_search = true
+search_capabilities = ["case_records"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.iowa",
+    "juriscraper.opinions.united_states.state.iowactapp"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- The site uses embedded PDFs for opinions which may require special handling
+- Opinions are paginated with "Next" links that need to be followed
+- Archive structure differs between Supreme Court and Court of Appeals
+- Case URLs use internal IDs (e.g., /courtcases/24298/) rather than docket numbers
+- Oral arguments are hosted on YouTube and embedded via iframe
+- Site has a 30-second crawl delay in robots.txt which should be respected
+"""
+special_document_types = []
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Iowa Judicial Branch website (www.iowacourts.gov) provides good public access
+to Supreme Court and Court of Appeals opinions going back to at least 2017, with
+archived opinions available for earlier years. The site uses static HTML with
+pagination for recent opinions and has a clear, browseable structure.
+
+Existing scrapers already cover opinion scraping for both courts. The scrapers
+handle pagination and archive pages correctly.
+
+Key opportunities for improvement:
+1. Oral arguments are available as YouTube videos but are not currently scraped
+2. Briefs (appellant, appellee, reply) are available as PDFs but not currently scraped
+3. The full case search system (ESAWebApp) may provide additional docket data
+
+The site is well-structured, publicly accessible, and respectful of robots.txt
+with a 30-second crawl delay. Documents are primarily in PDF format.
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority because:
+- Existing scrapers already cover opinions successfully
+- Main opportunity is oral arguments (YouTube videos) and briefs (PDFs)
+- No major blockers or broken existing coverage
+- Site is well-structured and publicly accessible
+- Oral arguments would be valuable addition but opinions are already covered
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Simple complexity because:
+- Static HTML with no JavaScript requirements
+- Clear URL patterns and structure
+- Existing working scrapers demonstrate the approach
+- Standard PDF documents
+- No authentication or captchas
+- Pagination is straightforward with "Next" links
+"""
+
+blockers = []

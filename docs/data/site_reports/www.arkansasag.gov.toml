@@ -1,0 +1,383 @@
+# Court Site Research Report
+# Arkansas Attorney General
+# Research Date: 2026-01-08
+
+[meta]
+domain = "www.arkansasag.gov"
+court_ids = ["arkag"]
+court_name = "Arkansas Attorney General Reports"
+court_url = "https://arkansasag.gov/divisions/opinions-foia/attorney-general-opinions-search/"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "jquery"
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf", "html"]
+auth_mechanism = ""
+
+# Notes on infrastructure:
+# - Opinions search interface embedded in iframe
+# - PDF files hosted on AWS S3: https://ag-opinions.s3.amazonaws.com/uploads/{opinion-number}.pdf
+# - Example: https://ag-opinions.s3.amazonaws.com/uploads/2026-002.pdf
+# - Opinion numbers format: YYYY-NNN (e.g., 2026-002, 2025-104, 2025-118)
+# - Both HTML and PDF versions mentioned as available
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://arkansasag.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 10
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = """
+AG opinions are publicly accessible through a search interface. The search page
+offers multiple search modes:
+- Full text search
+- Search by requester name
+- Search by opinion number
+- Search by year
+- Recent opinions
+
+Opinions are available in both HTML and PDF formats (when available).
+PDF files are hosted on AWS S3 with predictable URLs.
+
+Opinion format: YYYY-NNN (e.g., 2026-002)
+
+Each opinion includes:
+- Opinion number
+- Requester name
+- Question(s) asked
+- Brief response/summary
+- Link to full PDF
+
+The home page displays recent opinions with full metadata.
+"""
+example_urls = [
+    "https://arkansasag.gov/divisions/opinions-foia/attorney-general-opinions-search/",
+    "https://ag-opinions.s3.amazonaws.com/uploads/2026-002.pdf",
+    "https://ag-opinions.s3.amazonaws.com/uploads/2025-104.pdf",
+    "https://ag-opinions.s3.amazonaws.com/uploads/2025-118.pdf"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "AG opinions are individual documents, not clustered"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citations would be present within the opinion PDF/HTML text but not separately indexed"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Attorney General opinions do not involve oral arguments"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "Attorney General opinions do not involve oral arguments"
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "AG opinions are not cases with dockets"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = "AG opinions are not cases with dockets"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable to AG opinions"
+example_urls = []
+
+[content.parties]
+status = "unavailable"
+notes = "AG opinions are advisory, not adversarial proceedings"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "AG opinions are advisory, not adversarial proceedings"
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "AG opinions are issued by the AG's office, no adversarial representation"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "partial"
+notes = "The requester name is provided for each opinion, and the AG who issued it would be identifiable"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = "AG opinions may cite other legal authorities, but this would need to be extracted from opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "partial"
+notes = "Opinions include topic/subject information in the question and response text"
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Historical opinions appear available through the search interface, but exact date range not determined without performing searches"
+update_frequency = "irregular"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["full_text", "requester_name", "opinion_number", "year", "recent"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Arkansas AG opinions are advisory legal counsel provided to authorized requesters.
+The site prominently displays recent opinions on the home page with full metadata
+including the requester name, questions asked, and brief responses.
+
+Opinions cover various topics including:
+- Freedom of Information Act (FOIA) issues
+- School district matters
+- Interlocal cooperation agreements
+- General government operations
+
+PDF files are hosted externally on AWS S3, which may simplify bulk downloading
+if URL patterns are consistent.
+"""
+special_document_types = []
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Arkansas AG website provides access to Attorney General opinions through
+a search interface embedded in an iframe. The interface supports multiple
+search modes (full text, requester, opinion number, year, recent).
+
+Key findings:
+- Public access, no authentication required
+- Search interface embedded in iframe (requires JavaScript)
+- PDF files hosted on AWS S3 with predictable URLs
+- Opinion numbering: YYYY-NNN format
+- Both HTML and PDF versions available (when available)
+- Recent opinions displayed on home page with metadata
+- 10-second crawl delay in robots.txt
+- No existing scraper for arkag court_id
+
+URL patterns:
+- Search page: /divisions/opinions-foia/attorney-general-opinions-search/
+- PDF files: https://ag-opinions.s3.amazonaws.com/uploads/{opinion-number}.pdf
+
+The iframe-based search interface makes direct scraping more complex, but
+the predictable S3 URL pattern for PDFs could be leveraged if opinion numbers
+can be enumerated or discovered.
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority because:
+- Public access with no barriers
+- No existing scraper for this court_id
+- Opinions available in searchable format
+- Predictable PDF URLs on S3 could simplify scraping
+- However, search interface requires JavaScript and is iframe-based
+- Would need to either interact with iframe or discover opinion numbers through other means
+- 10-second crawl delay is reasonable but slower than some sites
+- Unclear how to enumerate all opinions without performing searches
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+Moderate complexity because:
+- Requires JavaScript rendering for search interface
+- Search embedded in iframe adds complexity
+- Need to interact with search form or discover API endpoints
+- PDF URLs are predictable but require knowing opinion numbers
+- Could potentially scrape recent opinions from home page
+- Could potentially enumerate opinion numbers if pattern is consistent
+- Multiple search modes available but all require iframe interaction
+- No obvious listing/browse interface for all opinions
+- AWS S3 hosting for PDFs is straightforward once URLs are known
+"""
+
+blockers = [
+    "Search interface embedded in iframe requiring JavaScript",
+    "No obvious listing page for all opinions (only search interface)",
+    "Would need to determine complete opinion numbering range or use search API",
+    "10-second crawl delay would slow down comprehensive scraping"
+]

@@ -1,0 +1,408 @@
+# Court Site Research Report Template
+#
+# Research of www.superiorcourt.maricopa.gov
+# File naming: {domain_name}.toml
+
+[meta]
+domain = "www.superiorcourt.maricopa.gov"
+court_ids = ["ariztaxct"]                # Arizona Tax Court
+court_name = "Arizona Tax Court"
+court_url = "https://www.superiorcourt.maricopa.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = false
+javascript_framework = "vanilla"
+
+# What platform/vendor does the site use?
+platform = "custom"
+
+# Is this a statewide portal or court-specific?
+scope = "court_specific"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://www.superiorcourt.maricopa.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = ["/search/", "/Docket/", "/ezcourtforms/", "/ezcourtforms2/"]
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+# Reference: juriscraper/scraper_driver/common/models/base.py
+#
+# Mark each as: "available", "unavailable", "unknown", "partial"
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "unavailable"
+notes = "No dedicated opinions portal found. The Arizona Tax Court URL from courts.toml (http://www.superiorcourt.maricopa.gov/SuperiorCourt/TaxCourt/) returns a 404. The main site is primarily informational and does not appear to host public opinions."
+example_urls = []
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "No opinion clusters available without an opinions portal"
+example_urls = []
+
+[content.citations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "No oral arguments section found"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Docket search system available at http://www.superiorcourt.maricopa.gov/docket/index.asp for Civil, Criminal, Family, and Probate cases. Note that robots.txt disallows /Docket/ path. System provides case information and minute entries but is designed for individual case lookup, not bulk access. System unavailable Tue-Sat 3:00am-4:00am for auditing."
+example_urls = [
+    "http://www.superiorcourt.maricopa.gov/docket/CivilCourtCases/Index.asp",
+    "http://www.superiorcourt.maricopa.gov/docket/CriminalCourtCases/Index.asp",
+    "http://www.superiorcourt.maricopa.gov/docket/FamilyCourtCases/Index.asp"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through docket search system for individual cases. Provides minute entries but robots.txt disallows the /Docket/ path."
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = "May be available through individual case dockets but not confirmed"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unknown"
+notes = "Likely available through docket system but not confirmed"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judicial biographies available at http://www.superiorcourt.maricopa.gov/JudicialBiographies/index.asp"
+example_urls = ["http://www.superiorcourt.maricopa.gov/JudicialBiographies/index.asp"]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "General court information available on main site"
+example_urls = ["https://www.superiorcourt.maricopa.gov/departments/"]
+
+[content.courthouses]
+status = "available"
+notes = "Courthouse locations available"
+example_urls = ["https://www.superiorcourt.maricopa.gov/court-locations/"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not a federal court"
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER site"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = false
+historical_notes = "Docket system has retention rules (see /docket/docs/RetentionRules.pdf) suggesting records are purged after certain periods"
+
+# How often does the site appear to be updated?
+update_frequency = "daily"
+
+# Is there a way to subscribe to updates?
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["case_number", "party_name", "date_range"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = false
+
+# What module path(s)?
+scraper_modules = []
+
+# What data types does the existing scraper cover?
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "The Arizona Tax Court is a specialized division of the Maricopa County Superior Court. The court_url in courts.toml (http://www.superiorcourt.maricopa.gov/SuperiorCourt/TaxCourt/) returns 404, suggesting the Tax Court may have been reorganized, moved to a different URL, or integrated into the general Superior Court structure."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = []
+
+# Any known data quality issues?
+data_quality_notes = "Docket system includes disclaimer that information is subject to auditing up to 24 hours after entry, and modifications may occur. System is unavailable Tue-Sat 3:00am-4:00am."
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+The www.superiorcourt.maricopa.gov site is primarily an informational portal for the Maricopa County Superior Court system. The site includes:
+
+1. General court information and resources
+2. A docket search system (http://www.superiorcourt.maricopa.gov/docket/index.asp) for Civil, Criminal, Family, and Probate cases
+3. Judicial biographies
+4. Court forms and procedural information
+5. Courthouse locations
+
+**Key Finding - Arizona Tax Court**: The Arizona Tax Court URL listed in courts.toml (http://www.superiorcourt.maricopa.gov/SuperiorCourt/TaxCourt/) returns a 404 error. No dedicated Tax Court portal or opinions section was found during the research. The Tax Court may have been:
+- Reorganized or integrated into the general Superior Court structure
+- Moved to a different URL
+- Discontinued or merged with another division
+
+**Docket System**: While a docket search system exists, robots.txt explicitly disallows the /Docket/ path, indicating that automated scraping of dockets is not permitted by the site's robots policy.
+
+**Opinions**: No public opinions portal was found for any Superior Court division, including the Tax Court. This site does not appear to host published court opinions.
+
+**Recommendation**: Further investigation is needed to determine:
+1. Whether the Arizona Tax Court still operates and where its opinions (if any) are published
+2. Whether Tax Court decisions are published through Arizona's statewide court system (azcourts.gov) instead of the county level
+3. Whether the court_id "ariztaxct" should be retired or its URL updated
+"""
+
+# Recommended priority for building a scraper
+priority = "skip"
+priority_reasoning = "No opinions portal found. Docket system is disallowed by robots.txt. The Arizona Tax Court URL returns 404, suggesting the court may not have a dedicated online presence. Further investigation needed to confirm if this court actively publishes opinions and where they might be found."
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = "If opinions were available, the site appears to use standard HTML with minimal JavaScript. However, no scrapable content was found."
+
+# Blockers or concerns?
+blockers = [
+    "No opinions portal found for Arizona Tax Court",
+    "Tax Court URL from courts.toml returns 404",
+    "Docket system disallowed by robots.txt (/Docket/ path)",
+    "Unclear if Arizona Tax Court still operates or publishes opinions online"
+]

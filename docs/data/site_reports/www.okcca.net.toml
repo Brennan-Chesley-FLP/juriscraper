@@ -1,0 +1,438 @@
+# Court Site Research Report
+# Oklahoma Court of Criminal Appeals
+# Research Date: 2026-01-09
+
+[meta]
+domain = "www.okcca.net"
+court_ids = ["oklacrimapp"]
+court_name = "Oklahoma Court of Criminal Appeals"
+court_url = "https://www.okcca.net"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "jquery"
+platform = "wordpress"
+scope = "court_specific"
+shared_infrastructure = ["okla"]
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["html"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.okcca.net/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/wp-admin/"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Published opinions are available on both www.okcca.net and www.oscn.net.
+The okcca.net site is a WordPress site that displays opinions with full text.
+Opinions are organized by year from 1908 to present (2025).
+URL pattern: https://www.okcca.net/cases/{YEAR}/OK-CR-{NUMBER}/
+Examples show full opinion text with case metadata, citation information, and party details.
+The existing scraper (oklacrimapp.py) scrapes from www.oscn.net at https://www.oscn.net/decisions/ok-cr/90.
+"""
+example_urls = [
+    "https://www.okcca.net/cases/2025/OK-CR-25/",
+    "https://www.okcca.net/cases/2025/OK-CR-1/",
+    "https://www.okcca.net/cases/2024/"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = """
+Citations are displayed with each opinion in the format "2025 OK CR 25" along with
+Pacific Reporter citations (e.g., "564 P.3d 880"). Case numbers are also available
+(e.g., "F-2024-123").
+"""
+example_urls = ["https://www.okcca.net/cases/2025/OK-CR-25/"]
+
+[content.oral_arguments]
+status = "partial"
+notes = """
+Oral arguments are livestreamed via Vimeo for upcoming hearings. The site lists
+"Upcoming Hearings" with dates, times, locations, and Vimeo livestream links.
+Archive availability of past oral arguments is unknown - only future scheduled
+arguments are shown on the main page. Livestream URL: https://vimeo.com/event/2825366/
+"""
+example_urls = ["https://www.okcca.net/"]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = """
+Docket information is partially available. The site has an OSCN Case Lookup form
+that searches www.oscn.net for dockets. Links to dockets appear in hearing listings
+(e.g., http://www.oscn.net/dockets/Results.aspx?db=appellate&number=F-2024-728).
+The okcca.net site itself doesn't host comprehensive docket data, but links to OSCN.
+"""
+example_urls = [
+    "http://www.oscn.net/dockets/Results.aspx?db=appellate&number=F-2024-728",
+    "http://www.oscn.net/dockets/Results.aspx?db=appellate&number=S-2025-662"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "Not visible on www.okcca.net; may be available on www.oscn.net"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable - this is a state court"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = """
+Party information is included in opinion text. Opinions show party names in the
+case caption and throughout the opinion text.
+"""
+example_urls = ["https://www.okcca.net/cases/2025/OK-CR-25/"]
+
+[content.party_types]
+status = "available"
+notes = """
+Party roles (Appellant, Appellee) are indicated in the opinion text and case captions.
+"""
+example_urls = ["https://www.okcca.net/cases/2025/OK-CR-25/"]
+
+[content.attorneys]
+status = "available"
+notes = """
+Attorney information appears at the end of each opinion in "APPEARANCES" sections,
+showing attorneys for both trial and appeal with their contact information and
+firm affiliations.
+"""
+example_urls = ["https://www.okcca.net/cases/2025/OK-CR-25/"]
+
+[content.attorney_organizations]
+status = "available"
+notes = """
+Law firm and organization names appear in the APPEARANCES section of opinions
+(e.g., "WIRTH LAW OFFICE", "ASST. DISTRICT ATTORNEYS").
+"""
+example_urls = ["https://www.okcca.net/cases/2025/OK-CR-25/"]
+
+[content.roles]
+status = "available"
+notes = """
+Attorney roles are indicated in the APPEARANCES section (e.g., "COUNSEL FOR APPELLANT",
+"COUNSEL FOR STATE").
+"""
+example_urls = ["https://www.okcca.net/cases/2025/OK-CR-25/"]
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = """
+Judge information is available. The main page shows current leadership (Presiding Judge),
+and opinions list judges by name with concurrence/dissent information.
+Example: "ROWLAND, J.", "LUMPKIN, P.J.: Concur"
+"""
+example_urls = [
+    "https://www.okcca.net/",
+    "https://www.okcca.net/cases/2025/OK-CR-25/"
+]
+
+[content.positions]
+status = "partial"
+notes = """
+Judge positions are partially indicated (e.g., "Presiding Judge", "P.J." for
+Presiding Judge, "V.P.J." for Vice Presiding Judge, "J." for Judge).
+"""
+example_urls = ["https://www.okcca.net/"]
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+Court information is available including physical address, phone numbers, and
+organizational structure. Footer shows: Oklahoma Judicial Center, 2100 N. Lincoln Blvd.,
+Oklahoma City, Oklahoma 73105-4907.
+"""
+example_urls = ["https://www.okcca.net/"]
+
+[content.courthouses]
+status = "available"
+notes = """
+Courthouse location is provided: Oklahoma Judicial Center, 2100 N. Lincoln Blvd.,
+Third Floor (for oral arguments).
+"""
+example_urls = ["https://www.okcca.net/"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - this is a criminal appeals court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "available"
+notes = """
+Criminal charge information appears in opinion text, including statutes violated
+(e.g., "21 O.S.2011, § 652(C)").
+"""
+example_urls = ["https://www.okcca.net/cases/2025/OK-CR-25/"]
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - this is a state court"
+example_urls = []
+
+[content.originating_court_information]
+status = "available"
+notes = """
+Originating (trial) court information is included in opinions, showing the district
+court and presiding judge (e.g., "District Court of Tulsa County, Case No. CF-2017-2208,
+The Honorable William D. LaFortune, District Judge").
+"""
+example_urls = ["https://www.okcca.net/cases/2025/OK-CR-25/"]
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - this is a state court"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "available"
+notes = """
+Citations to other cases appear throughout opinion text with proper legal citations
+(e.g., "Strickland v. Washington, 466 U.S. 668, 687 (1984)", "Day v. State, 2013 OK CR 8").
+"""
+example_urls = ["https://www.okcca.net/cases/2025/OK-CR-25/"]
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1908-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = """
+Extensive historical coverage from 1908 to present. The site has a comprehensive
+index organized by year at https://www.okcca.net/cases/ showing all years from
+1908-2025 (117 years of opinions).
+"""
+update_frequency = "irregular"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://www.okcca.net/ (Appellate Notifications button)"
+
+has_search = true
+search_capabilities = ["case_number"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = ["juriscraper.opinions.united_states.state.oklacrimapp"]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+1. The court operates across two domains: www.okcca.net (WordPress public site) and
+   www.oscn.net (Oklahoma State Courts Network with the official records).
+2. The existing scraper uses the OSCN domain (www.oscn.net/decisions/ok-cr/90) rather
+   than the okcca.net domain.
+3. Unpublished opinions are available on OSCN at https://www.oscn.net/applications/oscn/Unpublished.asp
+   and are governed by special rules (Oklahoma Court of Criminal Appeals Rule 3.5(C)(3) -
+   no precedential value).
+4. The site uses ISO-8859-1 encoding (as handled in the existing scraper's cleanup_content method).
+5. Oral arguments are livestreamed via Vimeo but archive availability is unclear.
+6. There's a JavaScript file loaded from the site: https://www.okcca.net/data/occa-decisions.js
+"""
+
+special_document_types = ["Unpublished Opinions"]
+
+data_quality_notes = """
+The WordPress site (www.okcca.net) is well-maintained with clean HTML structure.
+However, some JavaScript errors appear in console (related to oscnadmin.oscn.net domain).
+The official source of record appears to be www.oscn.net.
+"""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Oklahoma Court of Criminal Appeals maintains a WordPress site (www.okcca.net) that
+provides public access to published opinions dating back to 1908. The site is well-organized
+with year-based browsing and displays full opinion text. An existing scraper
+(juriscraper.opinions.united_states.state.oklacrimapp) already covers this court by
+scraping from the related www.oscn.net domain. The site also provides information about
+upcoming oral arguments with Vimeo livestream links, email notifications for new opinions,
+and links to unpublished opinions on OSCN. The site uses WordPress and jQuery, with mostly
+static content that's accessible without complex JavaScript rendering. Case lookup functionality
+redirects to www.oscn.net for docket searches.
+"""
+
+priority = "low"
+priority_reasoning = """
+Priority is LOW because:
+1. An existing, functional scraper already covers this court (oklacrimapp.py)
+2. The scraper uses the official OSCN source (www.oscn.net) which is likely more stable
+   than the WordPress frontend
+3. No major known issues with the existing scraper
+4. Public access with no authentication barriers
+5. The WordPress site is a presentation layer on top of the OSCN data
+
+However, it may be worth noting:
+- Oral arguments are available via Vimeo livestream (not currently scraped)
+- Unpublished opinions are available on OSCN (coverage status unknown)
+- The site has excellent historical coverage (1908-present)
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Complexity is SIMPLE because:
+1. Public access, no authentication required
+2. Static HTML content (WordPress site with jQuery)
+3. Clean URL patterns (https://www.okcca.net/cases/{YEAR}/OK-CR-{NUMBER}/)
+4. No captchas or significant rate limiting
+5. Robots.txt allows scraping (only disallows /wp-admin/)
+6. Existing scraper demonstrates straightforward implementation
+7. Content is well-structured with consistent formatting
+
+The only moderate complexity is handling ISO-8859-1 encoding and cleaning the HTML
+(already solved in existing scraper).
+"""
+
+blockers = []

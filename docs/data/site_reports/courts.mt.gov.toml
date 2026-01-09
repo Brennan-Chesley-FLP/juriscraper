@@ -1,0 +1,415 @@
+# Court Site Research Report Template
+#
+# Montana Supreme Court Website Research
+# Domain: courts.mt.gov
+
+[meta]
+domain = "courts.mt.gov"
+court_ids = ["mont"]
+court_name = "Montana Supreme Court"
+court_url = "https://courts.mt.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+
+# The site has a JSON API at juddocumentservice.mt.gov
+has_api = true
+api_documented = false
+api_url = "https://juddocumentservice.mt.gov"
+
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = "https://courts.mt.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Supreme Court opinions are available through a JSON API at juddocumentservice.mt.gov/getDailyOrders.
+The API returns daily orders and opinions with metadata including case number, title, file date, and cTrackId.
+PDFs are downloadable via https://juddocumentservice.mt.gov/getDocByCTrackId?DocId={cTrackId}.
+Opinions are marked as "Published" or "Unpublished" in the documentDescription field.
+The existing scraper at juriscraper/opinions/united_states/state/mont.py already covers this data source.
+"""
+example_urls = [
+    "https://courts.mt.gov/external/orders/dailyorders",
+    "https://juddocumentservice.mt.gov/getDailyOrders"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = """
+Citations appear to be embedded in the opinion text in the format "YYYY MT ###" (e.g., "2026 MT 1").
+The existing scraper extracts these using regex pattern: ((19|20)\\d{2}\\sMT\\s\\d{1,3}[A-Z]?)
+"""
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """
+Oral arguments are available with schedules dating back to 2010. The site provides:
+- Upcoming oral argument schedule with case details
+- Historical oral arguments organized by year (2010-2025+)
+- Live web stream at http://stream.vision.net/MT-JUD/
+- Approximately 15 cases per year are scheduled for oral argument
+No existing scraper covers oral arguments for Montana.
+"""
+example_urls = [
+    "https://courts.mt.gov/Courts/Supreme/Oral_Arguments/index",
+    "https://courts.mt.gov/Courts/Supreme/Oral_Arguments/Previous",
+    "http://stream.vision.net/MT-JUD/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "The site mentions oral arguments are available via web stream, but it's unclear if transcripts are provided."
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """
+Supreme Court dockets are searchable through a dedicated portal at supremecourtdocket.mt.gov.
+Covers:
+- Active dockets
+- Closed dockets from 2006-Present
+- Closed dockets from 1979-2005
+Search by case number, party name, case attorney, or date range.
+Case numbers follow patterns: DA (Direct Appeal), OP (Original Proceeding), PR (Professional Regulation), AF (Administrative File)
+"""
+example_urls = [
+    "https://supremecourtdocket.mt.gov/search",
+    "https://courts.mt.gov/external/orders/caseInfo?id=DA%2025-0187"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "The docket portal exists but detailed entry information was not explored during this research session."
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = "Montana is a state court, not a federal PACER/RECAP court."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names appear in case titles and are searchable in the docket portal, but structured party data availability is unknown."
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "Attorneys can be searched in the Supreme Court docket portal, suggesting attorney data is available."
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = """
+Opinion author information is available in the documentDescription field of the API response.
+The existing scraper extracts judge names using pattern: "Justice (?P<author>.*?)\\s*(?:author(ed)?|,|-|\\.)"
+"""
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+The site has a Court Locator feature that provides contact information, staff, and operating hours
+for Montana courts organized by judicial district or county.
+"""
+example_urls = [
+    "https://courts.mt.gov/Courts/index"
+]
+
+[content.courthouses]
+status = "partial"
+notes = "The Court Locator likely includes courthouse location information, but details were not explored."
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Montana Supreme Court does not handle bankruptcy cases (federal jurisdiction)."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Montana Supreme Court is a state court."
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = """
+The existing scraper extracts lower court information from opinion text using pattern matching:
+- Lower court name from "APPEAL FROM:" section
+- Lower court docket number
+- Presiding judge name
+This data is embedded in the opinion text, not structured in the API.
+"""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER court."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.case_summaries]
+status = "available"
+notes = """
+The Supreme Court provides case summaries prepared by court staff (not endorsed by justices).
+These are available as a courtesy to the public.
+"""
+example_urls = [
+    "https://courts.mt.gov/Courts/Supreme/Summaries/index"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1979-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Closed dockets available back to 1979 via the docket search portal."
+update_frequency = "daily"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["case_number", "party_name", "attorney_name", "date_range"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = ["juriscraper.opinions.united_states.state.mont"]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Montana Supreme Court case numbers use prefixes to indicate case type:
+- DA: Direct Appeal
+- OP: Original Proceeding
+- PR: Professional Regulation
+- AF: Administrative File
+
+The existing scraper uses these prefixes to set the nature_of_suit field.
+"""
+special_document_types = []
+data_quality_notes = """
+Some documents may return "DOCUMENT UNAVAILABLE FOR VIEWING" errors.
+The existing scraper handles this by raising InvalidDocumentError when:
+- "No document found with CTrack ID" appears in content
+- "Your support ID is" appears in content
+"""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Montana Supreme Court (courts.mt.gov) provides excellent public access to opinions, dockets, and oral arguments.
+The site uses a clean JSON API at juddocumentservice.mt.gov for daily orders/opinions, which is already covered
+by an existing scraper (last updated 2020-02-25).
+
+Key findings:
+1. Opinions API is well-structured and actively scraped
+2. Oral arguments are available back to 2010 but NOT currently scraped
+3. Docket search portal (supremecourtdocket.mt.gov) provides comprehensive case information
+4. No JavaScript required, no authentication barriers
+5. Site is statewide portal serving the Montana Supreme Court
+
+Recommended next steps:
+- Consider building oral arguments scraper (audio/schedule data available)
+- Verify existing opinions scraper is still working correctly
+- Explore docket portal API if available (may require browser automation)
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority because:
+- Existing opinions scraper already covers primary content
+- Oral arguments represent unscraped content that could be valuable
+- Docket data may provide additional case metadata
+- No major technical barriers to scraping
+- Site is well-maintained and provides good data structure
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Simple complexity because:
+- Clean JSON API for opinions (already implemented)
+- No authentication or JavaScript requirements
+- Standard HTML structure for oral arguments
+- Well-documented URL patterns
+- Existing scraper provides good foundation
+"""
+
+blockers = []

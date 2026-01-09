@@ -1,0 +1,446 @@
+# Court Site Research Report
+# District Court, D. New Mexico
+
+[meta]
+domain = "www.nmd.uscourts.gov"
+court_ids = ["nmd"]
+court_name = "District Court, D. New Mexico"
+court_url = "https://www.nmd.uscourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# PACER system requires payment/registration; DRS opinions portal is public
+public_access = true
+
+# CM/ECF requires attorney registration
+requires_signup = false
+
+signup_method = ""
+
+# PACER requires payment ($0.10/page); DRS opinions portal is free
+requires_payment = false
+payment_details = "PACER system requires payment for docket access; DRS opinions portal is free"
+
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# DRS opinions portal requires JavaScript
+requires_javascript = true
+javascript_framework = "vanilla"
+
+# Federal court using standard PACER/CM/ECF infrastructure
+platform = "pacer"
+
+scope = "court_specific"
+
+# All federal district courts share CM/ECF/PACER infrastructure
+shared_infrastructure = ["dcd", "edla"]
+
+# No public API discovered
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+# Federal courts typically provide PDFs
+document_formats = ["pdf"]
+
+# PACER uses session cookies
+auth_mechanism = "session_cookie"
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.nmd.uscourts.gov/robots.txt"
+
+# Standard Drupal robots.txt, allows most paths
+allows_scraping = true
+disallowed_paths = [
+    "/includes/",
+    "/misc/",
+    "/modules/",
+    "/profiles/",
+    "/scripts/",
+    "/themes/",
+    "/admin/",
+    "/comment/reply/",
+    "/filter/tips/",
+    "/node/add/",
+    "/search/",
+    "/user/register/",
+    "/user/password/",
+    "/user/login/",
+    "/user/logout/"
+]
+
+crawl_delay_seconds = 10
+
+rate_limit_notice = ""
+
+tos_restrictions = "DRS system includes warning: 'This is a U.S. Government computer system for official court business only. Unauthorized access is prohibited and may be prosecuted.'"
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Opinions available through DRS (Document Retrieval System) at https://www.nmcourt.uscourts.gov/Drs-Web/input. Requires JavaScript and form submission with complex search parameters. System includes memorandum opinions, orders, and various other judicial documents."
+example_urls = [
+    "https://www.nmcourt.uscourts.gov/Drs-Web/input"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = "DRS system may group related documents by case number"
+example_urls = []
+
+[content.citations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.oral_arguments]
+status = "partial"
+notes = "District Court Streaming Services available at /district-court-streaming-services. Likely provides live or recorded proceedings but not a searchable archive."
+example_urls = [
+    "https://www.nmd.uscourts.gov/district-court-streaming-services"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Dockets available through PACER (requires payment). Case Locator at https://pcl.uscourts.gov/search. CM/ECF at https://ecf.nmd.uscourts.gov/cgi-bin/login.pl"
+example_urls = [
+    "https://pcl.uscourts.gov/search",
+    "https://ecf.nmd.uscourts.gov/cgi-bin/login.pl"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Available through PACER/CM/ECF (requires payment)"
+example_urls = []
+
+[content.recap_documents]
+status = "available"
+notes = "Court filings available through PACER (requires payment)"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Available through PACER docket information (requires payment)"
+example_urls = []
+
+[content.party_types]
+status = "available"
+notes = "Available through PACER docket information (requires payment)"
+example_urls = []
+
+[content.attorneys]
+status = "available"
+notes = "Available through PACER docket information (requires payment)"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "available"
+notes = "Attorney-party relationships available through PACER (requires payment)"
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judge information available on website. Judges page at /judges. DRS system includes extensive list of assigned judges."
+example_urls = [
+    "https://www.nmd.uscourts.gov/judges"
+]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = "Federal judges are appointed for life, not subject to retention elections"
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court locations available on website. Courthouses in Albuquerque, Las Cruces, Roswell, and Santa Fe."
+example_urls = [
+    "https://www.nmd.uscourts.gov/court-info/court-locations",
+    "https://www.nmd.uscourts.gov/content/albuquerque",
+    "https://www.nmd.uscourts.gov/content/las-cruces",
+    "https://www.nmd.uscourts.gov/content/roswell",
+    "https://www.nmd.uscourts.gov/content/santa-fe"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Courthouse location information available on website"
+example_urls = [
+    "https://www.nmd.uscourts.gov/court-info/court-locations"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "This is a district court, not a bankruptcy court. Bankruptcy for D. New Mexico is handled by nmb court."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not a bankruptcy court"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not a bankruptcy court"
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "available"
+notes = "Criminal case information available through PACER (requires payment). DRS system searchable by case type including Criminal."
+example_urls = []
+
+[content.criminal_complaints]
+status = "available"
+notes = "Available through PACER (requires payment)"
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unknown"
+notes = "FJC IDB is a separate database maintained by Federal Judicial Center"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = "This is a district court (trial level), not an appellate court"
+example_urls = []
+
+[content.pacer_html_files]
+status = "available"
+notes = "Available through PACER system (requires payment)"
+example_urls = [
+    "https://ecf.nmd.uscourts.gov/cgi-bin/login.pl"
+]
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable - this is a district court, not Supreme Court"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "DRS system provides search by date range. Historical coverage unknown without performing actual searches."
+
+update_frequency = "daily"
+
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://public.govdelivery.com/accounts/USFEDCOURTS/subscriber/topics?qsp=USFEDCOURTS_10323"
+
+has_search = true
+search_capabilities = [
+    "full_text",
+    "date_range",
+    "case_number",
+    "judge_name",
+    "nature_of_suit",
+    "event_category",
+    "case_type"
+]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+
+scraper_modules = []
+
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+The court has implemented a Sealed Document Security (SDS) system as of September 23, 2025.
+Restricted and sealed documents are no longer accessible electronically through CM/ECF.
+Service of sealed documents must be effected by means other than CM/ECF.
+Parties can obtain paper copies by contacting records@nmd.uscourts.gov.
+"""
+
+special_document_types = []
+
+data_quality_notes = ""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The U.S. District Court for the District of New Mexico provides opinions through a
+Document Retrieval System (DRS) at https://www.nmcourt.uscourts.gov/Drs-Web/input.
+
+**Key Findings:**
+- DRS opinions portal is publicly accessible and free (no PACER payment required)
+- System requires JavaScript and uses complex form submission
+- Search capabilities include full-text search, case number, judge name, nature of suit,
+  event category, case type, and date range
+- Extensive event/document type coverage (hundreds of event types including various
+  opinions, orders, memoranda)
+- No simple Opinions.pl CGI script like some other federal district courts
+- Standard PACER/CM/ECF infrastructure for dockets (requires payment)
+- Recently implemented SDS (Sealed Document Security) system restricting electronic
+  access to sealed documents
+
+**Technical Challenges:**
+- Complex search form with many optional parameters
+- JavaScript required for form interaction
+- No public API or simple URL patterns
+- Would require POST request handling with proper form data
+- May need session/cookie management
+- Results page structure unknown without performing actual searches
+
+**Recommended Approach:**
+1. Study the DRS form structure and POST parameters
+2. Implement form submission with appropriate search parameters
+3. Parse results pages to extract opinion metadata and download URLs
+4. Respect 10-second crawl delay specified in robots.txt
+5. Consider implementing date-based incremental scraping
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority because:
+- Public opinions access without PACER payment is valuable
+- No existing scraper for this court
+- Federal district court opinions are important for legal research
+- However, technical complexity is higher than simple list-based scrapers
+- DRS system requires form handling and JavaScript
+- Alternative federal sources (PACER, CourtListener RECAP) may already provide coverage
+"""
+
+complexity = "complex"
+complexity_reasoning = """
+Complex implementation due to:
+- JavaScript-required form submission
+- Complex search form with many parameters
+- No simple URL patterns for direct access
+- Requires POST request handling
+- Results page structure unknown
+- May need session/cookie management
+- No public API or structured data format
+- Would need to reverse-engineer form submission and parse HTML results
+"""
+
+blockers = [
+    "Requires detailed form analysis to understand POST parameters",
+    "Results page structure unknown - need to perform test searches",
+    "No public API or simple URL patterns",
+    "May encounter session management or CSRF protection"
+]

@@ -1,0 +1,454 @@
+# Court Site Research Report: North Dakota Court System
+#
+# Domain: www.ndcourts.gov
+# Research Date: 2026-01-09
+# Researcher: agent
+
+[meta]
+domain = "www.ndcourts.gov"
+court_ids = ["nd", "ndctapp"]
+court_name = "North Dakota Supreme Court and Court of Appeals"
+court_url = "https://www.ndcourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "jquery"
+
+# The site uses Thomson Reuters Case Management System (ctrack)
+platform = "thomson_reuters"
+
+scope = "statewide"
+
+# The public portal at portal.ctrack.ndcourts.gov uses Thomson Reuters' ctrack system
+# Other states using Thomson Reuters systems may have similar API structures
+shared_infrastructure = []
+
+# API discovered at portal-api.ctrack.ndcourts.gov
+has_api = true
+api_documented = false
+api_url = "https://portal-api.ctrack.ndcourts.gov"
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = "https://www.ndcourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Supreme Court opinions are available through a searchable interface at
+/supreme-court/opinions with 12,130+ opinions available. Opinions include
+case name, docket number, filing date, case type, author, and citation (ND format).
+Pagination shows 1213 pages with configurable page size. Search supports filtering
+by topic, author, citation, trial judge, and full-text search.
+
+The existing scraper at juriscraper/opinions/united_states/state/nd.py covers
+Supreme Court opinions. The backscraper covers historical opinions back to 1955.
+"""
+example_urls = [
+    "https://www.ndcourts.gov/supreme-court/opinions",
+    "https://www.ndcourts.gov/supreme-court/opinions/201108",
+    "https://www.ndcourts.gov/supreme-court/opinions?page=2"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinion metadata is available through the opinions search interface."
+example_urls = ["https://www.ndcourts.gov/supreme-court/opinions"]
+
+[content.citations]
+status = "available"
+notes = """
+Citations are available in North Dakota reporter format (e.g., "2025 ND 237").
+Citations are displayed in the search results and extractable from opinion text.
+"""
+example_urls = ["https://www.ndcourts.gov/supreme-court/opinions"]
+
+[content.oral_arguments]
+status = "unknown"
+notes = """
+The site mentions a Supreme Court calendar accessible through the public portal at
+portal.ctrack.ndcourts.gov, but availability of audio/video recordings is unclear.
+The calendar page at /supreme-court/calendar redirects users to the portal.
+"""
+example_urls = [
+    "https://www.ndcourts.gov/supreme-court/calendar",
+    "https://portal.ctrack.ndcourts.gov"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Not observed during research."
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """
+Docket search is available through the Thomson Reuters ctrack public portal at
+portal.ctrack.ndcourts.gov/portal/search/case. The search supports case number,
+case title, case category, filed date, and originating court case number searches.
+The portal has an API at portal-api.ctrack.ndcourts.gov with endpoints for:
+- /courts?size=500&fields=*,locations(*)
+- /cms/casecategories
+- /currentuser
+- /locales
+"""
+example_urls = [
+    "https://portal.ctrack.ndcourts.gov/portal/search/case"
+]
+
+[content.docket_entries]
+status = "available"
+notes = """
+The ctrack portal provides access to docket entries. The opinions page mentions:
+'If you wish to review the docket or documents filed in a matter, please go to
+the Court's public portal search page.'
+"""
+example_urls = ["https://portal.ctrack.ndcourts.gov/portal/search/case"]
+
+[content.recap_documents]
+status = "unknown"
+notes = "Portal provides access to filed documents, but extent is unclear."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Party information visible in case names and likely in docket details."
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = """
+There is a lawyer search feature at /lawyers, but its connection to case
+data is unclear. Attorneys may be listed in docket entries.
+"""
+example_urls = ["https://www.ndcourts.gov/lawyers"]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = """
+Opinion search includes filtering by authoring justice and trial judge.
+The existing scraper extracts author/judge information.
+"""
+example_urls = ["https://www.ndcourts.gov/supreme-court/opinions"]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+The API at portal-api.ctrack.ndcourts.gov/courts?size=500 returns court
+information. The site serves both Supreme Court and Court of Appeals.
+"""
+example_urls = ["https://portal-api.ctrack.ndcourts.gov/courts?size=500"]
+
+[content.courthouses]
+status = "partial"
+notes = """
+Court locations page available at /court-locations. Supreme Court address
+is listed in footer: 600 E Boulevard Ave, Bismarck, ND 58505-0530
+"""
+example_urls = ["https://www.ndcourts.gov/court-locations"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State courts don't handle bankruptcy cases."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "partial"
+notes = """
+Case type taxonomy includes many criminal categories: Drugs/Contraband,
+DUI/DUS/APC, Sexual Offense, Assault, etc. Details likely in docket records.
+"""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system."
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = """
+The existing scraper extracts lower court information from opinion text using
+regex patterns to find 'Appeal from the [court], the Honorable [judge], Judge'.
+Search supports filtering by originating court case number.
+"""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court system, not PACER."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "State court system."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1955-10-25"
+latest_date = "2025-12-31"
+has_historical = true
+historical_notes = """
+The existing scraper has first_opinion_date = datetime(1955, 10, 25).
+The backscraper covers historical opinions from 1955 forward.
+Over 12,130 opinions currently available.
+"""
+update_frequency = "daily"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = [
+    "case_type",
+    "author",
+    "citation",
+    "trial_judge",
+    "full_text",
+    "date_range"
+]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.nd",
+    "juriscraper.opinions.united_states_backscrapers.state.nd"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Consolidated cases: The site returns the same document once per each base docket,
+  which can cause scrape issues due to duplicates. The existing scraper handles
+  this by tracking seen URLs.
+
+- Case name format: Some case names list consolidated docket numbers or include
+  (CONFIDENTIAL) markers that need to be cleaned.
+
+- Citation extraction: Citations are sometimes only available in the opinion text,
+  not in the HTML metadata. The scraper extracts from both sources.
+
+- Lower court info: Must be extracted from opinion text using regex patterns
+  rather than structured metadata.
+
+- The site appears to use a numeric ID system for opinions (/supreme-court/opinions/201108)
+  but the exact mapping to docket numbers is unclear.
+"""
+special_document_types = []
+data_quality_notes = """
+The existing scraper has good data extraction logic with fallbacks for missing
+citation data. The scraper also handles consolidated cases and extracts lower
+court information from text when possible.
+"""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+North Dakota courts use a modern website at www.ndcourts.gov with a Thomson Reuters
+ctrack portal at portal.ctrack.ndcourts.gov. The opinions search interface provides
+excellent public access to Supreme Court and Court of Appeals opinions with robust
+search capabilities. The site has both a user-facing web interface and an underlying
+API at portal-api.ctrack.ndcourts.gov.
+
+Existing scrapers provide good coverage of Supreme Court opinions dating back to 1955.
+The docket/case management system through the ctrack portal provides additional data
+that could be scraped, but no existing scraper covers that functionality.
+
+The API discovery revealed several endpoints that could be leveraged for more efficient
+scraping:
+- portal-api.ctrack.ndcourts.gov/courts?size=500 - court information
+- portal-api.ctrack.ndcourts.gov/cms/casecategories - case type taxonomy
+- Likely additional endpoints for case search results (not yet discovered)
+
+Thomson Reuters' ctrack system may be used by other states, so understanding its API
+structure could benefit future scraping efforts.
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority because:
+- Existing opinion scrapers provide good coverage
+- The opinions interface works well and is stable
+- The ctrack portal provides docket access but would require new development
+- The undocumented API could enable more efficient scraping
+- No critical issues with existing scrapers noted
+
+Not high priority because the core opinion scraping is already working well.
+Could be elevated if:
+- Docket scraping becomes a priority
+- The API is better documented or understood
+- Issues arise with the current HTML-based scraper
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+Moderate complexity:
+- Opinion scraping: Simple (existing scraper works well, static HTML with pagination)
+- Docket scraping: Moderate to Complex (requires understanding the ctrack API, may need
+  to handle authentication/sessions, API is undocumented)
+- The Thomson Reuters ctrack system uses a modern SPA architecture but appears to
+  provide public API access without authentication
+- Would benefit from API exploration to understand available endpoints and response formats
+"""
+
+blockers = []

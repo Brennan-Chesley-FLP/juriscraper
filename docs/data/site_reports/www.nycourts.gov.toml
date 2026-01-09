@@ -1,0 +1,555 @@
+# Court Site Research Report: New York State Unified Court System
+#
+# This is a STATEWIDE portal serving 400+ New York courts across all levels,
+# from the Court of Appeals down to town and village justice courts.
+
+[meta]
+domain = "www.nycourts.gov"
+domain_aliases = ["www.courts.state.ny.us", "courts.state.ny.us", "ww2.nycourts.gov"]
+court_ids = [
+    "ny",  # New York Court of Appeals
+    "nyappterm",  # Appellate Terms
+    # City Courts (60+)
+    "nycityct", "nyalbany cityct", "nyamsterdcityct", "nyauburncityct", "nybataviacityct",
+    "nybingcityct", "nybuffalocityct", "nycanandcityct", "nycityctlittlef", "nywestchcityct",
+    "nycityctclinton", "nycohoescityct", "nycortlcityct", "nydunkirkcityct", "nyelmiracityct",
+    "nyfultoncityct", "nygenevacityct", "nyglensfcityct", "nygloverscityct", "nyhornellcityct",
+    "nyhudsoncityct", "nyithacacityct", "nyjamescityct", "nykingstcityct", "nylackawcityct",
+    "nylockpcityct", "nylbccityct", "nymiddletcityct", "nymtverncityct", "nynassaucityct",
+    "nynewroccityct", "nynyccityct", "nynewburcityct", "nyniagaracityct", "nycityctnorw",
+    "nyoneidacityct", "nyoswegocityct", "nypeekskcityct", "nyplattscityct", "nyportjercityct",
+    "nypoughcityct", "nycityctrenss", "nyroccityct", "nyromecityct", "nyryecityct",
+    "nysaratocityct", "nyschencityct", "nysyrcityct", "nycitycttomp", "nytonacityct",
+    "nytroycityct", "nyuticacityct", "nywatertcityct", "nywhplncityct", "nyyonkerscityct",
+    # County Courts (60+)
+    "nycountyct", "nyalbanyctyct", "nyalleganyctyct", "nybronxctyct", "nybroomectyct",
+    "nycattctyct", "nycayugactyct", "nychautctyct", "nychemungctyct", "nychenangoctyct",
+    "nyclintonctyct", "nycolumctyct", "nycortlandctyct", "nyputnamctyct", "nysenctyct",
+    "nydelawarectyct", "nydutchessctyct", "nyeriectyct", "nyessexctyct", "nyfrankctyct",
+    "nyfultonctyct", "nygenessctyct", "nyhamilctyct", "nygreenectyct", "nyherkimerctyct",
+    "nyjeffctyct", "nykingsctyct", "nylewisctyct", "nylivingstctyct", "nymadctyct",
+    "nymonroectyct", "nymontctyct", "nynassctyct", "nykingctyct", "nycountyctny",
+    "nyoneidactyct", "nysaratogactyct", "nyniagaractyct", "nyonondagactyct", "nyontarioctyct",
+    "nyorangectyct", "nyorleansctyct", "nyoswegoctyct", "nyotsegoctyct", "nyqueensctyct",
+    "nyrensctyct", "nyrocklandctyct", "nyschenctyct", "nyschoharctyct", "nyschuylerctyct",
+    "nystlawctyct", "nysteubenctyct", "nysuffolkctyct", "nysullivanctyct", "nytiogactyct",
+    "nytompkinsctyct", "nyulsterctyct", "nywarrenctyct", "nywashctyct", "nywaynectyct",
+    "nywestchcty", "nywyomingctyct", "nyyatesctyct",
+    # District Courts
+    "nydistct", "nydistctsuffolk", "nydistctnassau",
+    # Family Courts
+    "nyfamct",
+    # Supreme Courts (100+ entries - one per county with various subdivisions)
+    "nysupct", "nysupctnewyork", "nysupctoneida", "nysupctsntlw", "nysupctstbn",
+    "nysupctschuy", "nysupctulster", "nysupctalbany", "nysupctalgny", "nysupctbrnx",
+    "nysupctbrm", "nysupctctrgs", "nysupctcayuga", "nysupctchtq", "nysupctchmng",
+    "nysupctchenango", "nysupctclinton", "nysupctclmb", "nysupctcrtlnd", "nysupctdlwr",
+    "nysupctdtchss", "nysupcterie", "nysupctessex", "nysupctfrnkln", "nysupctfltn",
+    "nysupctgnss", "nysupctgrn", "nysupcthamilton", "nysupcthrkmr", "nysupctjffrsn",
+    "nysupctkings", "nysupctlewis", "nysupctlvngstn", "nysupctmdsn", "nysupctmonroe",
+    "nysupctmntgmry", "nysupctnss", "nysupctniagra", "nysupctnndg", "nysupctntr",
+    "nysupctorange", "nysupctrlns", "nysupctswg", "nysupctostego", "nysupctptnm",
+    "nysupctren", "nysupctrichmond", "nysupctrcklnd", "nysupctsrtg", "nysupctschnec",
+    "nysupctsnc", "nysupctscho", "nysuprctfflk", "nysupctsllvn", "nysupcttioga",
+    "nysupcttmpkns", "nysupctwarren", "nysupctwash", "nysupctwayne", "nysupctwyom",
+    "nysupctqueens", "nysupctwster", "nysupctyates",
+    # Surrogate's Courts
+    "nysurct", "nysurctbronx",
+    # Justice Courts (200+ town and village courts)
+    "nyjustct", "nyalbanyjustct", "nyamherstjustct", "nyjustctamsterd", "nyjustctarcadia",
+    # (abbreviated due to space - there are 200+ justice courts total)
+]
+court_name = "New York State Unified Court System"
+court_url = "https://www.nycourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Public informational site and opinions are publicly accessible
+public_access = true
+
+# Some features require accounts (e-filing, attorney registration)
+requires_signup = false  # For viewing opinions - no signup required
+signup_method = ""
+
+# Public access is free; e-filing and certain services may have fees
+requires_payment = false  # For viewing opinions
+payment_details = "Public access to court decisions is free. E-filing and certain court services may have fees."
+
+# No captchas observed on public pages
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Main site works without JavaScript for basic navigation
+requires_javascript = false
+javascript_framework = "vanilla"  # Some JavaScript for enhanced features
+
+# Custom platform - New York State Unified Court System
+platform = "custom"
+
+# Statewide portal covering all New York courts
+scope = "statewide"
+
+# Unique statewide portal - no other states have similar unified systems
+shared_infrastructure = []
+
+# No public API discovered
+has_api = false
+api_documented = false
+api_url = ""
+
+# No bulk downloads observed
+bulk_download_available = false
+bulk_download_details = ""
+
+# Opinions available in HTML and PDF formats
+document_formats = ["html", "pdf"]
+
+# E-filing system uses authentication
+auth_mechanism = "session_cookie"  # For authenticated services
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.nycourts.gov/robots.txt"
+
+# Robots.txt allows most content, disallows some specific paths
+allows_scraping = true
+disallowed_paths = [
+    "/ip/jcec/",
+    "/ea/ResourceCenter/cdr/",
+    "/ctapps/courtpass/",  # Court pass login/attestation pages
+    "/Courts/NYC/Family/Splash/",
+    "/reporter/3dseries/",  # Most Law Reporter paths disallowed
+    "/reporter/pdfs/",
+    "/reporter/motions/",
+    "/reporter/motindex/",
+    "/reporter/slipidx/",
+    "/reports/security/",
+    "/courthelp/.*.html$",
+    "/courts/ad2/calendar/webcal/motions/"
+]
+
+# No crawl delay specified
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Extensive opinion coverage across multiple court levels:
+- Court of Appeals: https://www.nycourts.gov/ctapps/decisions.htm
+- Appellate Divisions: https://ww2.nycourts.gov/decisions/ad.shtml
+- Trial Courts (Civil & Criminal): http://decisions.courts.state.ny.us/ecourtsgsa.htm
+- Court of Claims: https://ww2.nycourts.gov/COURTS/nyscourtofclaims/
+- Commercial Division Law Report: http://www.nycourts.gov/courts/comdiv/lawreport.shtml
+- Official Reports: http://www.nycourts.gov/reporter/Decisions.shtml
+
+Opinions available in HTML and PDF formats. Coverage varies by court level.
+"""
+example_urls = [
+    "https://www.nycourts.gov/ctapps/decisions.htm",
+    "https://ww2.nycourts.gov/decisions/ad.shtml",
+    "http://decisions.courts.state.ny.us/ecourtsgsa.htm"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = "Would need to explore specific opinion pages to determine clustering"
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Official Reports system includes citation information. NY citations follow standard formats (NY, NY2d, NY3d, AD, AD2d, AD3d, Misc)"
+example_urls = [
+    "http://www.nycourts.gov/reporter/Decisions.shtml"
+]
+
+[content.oral_arguments]
+status = "unknown"
+notes = "Public access to virtual appearances available at https://portal.nycourts.gov/virtual-appearance-view-request/ but unclear if historical recordings are archived"
+example_urls = [
+    "https://portal.nycourts.gov/virtual-appearance-view-request/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = """
+E-Courts system provides case information:
+- WebCivil E-Courts: https://iapps.courts.state.ny.us/webcivil/ecourtsMain
+- E-Track (case tracking): https://iapps.courts.state.ny.us/webcivil/etrackLogin
+
+Access level varies by case type and jurisdiction. Some information public, some restricted.
+"""
+example_urls = [
+    "https://iapps.courts.state.ny.us/webcivil/ecourtsMain",
+    "https://iapps.courts.state.ny.us/webcivil/etrackLogin"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through E-Courts and E-Track systems for authorized users"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "RECAP is specific to federal PACER system, not applicable to NY state courts"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party information available in case dockets through E-Courts system"
+example_urls = []
+
+[content.party_types]
+status = "partial"
+notes = "Available in docket information where accessible"
+example_urls = []
+
+[content.attorneys]
+status = "available"
+notes = "Attorney search available at https://iapps.courts.state.ny.us/attorneyservices/search. Includes registration info, status, and contact details."
+example_urls = [
+    "https://iapps.courts.state.ny.us/attorneyservices/search"
+]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = "May be included in attorney records but not confirmed"
+example_urls = []
+
+[content.roles]
+status = "partial"
+notes = "Attorney roles in cases available where docket information is accessible"
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judges' profiles available at http://www.nycourts.gov/judges/directory.shtml"
+example_urls = [
+    "http://www.nycourts.gov/judges/directory.shtml"
+]
+
+[content.positions]
+status = "partial"
+notes = "Judge directory includes current positions"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = "May be in judge profiles but not confirmed"
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "ABA ratings not published on court website"
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = "NY has elected judges in some positions - election information may be available elsewhere"
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Comprehensive court locator at https://ww2.nycourts.gov/courtlocator. Includes all 400+ courts with locations, contact info, and jurisdiction details."
+example_urls = [
+    "https://ww2.nycourts.gov/courtlocator"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Court locator includes courthouse addresses and contact information"
+example_urls = [
+    "https://ww2.nycourts.gov/courtlocator"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Bankruptcy is federal jurisdiction, not handled by NY state courts"
+example_urls = []
+
+[content.claims]
+status = "partial"
+notes = "NY Court of Claims handles claims against the state - https://ww2.nycourts.gov/COURTS/nyscourtofclaims/"
+example_urls = [
+    "https://ww2.nycourts.gov/COURTS/nyscourtofclaims/"
+]
+
+[content.claim_history]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "partial"
+notes = "Criminal case information available through trial court decisions and E-Courts where accessible"
+example_urls = []
+
+[content.criminal_complaints]
+status = "partial"
+notes = "Available through E-Courts system for authorized access"
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "FJC IDB is federal, not applicable to state courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Appellate decisions include information about lower court proceedings"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "PACER is federal system, not applicable to NY state courts"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable - this is NY state court system"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Citation information in opinions themselves, not as separate structured data"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# Historical coverage varies by court
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"  # Varies significantly by court level
+latest_date = "ongoing"
+
+# Extensive historical coverage for higher courts
+has_historical = true
+historical_notes = "Court of Appeals and Appellate Division have extensive historical coverage. Trial court coverage more recent."
+
+# Courts update regularly
+update_frequency = "daily"
+
+# Email alerts available
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://www.nycourts.gov/notice/emergency-alerts.shtml"
+
+# Multiple search systems available
+has_search = true
+search_capabilities = ["case_number", "party_name", "date_range", "full_text", "attorney_name"]
+
+# Searchable and browseable
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Existing scrapers for some NY courts
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.ny",
+    "juriscraper.opinions.united_states.state.nyappdiv_1st",
+    "juriscraper.opinions.united_states.state.nyappdiv_2nd",
+    "juriscraper.opinions.united_states.state.nyappdiv_3rd",
+    "juriscraper.opinions.united_states.state.nyappdiv_4th",
+    "juriscraper.opinions.united_states.state.nyappterm_1st",
+    "juriscraper.opinions.united_states.state.nyappterm_2nd"
+]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []  # Would need to check GitHub
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+New York has one of the most complex court systems in the United States:
+- 400+ individual courts across multiple levels
+- Confusing nomenclature: "Supreme Court" is the TRIAL court, not the highest court
+- Court of Appeals is the highest court (equivalent to other states' Supreme Courts)
+- Multiple intermediate appellate courts (4 Appellate Divisions, multiple Appellate Terms)
+- Extensive system of specialized courts (Family, Surrogate's, Court of Claims, Commercial Division)
+- Town and village justice courts (~1,250 total, many served by this portal)
+
+E-filing system (NYSCEF) is mandatory in many counties and case types:
+- https://iapps.courts.state.ny.us/nyscef/HomePage
+
+Public virtual appearance viewing available:
+- https://portal.nycourts.gov/virtual-appearance-view-request/
+"""
+
+special_document_types = [
+    "Commercial Division decisions",
+    "Court of Claims decisions",
+    "Surrogate's Court decisions"
+]
+
+data_quality_notes = "Coverage and accessibility vary significantly by court level and county"
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+www.nycourts.gov is the statewide portal for New York's Unified Court System, serving
+400+ courts across all levels from the Court of Appeals down to town and village justice
+courts.
+
+**Key Findings:**
+- Extensive opinion coverage at multiple levels (Court of Appeals, Appellate Divisions,
+  Trial Courts, Commercial Division, Court of Claims)
+- Multiple access points for opinions - not a single unified search interface
+- E-Courts system (WebCivil) for case information and dockets
+- NYSCEF for e-filing
+- Attorney search database
+- Court locator for 400+ courts
+- Judges' directory
+- No single comprehensive API or data feed
+- Robots.txt disallows many reporter paths but allows general access
+- No crawl delay specified
+
+**System Architecture:**
+The NY court system uses multiple distinct subsystems:
+1. Decisions portals (varies by court level)
+2. E-Courts/WebCivil (case information)
+3. NYSCEF (e-filing)
+4. E-Track (case tracking)
+5. Attorney Services
+6. Court Locator
+7. Official Law Reporter system
+
+Each subsystem has its own URL structure, authentication, and access patterns.
+
+**Existing Scraper Coverage:**
+Juriscraper already has scrapers for:
+- NY Court of Appeals
+- All 4 Appellate Divisions
+- Some Appellate Terms
+
+Trial court coverage may be limited or non-existent.
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority because:
+- Existing scraper coverage for major appellate courts (Court of Appeals, Appellate Divisions)
+- Trial court opinions may not be as comprehensively covered
+- Complex multi-system architecture makes comprehensive scraping challenging
+- Very important jurisdiction (largest state court system in US by volume)
+
+Not high priority because:
+- Major appellate courts already have scraper coverage
+- Multiple subsystems would require multiple scraper implementations
+- Complexity of 400+ courts makes comprehensive coverage impractical
+"""
+
+complexity = "complex"
+complexity_reasoning = """
+Highly complex implementation due to:
+- 400+ individual courts with varying structures
+- Multiple distinct subsystems (Decisions, E-Courts, NYSCEF, etc.)
+- No unified API or data access method
+- Different URL patterns and structures for different court levels
+- Robots.txt restrictions on some reporter paths
+- Some content requires authentication (e-filing, full dockets)
+- Existing scrapers already cover major appellate courts
+- Trial court scraping would require understanding E-Courts system
+- Scale: comprehensive coverage would require dozens of individual scrapers
+
+Recommendation: Focus on gaps in existing coverage (trial courts) rather than
+duplicating existing appellate court scrapers.
+"""
+
+blockers = [
+    "Existing scrapers already cover major appellate courts - need to identify specific gaps",
+    "Trial court access through E-Courts system - structure needs detailed exploration",
+    "Robots.txt disallows many /reporter/ paths - need to verify what's accessible",
+    "400+ courts make comprehensive coverage impractical - prioritization required",
+    "Multiple subsystems with different authentication requirements",
+    "Would need to check existing scraper status and known issues"
+]

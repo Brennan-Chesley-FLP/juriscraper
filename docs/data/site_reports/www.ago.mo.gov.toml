@@ -1,0 +1,373 @@
+# Court Site Research Report
+# Missouri Attorney General
+# Research Date: 2026-01-08
+
+[meta]
+domain = "www.ago.mo.gov"
+court_ids = ["moag"]
+court_name = "Missouri Attorney General Reports"
+court_url = "https://ago.mo.gov/other-resources/ag-opinions/"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "jquery"
+platform = "wordpress"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# Notes on URL structure:
+# - Opinions organized by decade: /other-resources/ag-opinions/2020-opinions/
+# - Individual years: /other-resources/ag-opinions/2020-opinions/2024-opinions/
+# - PDF download pattern: https://ago.mo.gov/wp-content/uploads/attachments/{number}-{year}.pdf?sfvrsn=2
+# - Example: https://ago.mo.gov/wp-content/uploads/attachments/1-2020.pdf?sfvrsn=2
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://ago.mo.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/calendar/action*", "/events/action*", "/cdn-cgi*", "/*?"]
+crawl_delay_seconds = 3
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = """
+AG opinions are well-organized and publicly accessible. Opinions are organized by
+decade (1933-present) and then by individual year. Each opinion has:
+- Opinion number (format: {number}-{year}, e.g., 1-2020, 2-2020)
+- Date issued
+- Topic/subject area
+- Summary description
+- Direct PDF download link
+
+Opinions displayed in HTML tables with metadata. Coverage appears complete from
+1933 to present (2025).
+"""
+example_urls = [
+    "https://ago.mo.gov/other-resources/ag-opinions/2020-opinions/",
+    "https://ago.mo.gov/wp-content/uploads/attachments/1-2020.pdf?sfvrsn=2",
+    "https://ago.mo.gov/wp-content/uploads/attachments/14-2020.pdf?sfvrsn=2"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "AG opinions are individual documents, not clustered"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citations would be present within the opinion PDF text but not separately indexed"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Attorney General opinions do not involve oral arguments"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "Attorney General opinions do not involve oral arguments"
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "AG opinions are not cases with dockets"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = "AG opinions are not cases with dockets"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable to AG opinions"
+example_urls = []
+
+[content.parties]
+status = "unavailable"
+notes = "AG opinions are advisory, not adversarial proceedings"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "AG opinions are advisory, not adversarial proceedings"
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "AG opinions are issued by the AG's office, no adversarial representation"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "partial"
+notes = "The Attorney General who issued each opinion would be identifiable from the opinion metadata and content"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = "AG opinions may cite other legal authorities, but this would need to be extracted from opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "available"
+notes = "Opinions are tagged with topic/subject areas in the HTML table"
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1933"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Comprehensive historical coverage from 1933 to present, organized by decade and year"
+update_frequency = "irregular"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["full_text"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Missouri AG opinions are governed by Section 27.040, RSMo. Only specific officials
+may request opinions:
+- General Assembly members
+- Statewide elected officials
+- State department heads
+- County prosecuting attorneys
+- Other specified officials on matters within their official duties
+
+Opinions are non-binding advisory documents responding to specific legal questions.
+They cannot decide factual disputes. Published opinions are not updated to reflect
+subsequent changes in law.
+
+Opinion types include:
+- Traditional AG opinions (advisory legal counsel)
+- Initiative petition reviews (sufficiency as to form)
+- Fair ballot language reviews
+- Fiscal note summary reviews
+"""
+special_document_types = [
+    "Initiative Petition Reviews",
+    "Fair Ballot Language Reviews",
+    "Fiscal Note Summaries"
+]
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Missouri AG website provides excellent access to Attorney General opinions
+through a well-organized WordPress site. Opinions are browsable by decade and
+year, with each opinion listed in an HTML table with metadata (number, date,
+topic, summary) and direct PDF download links.
+
+Key findings:
+- Very clean URL structure and organization
+- Static HTML pages (no JavaScript required for basic access)
+- Direct PDF links with predictable pattern
+- Comprehensive historical coverage (1933-2025)
+- robots.txt specifies 3-second crawl delay
+- No existing scraper for moag court_id
+- Standard WordPress site, no special API
+
+URL patterns:
+- Decade pages: /other-resources/ag-opinions/{end_year}-opinions/
+- Year pages: /other-resources/ag-opinions/{decade}-opinions/{year}-opinions/
+- PDFs: /wp-content/uploads/attachments/{number}-{year}.pdf?sfvrsn=2
+
+The site is very scraper-friendly with clear structure and public access.
+"""
+
+priority = "high"
+priority_reasoning = """
+High priority because:
+- Excellent public access with no barriers
+- Well-organized, scraper-friendly structure
+- Comprehensive historical coverage (1933-present)
+- No existing scraper for this court_id
+- Clear URL patterns for both listing pages and PDFs
+- Static HTML tables make parsing straightforward
+- Respects robots.txt with reasonable 3-second crawl delay
+- High-quality metadata available (date, topic, summary, opinion number)
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Simple complexity because:
+- Static HTML pages, no JavaScript required
+- Standard WordPress site structure
+- Opinions organized in simple HTML tables
+- Predictable URL patterns for both pages and PDFs
+- Direct PDF download links (no session management)
+- Clear metadata fields in structured format
+- No authentication or captcha
+- No complex pagination (organized by year/decade)
+- robots.txt clear and reasonable
+"""
+
+blockers = []

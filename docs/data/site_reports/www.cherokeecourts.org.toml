@@ -1,0 +1,401 @@
+# Court Site Research Report: Cherokee Nation Courts
+#
+# Research Date: 2026-01-09
+# Researcher: agent
+
+[meta]
+domain = "www.cherokeecourts.org"
+court_ids = ["cherokeetribct", "cherokeeapp", "cherokee"]
+court_name = "Cherokee Nation Judicial Branch"
+court_url = "https://www.cherokeecourts.org"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = true
+captcha_type = "recaptcha"  # Only on the Tyler portal for case searches
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "jquery"  # DNN CMS with jQuery; Tyler portal uses modern JS
+
+# Platform is DNN (DotNetNuke) for main site, Tyler Technologies for case portal
+platform = "custom"  # Main site is DNN CMS, case portal is Tyler Technologies
+scope = "court_specific"  # Serves Cherokee Nation courts only
+shared_infrastructure = []  # Unique tribal court system
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = true
+bulk_download_details = "PDF listing of all JAT/SC cases from 1978-current available at /Portals/cherokeecourts/Documents/Supreme Court/JAT-SC cases 78-current.pdf"
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""  # Session-based for Tyler portal but not required for browsing
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.cherokeecourts.org/robots.txt"
+
+# DNN standard robots.txt - administrative paths disallowed but content is allowed
+allows_scraping = true
+disallowed_paths = [
+    "/admin/",
+    "/App_Browsers/",
+    "/App_Code/",
+    "/App_Data/",
+    "/App_GlobalResources/",
+    "/bin/",
+    "/Components/",
+    "/Config/",
+    "/controls/",
+    "/DesktopModules/",
+    "/Documentation/",
+    "/HttpModules/",
+    "/Install/",
+    "/Portals/",
+    "/Providers/",
+    "/Resources/"
+]
+
+crawl_delay_seconds = 5  # Specified for msnbot and Slurp
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Supreme Court opinions available from 1975-present, organized by year ranges. Judicial Appeals Tribunal (JAT) opinions 1975-2006, Supreme Court opinions 2007-current. All opinions are PDF documents."
+example_urls = [
+    "https://www.cherokeecourts.org/Portals/cherokeecourts/Documents/Supreme_Court/Opinions/SC-17-01 15-Opinion 3-24-17.pdf",
+    "https://www.cherokeecourts.org/Portals/cherokeecourts/Documents/Supreme Court/Order and Opinions/SC-23-10 16-Order 3-28-24.pdf",
+    "https://www.cherokeecourts.org/Supreme-Court/SC-2017-01-to-current"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Opinions are individual documents, not clustered"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citation information is embedded within opinion PDFs but not structured separately"
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = "No oral argument audio/video found during research"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "No transcripts found during research"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "District Court dockets searchable via Tyler Technologies portal at portal-okcherokeenation.tylertech.cloud. Requires reCAPTCHA but no login. Handles civil, criminal, and juvenile cases."
+example_urls = [
+    "https://portal-okcherokeenation.tylertech.cloud/Portal/Home/Dashboard/29"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through Tyler portal but details require case-by-case search with reCAPTCHA"
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = "Tyler portal may contain court filings but requires further investigation"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names visible in case titles and searchable in Tyler portal"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Supreme Court justice information available on the website with names and photos. District Court judges also listed."
+example_urls = [
+    "https://www.cherokeecourts.org/Supreme-Court"
+]
+
+[content.positions]
+status = "partial"
+notes = "Current judicial positions listed on website"
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Not applicable for tribal courts"
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court structure and location information available on website. Two physical locations: Tahlequah and Jay, Oklahoma."
+example_urls = [
+    "https://www.cherokeecourts.org/"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Physical addresses provided: Tahlequah (17675 S. Muskogee Ave., 2nd Floor) and Jay (1305 N. Industrial Park Rd.)"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable for tribal courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "Criminal cases handled by District Court but details not publicly browsable"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable for tribal courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Supreme Court handles appeals from District Court; this relationship is noted in case descriptions"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable for tribal courts"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable for tribal courts"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1975-01-01"  # Judicial Appeals Tribunal established under 1975 Constitution
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Complete historical coverage from 1975 to present. JAT opinions 1975-2006, Supreme Court 2007-current after 1999 constitutional rename."
+
+update_frequency = "irregular"  # Cases added as decided
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = ["case_number", "party_name", "date_range"]  # Via Tyler portal
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Cherokee Nation is a federally recognized tribal nation with jurisdiction over 14 counties in northeastern Oklahoma
+- Court system includes District Court (trial level) and Supreme Court (appellate)
+- Supreme Court was called Judicial Appeals Tribunal (JAT) from 1975-1999
+- Handles civil, criminal, and juvenile matters within tribal jurisdiction
+- Cherokee Nation Bar Association membership required for attorneys
+- Cases often involve questions of tribal sovereignty and jurisdiction
+"""
+
+special_document_types = [
+    "Administrative Orders of the Supreme Court (SC-AD-XX-XX series)",
+    "Eligibility challenges for tribal elections",
+    "Tribal constitutional interpretation cases"
+]
+
+data_quality_notes = "Opinions organized chronologically and well-maintained. PDF documents are clearly labeled with case numbers and dates."
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Cherokee Nation Courts website provides excellent access to Supreme Court opinions dating back to 1975.
+All Supreme Court opinions are available as PDF documents organized by year ranges. The site uses DNN CMS
+for the main website. District Court case information is available through a Tyler Technologies portal that
+requires reCAPTCHA verification but no login.
+
+Main content available:
+1. Supreme Court opinions (1975-present) - well-organized, complete historical coverage
+2. Administrative orders from Supreme Court
+3. District Court docket search via Tyler portal (with reCAPTCHA)
+4. Court rules and procedures
+5. Judge and justice information
+
+The Supreme Court opinion collection is the primary scraping target. Opinions are consistently formatted
+PDFs with clear URL patterns in the /Portals/cherokeecourts/Documents/ directory.
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority for these reasons:
+- Good public access to Supreme Court opinions with complete historical coverage
+- Important tribal court covering significant jurisdiction in Oklahoma
+- No existing scraper for Cherokee Nation courts
+- Opinions are valuable for tribal law research and McGirt-related cases
+- Static PDF links make scraping feasible without JavaScript rendering
+
+Not high priority because:
+- Relatively smaller volume compared to state appellate courts
+- District Court portal has reCAPTCHA barrier
+- Tribal court system has more limited general applicability
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+Moderate complexity:
+- Supreme Court opinions: Simple - static HTML pages with PDF links, no authentication
+- Opinion organization by year ranges requires multiple page scrapes
+- PDF documents are straightforward to download
+- Tyler portal for District Court requires handling reCAPTCHA (higher complexity if dockets are needed)
+- No API available
+- JavaScript not strictly required for Supreme Court opinions but used by site
+- Well-structured URLs make pagination and discovery manageable
+"""
+
+blockers = []

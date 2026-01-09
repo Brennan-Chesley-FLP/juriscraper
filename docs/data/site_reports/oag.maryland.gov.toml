@@ -1,0 +1,366 @@
+# Court Site Research Report
+# Domain: oag.maryland.gov
+# Research Date: 2026-01-09
+# Researcher: agent
+
+[meta]
+domain = "oag.maryland.gov"
+court_ids = ["mdag"]
+court_name = "Maryland Attorney General Reports"
+court_url = "https://oag.maryland.gov/resources-info/Pages/search-opinions.aspx"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "sharepoint"
+
+# Site is built on Microsoft SharePoint
+platform = "sharepoint"
+
+scope = "statewide"
+shared_infrastructure = []
+
+# SharePoint API endpoint discovered
+has_api = true
+api_documented = false
+api_url = "https://oag.maryland.gov/resources-info/_api/web/lists/getbytitle('Search-Opinions')/items"
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+# SharePoint authentication mechanism, but no auth required for public data
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = "https://oag.maryland.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Attorney General opinions are available through a SharePoint API endpoint.
+The API returns JSON with Title (opinion number), Year, Summary, and Attachment (PDF filename).
+Coverage appears to go back to at least 1916 based on the year selector on the search page.
+PDFs are served at: https://oag.maryland.gov/resources-info/Documents/pdfs/Opinions/{year}/{attachment}.pdf
+"""
+example_urls = [
+    "https://oag.maryland.gov/resources-info/Documents/pdfs/Opinions/2025/110OAG3.pdf",
+    "https://oag.maryland.gov/resources-info/Documents/pdfs/Opinions/2025/110OAG40.pdf",
+    "https://oag.maryland.gov/resources-info/Documents/pdfs/Opinions/2025/110OAG60.pdf"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "These are individual AG opinions, not clustered court opinions"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citation information is embedded in the opinion metadata (Title field contains opinion numbers like '110OAG003')"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Attorney General opinions do not have oral arguments"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "unavailable"
+notes = "AG opinions are not part of court dockets"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "available"
+notes = "The site has a search box for filtering opinions, though full-text search is noted as unavailable (coming in future update)"
+example_urls = ["https://oag.maryland.gov/resources-info/Pages/search-opinions.aspx"]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1916"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Site provides opinions going back to 1916 with year-by-year navigation"
+
+update_frequency = "irregular"
+
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://public.govdelivery.com/accounts/MDAG/subscriber/new"
+
+has_search = true
+search_capabilities = ["year", "opinion_number", "summary_text"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = ["juriscraper.opinions.united_states.state.mdag"]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = ["Site API was updated in 2023 (#1598) - scraper was updated to match"]
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+These are Attorney General opinions, not court opinions. They provide legal advice
+to state agencies and officials. The opinion numbers follow a format like "110OAG003"
+where the first digits represent the volume number and "OAG" stands for "Office of the Attorney General".
+"""
+
+special_document_types = ["attorney_general_opinions"]
+
+data_quality_notes = """
+Dates in the API are approximate (only year is provided, not exact date).
+The scraper attempts to extract exact dates from the PDF text using the extract_from_text method.
+"""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Maryland Attorney General's office provides a comprehensive searchable database of
+AG opinions going back to 1916. The site is built on Microsoft SharePoint and uses a
+SharePoint REST API to fetch opinion metadata. An existing scraper successfully handles
+this site using the discovered API endpoint.
+
+The API endpoint: `https://oag.maryland.gov/resources-info/_api/web/lists/getbytitle('Search-Opinions')/items`
+accepts OData query parameters like `$top`, `$select`, and `$orderby`.
+
+PDF documents are stored in a predictable URL pattern:
+`https://oag.maryland.gov/resources-info/Documents/pdfs/Opinions/{year}/{attachment}.pdf`
+
+The site requires JavaScript to function (SharePoint framework), but the API can be
+accessed directly without JavaScript. The existing scraper uses the API with special
+headers: `Accept: application/json;odata=verbose`.
+
+Note: The task indicated the domain as "www.oag.state.md.us" but the actual working
+domain is "oag.maryland.gov". The www.oag.state.md.us domain appears to be
+inaccessible or has been deprecated.
+"""
+
+priority = "low"
+priority_reasoning = "Good existing scraper that was recently updated. Site is stable and API-based."
+
+complexity = "simple"
+complexity_reasoning = "SharePoint REST API provides clean JSON responses. Predictable URL patterns for PDFs."
+
+blockers = []

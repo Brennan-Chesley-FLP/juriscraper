@@ -1,0 +1,365 @@
+# Court Site Research Report Template
+#
+# File naming: {domain_name}.toml
+
+[meta]
+domain = "6dca.flcourts.gov"
+court_ids = ["fladistctapp6"]
+court_name = "Florida Sixth District Court of Appeal"
+court_url = "https://6dca.flcourts.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "react"
+
+# Platform uses Next.js on the frontend with GraphQL + REST API backend
+platform = "custom"
+
+scope = "court_specific"
+shared_infrastructure = ["fladistctapp1", "fladistctapp2", "fladistctapp3", "fladistctapp4", "fladistctapp5"]
+
+# API is available via flcourts-media.flcourts.gov
+has_api = true
+api_documented = false
+api_url = "https://flcourts-media.flcourts.gov/_search/opinions/"
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://6dca.flcourts.gov/robots.txt"
+
+# robots.txt disallows all general crawlers but allows major search engines
+# Disallows: /, /admin/, /site_admin/, /search, /media/, /user/, etc.
+# Allows: Major search engines (Googlebot, Bingbot, DuckDuckBot, etc.)
+allows_scraping = false
+disallowed_paths = ["/", "/admin/", "/site_admin/", "/search", "/media/", "/user/", "/test-area/"]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+# robots.txt explicitly disallows general user agents but permits specific bots
+tos_restrictions = "robots.txt disallows general crawling; only allows specific search engine bots"
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Written opinions and PCAs (Per Curiam Affirmed) available via search API at https://flcourts-media.flcourts.gov/_search/opinions/. Includes case number, case name, disposition, release date, and PDF links. API supports pagination, date filtering, and opinion type filtering."
+example_urls = [
+    "https://6dca.flcourts.gov/opinions/Most-Recent-Written-Opinions",
+    "https://flcourts-media.flcourts.gov/content/download/2482910/opinion/Opinion_2023-1658.pdf",
+    "https://flcourts-media.flcourts.gov/content/download/2482980/opinion/Opinion_2023-3077.pdf"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Case numbers are available in the opinions listing"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Live video streaming available for oral arguments. Archives available on YouTube channel from January 2023 to present. Also has oral argument calendar and briefs/petitions for scheduled cases."
+example_urls = [
+    "https://6dca.flcourts.gov/Oral-Arguments",
+    "https://6dca.flcourts.gov/Oral-Arguments/Live-Video-Oral-Arguments",
+    "https://6dca.flcourts.gov/Oral-Arguments/Oral-Argument-Video-Archives"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Case info available via ACIS (Appellate Case Information System) at https://acis.flcourts.gov/portal/home - external system shared across Florida courts"
+example_urls = ["https://acis.flcourts.gov/portal/home"]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available via ACIS external portal"
+example_urls = []
+
+[content.recap_documents]
+status = "partial"
+notes = "Briefs and petitions available for cases scheduled for oral argument"
+example_urls = ["https://6dca.flcourts.gov/Oral-Arguments/briefs-and-petitions-in-cases-scheduled-for-oral-argument"]
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names available in case names from opinions listing"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judge information available on Judges page"
+example_urls = ["https://6dca.flcourts.gov/judges"]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court information and contact details available"
+example_urls = ["https://6dca.flcourts.gov"]
+
+[content.courthouses]
+status = "available"
+notes = "Courthouse location: 811 East Main Street, Lakeland, FL 33801"
+example_urls = ["https://6dca.flcourts.gov/clerk-s-office/Courthouse-Information"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "This is an appellate court, not a bankruptcy court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "This is a state court"
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "This is a state court"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+
+earliest_date = "unknown"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Archives appear to go back multiple years based on case numbers in 2023-2025 range"
+
+update_frequency = "daily"
+
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://6dca.flcourts.gov/opinions"
+
+has_search = true
+search_capabilities = ["date_range", "case_number", "opinion_type"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = ["juriscraper.opinions.united_states.state.fladistctapp_6"]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "Uses shared Florida Courts infrastructure (flcourts-media.flcourts.gov) with other Florida District Courts of Appeal"
+
+special_document_types = ["PCA (Per Curiam Affirmed)"]
+
+data_quality_notes = ""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Florida 6th DCA website is a modern Next.js application with a GraphQL and REST API backend.
+The site uses the shared Florida Courts media infrastructure (flcourts-media.flcourts.gov) that
+serves all Florida District Courts of Appeal.
+
+Key findings:
+- Opinions API: https://flcourts-media.flcourts.gov/_search/opinions/ with filtering by type, date, scope
+- GraphQL API: https://flcourts-media.flcourts.gov/graphql for general content
+- REST API: https://flcourts-media.flcourts.gov/api/ for structured data
+- Document downloads: Direct PDF links via /content/download/ endpoints
+- Oral arguments: Available via YouTube with live streaming capability
+- External docket system: ACIS (https://acis.flcourts.gov) - shared across Florida courts
+
+The existing scraper (juriscraper/opinions/united_states/state/fladistctapp_6.py) correctly targets
+this court using the shared Florida scraper infrastructure with scopes="sixth_district_court_of_appeal"
+and site_access="6dca".
+
+Note: robots.txt explicitly disallows general crawling but permits major search engines. This may
+impact scraping permissions.
+"""
+
+priority = "medium"
+priority_reasoning = "Existing scraper is in place and working. The API-based approach is reliable. However, robots.txt restrictions and the fact that the scraper already exists means this is lower priority for new development. May need monitoring for API changes or to verify continued functionality."
+
+complexity = "moderate"
+complexity_reasoning = "The site uses JavaScript/React and requires API calls rather than simple HTML parsing. However, the API is relatively straightforward JSON with clear endpoints. The existing scraper demonstrates this is achievable with the shared Florida infrastructure."
+
+blockers = ["robots.txt disallows general crawling (though existing scraper may have worked around this or have special permissions)"]

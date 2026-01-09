@@ -1,0 +1,411 @@
+# Court Site Research Report for www.coloradosupremecourt.com
+#
+# Research completed: 2026-01-09
+# Court served: Colorado Supreme Court
+
+[meta]
+domain = "www.coloradosupremecourt.com"
+court_ids = ["colo"]
+court_name = "Colorado Supreme Court"
+court_url = "https://www.coloradojudicial.gov/supreme-court"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Opinions platform is JavaScript-heavy vLex application
+requires_javascript = true
+javascript_framework = "custom"
+
+# vLex powers the Colorado Case Law Search platform
+platform = "vlex"
+
+# Statewide judicial website serving both Supreme Court and Court of Appeals
+scope = "statewide"
+
+shared_infrastructure = ["coloctapp"]
+
+# Has JSON API
+has_api = true
+api_documented = false
+api_url = "https://research.coloradojudicial.gov/search.json"
+
+# No bulk downloads, but searchable database
+bulk_download_available = false
+bulk_download_details = ""
+
+# PDF and HTML formats available
+document_formats = ["pdf", "html"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://research.coloradojudicial.gov/robots.txt"
+
+allows_scraping = true
+disallowed_paths = []
+
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Colorado Supreme Court and Court of Appeals opinions available through vLex-powered search platform at research.coloradojudicial.gov. Includes published opinions and unpublished Court of Appeals opinions (with citation restrictions). Supreme Court opinions from 2010+, Court of Appeals from 1970+ (with gap 1970-1975). JSON API available."
+example_urls = [
+    "https://research.coloradojudicial.gov/",
+    "https://research.coloradojudicial.gov/en/vid/1099656753",
+    "https://research.coloradojudicial.gov/search/jurisdiction:US+content_type:2+court:14024_01/*"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Individual opinions not clustered"
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Citations included in opinion metadata"
+example_urls = []
+
+[content.oral_arguments]
+status = "partial"
+notes = "Oral arguments are held and are open to the public at Ralph L. Carr Judicial Center. Not clear if recordings or transcripts are available online."
+example_urls = [
+    "https://www.coloradojudicial.gov/topic/78/supreme-court-oral-arguments?topic=78&wrapped=true"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Docket numbers included in opinion metadata. No separate docket search system found."
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names included in case titles and opinion metadata"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Justice information available on main Supreme Court page with photos and names. Authoring judges included in opinion metadata."
+example_urls = [
+    "https://www.coloradojudicial.gov/supreme-court"
+]
+
+[content.positions]
+status = "partial"
+notes = "Current justices listed with Chief Justice designation"
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Supreme Court information including jurisdiction, composition (7 justices, 10-year terms), and administrative structure"
+example_urls = [
+    "https://www.coloradojudicial.gov/supreme-court"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Ralph L. Carr Judicial Center, 2 East 14th Avenue, Denver, CO 80203"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable for state supreme court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable for state court"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Supreme Court reviews decisions from Court of Appeals and has direct jurisdiction over certain case types"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Would need to parse opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.case_announcements]
+status = "available"
+notes = "Case announcements available on Supreme Court website"
+example_urls = [
+    "https://www.coloradojudicial.gov/topic/78/supreme-court-case-announcements?topic=78&wrapped=true"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# Supreme Court opinions from 2010, Court of Appeals from 1970 (with gap)
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2010-01-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Supreme Court coverage appears to start from 2010. Court of Appeals has opinions from 1970, except for gap between January 1, 1970 and November 1, 1975. Unpublished Court of Appeals opinions have citation restrictions."
+
+# Updated regularly - recent opinions from January 2026 visible
+update_frequency = "daily"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+# Full search capabilities via vLex platform
+has_search = true
+search_capabilities = ["full_text", "case_number", "party_name", "date_range", "court"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = ["juriscraper.opinions.united_states.state.colo"]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Domain www.coloradosupremecourt.com redirects to www.coloradolegalregulation.com (Office of Attorney Regulation Counsel), NOT the court opinions site
+- Actual court website is at www.coloradojudicial.gov/supreme-court
+- Opinions are published on separate vLex-powered platform at research.coloradojudicial.gov
+- Supreme Court has 7 justices serving 10-year terms
+- Chief Justice serves as executive head of Colorado Judicial System
+- Supreme Court has exclusive jurisdiction over attorney regulation
+- Citation restriction: Court of Appeals unpublished opinions (except 1970-1975) cannot be cited except for case history, law of the case, or preclusion doctrines
+- Supreme Court hears reviews from Court of Appeals plus direct appeals in certain case types (constitutional challenges, PUC decisions, habeas, water rights, election code, search/seizure in pending criminal cases)
+"""
+
+special_document_types = [
+    "Chief Justice Directives",
+    "Rule changes (adopted and proposed)",
+    "Water appeals from district court",
+    "Original proceedings",
+    "Ballot initiatives",
+    "Multi-district litigation orders"
+]
+
+data_quality_notes = "Modern vLex platform provides structured data with consistent formatting. JSON API available for programmatic access. Opinions include metadata like docket numbers, citations, parties, and decision dates."
+
+seasonal_notes = "Court hours Monday-Friday 8:00am-4:30pm. Clerk's Office closed on state holidays plus Friday, November 28, 2025."
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+IMPORTANT: The domain www.coloradosupremecourt.com REDIRECTS to www.coloradolegalregulation.com (Office of
+Attorney Regulation Counsel), which handles attorney admissions, registration, discipline, and CLE. This is NOT
+the court opinions website.
+
+The actual Colorado Supreme Court website is at www.coloradojudicial.gov/supreme-court, and opinions are
+published on a separate vLex-powered platform at research.coloradojudicial.gov.
+
+The vLex platform (Colorado Case Law Search) provides:
+- Searchable database of Supreme Court and Court of Appeals opinions
+- JSON API for programmatic access
+- Both PDF and HTML formats
+- Recent opinions updated regularly (daily)
+- Full-text search and advanced filtering
+- Supreme Court opinions from 2010+
+- Court of Appeals opinions from 1970+ (gap 1970-1975)
+
+An existing scraper (juriscraper/opinions/united_states/state/colo.py) already scrapes this platform using
+the JSON API at research.coloradojudicial.gov/search.json.
+"""
+
+priority = "low"
+priority_reasoning = """
+Low priority for new scraper development:
+- Existing scraper already covers this court using the vLex API
+- Domain www.coloradosupremecourt.com is misleading - redirects to attorney regulation, not opinions
+- Current scraper was updated in 2024 to work with the new vLex platform
+- No gaps in coverage that need addressing
+
+The court_url in courts.toml should potentially be updated from www.coloradosupremecourt.com to either:
+- www.coloradojudicial.gov/supreme-court (main court website), or
+- research.coloradojudicial.gov (opinions platform)
+"""
+
+complexity = "low"
+complexity_reasoning = """
+Low complexity (already implemented):
+- Modern JSON API makes scraping straightforward
+- Existing scraper handles this well
+- vLex platform provides consistent, structured data
+- Good metadata extraction (docket numbers, citations, judges, summaries)
+- Both Supreme Court and Court of Appeals use same platform
+
+If building from scratch:
+- Would require JavaScript rendering OR direct API access
+- API is not officially documented but is accessible
+- Rate limiting unknown but likely reasonable for court data
+- Data format is consistent and well-structured
+"""
+
+blockers = []

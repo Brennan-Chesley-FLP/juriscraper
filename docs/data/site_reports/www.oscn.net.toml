@@ -1,0 +1,661 @@
+# Court Site Research Report: www.oscn.net
+#
+# Oklahoma State Courts Network (OSCN)
+
+[meta]
+domain = "www.oscn.net"
+court_ids = ["okla", "oklacivapp", "oklacrimapp", "oklaag", "oklajeap"]
+court_name = "Oklahoma State Courts Network"
+court_url = "https://www.oscn.net"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = true
+javascript_framework = "vanilla"
+
+# What platform/vendor does the site use?
+platform = "custom"
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf", "html"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# Additional notes on technical implementation
+notes = """
+The site uses JavaScript to fetch decision data from static JSON files:
+- /decisions/supreme-court.js
+- /decisions/criminal-appeals.js
+- /decisions/civil-appeals.js
+
+Opinions are delivered via ASP pages using CiteID parameters.
+Example: /applications/oscn/DeliverDocument.asp?CiteID=551101
+
+The site uses OCIS (Oklahoma Court Information System) for docket management.
+"""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://www.oscn.net/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = false
+disallowed_paths = ["/"]
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# Additional robots.txt notes
+robots_notes = """
+IMPORTANT: robots.txt contains "Disallow: /" which disallows all automated access except:
+- Allow: /rss/
+- Allow: /recaptcha/
+
+Specific user-agents allowed:
+- Browsershots
+- dtSearchSpider
+- facebookexternalhit/1.1 (only /notices)
+- Elastic-Crawler (disallowed)
+
+This represents a significant barrier to scraping. However, existing scrapers
+in juriscraper continue to function, suggesting enforcement may be selective or
+the rules may have been added after scrapers were established.
+"""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Comprehensive opinions available from:
+- Oklahoma Supreme Court (1890 to Present)
+- Oklahoma Court of Criminal Appeals (1908 to Present)
+- Oklahoma Court of Civil Appeals (1968 to Present)
+- Oklahoma Court on the Judiciary
+
+Opinions are available in both HTML and PDF formats. HTML versions include
+full text with citations, case details, and citationizer information.
+
+Recent opinions are featured on the homepage with summaries. Historical
+browsing available through the legal research portal.
+"""
+example_urls = [
+    "https://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=551101",
+    "https://www.oscn.net/decisions/",
+    "https://www.oscn.net/applications/oscn/index.asp?ftdb=STOKCS&level=1"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Opinions are not explicitly grouped into clusters on this site."
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = """
+Citations are embedded in opinions and the site includes a 'Citationizer'
+feature that shows:
+1. Documents citing the current opinion
+2. Table of authority (cases/statutes cited by the opinion)
+
+Citations are hyperlinked to other documents within the OSCN system.
+"""
+example_urls = [
+    "https://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=551101"
+]
+
+[content.oral_arguments]
+status = "available"
+notes = """
+Oral argument videos available for Oklahoma Supreme Court cases, hosted on Vimeo.
+Videos include closed captions. Available for approximately one year after argument date.
+
+Note from site: "The videos of oral arguments before the Oklahoma Supreme Court
+are made available here for the convenience of the public. The videos and the
+closed captions are not a part of the official record in the case, and transcripts
+will not be created."
+"""
+example_urls = [
+    "https://www.oscn.net/oral-arguments/",
+    "https://vimeo.com/1138529102?share=copy&fl=sv&fe=ci"
+]
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = """
+Site explicitly states that transcripts will not be created from oral argument
+videos. Only video recordings with closed captions are available.
+"""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """
+Comprehensive docket search available for:
+- All Oklahoma district courts (77 counties)
+- Appellate courts (Supreme Court, Court of Criminal Appeals, Court of Civil Appeals)
+
+Search capabilities:
+- Case number search
+- Party name search (with DOB filters)
+- Lower court case number (appellate only)
+- Traffic citation number
+
+Search filters include case type, filing date ranges, and party types.
+"""
+example_urls = [
+    "https://www.oscn.net/dockets/Search.aspx",
+    "https://www.oscn.net/dockets/GetCaseInformation.aspx?db=appellate&number=123179"
+]
+
+[content.docket_entries]
+status = "available"
+notes = """
+Docket entries appear to be available when viewing individual case information.
+The system allows viewing detailed case information including filings and events.
+"""
+example_urls = [
+    "https://www.oscn.net/dockets/GetCaseInformation.aspx?db=appellate&number=123179"
+]
+
+[content.recap_documents]
+status = "unknown"
+notes = "RECAP is specific to PACER/federal courts. Not applicable to state court system."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = """
+Party information is searchable and displayed in docket searches.
+Party types are extensive (100+ categories including plaintiff, defendant,
+petitioner, respondent, and specialized roles).
+"""
+example_urls = []
+
+[content.party_types]
+status = "available"
+notes = """
+Very detailed party type taxonomy available in search interface, including:
+- Standard types (plaintiff, defendant, petitioner, respondent)
+- Family law types (mother, father, guardian, ward)
+- Criminal types (material witness, probation counselor)
+- Administrative types (court clerk, court reporter, judge)
+"""
+example_urls = []
+
+[content.attorneys]
+status = "available"
+notes = "Attorney information appears in opinions and likely in docket information."
+example_urls = []
+
+[content.attorney_organizations]
+status = "available"
+notes = "Law firm information appears in opinions (e.g., 'SMOLEN | LAW, PLLC')."
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = "Attorney-party relationships may be available but not yet confirmed."
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = """
+Judicial information available including:
+- Judicial Pictorial Directory (PDF)
+- List cases by judge feature
+- Judge names in opinions
+"""
+example_urls = [
+    "http://www.oscn.net/static/JudicialDirectory.pdf",
+    "https://www.oscn.net/applications/oscn/judges.asp"
+]
+
+[content.positions]
+status = "unknown"
+notes = "Judicial positions may be documented but not yet confirmed."
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+Court information available for all Oklahoma courts:
+- Supreme Court
+- Court of Criminal Appeals
+- Court of Civil Appeals
+- 77 county district courts
+- Municipal courts
+"""
+example_urls = []
+
+[content.courthouses]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "This is a state court system; bankruptcy cases are federal."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Bankruptcy-specific content not applicable to state courts."
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Bankruptcy-specific content not applicable to state courts."
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "May be available in criminal docket information."
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = "May be available in criminal docket information."
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "FJC IDB is federal-only."
+example_urls = []
+
+[content.originating_court_information]
+status = "available"
+notes = """
+Lower court information is searchable for appellate cases via the
+'Search by Lower Court Case Number' feature.
+"""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "PACER is federal-only."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "SCOTUS-specific content not applicable."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "available"
+notes = """
+The Citationizer feature shows citation relationships including which
+cases cite the current opinion and which cases are cited by the current opinion.
+"""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_general_opinions]
+status = "available"
+notes = """
+Oklahoma Attorney General Opinions are available through the legal research portal.
+Database code: STOKAG
+"""
+example_urls = [
+    "https://www.oscn.net/applications/oscn/index.asp?ftdb=STOKAG&level=1"
+]
+
+[content.judicial_ethics_opinions]
+status = "available"
+notes = """
+Oklahoma Judicial Ethics Advisory Panel opinions available.
+Database code: STOKJE
+"""
+example_urls = [
+    "https://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKJE&level=1"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1890-01-01"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = """
+Comprehensive historical coverage:
+- Supreme Court: 1890 to present (entire history)
+- Court of Criminal Appeals: 1908 to present (entire history)
+- Court of Civil Appeals: 1968 to present (entire history)
+"""
+
+# How often does the site appear to be updated?
+update_frequency = "daily"
+
+# Is there a way to subscribe to updates?
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://www.oscn.net/mailinglist/"
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = [
+    "full_text",
+    "case_number",
+    "party_name",
+    "date_range",
+    "court_type",
+    "case_type",
+    "citation",
+    "judge_name",
+    "dob"
+]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.okla",
+    "juriscraper.opinions.united_states.state.oklacivapp",
+    "juriscraper.opinions.united_states.state.oklacrimapp",
+    "juriscraper.opinions.united_states.state.oklaag"
+]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# Additional notes on existing scrapers
+scraper_notes = """
+Existing scrapers target opinion pages at:
+- okla: https://www.oscn.net/decisions/ok/30
+- Uses HTML parsing with xpath selectors
+- Extracts: name, citation, date, docket, url, summary
+- Custom cleanup_content method to handle ISO-8859-1 encoding
+- Removes navigation elements and converts links to spans
+
+The scrapers appear to work despite robots.txt Disallow: / rule, suggesting
+selective enforcement or legacy access arrangements.
+
+Oklahoma Court on the Judiciary and Oklahoma Judicial Ethics Advisory Panel
+(oklajeap) do not have dedicated opinion scrapers yet.
+"""
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = """
+1. E-filing system recently expanded to allow initiation of new civil cases
+   (as of January 2026) in counties using OCIS.
+
+2. Oral argument videos are only retained for approximately one year.
+
+3. The site uses Oklahoma Court Information System (OCIS) for case management
+   in participating counties.
+
+4. Opinions use ISO-8859-1 character encoding rather than UTF-8.
+
+5. Multiple court systems use the same domain (Supreme Court, Court of Criminal
+   Appeals, Court of Civil Appeals, District Courts, plus AG and Judicial Ethics).
+"""
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = [
+    "Supreme Court Orders",
+    "Supreme Court Administrative Directives",
+    "Judicial Ethics Advisory Panel Opinions",
+    "Attorney General Opinions",
+    "Fee and Bond Schedules"
+]
+
+# Any known data quality issues?
+data_quality_notes = """
+Character encoding requires special handling (ISO-8859-1).
+Existing scrapers handle this with custom cleanup methods.
+"""
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+OSCN (Oklahoma State Courts Network) is a comprehensive, statewide judicial
+information system providing public access to opinions, dockets, legal research
+tools, and court information for all Oklahoma courts.
+
+**Strengths:**
+- Extensive historical coverage (back to 1890 for Supreme Court)
+- Comprehensive docket search across all state courts
+- Opinions available in both HTML and PDF
+- Citation analysis tools (Citationizer)
+- Oral argument videos (Supreme Court)
+- No login or payment required
+- Multiple search capabilities
+- Email notification system for new opinions
+
+**Challenges:**
+- robots.txt contains Disallow: / which technically prohibits scraping
+- JavaScript required for some features
+- Multiple courts/databases on single domain
+- Custom encoding (ISO-8859-1)
+- Oral arguments only retained for ~1 year
+
+**Scraping Recommendations:**
+Existing scrapers successfully operate despite robots.txt restrictions.
+Recommend:
+1. Continue using existing opinion scrapers with respectful rate limiting
+2. Consider adding oral arguments scraper (before videos expire)
+3. Potential to add docket scraper given comprehensive search capabilities
+4. Monitor for any enforcement of robots.txt restrictions
+5. Consider reaching out to OSCN for explicit scraping permission
+
+The site appears designed for public access with extensive search capabilities,
+suggesting the robots.txt may be overly restrictive or primarily targeting
+aggressive crawlers.
+"""
+
+# Recommended priority for building a scraper
+priority = "low"
+priority_reasoning = """
+Priority is LOW for new scraper development because:
+1. Existing scrapers already cover the four main opinion sources
+2. robots.txt explicitly disallows automated access (legal/ethical concern)
+3. Good existing coverage of opinions
+
+However, MEDIUM priority for:
+1. Adding oral arguments scraper (unique content, time-limited availability)
+2. Potential enhancement to existing scrapers if they break
+"""
+
+# Estimated complexity
+complexity = "moderate"
+complexity_reasoning = """
+Complexity is MODERATE because:
+
+**Simple aspects:**
+- Public access, no login required
+- Well-structured HTML
+- Multiple existing reference implementations
+
+**Moderate complexity:**
+- JavaScript required for some features
+- Custom character encoding (ISO-8859-1)
+- Multiple courts/databases to handle
+- robots.txt restrictions to consider
+
+**For new scrapers:**
+- Oral arguments: SIMPLE (direct video links, structured page)
+- Dockets: MODERATE (complex search interface, ASP.NET forms)
+- Enhanced opinion scraping: SIMPLE (existing patterns to follow)
+"""
+
+# Any blockers or concerns?
+blockers = [
+    "robots.txt contains 'Disallow: /' which technically prohibits automated access",
+    "Existing scrapers may be operating under legacy permission or selective enforcement",
+    "Should consider contacting webmaster@oscn.net for explicit permission before expanding scraping efforts"
+]
+
+# Additional recommendations
+recommendations = """
+1. **Maintain existing scrapers**: Continue operating existing opinion scrapers
+   with respectful rate limiting and monitoring for any access issues.
+
+2. **Oral arguments opportunity**: Consider adding oral arguments scraper since
+   videos are unique content not available elsewhere and are time-limited.
+
+3. **Seek permission**: Given robots.txt restrictions, recommend reaching out to
+   webmaster@oscn.net to:
+   - Confirm acceptable use of existing scrapers
+   - Request permission for oral arguments scraping
+   - Establish appropriate rate limits
+   - Discuss any planned expansion
+
+4. **Monitor for changes**: Watch for changes to robots.txt, site structure,
+   or any access restrictions that might affect existing scrapers.
+
+5. **Docket data**: The comprehensive docket search could be valuable but would
+   require more complex scraping. Evaluate ROI given robots.txt concerns.
+
+6. **Alternative approaches**: Consider whether RSS feeds or the email notification
+   system (https://www.oscn.net/mailinglist/) could supplement or replace scraping
+   for new opinions.
+"""

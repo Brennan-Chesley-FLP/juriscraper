@@ -1,0 +1,369 @@
+# Court Site Research Report
+#
+# Washington Attorney General's Office
+# Domain: www.atg.wa.gov
+
+[meta]
+domain = "www.atg.wa.gov"
+court_ids = ["washag"]
+court_name = "Washington Attorney General Reports"
+court_url = "https://www.atg.wa.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "drupal"
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = true
+bulk_download_details = "PDF indices available for opinions 1975-2015 by topic: https://agportal-s3bucket.s3.amazonaws.com/uploadedImages/Home/About_the_Office/AGO_Opinions/Indices%201975-2015.pdf"
+document_formats = ["html"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.atg.wa.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/core/", "/profiles/", "/admin/", "/comment/reply/", "/filter/tips", "/node/add/", "/search/", "/user/register", "/user/password", "/user/login", "/user/logout", "/media/oembed"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Attorney General formal opinions available from 1949 to present, organized by year. Opinions are legal analyses on questions of law requested by authorized public officials. Full text available in HTML format."
+example_urls = [
+    "https://www.atg.wa.gov/ago-opinions/county-commissioner-health-insurance-county-commissioners-ability-enact-midterm",
+    "https://www.atg.wa.gov/ago-opinions/attorney-prosecuting-law-enforcement-officers-whether-name-law-enforcement-officer-may",
+    "https://www.atg.wa.gov/ago-opinions/rcw-6728160-authorizes-municipality-use-lodging-tax-revenues-repay-bonds-issued"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "AG opinions are individual documents, not clustered."
+example_urls = []
+
+[content.citations]
+status = "unavailable"
+notes = "AG opinions reference statutes and cases but are not themselves cited like court opinions."
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "AG opinions are written legal analyses, no oral arguments."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Pending opinion requests are published and available for public comment, but these are not court dockets."
+example_urls = ["https://www.atg.wa.gov/pending-attorney-generals-opinions"]
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "available"
+notes = "Opinions can be browsed by topic using a glossary/index system."
+example_urls = ["https://www.atg.wa.gov/ago-opinion/glossary"]
+
+[content.search_queries]
+status = "available"
+notes = "Site has search functionality for opinions."
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1949-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Complete archive from 1949 to present. Also includes 1970-1982 AGLO (Attorney General Letter Opinions) as a separate collection."
+update_frequency = "irregular"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "http://eepurl.com/bd6bM5"
+has_search = true
+search_capabilities = ["full_text"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+AG opinions are not binding law but are given "great respect" and "great weight" by courts.
+They are formal legal opinions issued in response to requests from designated public officials
+(legislators, statewide elected officials, state agency heads, county prosecutors).
+
+Formal opinions are distinguished from informal opinions (letters). Only formal opinions
+represent the official view of the Attorney General.
+
+The site maintains two separate collections for 1970-1982:
+- AGO (Attorney General Opinions) - formal opinions
+- AGLO (Attorney General Letter Opinions) - informal opinions
+"""
+special_document_types = ["formal_opinions", "informal_opinions", "pending_opinion_requests"]
+data_quality_notes = "High quality. Full text HTML with structured metadata (opinion number, date, subject headings)."
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Washington Attorney General's Office website provides comprehensive access to formal
+AG opinions dating back to 1949. The site is built on Drupal CMS and works without JavaScript.
+
+Key findings:
+- Opinions are well-organized by year (1949-present) and by topic
+- Full text available in HTML format (no PDF required)
+- Clean, accessible HTML structure suitable for scraping
+- Standard Drupal robots.txt with reasonable restrictions
+- No authentication, captchas, or paywalls
+- RSS feed available for news releases
+- Email subscription available for new opinion notifications
+
+URL patterns:
+- Year index: /ago-opinions/year/{YYYY}
+- Individual opinions: /ago-opinions/{slug}
+- Topic browse: /ago-opinion/glossary
+
+The site distinguishes between formal opinions (representing the AG's official position)
+and informal opinions (letter responses). For juriscraper purposes, formal opinions are
+the primary target.
+
+Technical simplicity and public accessibility make this an ideal candidate for scraping.
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority because:
+- Public access, no technical barriers
+- Clean HTML structure, simple to scrape
+- Historical depth (1949-present)
+- Unique legal resource (AG opinions vs court opinions)
+- No existing scraper
+
+Not high priority because:
+- AG opinions are advisory, not binding precedent
+- Lower volume than court opinions (3 opinions in 2025 YTD)
+- Specialized legal audience
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Simple scraping complexity:
+- Static HTML, no JavaScript required
+- Clean URL structure
+- Standard pagination by year
+- No authentication or rate limiting
+- Drupal-based with predictable HTML patterns
+- robots.txt allows scraping of opinion content
+"""
+
+blockers = []

@@ -1,0 +1,412 @@
+# Court Site Research Report
+# Nevada Supreme Court and Court of Appeals
+
+[meta]
+domain = "nvcourts.gov"
+domain_aliases = ["www.nevadajudiciary.us"]
+court_ids = ["nev"]
+court_name = "Nevada Supreme Court"
+court_url = "https://nvcourts.gov/supreme"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# Note: The task referenced "www.nevadajudiciary.us" but this domain does not exist.
+# The correct domain is "nvcourts.gov" which serves as the main portal for all Nevada courts.
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "vanilla"
+
+platform = "custom"
+
+scope = "statewide"
+
+# The site uses multiple subdomains:
+# - nvcourts.gov (main portal)
+# - publicaccess.nvsupremecourt.us (JSON API)
+# - caseinfo.nvsupremecourt.us (case search system - C-Track)
+shared_infrastructure = []
+
+has_api = true
+api_documented = false
+api_url = "https://publicaccess.nvsupremecourt.us/WebSupplementalAPI/api/"
+
+# API endpoints discovered:
+# - GET /api/AdvanceOpinions - Supreme Court advance opinions
+# - GET /api/OralArguments - Supreme Court oral arguments
+# - GET /api/COAOralArguments - Court of Appeals oral arguments
+#
+# API requires headers:
+#   Referer: https://nvcourts.gov/
+#   XApiKey: 080d4202-61b2-46c5-ad66-f479bf40be11
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://nvcourts.gov/robots.txt"
+
+allows_scraping = true
+disallowed_paths = [
+    "/_designs/",
+    "/*?sq_content_src=",
+    "/*_recache",
+    "/*_nocache",
+    "/*_edit",
+    "/*_admin",
+    "/*_login",
+    "/*_performance",
+    "/*_design",
+    "/*_designs",
+    "/*_web_services",
+    "*?*query=",
+    "*?*f.*%7C*="
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Advance opinions are available via JSON API at publicaccess.nvsupremecourt.us. API returns case title, case number, date, and advance number. Full PDF opinions must be retrieved from caseinfo.nvsupremecourt.us by searching for the case number."
+example_urls = [
+    "https://nvcourts.gov/supreme/decisions/advance_opinions",
+    "https://publicaccess.nvsupremecourt.us/WebSupplementalAPI/api/AdvanceOpinions"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Advance opinion numbers are provided in format like '140 Nev., Advance Opinion 1'. Volume number is calculated as (year - 1884)."
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral arguments available via JSON API for both Supreme Court and Court of Appeals"
+example_urls = [
+    "https://publicaccess.nvsupremecourt.us/WebSupplementalAPI/api/OralArguments",
+    "https://publicaccess.nvsupremecourt.us/WebSupplementalAPI/api/COAOralArguments"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Case information searchable via C-Track system at caseinfo.nvsupremecourt.us. Supports search by case number, caption, and court (Supreme Court or Court of Appeals)."
+example_urls = [
+    "https://caseinfo.nvsupremecourt.us/public/caseSearch.do"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "Per disclaimer: 'Only filed documents can be viewed. Some documents received in a case may not be available for viewing.'"
+example_urls = []
+
+[content.recap_documents]
+status = "partial"
+notes = "Filed documents are viewable but some documents may not be available. Lower court records and appendices may not be available."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Participant search is available via C-Track system"
+example_urls = [
+    "https://caseinfo.nvsupremecourt.us/public/publicActorSearch.do"
+]
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "available"
+notes = "Searchable via participant search"
+example_urls = [
+    "https://caseinfo.nvsupremecourt.us/public/publicActorSearch.do"
+]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judicial directory available as PDF"
+example_urls = [
+    "https://nvcourts.gov/__data/assets/pdf_file/0014/11282/Judicial_Directory_04.30.25.pdf"
+]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Information about Nevada courts is available on the site, including Supreme Court, Court of Appeals, and district courts"
+example_urls = [
+    "https://nvcourts.gov/supreme/how_do_i/find_a_court"
+]
+
+[content.courthouses]
+status = "partial"
+notes = "Some courthouse information available, including historical information about courthouses"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - appellate courts only"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court only"
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a federal PACER system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Site appears to have historical opinions but exact date range not determined during this research"
+
+update_frequency = "daily"
+
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://nvcourts.gov/supreme/rss"
+
+has_search = true
+search_capabilities = ["case_number", "party_name", "court"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.nev",
+    "juriscraper.opinions.united_states.state.nevapp"
+]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+The existing scraper filters out Court of Appeals cases (those with 'COA' in case number)
+from the Supreme Court feed. The scraper also handles consolidated cases to avoid duplication.
+
+The API returns placeholder URLs that must be resolved by searching the case on the
+caseinfo.nvsupremecourt.us system using POST request to find the actual PDF link.
+"""
+
+special_document_types = []
+
+data_quality_notes = """
+Per the site disclaimer: 'The information and documents available here should not be
+relied upon as an official record of action.' Some lower court records may not be
+available for viewing.
+"""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Nevada courts use a modern multi-subdomain architecture with a clean JSON API for
+advance opinions and oral arguments. The existing scraper already uses the API
+effectively. The main site at nvcourts.gov serves as a portal, while
+publicaccess.nvsupremecourt.us provides the API and caseinfo.nvsupremecourt.us
+provides the C-Track case management system.
+
+The API requires an API key and referrer header but is otherwise straightforward.
+Opinion PDFs are not directly linked in the API - they must be retrieved by
+searching the case info system.
+
+Note: The task referenced www.nevadajudiciary.us which does not exist. The correct
+domain is nvcourts.gov.
+"""
+
+priority = "low"
+priority_reasoning = """
+Existing scraper already covers Supreme Court opinions via the API. Court of Appeals
+has a separate scraper (nevapp). The system works well and API is stable. Low priority
+for updates unless API changes or Court of Appeals coverage needs enhancement.
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+The two-step process (API for metadata, then search for PDF) adds moderate complexity.
+JavaScript rendering is required for the main site. API requires headers (API key and
+referrer). However, the existing scraper already handles this successfully.
+"""
+
+blockers = []

@@ -1,0 +1,448 @@
+# Court Site Research Report
+#
+# West Virginia Judiciary
+# Domain: www.courtswv.gov
+
+[meta]
+domain = "www.courtswv.gov"
+court_ids = ["wvactapp", "wvctcl", "wva"]
+court_name = "West Virginia Judiciary"
+court_url = "https://www.courtswv.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+
+# Drupal-based website (evident from robots.txt and URL patterns)
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = []
+
+# No public API discovered via network inspection
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+# Opinions are available as PDFs
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.courtswv.gov/robots.txt"
+
+# Standard Drupal robots.txt - allows scraping of opinions
+allows_scraping = true
+disallowed_paths = [
+    "/core/",
+    "/profiles/",
+    "/admin/",
+    "/comment/reply/",
+    "/filter/tips",
+    "/node/add/",
+    "/search/",
+    "/user/register",
+    "/user/password",
+    "/user/login",
+    "/user/logout",
+    "/media/oembed"
+]
+
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Comprehensive opinion databases for two appellate courts:
+
+**Supreme Court of Appeals:**
+- 17,662 total opinions from 1991 to present
+- Organized by term (Spring/Fall) and year
+- Search and filter by case type, decision type, keywords
+- Multiple decision types: Memorandum Decision (MD), Separate Opinion (SEP), Per Curiam (PC), Summary Order (SO)
+
+**Intermediate Court of Appeals (ICA):**
+- 1,184 total opinions from 2022 to present (relatively new court)
+- Organized by term (Spring/Fall) and year
+- Search and filter by case type, decision type, keywords
+- Decision types: MD, SO, SEP
+
+Both courts use searchable, filterable tables with:
+- Date filed
+- Case number
+- Case name with direct PDF link
+- Case type (CR-F, CR-M, TCR, WC, FAM, JUV, etc.)
+- Decision type
+
+Order Lists also available separately for both courts.
+"""
+example_urls = [
+    "https://www.courtswv.gov/sites/default/pubfilesmnt/2025-11/25-8%20md.pdf",
+    "https://www.courtswv.gov/sites/default/pubfilesmnt/2026-01/25-ICA-291_MD.pdf",
+    "https://www.courtswv.gov/appellate-courts/supreme-court-of-appeals/opinions/prior-terms",
+    "https://www.courtswv.gov/appellate-courts/intermediate-court-of-appeals/opinions/prior-terms"
+]
+
+[content.opinion_clusters]
+status = "partial"
+notes = "Some opinions include separate/dissenting opinions noted in case name"
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Case numbers and citations included in opinion metadata"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Argument webcasts available for both Supreme Court and ICA. Live and archived oral arguments accessible."
+example_urls = [
+    "https://www.courtswv.gov/appellate-courts/argument-webcast"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Webcasts available but unclear if transcripts are provided"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """
+Dockets available for both appellate courts:
+- Supreme Court of Appeals Current Docket
+- Intermediate Court of Appeals Current Docket
+Organized by current term with case information and status.
+"""
+example_urls = [
+    "https://www.courtswv.gov/appellate-courts/supreme-court-of-appeals/current-docket",
+    "https://www.courtswv.gov/appellate-courts/intermediate-court-of-appeals/current-docket"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Docket listings available but detailed entry-level information may require further investigation"
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = "Office of the Clerk provides appellate case information but document availability unclear"
+example_urls = [
+    "https://www.courtswv.gov/appellate-courts/office-of-the-clerk"
+]
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Party names included in opinion titles and case metadata"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Justice and judge information available for both appellate courts"
+example_urls = [
+    "https://www.courtswv.gov/appellate-courts/supreme-court-of-appeals/justices-staff",
+    "https://www.courtswv.gov/appellate-courts/intermediate-court-of-appeals/judges-staff"
+]
+
+[content.positions]
+status = "partial"
+notes = "Current positions listed for justices and judges"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Comprehensive court information available by county via interactive map"
+example_urls = [
+    "https://www.courtswv.gov/public-resources/court-information-county/county-map"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Court locations included in county court information"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State courts do not handle bankruptcy cases"
+example_urls = []
+
+[content.claims]
+status = "unknown"
+notes = "West Virginia Court of Claims is one of the courts served by this domain but data availability unclear"
+example_urls = []
+
+[content.claim_history]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Available for appeals in opinion text and docket information"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "available"
+notes = "Citations available within opinion PDFs"
+example_urls = []
+
+[content.parentheticals]
+status = "available"
+notes = "Available within opinion text"
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1991"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = """
+Supreme Court of Appeals: Opinions from 1991 to present (17,662 total)
+Intermediate Court of Appeals: Opinions from 2022 to present (1,184 total) - relatively new court established in 2022
+"""
+
+update_frequency = "daily"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = [
+    "year",
+    "term",
+    "case_type",
+    "decision_type",
+    "keywords",
+    "case_number",
+    "party_names"
+]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.wva",
+    "juriscraper.opinions.united_states.state.wvactapp"
+]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Intermediate Court of Appeals (ICA) is relatively new, established in 2022
+- Both courts organize opinions by "terms": January (Spring) and September (Fall)
+- Case types use specific codes (CR-F, CR-M, TCR, WC, FAM, JUV, etc.) consistently across both courts
+- Decision types: MD (Memorandum Decision), SO (Summary Order), PC (Per Curiam), SEP (Separate Opinion)
+- Site includes Business Court Division with separate case search functionality
+"""
+
+special_document_types = [
+    "Memorandum Decisions (MD)",
+    "Summary Orders (SO)",
+    "Per Curiam Opinions (PC)",
+    "Separate Opinions (SEP)",
+    "Order Lists (separate from opinions)"
+]
+
+data_quality_notes = "Well-structured data with consistent formatting. PDFs are direct downloads from /sites/default/pubfilesmnt/ path."
+
+seasonal_notes = "Court terms: Spring (January) and Fall (September)"
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+West Virginia Judiciary operates a modern, well-organized Drupal-based website.
+
+Key features:
+- Supreme Court of Appeals: 17,662 opinions from 1991-present
+- Intermediate Court of Appeals: 1,184 opinions from 2022-present (new court)
+- Searchable/filterable tables for both courts
+- PDF downloads for all opinions
+- Current dockets for both appellate courts
+- Argument webcasts (live and archived)
+- Court information organized by county
+- Business Court Division with case search
+
+The site uses static HTML tables (JavaScript for interactivity but not required for data access).
+Existing juriscraper coverage includes both Supreme Court and ICA, using the "prior-terms" pages.
+
+The site structure is clean, consistent, and well-maintained. No authentication or payment required.
+"""
+
+priority = "low"
+priority_reasoning = """
+Existing scrapers are in place and functional for both major appellate courts (SCA and ICA).
+The site structure appears stable. Priority is low because current coverage is good.
+
+Potential future enhancements:
+1. Research Court of Claims opinions availability (wvctcl court_id)
+2. Add oral argument audio scraping
+3. Add docket scraping for both appellate courts
+4. Research Business Court Division case data access
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Clean Drupal-based site with well-structured HTML tables.
+Existing scrapers demonstrate simplicity of implementation.
+No authentication, JavaScript rendering (for data access), or complex pagination required.
+Direct PDF links with consistent URL patterns.
+"""
+
+blockers = []

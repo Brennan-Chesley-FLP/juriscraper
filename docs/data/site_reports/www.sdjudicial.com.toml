@@ -1,0 +1,332 @@
+# Court Site Research Report: Supreme Court of South Dakota
+#
+# Research date: 2026-01-09
+# Status: SITE INACCESSIBLE (SSL Certificate Error)
+
+[meta]
+domain = "www.sdjudicial.com"
+court_ids = ["sd"]
+court_name = "Supreme Court of South Dakota"
+court_url = "http://www.sdjudicial.com/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = false  # Cannot access due to SSL certificate error
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = ""
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = []
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false  # Cannot access due to SSL error
+robots_txt_url = ""
+allows_scraping = false
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "unknown"
+notes = "Cannot access site due to ERR_CERT_COMMON_NAME_INVALID - SSL certificate issue"
+example_urls = []
+
+[content.opinion_clusters]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.citations]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.dockets]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.docket_entries]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.parties]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.persons]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.courts]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.courthouses]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.claims]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.claim_history]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.criminal_counts]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.tags]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = "Cannot access site"
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = ""
+latest_date = ""
+has_historical = false
+historical_notes = ""
+update_frequency = ""
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = false
+search_capabilities = []
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+The site has SSL certificate issues preventing access via both HTTP and HTTPS.
+The certificate common name is invalid for www.sdjudicial.com.
+This may indicate:
+1. The domain has moved or been repurposed
+2. SSL certificate has expired or is misconfigured
+3. The site is hosted on a different domain
+"""
+special_document_types = []
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+**CRITICAL FINDING: SSL Certificate Error**
+
+The domain www.sdjudicial.com is inaccessible due to an SSL certificate error:
+ERR_CERT_COMMON_NAME_INVALID
+
+Both HTTPS and HTTP attempts fail with this certificate error, suggesting:
+1. The site may have moved to a different domain
+2. The SSL certificate is misconfigured or expired
+3. The domain may be parked or repurposed
+
+**Next Steps Required:**
+1. Research the current official website for South Dakota Supreme Court
+2. Common alternatives might be:
+   - ujs.sd.gov (Unified Judicial System)
+   - sdjudicial.gov (government TLD)
+   - southdakota.gov/judicial
+3. Check if an existing scraper exists that might have the correct URL
+4. Update courts.toml with correct URL once identified
+
+**Research Needed:**
+Without web search access, I cannot determine the current official URL for the
+South Dakota Supreme Court. The site may have migrated to a different domain,
+possibly using the .gov TLD instead of .com.
+"""
+
+priority = "skip"
+priority_reasoning = """
+Cannot access the site due to SSL certificate errors. This requires:
+1. Identifying the correct current URL for South Dakota Supreme Court
+2. Verifying the site is operational
+3. Updating the courts.toml reference
+
+Until the correct accessible URL is identified, no research or scraper development is possible.
+"""
+
+complexity = ""
+complexity_reasoning = ""
+
+blockers = [
+    "SSL certificate error (ERR_CERT_COMMON_NAME_INVALID)",
+    "Cannot access site at documented URL",
+    "Correct URL unknown",
+    "Site may have migrated to different domain"
+]

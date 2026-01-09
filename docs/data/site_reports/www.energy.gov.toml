@@ -1,0 +1,330 @@
+# Court Site Research Report
+# Department of Energy Office of Hearings and Appeals
+
+[meta]
+domain = "www.energy.gov"
+court_ids = ["energyoha"]
+court_name = "Department of Energy Office of Hearings and Appeals"
+court_url = "https://www.energy.gov/oha/decision-summaries"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = true
+captcha_type = "recaptcha"
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "drupal"
+platform = "drupal"
+scope = "court_specific"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.energy.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = [
+    "/core/",
+    "/profiles/",
+    "/admin/",
+    "/comment/reply/",
+    "/filter/tips",
+    "/node/add/",
+    "/search/",
+    "/user/register",
+    "/user/password",
+    "/user/login",
+    "/user/logout",
+    "/media/oembed"
+]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Decisions and orders available as PDF files. Decision summaries are published weekly on the 'Decision Summaries' listing page. Each summary contains metadata (date, case number, disposition, judge) and links to full PDF documents. Content includes Personnel Security Hearings, FOIA Appeals, Whistleblower cases, and other administrative matters."
+example_urls = [
+    "https://www.energy.gov/oha/listings/decision-summaries",
+    "https://www.energy.gov/oha/articles/summary-decisions-12292025-122026",
+    "https://www.energy.gov/oha/articles/psh-25-0167-matter-personnel-security-hearing"
+]
+
+[content.opinion_clusters]
+status = "partial"
+notes = "Weekly decision summaries group related decisions issued during the same time period"
+example_urls = ["https://www.energy.gov/oha/listings/decision-summaries"]
+
+[content.citations]
+status = "unknown"
+notes = "Would need to analyze PDF content to determine citation availability"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "OHA primarily conducts hearings, but oral argument recordings are not published on the website"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Case metadata available in decision summaries (case numbers, dates, dispositions, judges), but no comprehensive docket listings"
+example_urls = ["https://www.energy.gov/oha/listings/decision-summaries"]
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Individual docket entries and filings are not published"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "This is not a PACER/RECAP system"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unavailable"
+notes = "Party information not published (likely redacted for privacy in Personnel Security cases)"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judge names are included in decision metadata (e.g., 'Judge Rahimzadeh, Noorassa')"
+example_urls = ["https://www.energy.gov/oha/articles/summary-decisions-12292025-122026"]
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "OHA information available at https://www.energy.gov/oha/office-hearings-and-appeals"
+example_urls = ["https://www.energy.gov/oha/office-hearings-and-appeals"]
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "available"
+notes = "Decisions tagged by type: Personnel Security, FOIA Appeal, Whistleblower, etc."
+example_urls = ["https://www.energy.gov/oha/listings/decision-summaries"]
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2013-01-28"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Decision summaries available going back to at least early 2013"
+update_frequency = "weekly"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = false
+search_capabilities = []
+browse_only = true
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "OHA handles administrative matters for DOE including: Personnel Security Hearings (10 CFR Part 710), FOIA/Privacy Act appeals, Whistleblower complaints, Alternative Dispute Resolution, and Exceptions/Special Redress petitions. Many decisions involve sensitive security clearance matters, so party names are typically redacted."
+special_document_types = [
+    "Personnel Security Hearings (PSH)",
+    "FOIA Appeals",
+    "Whistleblower Decisions",
+    "Exception/Special Redress Orders"
+]
+data_quality_notes = "Decisions are well-structured with consistent metadata (case number, date, disposition, judge). PDFs are the primary format for full decision text."
+seasonal_notes = "Weekly summaries may show 'No Decisions issued during this period' during holiday weeks"
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The DOE Office of Hearings and Appeals publishes weekly decision summaries with links to full PDF documents. The site uses standard Drupal CMS with simple HTML pages and paginated listings (42+ pages of weekly summaries going back to 2013). Decisions cover Personnel Security, FOIA appeals, and other administrative matters. The site has good public access with no login required, though contact forms use reCAPTCHA. No API detected - scraping would involve parsing HTML listings and downloading PDF documents. The court_id 'energyoha' in courts.toml lists opinions, oral_arguments, and dockets as available data types, but oral arguments are not actually published on the website.
+"""
+priority = "medium"
+priority_reasoning = "Clean, scrapable HTML structure with consistent formatting. Good historical coverage (2013-present). Federal administrative decisions may be of interest for comprehensive legal databases. However, limited metadata and PDF-only format for full text reduces value compared to courts with richer structured data."
+complexity = "simple"
+complexity_reasoning = "Standard HTML scraping with pagination. No JavaScript rendering required. No authentication needed. Main challenge is PDF extraction if full text is needed. Standard HTTP requests should suffice."
+blockers = []

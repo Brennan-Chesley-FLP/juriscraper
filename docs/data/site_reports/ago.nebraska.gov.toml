@@ -1,0 +1,331 @@
+# Court Site Research Report
+# Nebraska Attorney General Website
+
+[meta]
+domain = "ago.nebraska.gov"
+court_ids = ["nebag"]
+court_name = "Nebraska Attorney General Reports"
+court_url = "https://ago.nebraska.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "jquery"
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://ago.nebraska.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/core/", "/profiles/", "/admin/", "/search/", "/user/register", "/user/password", "/user/login", "/user/logout"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "AG opinions are available from 1989 onwards at https://ago.nebraska.gov/Opinions. Each opinion is available as a PDF with a consistent URL pattern: /sites/default/files/docs/opinions/{filename}.pdf. Opinions are listed in a paginated table format (120 pages) with opinion number, date, title, and PDF link. There's also an archive view at /opinions/archive with all opinions."
+example_urls = [
+    "https://ago.nebraska.gov/sites/default/files/docs/opinions/AG%20Opinion%20No.%2025-003.pdf",
+    "https://ago.nebraska.gov/sites/default/files/docs/opinions/Opinion%20No.%2025-002.pdf",
+    "https://ago.nebraska.gov/sites/default/files/docs/opinions/Opinion%20No.%2025-001.pdf"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citations to Nebraska statutes are visible in opinion titles and presumably in PDF content"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Not applicable - AG opinions are written legal opinions, not court proceedings"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "Not applicable - AG opinions are not court case dockets"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parties]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Would need to examine PDF content to determine if opinions cite other cases"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+
+earliest_date = "1989"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Opinions from 1989 onwards are available on this site. The site states 'Attorney General Opinions issued after 1989 are available' in the page description."
+update_frequency = "irregular"
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://ago.nebraska.gov/rss/news"
+has_search = true
+search_capabilities = ["full_text", "year_filter"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+These are Attorney General legal opinions, not court opinions. They are advisory opinions
+prepared in response to specific legal questions from state agencies, state officials, state
+legislators (on questions relating to proposed or pending legislation), or county attorneys
+(on criminal matters and matters relating to public revenue).
+
+The Attorney General is NOT authorized to give opinions to local governmental officials
+(except county attorneys on specific matters) or private citizens.
+
+The site notes that opinions may have limitations based on who can request them:
+- State agencies/officials: general questions relating to performance of duties
+- State legislators: questions relating to proposed/pending legislation or functions of the Legislature
+- County attorneys: criminal matters and public revenue matters
+"""
+special_document_types = ["AG Opinion"]
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Nebraska AG website provides access to Attorney General opinions from 1989 onwards at
+https://ago.nebraska.gov/Opinions. These are legal advisory opinions, not court decisions.
+
+The site is built on Drupal and designed by Tyler Technologies. Opinions are presented in a
+paginated table format (120 pages with ~10 opinions per page = ~1200 opinions) with columns
+for: opinion number (e.g., 25-003), date, title, and PDF download link. There's a year
+filter available and full-text search capability.
+
+PDF URLs follow a consistent pattern: /sites/default/files/docs/opinions/{filename}.pdf
+where the filename typically includes the opinion number and sometimes a description.
+
+The site requires JavaScript for the table display and filtering functionality. There is
+no JSON API exposed - opinions are served as static PDFs. The robots.txt file allows
+general scraping but disallows /admin/, /search/, and Drupal core paths.
+
+An RSS feed is available at /rss/news for general news updates (not specific to opinions).
+
+IMPLEMENTATION NOTE: A scraper would need to:
+1. Parse the paginated table at /Opinions (120 pages, param: ?page=N)
+2. Extract opinion number, date, title, and PDF URL for each entry
+3. Download PDFs from /sites/default/files/docs/opinions/ paths
+4. Handle JavaScript rendering or parse the HTML table structure directly
+
+The /opinions/archive page shows all opinions on a single page but generates extremely
+large HTML output (>1MB), so pagination-based scraping is preferable.
+"""
+
+priority = "medium"
+priority_reasoning = "AG opinions are legally significant documents for understanding state law interpretation, and there is no existing scraper. The site has good coverage from 1989-present with consistent URL patterns. However, they are advisory opinions rather than binding court precedent."
+
+complexity = "moderate"
+complexity_reasoning = "The site requires JavaScript rendering for the opinion listing table. The pagination structure is straightforward (?page=N for 120 pages), and PDF URL patterns are consistent. No API is available, so scraping must be HTML-based. The Drupal platform is well-structured but requires handling dynamic content."
+
+blockers = []

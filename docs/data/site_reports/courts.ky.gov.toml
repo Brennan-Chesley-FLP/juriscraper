@@ -1,0 +1,361 @@
+# Court Site Research Report
+# Domain: courts.ky.gov (redirects to www.kycourts.gov)
+# Research Date: 2026-01-08
+
+[meta]
+domain = "courts.ky.gov"
+court_ids = ["ky", "kyctapp"]
+court_name = "Kentucky Court of Justice"
+court_url = "https://courts.ky.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "vue"
+platform = "thomson_reuters"
+scope = "statewide"
+shared_infrastructure = []
+has_api = true
+api_documented = false
+api_url = "https://appellatepublic.kycourts.net/api/api/v1/"
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = "https://courts.ky.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Full appellate opinions available via C-Track Public Access system. 67,137+ opinions total: 10,743 from Kentucky Supreme Court, 56,394 from Court of Appeals. API-accessible with search and filtering. Published and unpublished opinions both available."
+example_urls = [
+    "https://appellatepublic.kycourts.net/search/opinion",
+    "https://appellatepublic.kycourts.net/case/3243a0b8733f9a7ce885317785aea6a8c17b8999caacbc387531253f8f839fc2",
+    "https://appellatepublic.kycourts.net/documents/497a82783b154da8bb69b34c5b2bf73a9d1ae1075aceb56a154cae9f896b5e54/download"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Cases contain related opinions grouped together in the docket system"
+example_urls = ["https://appellatepublic.kycourts.net/case/3243a0b8733f9a7ce885317785aea6a8c17b8999caacbc387531253f8f839fc2"]
+
+[content.citations]
+status = "unknown"
+notes = "Not explored in detail, may be present in opinion text"
+example_urls = []
+
+[content.oral_arguments]
+status = "partial"
+notes = "Supreme Court oral arguments are livestreamed via KET. Court of Appeals holds oral arguments in various locations. Calendars are available but audio/video archives not confirmed."
+example_urls = [
+    "https://kycourts.gov/Courts/Supreme-Court/Pages/Oral-Arguments-Livestream.aspx",
+    "https://appellatepublic.kycourts.net/search/document?q=true&advanced=true&searchFields%5B0%5D.searchType=Contains&searchFields%5B0%5D.operation=%3D&searchFields%5B0%5D.values%5B0%5D=sc%20admin%20-%20oral&searchFields%5B0%5D.indexFieldName=caseHeader.caseNumber"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Full docket information available via C-Track for appellate cases. Includes case number, title, classification, filed date, status."
+example_urls = ["https://appellatepublic.kycourts.net/search/case"]
+
+[content.docket_entries]
+status = "available"
+notes = "Complete docket entries with filed dates, descriptions, submitters, comments, and document attachments. API endpoint: /api/v1/publicaccessdocuments"
+example_urls = ["https://appellatepublic.kycourts.net/case/3243a0b8733f9a7ce885317785aea6a8c17b8999caacbc387531253f8f839fc2"]
+
+[content.recap_documents]
+status = "available"
+notes = "Documents (briefs, motions, orders) are attached to docket entries and downloadable as PDFs"
+example_urls = ["https://appellatepublic.kycourts.net/documents/497a82783b154da8bb69b34c5b2bf73a9d1ae1075aceb56a154cae9f896b5e54/download"]
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Party search available, includes party names and roles"
+example_urls = ["https://appellatepublic.kycourts.net/search/party"]
+
+[content.party_types]
+status = "available"
+notes = "Party roles visible in case details (appellant, appellee, etc.)"
+example_urls = []
+
+[content.attorneys]
+status = "available"
+notes = "Attorney information searchable via advanced party search feature"
+example_urls = ["https://appellatepublic.kycourts.net/search/party"]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = "May be present in attorney data but not confirmed"
+example_urls = []
+
+[content.roles]
+status = "available"
+notes = "Attorney-party relationships visible in party information"
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judge information available on court pages, including photos and profiles"
+example_urls = [
+    "https://www.kycourts.gov/Courts/Supreme-Court/Pages/default.aspx",
+    "https://www.kycourts.gov/Courts/Court-of-Appeals/Pages/default.aspx"
+]
+
+[content.positions]
+status = "available"
+notes = "Judicial positions and districts listed on court pages"
+example_urls = ["https://www.kycourts.gov/Courts/Supreme-Court/Pages/3rd-Supreme-Court-District.aspx"]
+
+[content.education]
+status = "unknown"
+notes = "May be in judge profiles but not verified"
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court metadata available, including court finder by county"
+example_urls = ["https://www.kycourts.gov/Pages/index.aspx"]
+
+[content.courthouses]
+status = "available"
+notes = "Contact information and locations for courts available via county search"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "This is an appellate system for state courts, not bankruptcy courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "May be present in case details but not explored"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "available"
+notes = "Lower court/trial court information available in appellate cases. The existing scraper extracts this from opinion text."
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Would need to parse opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1982-02-18"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Appellate opinions dating back to 1982 for Supreme Court"
+update_frequency = "daily"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["date_range", "case_number", "party_name", "court_type", "opinion_type", "full_text"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.ky",
+    "juriscraper.opinions.united_states.state.kyctapp"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- The main domain courts.ky.gov redirects to www.kycourts.gov (SharePoint-based informational site)
+- Appellate case management is on a separate subdomain: appellatepublic.kycourts.net (C-Track system by Thomson Reuters)
+- C-Track Public Access requires clicking 'Continue as Public User' but no actual login
+- Some confidential cases have redacted information but opinions may still be available with special docket numbering
+- Supreme Court Capitol offices are temporarily relocated (as of 2025-2026) during Capitol renovation
+- Results are capped at 10,000 records in search interface but API may allow pagination beyond this
+"""
+special_document_types = []
+data_quality_notes = "Published vs unpublished status is marked in opinion text. Judge names are extracted from disposition strings."
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Kentucky uses a sophisticated C-Track case management system (Thomson Reuters) for appellate courts.
+The system provides excellent API access with well-structured JSON endpoints for opinions, dockets,
+and documents. Existing scrapers (ky.py, kyctapp.py) are well-maintained and use the API effectively.
+
+The system serves both the Kentucky Supreme Court and Court of Appeals with a unified interface.
+67,137+ opinions are available publicly with PDFs downloadable. The API allows filtering by court,
+date range, and other criteria. Most recently updated in 2024-2025.
+
+No major issues identified. The existing scrapers appear to provide good coverage of appellate opinions.
+Oral arguments are livestreamed but archive availability is unclear. Docket data is rich but not
+currently being scraped.
+
+API Endpoints Discovered:
+- GET /api/api/v1/opinions/search - Opinion search with filters
+- GET /api/api/v1/publicaccessdocuments?filter=parentCategory=docketentries,parentID={id} - Docket entries
+- GET /api/api/v1/publicaccessdocuments/{id}/download - Document download
+- GET /api/api/v1/userpermissions - User permissions
+- GET /api/api/v1/staticlinks - Static links
+- GET /api/api/v1/searches/types/{type}/fields - Search field metadata
+"""
+
+priority = "low"
+priority_reasoning = """
+Existing scrapers are well-maintained and functional. The system has good API access and is already
+being scraped effectively. No immediate improvements needed unless:
+1. Docket scraping is desired (currently only opinions are scraped)
+2. Oral argument audio/video archives can be located
+3. Lower court (trial court) data becomes available
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+The API is well-structured and documented through usage. However, it's a JavaScript SPA requiring
+multiple API calls to fetch complete data (opinion metadata + document details). The existing
+implementation handles this well with get_json() helper method. Published/unpublished status
+requires parsing document text. Judge extraction requires regex parsing of disposition strings.
+"""
+
+blockers = []

@@ -1,0 +1,442 @@
+# Court Site Research Report Template
+#
+# This file documents the schema for court website research reports.
+# Use this as a template when researching new court sites.
+#
+# File naming: {domain_name}.toml (e.g., "judicial.alabama.gov.toml", "ecf.ca9.uscourts.gov.toml")
+
+[meta]
+domain = "www.courts.state.hi.us"
+court_ids = ["haw", "hawapp"]           # Hawaii Supreme Court and Intermediate Court of Appeals
+court_name = "Hawaii State Judiciary"
+court_url = "https://www.courts.state.hi.us"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = false
+javascript_framework = "vanilla"               # Some JavaScript for chat widget (Firebase), but content loads without JS
+
+# What platform/vendor does the site use?
+platform = "wordpress"                         # Site appears to be WordPress-based (wp-content, wp-admin in robots.txt)
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"                           # Serves Hawaii Supreme Court and Intermediate Court of Appeals
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]                     # Opinions are in PDF format
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://www.courts.state.hi.us/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true                         # Only disallows /wp-admin/, allows /wp-admin/admin-ajax.php
+disallowed_paths = ["/wp-admin/"]
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+# Reference: juriscraper/scraper_driver/common/models/base.py
+#
+# Mark each as: "available", "unavailable", "unknown", "partial"
+# Use "partial" if only some records of that type are available
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Opinions and orders from 2010 to present are available. Earlier opinions (1998-2009) also available on a separate page. Both Supreme Court and Intermediate Court of Appeals opinions included."
+example_urls = [
+    "https://www.courts.state.hi.us/opinions_and_orders/opinions",
+    "https://www.courts.state.hi.us/opinions_and_orders/hawaii-appellate-court-opinions-and-orders-1999-to-2009",
+    "https://www.courts.state.hi.us/opinions-search-results"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Citation information appears to be included in the opinions listing pages"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "MP3 digital audio recordings of Hawaii Supreme Court and Intermediate Court of Appeals oral arguments archived since March 21, 2007. Also includes oral arguments schedule for upcoming arguments."
+example_urls = [
+    "https://www.courts.state.hi.us/courts/oral_arguments/recordings_archive",
+    "https://www.courts.state.hi.us/courts/oral_arguments/oral_arguments_schedule"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Transcripts of oral arguments not immediately visible, only audio recordings confirmed"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "eCourt Kokua system provides access to appellate court case information. Requires further investigation to determine full docket availability."
+example_urls = [
+    "https://www.courts.state.hi.us/legal_references/records/jims_system_availability"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "Site has attorney information including bilingual attorneys registry and membership status search"
+example_urls = [
+    "https://www.courts.state.hi.us/legal_references/attorneys/attorneys",
+    "https://www.courts.state.hi.us/legal_references/attorneys/bilingual/bilingual_attorneys",
+    "https://www.courts.state.hi.us/legal_references/attorneys/membership_status"
+]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judicial information available including notices of judicial vacancies, petitions for retention, nominees, and diversity dashboard"
+example_urls = [
+    "https://www.courts.state.hi.us/our-judges",
+    "https://adamc3.shinyapps.io/judicial_diversity_dashboard/"
+]
+
+[content.positions]
+status = "partial"
+notes = "Some judicial position information available through judicial selection commission materials"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "partial"
+notes = "Notices of petition for retention are posted when available"
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Information about court structure and locations available"
+example_urls = [
+    "https://www.courts.state.hi.us/courts/court_structure",
+    "https://www.courts.state.hi.us/general_information/contact/contact_information"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Contact information and addresses for courthouses across all circuits (Oahu, Maui, Hawaii, Kauai)"
+example_urls = [
+    "https://www.courts.state.hi.us/general_information/contact/oahu",
+    "https://www.courts.state.hi.us/general_information/contact/maui",
+    "https://www.courts.state.hi.us/general_information/contact/hawaii",
+    "https://www.courts.state.hi.us/general_information/contact/kauai"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Hawaii state courts do not handle bankruptcy cases (federal jurisdiction)"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court system, not PACER"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1998-01-01"                   # Earlier opinions section goes back to 1998
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Opinions from 1998 to present are available. Divided into two sections: 1998-2009 and 2010-present."
+
+# How often does the site appear to be updated?
+update_frequency = "daily"                     # Policy states opinions posted by 2pm same day they are filed
+
+# Is there a way to subscribe to updates?
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://www.courts.state.hi.us/wp-sitemap.xml"
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["full_text", "date_range", "case_number", "party_name"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.haw",
+    "juriscraper.opinions.united_states.state.haw_beginningofyear",
+    "juriscraper.opinions.united_states.state.hawapp",
+    "juriscraper.opinions.united_states.state.hawapp_beginningofyear"
+]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "Hawaii has unique court structure with circuit courts for each island/region. Strong language access program with support for many Pacific Islander languages (Chuukese, Marshallese, Pohnpeian, Kosraean, Samoan, Tongan, Hawaiian) in addition to more common languages."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = []
+
+# Any known data quality issues?
+data_quality_notes = "Site policy notes that documents are 'as filed' and have not been enhanced or edited. May contain computer generated errors. Official slip opinion filed in Clerk's Office controls in case of discrepancies."
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+The Hawaii State Judiciary website (www.courts.state.hi.us) is a comprehensive statewide portal
+serving the Hawaii Supreme Court and Intermediate Court of Appeals. The site is publicly accessible
+with no registration or payment requirements.
+
+Key findings:
+- **Opinions**: Available from 1998 to present, divided into two archives (1998-2009 and 2010-present)
+- **Oral Arguments**: Audio recordings (MP3) available from March 21, 2007 to present
+- **Platform**: WordPress-based site with standard HTML structure, no complex JavaScript requirements
+- **Existing Coverage**: Four scrapers already exist for Hawaii opinions (haw, hawapp, and _beginningofyear variants)
+- **Update Policy**: Opinions posted by 2pm on the same day they are filed
+- **Search**: Full-text search functionality available for opinions
+
+The site has a clean, accessible structure that is scraper-friendly. The existing opinion scrapers
+cover the main use case. The primary gap is oral arguments - audio recordings are available but
+no scraper currently exists for them.
+
+Technical notes:
+- Site uses WordPress (wp-content, wp-admin paths)
+- Robots.txt only restricts wp-admin area
+- No API detected, standard HTML scraping required
+- PDF documents for opinions
+- MP3 audio for oral arguments
+- Site includes Firebase chat widget but core content loads without JavaScript
+"""
+
+# Recommended priority for building a scraper
+priority = "medium"
+priority_reasoning = """
+Existing opinion scrapers are already in place and functional. The main opportunity is adding
+oral argument audio scraping capability. This would be a valuable addition given the audio archive
+goes back to 2007. Medium priority because opinions (the primary content) are already covered.
+"""
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = """
+The site structure is straightforward HTML with clear navigation patterns. No authentication,
+captchas, or complex JavaScript required. Opinion scraping is already proven to work via existing
+scrapers. Adding oral argument scraping would likely follow similar patterns - navigate archive
+pages and extract MP3 links with metadata. The WordPress platform is stable and well-understood.
+"""
+
+# Any blockers or concerns?
+blockers = []

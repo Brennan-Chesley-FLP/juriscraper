@@ -1,0 +1,399 @@
+# Court Site Research Report Template
+#
+# Montana Tax Appeal Board site research report
+# Research completed: 2026-01-08
+
+[meta]
+domain = "mtab.mt.gov"
+court_ids = ["monttc"]
+court_name = "Montana Tax Appeal Board"
+court_url = "https://mtab.mt.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = false
+javascript_framework = ""
+
+# What platform/vendor does the site use?
+platform = "custom"
+
+# Is this a statewide portal or court-specific?
+scope = "court_specific"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = false
+robots_txt_url = "https://mtab.mt.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = []
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Tax appeal decisions available as PDF files, organized by tax type (income tax, property tax, etc.). Decisions include case number, parties, and decision text. Available from at least 2000 to present."
+example_urls = [
+    "https://mtab.mt.gov/decisions/Achten-MTAB-FOFCOL-12.3.25.pdf",
+    "https://mtab.mt.gov/decisions/Smythe-Family-LLLP-Final-Decision-case-33-8.27.25.pdf",
+    "https://mtab.mt.gov/decisions/Bruski-Final-Decision-12.17.24.pdf"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Decisions are individual files, not clustered"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Case numbers are provided (e.g., IT-2025-15, PT-2024-33) but formal legal citations are not explicitly listed"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "No audio recordings found"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "No transcripts found"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Pending appeals list available showing appellant, respondent, case number, case type, and county. Historical docket information appears to be unavailable."
+example_urls = ["https://mtab.mt.gov/pendingappeals"]
+
+[content.docket_entries]
+status = "unavailable"
+notes = "No detailed docket entry information available"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not a PACER/federal court system"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names visible in decision titles and pending appeals list (appellant vs. respondent, typically taxpayer vs. Department of Revenue)"
+example_urls = []
+
+[content.party_types]
+status = "partial"
+notes = "Basic party roles shown (appellant/respondent) in pending appeals table"
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "May be included within PDF decisions but not separately indexed"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = "May be included within PDF decisions but not separately indexed"
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unknown"
+notes = "Board member information may be available in About section but not examined in detail"
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "partial"
+notes = "Basic court information available; three-member board appointed by Governor"
+example_urls = []
+
+[content.courthouses]
+status = "partial"
+notes = "Address provided: P.O. Box 200138, Helena, MT 59620-0138; Physical: 560 North Park Avenue Suite 201, Helena MT 59620-0138"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not a bankruptcy court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Tax appeals only, not criminal cases"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Some decisions note judicial review status and district court case numbers"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER court"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "May be within PDF decisions but not separately indexed"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "partial"
+notes = "Decisions organized by tax type categories (Income Tax, Property Tax, Commercial Property, Agricultural Property, etc.)"
+example_urls = []
+
+[content.search_queries]
+status = "partial"
+notes = "Basic site search available but functionality not tested"
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2000-01-01"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Decisions available back to at least 2000 (PT-2000-12)"
+
+# How often does the site appear to be updated?
+update_frequency = "irregular"
+
+# Is there a way to subscribe to updates?
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["site_search"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = false
+
+# What module path(s)?
+scraper_modules = []
+
+# What data types does the existing scraper cover?
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "This is a specialized tax appeals tribunal, not a general court. It handles appeals from the Montana Department of Revenue for various tax types including property, income, corporate, and natural resource taxes."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = ["tax appeal decisions", "findings of fact and conclusions of law"]
+
+# Any known data quality issues?
+data_quality_notes = "Decisions are scattered across multiple category pages. Some older decisions use different URL patterns (../_docs/decisions/). Some decisions note judicial review actions to district court."
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+The Montana Tax Appeal Board website provides public access to tax appeal decisions in PDF format. The site is simple, static HTML without JavaScript requirements or authentication barriers. Decisions are organized by tax type and accessible through category pages. The site also provides a pending appeals list with basic case information.
+
+Key findings:
+- Static HTML site, easy to scrape
+- No robots.txt restrictions
+- Decisions available as PDFs back to at least 2000
+- Organized by tax type categories (23+ different categories)
+- Pending appeals list shows active cases
+- No existing scraper in juriscraper
+- No API or bulk download options
+- Search functionality exists but not tested
+
+URL patterns:
+- New decisions: https://mtab.mt.gov/decisions/New-Decisions
+- By category: https://mtab.mt.gov/decisions/{category} (e.g., residential-property, incometax)
+- PDFs: https://mtab.mt.gov/decisions/{filename}.pdf
+- Older PDFs: https://mtab.mt.gov/_docs/decisions/{filename}.pdf
+- Pending appeals: https://mtab.mt.gov/pendingappeals
+
+The site serves a single court_id (monttc - Montana Tax Appeal Board).
+"""
+
+# Recommended priority for building a scraper
+priority = "medium"
+priority_reasoning = "Publicly accessible opinions with good historical coverage, no existing scraper, and simple site structure. Medium priority due to specialized jurisdiction (tax appeals only) with potentially lower research demand compared to general appellate courts."
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = "Static HTML pages, no authentication, predictable URL patterns, no JavaScript requirements. Main complexity is handling multiple category pages and different URL patterns for older decisions."
+
+# Any blockers or concerns?
+blockers = []

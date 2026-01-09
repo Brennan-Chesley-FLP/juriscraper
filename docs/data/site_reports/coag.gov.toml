@@ -1,0 +1,447 @@
+# Court Site Research Report
+#
+# Site: Colorado Attorney General
+# Domain: coag.gov
+# Research Date: 2026-01-08
+
+[meta]
+domain = "coag.gov"
+court_ids = ["coloag"]
+court_name = "Colorado Attorney General"
+court_url = "https://coag.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = false
+javascript_framework = ""
+
+# What platform/vendor does the site use?
+platform = "wordpress"
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://coag.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = ["/wp/wp-admin/"]
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+# Reference: juriscraper/scraper_driver/common/models/base.py
+#
+# Mark each as: "available", "unavailable", "unknown", "partial"
+# Use "partial" if only some records of that type are available
+#
+# For each content type:
+#   status: availability status
+#   notes: description and context
+#   example_urls: 1-3 real URLs demonstrating this content type
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Colorado Attorney General formal opinions are available from 1994 to 2024. Organized by year. Each opinion is available as a PDF. The site notes this is not a complete list - the Colorado Supreme Court Library has a complete archive. Coverage is sparse - some years have only 1-3 opinions (e.g., 1 in 2024, 3 in 2023). Note: 2022 appears to have no opinions listed."
+example_urls = [
+    "https://coag.gov/app/uploads/2024/03/AG-Formal-Opinion-No-24-01.pdf",
+    "https://coag.gov/app/uploads/2023/07/AG-Formal-Opinion-No-23-01.pdf",
+    "https://coag.gov/app/uploads/2023/10/AG-Formal-Opinion-No-23-02.pdf"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Attorney General opinions are standalone documents, not clustered."
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Citation information is embedded in the opinion text and titles (e.g., 'No. 24-01', 'No. 23-01'). Some descriptions reference case citations (e.g., 'Tyler v. Hennepin County') but citations are not structured metadata."
+example_urls = [
+    "https://coag.gov/attorney-general-opinions/2024-formal-ag-opinions/",
+    "https://coag.gov/attorney-general-opinions/2023-formal-ag-opinions/"
+]
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Attorney General opinions are written legal opinions, not court proceedings with oral arguments."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "No audio transcripts for Attorney General opinions."
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "unavailable"
+notes = "Attorney General opinions are legal opinions, not court cases with dockets."
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Attorney General name and bio are available on the site (Phil Weiser, current AG). Historical AG information not readily available on opinion pages."
+example_urls = ["https://coag.gov/about-us/colorado-attorney-general/"]
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "partial"
+notes = "Office address is listed in footer: Office of the Attorney General, Colorado Department of Law, Ralph L. Carr Judicial Building, 1300 Broadway, 10th Floor, Denver, CO 80203, (720) 508-6000"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Would need to parse PDF content to identify cited cases."
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1994"
+latest_date = "2024"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Opinions available back to 1994 on the website. Note indicates Colorado Supreme Court Library has complete archive."
+
+# How often does the site appear to be updated?
+update_frequency = "irregular"
+
+# Is there a way to subscribe to updates?
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["site_search"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = false
+
+# What module path(s)?
+scraper_modules = []
+
+# What data types does the existing scraper cover?
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = """
+Per C.R.S. 24-31-101(1)(b), the Colorado Attorney General provides written
+legal opinions only to specific government officials: Colorado General Assembly,
+House of Representatives, Senate, governor, lieutenant governor, secretary of state,
+executive director of department of revenue, state treasurer, state auditor, or
+commissioner of education. These are legal opinions only and do not necessarily
+reflect the Attorney General's personal views or policy positions.
+"""
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = []
+
+# Any known data quality issues?
+data_quality_notes = "Site notes this is not a complete list of opinions. Colorado Supreme Court Library has complete archive."
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+The Colorado Attorney General website (coag.gov) provides formal legal opinions
+from 1994 to present, organized by year. Each opinion is available as a PDF.
+The site is built on WordPress and does not require JavaScript for basic browsing.
+
+Opinions are organized into year-based pages with consistent URL structure:
+- Index: https://coag.gov/attorney-general-opinions/
+- Year page: https://coag.gov/attorney-general-opinions/YYYY-formal-ag-opinions/
+- PDF: https://coag.gov/app/uploads/YYYY/MM/AG-Formal-Opinion-No-YY-NN.pdf
+
+Each year page lists opinions with:
+- Opinion number (e.g., "No. 24-01")
+- Brief description of the legal question addressed
+- Link to PDF
+
+The site explicitly states this is not a complete archive. For complete historical
+coverage, researchers should contact the Colorado Supreme Court Library.
+
+There is no existing scraper for this court (coloag). Other state AG scrapers exist
+(texag, calag, nyag, etc.) that could serve as implementation templates.
+"""
+
+# Recommended priority for building a scraper
+priority = "medium"
+priority_reasoning = """
+Medium priority because:
+- Public access with no barriers (no login, no captcha, no payment)
+- Simple, consistent URL structure for scraping
+- Attorney General opinions are valuable legal resources
+- No existing scraper for this court
+- However, coverage is acknowledged as incomplete (complete archive at CO Supreme Court Library)
+- Opinion volume is relatively low (few opinions per year)
+- Similar AG opinion scrapers already exist as templates
+"""
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = """
+Simple implementation because:
+- Static HTML, no JavaScript required
+- Consistent URL patterns across years
+- Clear year-based organization (1994-2024)
+- Direct PDF links with predictable naming
+- No pagination within year pages
+- No authentication or rate limiting concerns
+- Can follow pattern of existing AG opinion scrapers (texag, calag, etc.)
+
+Implementation would involve:
+1. Iterate through year pages from 1994-2024
+2. Parse HTML to extract opinion numbers, descriptions, and PDF URLs
+3. Download PDFs
+4. Extract metadata from page structure
+
+Potential challenges:
+- Need to monitor for new years being added
+- Some years may have no opinions (e.g., 2022 appears missing)
+- May want to cross-reference with Colorado Supreme Court Library for completeness
+"""
+
+# Any blockers or concerns?
+blockers = []

@@ -7,6 +7,7 @@
 
 [meta]
 domain = "example.gov"                  # Domain name (used for file naming)
+domain_aliases = []                     # Old/alternate domains that redirect here (from courts.toml)
 court_ids = ["example"]                 # All court_ids from courts.toml served by this domain
 court_name = "Example Court"            # Primary court name (or shared system name)
 court_url = "https://example.gov/courts"
@@ -100,209 +101,222 @@ tos_restrictions = ""                   # Quote relevant restrictions if any
 #
 # Mark each as: "available", "unavailable", "unknown", "partial"
 # Use "partial" if only some records of that type are available
+#
+# For each content type:
+#   status: availability status
+#   notes: description and context
+#   example_urls: 1-3 real URLs demonstrating this content type
 
 # --- Core Case Data ---
 
 [content.opinions]
 status = "unknown"                      # "available", "unavailable", "unknown", "partial"
 notes = ""
-url_pattern = ""                        # Example URL or pattern
+example_urls = []                       # 1-3 example URLs to actual opinions
 
 [content.opinion_clusters]
 status = "unknown"                      # Groups of related opinions
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.citations]
 status = "unknown"                      # Citation information
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.oral_arguments]
 status = "unknown"                      # Audio recordings
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.audio_transcripts]
 status = "unknown"                      # Transcripts of oral arguments
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Docket Data ---
 
 [content.dockets]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.docket_entries]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.recap_documents]
 status = "unknown"                      # Court filings, briefs, attachments
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Party & Attorney Data ---
 
 [content.parties]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.party_types]
 status = "unknown"                      # Role information (plaintiff, defendant, etc.)
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.attorneys]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.attorney_organizations]
 status = "unknown"                      # Law firms
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.roles]
 status = "unknown"                      # Attorney-party relationships
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- People & Judges ---
 
 [content.persons]
 status = "unknown"                      # Judges, lawyers, other legal professionals
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.positions]
 status = "unknown"                      # Judicial positions held
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.education]
 status = "unknown"                      # Education records for judges
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.political_affiliations]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.aba_ratings]
 status = "unknown"                      # ABA ratings for judges
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.retention_events]
 status = "unknown"                      # Judicial retention elections
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Court & Location Data ---
 
 [content.courts]
 status = "unknown"                      # Court metadata
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.courthouses]
 status = "unknown"                      # Physical courthouse locations
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Bankruptcy-Specific ---
 
 [content.bankruptcy_information]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.claims]
 status = "unknown"                      # Bankruptcy claims
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.claim_history]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Criminal-Specific ---
 
 [content.criminal_counts]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.criminal_complaints]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Federal-Specific ---
 
 [content.fjc_integrated_database]
 status = "unknown"                      # FJC IDB entries
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.originating_court_information]
 status = "unknown"                      # Lower court info for appeals
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.pacer_html_files]
 status = "unknown"                      # Raw PACER HTML
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- SCOTUS-Specific ---
 
 [content.scotus_docket_metadata]
 status = "unknown"
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Citation Analysis ---
 
 [content.opinions_cited]
 status = "unknown"                      # Citation relationships
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.parentheticals]
 status = "unknown"                      # How cases are cited
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # --- Other ---
 
 [content.tags]
 status = "unknown"                      # User-facing tags
 notes = ""
-url_pattern = ""
+example_urls = []
 
 [content.search_queries]
 status = "unknown"                      # Saved searches (if exposed)
 notes = ""
-url_pattern = ""
+example_urls = []
 
 # Add other content types as discovered
 # [content.other_type]
 # status = "available"
 # notes = "Description of what this contains"
+# example_urls = ["https://example.com/content/123"]
 
 # =============================================================================
 # COVERAGE & FRESHNESS
 # =============================================================================
 
 [coverage]
+# Is the primary court_url still valid and current?
+url_is_current = true                   # false if URL redirects, is broken, or outdated
+
+# Are there alternate URLs with court information?
+alternate_urls = []                     # Other URLs that provide access to this court's data
+alternate_url_notes = ""                # Explain relationship between URLs (e.g., "redirects to", "mirrors")
+
 # What is the apparent date range of available records?
 earliest_date = ""                      # "YYYY-MM-DD" or "unknown"
 latest_date = ""                        # "YYYY-MM-DD" or "ongoing"

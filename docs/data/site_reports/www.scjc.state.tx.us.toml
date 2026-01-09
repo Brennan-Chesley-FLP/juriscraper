@@ -1,0 +1,333 @@
+# Court Site Research Report: Texas Special Court of Review
+#
+# Research date: 2026-01-09
+# Status: SITE DOES NOT EXIST
+
+[meta]
+domain = "www.scjc.state.tx.us"
+court_ids = ["texreview"]
+court_name = "Texas Special Court of Review"
+court_url = "http://www.scjc.state.tx.us/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = false  # Site does not exist
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = ""
+scope = "court_specific"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = []
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = ""
+allows_scraping = false  # Site does not exist
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "unavailable"
+notes = "Site does not exist - DNS resolution fails for www.scjc.state.tx.us"
+example_urls = []
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.citations]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.parties]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.persons]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.opinions_cited]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.tags]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = "Site does not exist"
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = ""
+latest_date = ""
+has_historical = false
+historical_notes = ""
+update_frequency = ""
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = false
+search_capabilities = []
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+The Texas Special Court of Review appears to be a specialized court, but no website exists
+at the documented URL (www.scjc.state.tx.us). Further investigation needed to determine:
+1. Is this court still active?
+2. Does it have an alternate website?
+3. Are its records hosted elsewhere (e.g., on the main Texas courts website)?
+"""
+special_document_types = []
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+**CRITICAL FINDING: Website does not exist**
+
+The domain www.scjc.state.tx.us does not resolve via DNS. Multiple attempts were made:
+- https://www.scjc.state.tx.us/
+- https://scjc.state.tx.us/
+- http://www.scjc.state.tx.us/
+- http://scjc.state.tx.us/
+
+All attempts resulted in ERR_NAME_NOT_RESOLVED.
+
+**Next Steps Required:**
+1. Research whether the Texas Special Court of Review is still an active court
+2. Search for alternate URLs or hosting locations
+3. Check if records are hosted on the main Texas courts website (www.txcourts.gov)
+4. Verify if this court was dissolved or merged with another court
+5. Update courts.toml with correct URL if found, or mark as inactive
+
+**Background Research Needed:**
+- What is the Texas Special Court of Review?
+- When was it established?
+- Is it still operational as of 2026?
+- Where are its opinions/records published?
+
+Without access to web search tools, I cannot determine if this court is defunct or if the URL
+is simply incorrect in the courts.toml file.
+"""
+
+priority = "skip"
+priority_reasoning = """
+Cannot scrape a website that doesn't exist. This task requires preliminary research to:
+1. Verify the court's operational status
+2. Locate the correct website URL
+3. Determine if records exist elsewhere
+
+Until the correct URL is identified or court status is verified, no scraper development is possible.
+"""
+
+complexity = ""
+complexity_reasoning = ""
+
+blockers = [
+    "Website does not exist at documented URL",
+    "Court operational status unknown",
+    "Correct URL unknown",
+    "Cannot verify if court records are published online anywhere"
+]

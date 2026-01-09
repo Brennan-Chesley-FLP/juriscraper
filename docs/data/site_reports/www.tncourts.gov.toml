@@ -1,0 +1,395 @@
+# Court Site Research Report
+#
+# Research of www.tncourts.gov (Tennessee Administrative Office of the Courts)
+
+[meta]
+domain = "www.tncourts.gov"
+court_ids = ["tenn", "tennctapp", "tenncrimapp"]  # Tennessee Supreme Court, Court of Appeals, Court of Criminal Appeals
+court_name = "Tennessee Administrative Office of the Courts"
+court_url = "https://www.tncourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "jquery"
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = ["tenn", "tennctapp", "tenncrimapp"]  # Serves Supreme Court, Court of Appeals, and Court of Criminal Appeals
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.tncourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = [
+    "/core/", "/profiles/", "/admin/", "/comment/reply/", "/filter/tips",
+    "/node/add/", "/search/", "/user/register", "/user/password", "/user/login",
+    "/user/logout", "/media/oembed"
+]
+
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Comprehensive opinions archive for Tennessee Supreme Court, Court of Appeals, and Court of Criminal Appeals. Searchable database with filtering by county, judge, date range, case number, case name, and keyword. Opinions available as PDF downloads with full metadata including case number, authoring judge, trial court judge, and full text summaries. Supreme Court has 88+ pages of results, Court of Criminal Appeals has 1,035+ pages. Latest opinions from January 2026. Separate opinion sections exist for each court and Workers' Compensation opinions."
+example_urls = [
+    "https://tncourts.gov/courts/supreme-court/opinions",
+    "https://www.tncourts.gov/courts/court-criminal-appeals/opinions",
+    "https://tncourts.gov/sites/default/files/OpinionsPDFVersion/Majority%20Opinion%20-%20M2023-00249-SC-R11-CV.pdf",
+    "https://www.tncourts.gov/courts/work-comp/opinions"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Multiple opinion types per case (majority, concurrence, dissent, separate opinions) with links to each"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Case numbers and trial court information included in metadata"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral argument dockets available showing upcoming arguments for all appellate courts (Supreme Court, Court of Appeals, Court of Criminal Appeals). Oral argument videos also available. Homepage features dedicated 'Oral Arguments' tab showing upcoming hearings with case names, dates, times, court, and section."
+example_urls = [
+    "https://www.tncourts.gov/courts/supreme-court/oral-arguments",
+    "https://www.tncourts.gov/courts/court-criminal-appeals/oral-arguments?c=29",
+    "https://www.tncourts.gov/courts/supreme-court/oral-argument-videos",
+    "https://www.tncourts.gov/courts/court-appeals/arguments/2026/01/13/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Oral argument videos available but unclear if transcripts provided"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Public Case History search available for Supreme Court. Public Case Records search available at https://pch.tncourts.gov/"
+example_urls = [
+    "https://www.tncourts.gov/courts/supreme-court/public-case-history",
+    "https://pch.tncourts.gov/"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "May be available through case history system"
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names included in case titles"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "Site has attorney-focused section but unclear what public information available"
+example_urls = ["https://www.tncourts.gov/attorneys"]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Justice and judge information available. Authoring judges and trial court judges listed in opinion metadata."
+example_urls = [
+    "https://www.tncourts.gov/courts/supreme-court/justices",
+    "https://www.tncourts.gov/judges"
+]
+
+[content.positions]
+status = "available"
+notes = "Chief Justice and Justice positions clearly identified"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Comprehensive court information for all Tennessee courts including Supreme Court, Court of Appeals, Court of Criminal Appeals, Circuit Courts, General Sessions, Juvenile & Family, Municipal"
+example_urls = [
+    "https://www.tncourts.gov/courts",
+    "https://www.tncourts.gov/courts/supreme-court/about"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Court clerk information searchable by county"
+example_urls = ["https://www.tncourts.gov/courts/court-clerks/clerks-list"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State court system, not bankruptcy"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "Criminal cases handled by Court of Criminal Appeals (separate from Supreme Court)"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "available"
+notes = "Trial court judge and county information included in Supreme Court opinion metadata"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER site"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Would require parsing opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Site mentions 'Archived Documents' and historical archives available. Opinions database appears to have comprehensive historical coverage with 88+ pages of results."
+
+update_frequency = "irregular"
+
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://www.tncourts.gov/opinions-news-feeds"
+
+has_search = true
+search_capabilities = ["county", "case_number", "case_name", "date_range", "keyword", "judge_name", "dispositive_order"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Tennessee has a unique appellate structure with separate courts for civil (Supreme Court and Court of Appeals) and criminal (Court of Criminal Appeals) matters.
+
+The Supreme Court also handles Workers' Compensation appeals, which have a separate opinions section.
+
+The site serves as a statewide portal for all Tennessee courts, including trial courts, appellate courts, and specialized courts.
+
+Court of Appeals is divided into three sections: Eastern, Middle, and Western.
+
+The site uses Drupal CMS and is well-structured with consistent metadata patterns.
+"""
+
+special_document_types = ["Dispositive Orders", "Separate Opinions", "Workers' Compensation Opinions"]
+
+data_quality_notes = "High-quality structured data with comprehensive metadata. Each opinion includes case number, authoring judge, originating judge, county, and full text summary."
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Tennessee has an excellent statewide court portal at www.tncourts.gov with comprehensive online resources. Key findings:
+
+**Opinions**: Outstanding opinions database for all three appellate courts with advanced search capabilities. Opinions available as PDF downloads with rich metadata:
+- Case number and citation
+- Authoring judge (Justice/Judge)
+- Trial court judge
+- County of origin
+- Full text summary
+- Multiple opinion types (majority, concurrence, dissent, separate opinions)
+- Searchable by multiple criteria (county, judge, date, case name, keywords, dispositive order status)
+- Supreme Court: 88+ pages of results
+- Court of Criminal Appeals: 1,035+ pages of results (extensive archive)
+
+**Structure**: The site is a comprehensive statewide portal serving multiple courts:
+- Supreme Court (civil appeals)
+- Court of Appeals (3 sections: Eastern, Middle, Western)
+- Court of Criminal Appeals (criminal appeals - 12 judges)
+- Workers' Compensation Appeals
+- Trial courts (Circuit, Criminal, Chancery, General Sessions, Juvenile & Family, Municipal)
+
+**Additional Content**:
+- Oral argument dockets and videos for all appellate courts
+- Public case records search
+- Court rules and administrative orders
+- Judge biographies
+- Court forms and self-help resources
+- E-filing system
+- RSS feeds for opinions and news
+- Press releases and feature stories
+- Pending case reports
+- Discretionary appeals lists
+
+**Technical**: Drupal-based CMS, no JavaScript required for content access, well-structured HTML with clear data patterns. No public API discovered.
+
+**No Existing Scraper**: No juriscraper coverage found for Tennessee Supreme Court, Court of Appeals, or Court of Criminal Appeals. This represents an excellent opportunity for scraper development given the high-quality, accessible data.
+
+**Note**: The Court of Criminal Appeals has a particularly extensive archive with 1,035+ pages of opinions, making it a high-value target for scraping.
+"""
+
+priority = "high"
+priority_reasoning = "No existing scraper for any Tennessee appellate courts (Supreme Court, Court of Appeals, Court of Criminal Appeals) despite excellent data availability and structure. Rich metadata, searchable database, PDF opinions with full text summaries. Well-maintained site with current opinions (January 2026). Tennessee is a major jurisdiction without coverage. Court of Criminal Appeals alone has 1,035+ pages of opinions. Strong candidate for scraper development."
+
+complexity = "simple"
+complexity_reasoning = "Static HTML with clear structure, no JavaScript required, no authentication needed, well-structured metadata patterns, PDF opinions directly linked. Drupal-based CMS provides consistent page structure. Search functionality and pagination are straightforward."
+
+blockers = []

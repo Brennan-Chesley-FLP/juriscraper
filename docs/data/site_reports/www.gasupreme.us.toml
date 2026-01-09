@@ -1,0 +1,428 @@
+# Court Site Research Report Template
+#
+# This file documents the schema for court website research reports.
+# Use this as a template when researching new court sites.
+#
+# File naming: {domain_name}.toml (e.g., "judicial.alabama.gov.toml", "ecf.ca9.uscourts.gov.toml")
+
+[meta]
+domain = "www.gasupreme.us"
+court_ids = ["ga"]
+court_name = "Supreme Court of Georgia"
+court_url = "https://www.gasupreme.us/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = false
+javascript_framework = "jquery"
+
+# What platform/vendor does the site use?
+platform = "wordpress"
+
+# Is this a statewide portal or court-specific?
+scope = "court_specific"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://www.gasupreme.us/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = ["/wp-content/uploads/", "/readme.html"]
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+# Reference: juriscraper/scraper_driver/common/models/base.py
+#
+# Mark each as: "available", "unavailable", "unknown", "partial"
+# Use "partial" if only some records of that type are available
+#
+# For each content type:
+#   status: availability status
+#   notes: description and context
+#   example_urls: 1-3 real URLs demonstrating this content type
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Opinions available from 2017 onwards as PDFs. Organized by year with monthly listings. Each opinion has case number and party names."
+example_urls = [
+    "https://www.gasupreme.us/wp-content/uploads/2026/01/s25a1044.pdf",
+    "https://www.gasupreme.us/wp-content/uploads/2025/12/s25a1174.pdf",
+    "https://www.gasupreme.us/2026-opinions/"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Opinions are published individually as PDFs. Multiple cases in one opinion are handled by listing multiple docket numbers."
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Georgia Reports citations are embedded in the PDF text, typically in first 50 characters. Format: ### Ga. ###"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral argument videos available via embedded video player. Archive goes back to at least December 2024. Videos include transcripts. Organized by date with case numbers."
+example_urls = [
+    "https://www.gasupreme.us/oral-arguments-december-9-2025/",
+    "https://www.gasupreme.us/watch/",
+    "https://www.gasupreme.us/calendar-list/"
+]
+
+[content.audio_transcripts]
+status = "available"
+notes = "Transcripts available through video player interface for oral arguments."
+example_urls = [
+    "https://www.gasupreme.us/oral-arguments-december-9-2025/"
+]
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Docket search available via embedded iframe application. Searchable by case number, party name, and other criteria. Covers last 5 years of cases."
+example_urls = [
+    "https://www.gasupreme.us/docket-search/"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "Docket search system exists but detailed docket entry information not verified during research."
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = "Not verified. The court mentions documents can be requested from Clerk's office at (404) 656-3470 with possible fees."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names are available in opinion titles and case listings."
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "Not verified during research. May be available in full docket system or opinion PDFs."
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unknown"
+notes = "Court has information about justices but detailed structured data not verified."
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "partial"
+notes = "Court information available including address, contact details, and hours."
+example_urls = [
+    "https://www.gasupreme.us/court-information/clerks-office/"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Nathan Deal Judicial Center location and directions available."
+example_urls = [
+    "https://www.gasupreme.us/court-information/directions/"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "Many cases are criminal (v. THE STATE) but detailed count information not verified."
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court, not federal."
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Case type indicators in docket numbers show appeal type (A=direct appeal, C=cert petition, etc.)"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court, not PACER."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Would be available in opinion PDF text but not extracted as structured data on the website."
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2017-01-01"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Opinions available from 2017 onwards. Opinion years: 2017-2026 confirmed available. Docket search covers last 5 years."
+
+# How often does the site appear to be updated?
+update_frequency = "weekly"
+
+# Is there a way to subscribe to updates?
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["case_number", "party_name"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = ["juriscraper.opinions.united_states.state.ga"]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = """
+Case numbers use specific letter designations after the year to indicate appeal type:
+- A: Direct appeal from superior/state/probate/juvenile court
+- B: Petition to appoint Special Master in disciplinary proceedings
+- C: Certiorari petition to review Court of Appeals decision
+- D: Discretionary application (30-day decision deadline)
+- E: Certificate of probable cause (death sentence/habeas)
+- G: Granted certiorari petition
+- H: Post-conviction habeas certificate
+- I: Interlocutory application (45-day decision deadline)
+- J: JQC matters before formal charges
+- P: Automatic death penalty appeal
+- Q: Certified questions from federal courts
+- Y: Attorney discipline from State Bar
+- Z: JQC or Office of Bar Admissions appeals
+"""
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = ["Forthcoming Opinions", "Certiorari Petitions", "Discretionary Applications", "Interlocutory Applications", "JQC Cases", "PAQC Cases"]
+
+# Any known data quality issues?
+data_quality_notes = ""
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = "Court has defined terms. Calendar shows oral argument schedule typically 1-2 times per month."
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+The Supreme Court of Georgia website is a well-organized WordPress site with excellent public access to opinions and oral arguments.
+
+**Opinions**: Available as PDF files from 2017-present, organized by year with monthly groupings. Each opinion listing includes docket number(s), case name, and date. The existing juriscraper (ga.py) successfully scrapes this content.
+
+**Oral Arguments**: Video recordings with transcripts available through embedded video player. Archives go back to at least December 2024, organized by hearing date. Each oral argument page shows multiple cases heard that day with individual video embeds.
+
+**Dockets**: Case search system available via embedded iframe application covering last 5 years. Searchable by case number and party name.
+
+**Site Structure**: Static HTML with minimal JavaScript requirements. No authentication barriers. robots.txt only blocks WordPress admin paths.
+
+**Existing Coverage**: The ga.py scraper successfully handles opinions. No oral argument or docket scrapers exist yet.
+"""
+
+# Recommended priority for building a scraper
+priority = "medium"
+priority_reasoning = "Opinions are already well-covered by existing scraper. Oral arguments would be valuable to add but video scraping is more complex. Docket access exists but is limited to 5 years."
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = "Static HTML site with straightforward structure. Opinions scraper already working. Oral arguments would require video handling. Docket system uses iframe which may need investigation."
+
+# Any blockers or concerns?
+blockers = []

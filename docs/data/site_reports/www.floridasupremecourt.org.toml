@@ -1,0 +1,376 @@
+# Court Site Research Report: Florida Supreme Court
+#
+# Domain redirects: www.floridasupremecourt.org -> supremecourt.flcourts.gov
+
+[meta]
+domain = "supremecourt.flcourts.gov"
+domain_aliases = ["www.floridasupremecourt.org"]
+court_ids = ["fla"]
+court_name = "Florida Supreme Court"
+court_url = "https://www.floridasupremecourt.org"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "react"
+
+# Next.js frontend with React
+platform = "custom"
+
+scope = "court_specific"
+
+# This site is part of the flcourts.gov infrastructure
+shared_infrastructure = []
+
+has_api = true
+api_documented = false
+api_url = "https://flcourts-media.flcourts.gov/api/"
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://supremecourt.flcourts.gov/robots.txt"
+
+# Allows only specific search engine bots, disallows general user agents
+allows_scraping = false
+disallowed_paths = [
+    "/",  # Disallows all for general User-agent
+    "/admin/",
+    "/site_admin/",
+    "/search",
+    "/content/search",
+    "/content/advancedsearch",
+    "/media/",
+    "/user/"
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = "robots.txt disallows general scraping but allows specific search engine bots"
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Opinions available via JSON API at flcourts-media.flcourts.gov/_search/opinions/. API supports pagination, date filtering, and returns structured JSON with opinion metadata and PDF URLs. Historical data back to 1999."
+example_urls = [
+    "https://supremecourt.flcourts.gov/Opinions/Most-Recent-Opinions",
+    "https://flcourts-media.flcourts.gov/_search/opinions/?limit=20&offset=0&query=&recent_only=1&scopes[]=supreme_court&searchtype=opinions&siteaccess=supreme2&type=written",
+    "https://acis.flcourts.gov/portal/court/68f021c4-6a44-4735-9a76-5360b2e8af13/case/d7886447-9d74-4515-afcc-04613b5319b7"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Case numbers and some citation information available in API responses and case portal"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral argument audio/video available from 1997-present on WFSU Gavel to Gavel, YouTube (2018+), and Facebook (2018+). Monthly schedule with summaries published. Live streaming available."
+example_urls = [
+    "https://supremecourt.flcourts.gov/case-information/Oral-Arguments",
+    "http://wfsu.org/gavel2gavel/",
+    "https://www.youtube.com/c/FloridaSupremeCourtTallahassee",
+    "https://www.facebook.com/floridasupremecourt/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "No evidence of text transcripts, only audio/video"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Docket information available through ACIS portal (acis.flcourts.gov) - Thomson Reuters Court Management Solutions platform. Searchable by case name, number, and other criteria."
+example_urls = [
+    "http://onlinedocketssc.flcourts.org/",
+    "https://acis.flcourts.gov/portal/court/68f021c4-6a44-4735-9a76-5360b2e8af13/case/d7886447-9d74-4515-afcc-04613b5319b7"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Full docket entries with dates, document types, parties available through ACIS portal. Documents can be viewed/downloaded."
+example_urls = [
+    "https://acis.flcourts.gov/portal/court/68f021c4-6a44-4735-9a76-5360b2e8af13/case/d7886447-9d74-4515-afcc-04613b5319b7"
+]
+
+[content.recap_documents]
+status = "available"
+notes = "Briefs, orders, motions, and other filings available as PDFs through ACIS portal"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Party information available in ACIS portal docket view"
+example_urls = []
+
+[content.party_types]
+status = "available"
+notes = "Party roles (Petitioner, Respondent, etc.) shown in ACIS"
+example_urls = []
+
+[content.attorneys]
+status = "available"
+notes = "Attorney representation information available in ACIS portal"
+example_urls = []
+
+[content.attorney_organizations]
+status = "partial"
+notes = "Some law firm/organization affiliations shown in docket entries"
+example_urls = []
+
+[content.roles]
+status = "available"
+notes = "Attorney-party relationships shown in ACIS"
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Justice biographies and information available"
+example_urls = [
+    "https://supremecourt.flcourts.gov/the-court/about-the-court/justices"
+]
+
+[content.positions]
+status = "partial"
+notes = "Current justice positions shown, historical service noted"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court information and structure available"
+example_urls = []
+
+[content.courthouses]
+status = "available"
+notes = "Physical address available: 500 South Duval Street, Tallahassee, FL, 32399-1925"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - this is a state supreme court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state court"
+example_urls = []
+
+[content.originating_court_information]
+status = "available"
+notes = "Lower court information shown in ACIS (e.g., '4th District Court of Appeal')"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - state court"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1999-09-23"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Opinions API has data back to September 1999. Oral arguments archived from September 1997."
+
+update_frequency = "weekly"
+
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://confirmsubscription.com/h/j/89384838717840BC"
+
+has_search = true
+search_capabilities = ["date_range", "case_number", "party_name", "full_text"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = ["juriscraper.opinions.united_states.state.fla"]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "Domain redirect: www.floridasupremecourt.org redirects to supremecourt.flcourts.gov. Site uses Next.js with server-side rendering and API calls to flcourts-media.flcourts.gov."
+
+special_document_types = []
+
+data_quality_notes = ""
+
+seasonal_notes = "Oral arguments held once per month during court term. Court recesses in July and August."
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Florida Supreme Court website provides excellent public access to opinions, dockets, and oral arguments. The site uses a modern Next.js frontend with a JSON API backend (flcourts-media.flcourts.gov). An existing scraper successfully uses this API for opinions.
+
+Key infrastructure:
+1. **Opinions API**: flcourts-media.flcourts.gov/_search/opinions/ - Well-structured JSON responses with pagination, date filtering
+2. **ACIS Portal**: acis.flcourts.gov - Thomson Reuters platform for dockets, filings, party/attorney info
+3. **Oral Arguments**: Archived on multiple platforms (WFSU, YouTube, Facebook) from 1997-present
+
+The robots.txt disallows general user agents but the existing scraper has been successful using the opinions API. The API appears designed for programmatic access despite robots.txt restrictions.
+
+Oral argument videos/audio are available but not currently scraped. The ACIS docket system provides comprehensive case information but would require separate implementation.
+"""
+
+priority = "low"
+priority_reasoning = "Existing scraper provides good coverage of opinions via API. Oral arguments available but would require video/audio scraping. ACIS docket access would be valuable but is a separate platform."
+
+complexity = "moderate"
+complexity_reasoning = "Opinions: Simple (existing scraper works well). Oral arguments: Moderate (multiple external platforms). Dockets: Moderate (ACIS portal with Thomson Reuters backend)."
+
+blockers = [
+    "robots.txt disallows general scraping (but API access works)",
+    "Oral arguments on third-party platforms (WFSU, YouTube, Facebook)",
+    "ACIS docket portal may have terms of service restrictions"
+]

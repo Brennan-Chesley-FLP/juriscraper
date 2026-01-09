@@ -1,0 +1,420 @@
+# Court Site Research Report: Louisiana Supreme Court
+#
+# Domain: www.lasc.org
+# Court ID: la (Supreme Court of Louisiana)
+# Research Date: 2026-01-09
+
+[meta]
+domain = "www.lasc.org"
+court_ids = ["la"]
+court_name = "Supreme Court of Louisiana"
+court_url = "https://www.lasc.org"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = "custom"
+scope = "court_specific"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.lasc.org/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/search", "/lib", "/js", "/css", "/fonts"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Opinions are published via Court Actions releases. Each release contains direct PDF links
+to opinions. Opinions are available from at least 2010 to present. The site follows a
+pattern of /opinions/YYYY/YY-NNNN.*.OPN.pdf for PDF files. Opinions are released on
+a scheduled basis during court sittings. The existing scraper at
+juriscraper/opinions/united_states/state/la.py covers this court.
+"""
+example_urls = [
+  "https://www.lasc.org/Opinions?p=2025-056",
+  "https://www.lasc.org/opinions/2025/25-0169.C.OPN.pdf",
+  "https://www.lasc.org/opinions/2025/25-0453.C.OPN.pdf"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = """
+Opinions are grouped by release date in the Court Actions system. Each Court Actions
+release represents a cluster of opinions released on the same date.
+"""
+example_urls = [
+  "https://www.lasc.org/Opinions?p=2025-056"
+]
+
+[content.citations]
+status = "unavailable"
+notes = "Citation information is embedded in the PDF opinions but not available as structured data."
+example_urls = []
+
+[content.oral_arguments]
+status = "partial"
+notes = """
+Oral arguments are available via live stream at livestream.lasc.org when court is in
+session. The site states 'Arguments are only available via live stream when court is in
+session.' It's unclear if archived oral arguments are available for download. Dockets
+show upcoming argument schedules.
+"""
+example_urls = [
+  "https://livestream.lasc.org"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "No evidence of audio transcripts found during research."
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """
+Docket information is available as PDF files organized by sitting date. Current and
+recent dockets are available, as well as a docket archive. Dockets show case numbers,
+party names, and argument schedules.
+"""
+example_urls = [
+  "https://www.lasc.org/Docket",
+  "https://www.lasc.org/dockets/Jan22_2026.pdf",
+  "https://www.lasc.org/dockets/Jan2026.pdf"
+]
+
+[content.docket_entries]
+status = "unavailable"
+notes = """
+Detailed docket entries (individual filings, motions, orders within a case) are not
+publicly available on this website. The dockets show only high-level case information
+and argument schedules.
+"""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "RECAP documents are not applicable to state courts."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = """
+Party names appear in opinion text and docket PDFs, but are not available as structured
+data. The case name format typically shows parties:
+'NGOC TROUNG VS. MARCUS DEWAYNE SANDERS AND OLD AMERICAN INDEMNITY COMPANY'
+"""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "Party type information (plaintiff, defendant, etc.) not available as structured data."
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Attorney information not publicly available as structured data on this website."
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = "Law firm information not publicly available as structured data."
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = "Attorney-party relationships not available as structured data."
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = """
+Judge information is available through the About The Court section. Judge names appear
+in opinions showing who authored each opinion or concurrence/dissent. Current justices'
+biographies are available.
+"""
+example_urls = [
+  "https://www.lasc.org/About/Biography?p=John_L._Weimer"
+]
+
+[content.positions]
+status = "partial"
+notes = """
+Current judicial positions are shown on the site. Chief Justice and Associate Justices
+are identified. The site shows: Hon. John L. Weimer, Chief Justice.
+"""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = "Education records may be in judge biographies but not systematically collected."
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = "Political affiliation information not readily available."
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = "ABA ratings not available on this website."
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = "Retention election information not found during research."
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+Court metadata is available including the court address (400 Royal Street, New Orleans,
+LA 70130), contact information for Clerk of Court, Judicial Administrator, and general
+court information.
+"""
+example_urls = [
+  "https://www.lasc.org/Contact"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Physical courthouse location is displayed: 400 Royal Street, New Orleans, LA 70130"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - this is not a bankruptcy court."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable - this is not a bankruptcy court."
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable - this is not a bankruptcy court."
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Criminal case details not available as structured data."
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Criminal complaints not publicly available on this website."
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - this is a state court."
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = """
+Lower court information appears in opinion text, showing which parish or court the case
+came from. Example: '(Parish of Caddo)' or '(Parish of Orleans Civil)'. The existing
+scraper extracts this using the extract_from_text method looking for patterns like
+'On Writ of Certiorari to the' or 'On Supervisory Writ to the'.
+"""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - PACER is for federal courts only."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable - this is not SCOTUS."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unavailable"
+notes = "Citation relationships are not available as structured data."
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = "Parenthetical descriptions of citations not available as structured data."
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = "No tagging system for cases found."
+example_urls = []
+
+[content.search_queries]
+status = "partial"
+notes = """
+A search function exists at /Search that allows searching the entire site or just
+Court Actions. Search can be sorted by relevance or date.
+"""
+example_urls = [
+  "https://www.lasc.org/Search"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2010-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = """
+Court Actions (including Opinions, Actions, and Rehearings) are available from at least
+2010 to present. The URL pattern /CourtActions/YYYY allows access to any year. Tested
+years: 2010, 2020, 2025 - all have comprehensive data.
+"""
+update_frequency = "weekly"
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://www.lasc.org/Rss"
+
+has_search = true
+search_capabilities = ["full_text", "entire_site", "court_actions_only", "sort_by_relevance", "sort_by_date"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = ["juriscraper.opinions.united_states.state.la"]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Opinions are released via a 'Court Actions' system with numbered releases (e.g., 2025-056)
+- Court Actions include three types: Opinions, Actions (procedural orders), and Rehearings
+- Opinions released during same session may have concurrences/dissents added later
+- Site includes language access features with translation to Arabic, Chinese, Spanish, Vietnamese
+- E-Filing system is at separate subdomain: cdx.lasc.org
+- Louisiana has intermediate appellate courts (lactapp_1 through lactapp_5) with separate scrapers
+"""
+special_document_types = ["Court Actions", "Rehearings", "Actions"]
+data_quality_notes = """
+Per the site notice: 'For purposes of pinpoint citation, the pagination of the opinions
+on this site may not conform with the official opinion of the court.'
+"""
+seasonal_notes = """
+The court follows a sitting schedule with tentative opinion release dates. For 2024-2025:
+September 5, 2025; October 24, 2025; January 9, 2026; March 6, 2026; May 1, 2026;
+June 26, 2026
+"""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Louisiana Supreme Court website (www.lasc.org) provides comprehensive public access
+to opinions dating back to at least 2010. The site uses a 'Court Actions' release system
+that publishes opinions, procedural actions, and rehearings with direct PDF links. An
+existing scraper successfully covers opinion collection. The site is well-structured with
+static HTML, no JavaScript requirement, and clear robots.txt guidance. Dockets are
+available as PDFs but detailed case information and filings are not publicly accessible.
+Oral arguments are available via live stream during sessions but archived arguments may
+not be available. The site includes useful features like RSS feeds, email alerts, and
+search functionality.
+"""
+
+priority = "low"
+priority_reasoning = """
+Priority is LOW because:
+1. Existing scraper (juriscraper/opinions/united_states/state/la.py) successfully covers opinions
+2. The scraper was last reviewed and appears to be functioning properly
+3. Site structure is stable and well-designed for scraping
+4. No major gaps in opinion coverage
+5. Additional data types (dockets, oral arguments) have limited structured availability
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Complexity is SIMPLE because:
+1. Static HTML site with no JavaScript requirement
+2. Clean URL patterns (/CourtActions/YYYY, /Opinions?p=YYYY-NNN)
+3. Direct PDF links to opinions with predictable naming (/opinions/YYYY/YY-NNNN.*.OPN.pdf)
+4. Respectful robots.txt with reasonable restrictions
+5. No authentication, captcha, or paywall
+6. Existing working scraper demonstrates feasibility
+7. Standard pagination and date-based organization
+"""
+
+blockers = []

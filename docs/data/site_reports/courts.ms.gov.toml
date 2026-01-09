@@ -1,0 +1,412 @@
+# Court Site Research Report: courts.ms.gov
+#
+# Research completed following the workflow in docs/data/AGENTS.md
+
+[meta]
+domain = "courts.ms.gov"
+court_ids = ["miss", "missctapp"]
+court_name = "Mississippi Supreme Court & Court of Appeals"
+court_url = "https://courts.ms.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = true
+captcha_type = "recaptcha"
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "jquery"
+
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+
+has_api = true
+api_documented = false
+api_url = "https://courts.ms.gov/appellatecourts/docket/"
+
+bulk_download_available = true
+bulk_download_details = "Hand Down Lists can be downloaded as ZIP files containing all opinions for a specific date in WordPerfect format. Example: https://courts.ms.gov/appellatecourts/ZIPS/SupremeCourt/SC20260108.ZIP"
+
+document_formats = ["pdf", "wpd"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://courts.ms.gov/robots.txt"
+
+allows_scraping = true
+disallowed_paths = [
+    "/aocweb/",
+    "/cleweb/",
+    "/templates/",
+    "/MYCIDS/",
+    "/trialcourts/youthcourt/mycids/",
+    "/isys/",
+    "/ISYS/",
+    "/jquery/",
+    "/search/",
+    "/scripts/",
+    "/barweb/",
+    "/barapp/",
+    "/appellatecourts/docket/",
+    "/appellatecourts/docket/efile_system",
+    "/layout/scripts/",
+    "/employment/LawClerkAppFrm_files/",
+    "/employment/PHPMailer-master/",
+    "/employment/js/",
+    "/MYCIDS_feedback/",
+    "/upload/"
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Opinions are available from both Supreme Court (SCT) and Court of Appeals (COA) dating back to 1996. Accessible via Hand Down Lists organized by date. Opinions are provided as PDFs with direct links."
+example_urls = [
+    "https://courts.ms.gov/appellatecourts/sc/scdecisions.php?date=01-08-2026",
+    "https://courts.ms.gov/appellatecourts/Opinions/CO189445.pdf",
+    "https://courts.ms.gov/appellatecourts/Opinions/CO189400.pdf"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Hand Down Lists group opinions by publication date, effectively creating opinion clusters"
+example_urls = [
+    "https://courts.ms.gov/appellatecourts/sc/scdecisions.php?date=01-08-2026"
+]
+
+[content.citations]
+status = "available"
+notes = "Case citations are included in the opinion metadata on Hand Down Lists (e.g., '2024-KA-00413-SCT')"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral arguments are available via Vimeo webcasts. Current and upcoming arguments are listed, with archives dating back to October 2014. Links to Mississippi College School of Law's Judicial Database provide archives from 2004."
+example_urls = [
+    "https://courts.ms.gov/appellatecourts/sc/scoa.php",
+    "https://vimeo.com/event/5620536",
+    "https://courts.ms.gov/appellatecourts/coa/coaoa.php"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "General Docket search is available on the homepage with case search functionality. However, full docket access appears to require MEC (Mississippi Electronic Courts) login."
+example_urls = [
+    "https://courts.ms.gov/index.php"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through the MEC system, which requires registration. Public access limited."
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "This is a state court system, not PACER/federal"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names are visible in opinion titles and Hand Down Lists"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judge/Justice information is available through dedicated pages listing current judges and justices with biographical information"
+example_urls = [
+    "https://courts.ms.gov/appellatecourts/sc/scjustices.php",
+    "https://courts.ms.gov/appellatecourts/coa/coajudges.php"
+]
+
+[content.positions]
+status = "available"
+notes = "Judicial positions and district assignments are documented"
+example_urls = [
+    "https://courts.ms.gov/appellatecourts/sc/scdistricts.php",
+    "https://courts.ms.gov/appellatecourts/coa/coadistricts.php"
+]
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court information is available for both appellate courts and all trial courts across Mississippi counties"
+example_urls = [
+    "https://courts.ms.gov/aboutcourts/aboutthecourts.php"
+]
+
+[content.courthouses]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable to state courts"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Lower court information is included in opinion metadata (e.g., 'Lowndes Circuit Court; LC Case #: 44CI1:23-cr-00010-E')"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1996-01-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Appellate opinions dating back to 1996 are available. Oral argument archives go back to October 2014 on this site, with additional archives from 2004 available via Mississippi College School of Law's Judicial Database."
+
+update_frequency = "weekly"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = ["case_number", "date_range"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.miss",
+    "juriscraper.opinions.united_states.state.missctapp",
+    "juriscraper.opinions.united_states.state.miss_beginningofyear",
+    "juriscraper.opinions.united_states.state.missctapp_beginningofyear"
+]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- The site uses a custom architecture with POST-based API endpoints for retrieving hand down dates and case data
+- API endpoints discovered:
+  * POST /appellatecourts/docket/gethddates.php - retrieves dates with published opinions
+  * POST /appellatecourts/docket/getHanddown.php - retrieves opinion data for specific dates
+  * POST /appellatecourts/docket/get_hd_file.php - retrieves hand down files
+- Court parameter distinguishes between SCT (Supreme Court) and COA (Court of Appeals)
+- MEC (Mississippi Electronic Courts) system is used for trial court e-filing and requires registration
+- Oral arguments are hosted on Vimeo platform
+"""
+
+special_document_types = []
+
+data_quality_notes = ""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The courts.ms.gov site provides excellent public access to Mississippi Supreme Court and Court of Appeals
+opinions dating back to 1996. Opinions are organized by Hand Down Lists (publication dates) and available
+as PDFs with metadata including case numbers, parties, lower court information, and disposition.
+
+The site uses a custom POST-based API architecture for retrieving opinion data. Existing scrapers already
+cover opinion extraction for both courts. Oral arguments are available via Vimeo webcasts with archives
+since October 2014.
+
+Trial court dockets are available through the MEC (Mississippi Electronic Courts) system, which requires
+registration. The site has a robots.txt that allows scraping of opinion content while protecting internal
+systems.
+
+Key technical note: The site requires JavaScript and uses jQuery. A reCAPTCHA is present but doesn't
+appear to block normal browsing. Bulk downloads are available as ZIP files containing WordPerfect documents.
+"""
+
+priority = "low"
+priority_reasoning = """
+Existing scrapers already provide good coverage of opinions from both the Supreme Court and Court of Appeals.
+The scrapers use the discovered API endpoints effectively. Oral arguments are not currently being scraped but
+are available via Vimeo. Trial court dockets require MEC registration which may not be worth the effort for
+public data collection.
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+The existing scrapers demonstrate that the API approach works well. However:
+- Requires JavaScript rendering
+- Uses POST-based API calls rather than simple GET requests
+- Has reCAPTCHA present (though not actively blocking)
+- Trial court access requires registration
+- Oral arguments would require Vimeo integration
+"""
+
+blockers = []

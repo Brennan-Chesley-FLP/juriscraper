@@ -1,0 +1,431 @@
+# Court Site Research Report Template
+#
+# This file documents the schema for court website research reports.
+# Use this as a template when researching new court sites.
+#
+# File naming: {domain_name}.toml (e.g., "judicial.alabama.gov.toml", "ecf.ca9.uscourts.gov.toml")
+
+[meta]
+domain = "www.kscourts.org"
+court_ids = ["kan", "kanctapp"]
+court_name = "Kansas Judicial Branch"
+court_url = "https://www.kscourts.org"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = true
+javascript_framework = "jquery"
+
+# What platform/vendor does the site use?
+platform = "custom"
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = false
+api_documented = false
+api_url = ""
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = false
+robots_txt_url = "https://www.kscourts.org/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = []
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any other rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+# Reference: juriscraper/scraper_driver/common/models/base.py
+#
+# Mark each as: "available", "unavailable", "unknown", "partial"
+# Use "partial" if only some records of that type are available
+#
+# For each content type:
+#   status: availability status
+#   notes: description and context
+#   example_urls: 1-3 real URLs demonstrating this content type
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Both published and unpublished decisions available from Supreme Court and Court of Appeals. Published decisions date back to October 25, 1996. Unpublished decisions date back to September 4, 2015. Decisions are typically released around 9:30 a.m. on Fridays. Separate subdomain (searchdro.kscourts.gov) for searchable decisions database."
+example_urls = [
+    "https://searchdro.kscourts.gov/documents/pdf/caseDecisions/7c0e5609-1f59-42cd-b01e-3e052856546d_128132.pdf",
+    "https://searchdro.kscourts.gov/documents/pdf/caseDecisions/a2e54d5b-307e-4f3f-bd7f-ab06dc94ae2d_129389.pdf",
+    "https://searchdro.kscourts.gov/Documents/LoadPage"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Decisions are grouped by release date on the searchdro.kscourts.gov subdomain. Can filter by court (Supreme Court vs Court of Appeals) and publication status."
+example_urls = [
+    "https://searchdro.kscourts.gov/Data/decisionsList"
+]
+
+[content.citations]
+status = "available"
+notes = "Citation information available through the main site's 'Citing Decisions' section."
+example_urls = [
+    "https://www.kscourts.org/Cases-Decisions/Citing-Decisions"
+]
+
+[content.oral_arguments]
+status = "available"
+notes = "Supreme Court oral arguments available in video format, archived back to 2019. Arguments are broadcast live on YouTube and archived for on-demand viewing. Organized by year and docket number. Older arguments searchable on YouTube channel."
+example_urls = [
+    "https://www.kscourts.org/About-the-Courts/Supreme-Court/Oral-Arguments/Oral-Argument-Archives",
+    "https://www.kscourts.org/About-the-Courts/Supreme-Court/Oral-Arguments/Oral-Argument-Archives/2025-Oral-Arguments/2025-Oral-Argument-Archive",
+    "https://www.youtube.com/channel/UCSOHpFwi7bETJAq5J3LNxWg/videos"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Only video recordings found, no separate transcripts identified."
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Docket information available through Public Access Portal (prodportal.kscourts.gov) and Supreme Court dockets page. High-interest cases have dedicated pages with detailed docket information."
+example_urls = [
+    "https://prodportal.kscourts.gov/prodportal",
+    "https://www.kscourts.org/About-the-Courts/Supreme-Court/Supreme-Court-Dockets",
+    "https://www.kscourts.org/Cases-Decisions/High-Interest-Cases"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through the Public Access Portal for searching case register of actions."
+example_urls = [
+    "https://prodportal.kscourts.gov/prodportal"
+]
+
+[content.recap_documents]
+status = "unknown"
+notes = "Court filings may be available through eFiling portal or Public Access Portal, but not confirmed."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unknown"
+notes = "Not readily visible in the main opinions interface."
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "Attorney directory available at separate subdomain (directory-kard.kscourts.gov)."
+example_urls = [
+    "https://directory-kard.kscourts.gov/"
+]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Information about judges available through Supreme Court and Court of Appeals pages, but not in structured database format."
+example_urls = [
+    "https://www.kscourts.org/About-the-Courts/Supreme-Court"
+]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Comprehensive information about all Kansas district courts (31 judicial districts), with interactive map and search functionality. Each district has dedicated page with contact info and courthouse locations."
+example_urls = [
+    "https://www.kscourts.org/About-the-Courts/District-Courts",
+    "https://www.kscourts.org/About-the-Courts/District-Courts/Districts/3rd-Judicial-District"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Courthouse locations and contact information available for each judicial district."
+example_urls = [
+    "https://www.kscourts.org/About-the-Courts/District-Courts"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "This is a state court system, not bankruptcy courts."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "This is a state court system."
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "This is a state court system, not PACER."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "This is a state court system."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1996-10-25"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Published opinions available from October 25, 1996. Unpublished opinions from September 4, 2015. Oral arguments archived from 2019 forward, with older arguments searchable on YouTube."
+
+# How often does the site appear to be updated?
+update_frequency = "weekly"
+
+# Is there a way to subscribe to updates?
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["date_range", "case_number", "case_title", "court_filter", "publication_status", "keyword_search"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.kan",
+    "juriscraper.opinions.united_states.state.kanctapp"
+]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "Kansas has 31 judicial districts covering 105 counties. The state maintains separate subdomains for different functions: searchdro.kscourts.gov for decisions search, prodportal.kscourts.gov for public access portal, directory-kard.kscourts.gov for attorney directory, and filer.kscourts.gov for eFiling."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = []
+
+# Any known data quality issues?
+data_quality_notes = ""
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = "Supreme Court sits in Topeka six times a year for one-week periods. Decisions typically released around 9:30 a.m. on Fridays."
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+Kansas Judicial Branch maintains an excellent public-facing website with comprehensive access to opinions and oral arguments. The site uses multiple subdomains for different services:
+
+- Main site (www.kscourts.org): General information, navigation
+- Decisions search (searchdro.kscourts.gov): Searchable database of Supreme Court and Court of Appeals decisions
+- Public Access Portal (prodportal.kscourts.gov): Case docket search
+- Attorney Directory (directory-kard.kscourts.gov): Searchable attorney database
+- eFiling Portal (filer.kscourts.gov): For attorney eFiling
+
+Opinions are available in PDF format with both published and unpublished decisions. The decisions search interface allows filtering by date range, court, publication status, and keyword search. The search returns up to 500 results for keyword searches, or date-range browsing is available.
+
+Oral arguments are archived as YouTube videos back to 2019, organized by year and docket number. Live streaming is available during court sessions.
+
+Existing scrapers (kan.py and kanctapp.py) use Selenium to scrape the decisions list page at searchdro.kscourts.gov/Data/decisionsList. Both scrapers are functional and appear to be well-maintained (created 2023-2025).
+
+The site does not appear to have rate limiting or robots.txt restrictions. No captchas or authentication required for public content.
+"""
+
+# Recommended priority for building a scraper
+priority = "low"
+priority_reasoning = "Existing scrapers are already in place and functional. The site is well-maintained with good public access. Any improvements would be incremental (e.g., adding oral arguments scraping)."
+
+# Estimated complexity
+complexity = "moderate"
+complexity_reasoning = "The existing scrapers require Selenium due to JavaScript rendering on the decisions list page. The site structure is straightforward once rendered. Adding oral arguments would require YouTube video metadata extraction."
+
+# Blockers or concerns?
+blockers = []

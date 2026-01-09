@@ -1,0 +1,328 @@
+# Court Site Research Report: North Carolina Courts
+# Research Date: 2026-01-09
+# NOTE: Domain redirects from .org to .gov
+
+[meta]
+domain = "www.nccourts.gov"
+domain_aliases = ["www.nccourts.org"]  # Old domain redirects to .gov
+court_ids = ["nc", "ncctapp", "ncsuperct"]
+court_name = "North Carolina Judicial Branch"
+court_url = "https://www.nccourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "drupal"
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = true
+bulk_download_details = "Bulk downloads available as grouped PDFs (zip files) for opinions filed on the same date"
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.nccourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/admin/", "/comment/reply/", "/filter/tips", "/node/add/", "/search/", "/user/register/", "/user/password/", "/user/login/", "/user/logout/", "/judicial-directory", "/search-results", "/help-using-nccourts-gov/", "/sites/files/*.pdf", "/assets/inline-files/"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "36,216 appellate court opinions available from both Supreme Court and Court of Appeals. Excellent filtering by court type, opinion type (published/unpublished), date range, author, keywords. Each opinion has metadata (case number, filing date, author, type, summary). PDF downloads available. Also separate Business Court opinions section."
+example_urls = [
+    "https://www.nccourts.gov/documents/appellate-court-opinions/crumel-v-morton",
+    "https://www.nccourts.gov/documents/appellate-court-opinions/state-v-hodges-4",
+    "https://appellate.nccourts.org/opinions/?c=2&pdf=45145"
+]
+
+[content.opinion_clusters]
+status = "partial"
+notes = "Opinions grouped by filing date with bulk download options"
+example_urls = ["https://www.nccourts.gov/documents/appellate-court-opinions/court-of-appeals-published-opinions-filed-january-7-2026"]
+
+[content.citations]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = "Not found during initial research, may exist elsewhere on site"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Not found during initial research"
+example_urls = []
+
+[content.dockets]
+status = "unknown"
+notes = "Court dates searchable but docket content not explored"
+example_urls = []
+
+[content.docket_entries]
+status = "unknown"
+notes = "Not found during initial research"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable - state court"
+example_urls = []
+
+[content.parties]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.persons]
+status = "unknown"
+notes = "Judicial directory exists but disallowed by robots.txt"
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = "Judicial directory exists but disallowed by robots.txt"
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = "Not found"
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = "Not found"
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = "Not found"
+example_urls = []
+
+[content.courts]
+status = "available"
+notes = "Court information and locations available"
+example_urls = ["https://www.nccourts.gov/courts", "https://www.nccourts.gov/locations"]
+
+[content.courthouses]
+status = "available"
+notes = "County directory with courthouse locations and contact information"
+example_urls = ["https://www.nccourts.gov/locations"]
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - state court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state court"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - state court"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.opinions_cited]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = "Not as separate structured data"
+example_urls = []
+
+[content.tags]
+status = "partial"
+notes = "Opinions tagged with court type, publication status, and keywords/summary"
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "36,216 opinions available. Also references to 'PDF Volumes' suggest historical collections. Case summaries/headnotes searchable at separate URL."
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://appellate.nccourts.org/notify_signup.php"
+has_search = true
+search_capabilities = ["date_range", "author_name", "full_text", "court_type", "opinion_type"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = ["juriscraper.opinions.united_states.state.nc", "juriscraper.opinions.united_states.state.ncctapp", "juriscraper.opinions.united_states.state.ncbizct"]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "North Carolina has a well-organized court system with multiple levels. The site serves Supreme Court, Court of Appeals, Superior Court, District Court, Business Court, and Recovery Courts. URL pattern changed from .org to .gov domain."
+special_document_types = ["Business Court Opinions", "Published Opinions", "Unpublished Opinions"]
+data_quality_notes = "Well-structured metadata with consistent formatting. Good separation between published and unpublished opinions."
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The North Carolina Judicial Branch website (www.nccourts.gov, redirects from www.nccourts.org) provides comprehensive access to appellate court opinions through a Drupal-based platform.
+
+**Key Features:**
+- 36,216 appellate court opinions available
+- Excellent search and filtering capabilities
+- Separate sections for Supreme Court and Court of Appeals
+- Published and unpublished opinions clearly distinguished
+- Business Court opinions in separate section
+- Bulk download options (grouped PDFs by filing date)
+- Email notification signup available
+- PDF Volumes available for historical collections
+- Searchable case summaries/headnotes at appellate.nccourts.org subdomain
+
+**Content Types:**
+- Appellate opinions (Supreme Court & Court of Appeals)
+- Business Court opinions
+- Court locations and information
+- Forms and help topics
+
+**Technical Details:**
+- Drupal CMS
+- Static HTML rendering (minimal JavaScript requirements)
+- PDF format for opinions
+- Clean URL structure: /documents/appellate-court-opinions/{slug}
+- Direct PDF links via appellate.nccourts.org subdomain
+- Tyler Tech integration for court dates/payments
+
+**Existing Scrapers:**
+The repository already has scrapers for:
+- nc.py (Supreme Court)
+- ncctapp.py (Court of Appeals)
+- ncbizct.py (Business Court)
+
+These scrapers may need review/updates based on any site changes.
+"""
+
+priority = "low"
+priority_reasoning = "Existing scrapers already cover this court system (nc, ncctapp, ncbizct). Site has good public access with 36K+ opinions. Low priority because coverage already exists - focus should be on maintaining/updating existing scrapers rather than creating new ones."
+
+complexity = "simple"
+complexity_reasoning = "Well-structured Drupal site with clean patterns, good filtering, bulk downloads, and public access. However, existing scrapers mean no new scraper development needed. Complexity assessment is for reference if scrapers need updates."
+
+blockers = []

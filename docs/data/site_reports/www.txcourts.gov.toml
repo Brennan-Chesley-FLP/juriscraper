@@ -1,0 +1,394 @@
+# Court Site Research Report
+#
+# Research of www.txcourts.gov (Texas Judicial Branch)
+# Note: This domain actually hosts MULTIPLE Texas courts, not just the Supreme Court
+# This report focuses on the Texas Supreme Court (tex) portion
+
+[meta]
+domain = "www.txcourts.gov"
+court_ids = ["tex"]  # Texas Supreme Court - note: this domain likely serves other TX courts too
+court_name = "Texas Supreme Court"
+court_url = "https://www.txcourts.gov/supreme/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []  # May share with other TX courts on same domain
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = true
+bulk_download_details = "Historical opinions available as bulk PDFs by fiscal year (FY 2009-2014). Example: /media/819905/OpinionsFY2014.pdf"
+
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.txcourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = [
+    "/aspnet_client/", "/bin/", "/config/", "/css/", "/data/",
+    "/macroScripts/", "/scripts/", "/umbraco/", "/umbraco_client/",
+    "/usercontrols/", "/xslt/",
+    "/publications-training/judicial-ethics-bench-books/judicial-bench-books/hague-convention-child-abduction"
+]
+
+# Note: Crawl-delay and Request-rate directives are commented out in robots.txt:
+# Crawl-delay: 720, Request-rate: 1/5, Visit-time: 1200-0100
+crawl_delay_seconds = 0
+
+rate_limit_notice = "Commented-out directives suggest preferred crawl-delay: 720 seconds, request-rate: 1 request per 5 seconds"
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Comprehensive opinions archive. Orders & Opinions available from October 2014 to present, organized by year and date. Historical opinions prior to October 2014 available through legacy system (https://search.txcourts.gov/historical/recent.htm) and bulk fiscal year PDFs (FY 2009-2014). Opinions include majority, concurrences, dissents, and per curiam opinions with metadata including case numbers, parties, lower court info, and judge names."
+example_urls = [
+    "https://www.txcourts.gov/supreme/orders-opinions/2026/january/january-5-2026/",
+    "https://www.txcourts.gov/supreme/orders-opinions/2025/",
+    "https://search.txcourts.gov/historical/recent.htm"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinions are grouped by release date, with multiple opinions and opinion types (majority, concurrence, dissent) per case"
+example_urls = [
+    "https://www.txcourts.gov/supreme/orders-opinions/2026/january/january-5-2026/"
+]
+
+[content.citations]
+status = "partial"
+notes = "Lower court citations and case numbers included in opinion metadata"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral arguments section exists with video content available through Texas Bar CLE"
+example_urls = [
+    "https://www.txcourts.gov/supreme/oral-arguments/",
+    "https://www.texasbarcle.com/CLE/sc.asp"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Oral argument videos available but unclear if transcripts are provided"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Case search system available at search.txcourts.gov subdomain"
+example_urls = [
+    "https://search.txcourts.gov/CaseSearch.aspx?coa=cossup&s=c"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Document search and event reports available through search.txcourts.gov"
+example_urls = [
+    "https://search.txcourts.gov/CaseSearch.aspx?coa=cossup&s=d&d=1",
+    "https://search.txcourts.gov/Events/default.aspx?coa=cossup"
+]
+
+[content.recap_documents]
+status = "available"
+notes = "Electronic briefs available through search system"
+example_urls = [
+    "https://search.txcourts.gov/ebriefs.aspx?coa=cossup"
+]
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names included in case titles and opinions"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "Attorney portal exists but unclear what public information is available"
+example_urls = ["https://attorneyportal.txcourts.gov"]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judge/Justice information available through About the Court section and as authors of opinions"
+example_urls = [
+    "https://www.txcourts.gov/supreme/about-the-court/"
+]
+
+[content.positions]
+status = "available"
+notes = "Justice positions and Chief Justice designation visible in opinions and court info"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court metadata, contact information, and administrative details available"
+example_urls = [
+    "https://www.txcourts.gov/supreme/about-the-court/",
+    "https://www.txcourts.gov/supreme/contact-us/"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Physical address: Supreme Court Building, 201 W. 14th Street, Room 104, Austin, Texas 78701"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - this is not a bankruptcy court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Texas Supreme Court handles civil appeals, not criminal"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Texas Supreme Court handles civil appeals, not criminal"
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court, not federal"
+example_urls = []
+
+[content.originating_court_information]
+status = "available"
+notes = "Lower court information included in opinion metadata (court name, case number, district)"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER site"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = "Would require parsing opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2009-09-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Historical opinions prior to October 1, 2014 available through legacy system at https://search.txcourts.gov/historical/recent.htm. Bulk PDFs available for fiscal years 2009-2014."
+
+update_frequency = "irregular"
+
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://casemail.txcourts.gov/?coa=cossup"
+
+has_search = true
+search_capabilities = ["case_number", "party_name", "date_range", "full_text", "document_search"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = ["juriscraper.opinions.united_states.state.tex"]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+The Texas Supreme Court is the state's highest court for civil matters. Criminal appeals go to the Court of Criminal Appeals (a separate court).
+
+The site structure changed in October 2014, creating a clean break between modern and historical content.
+
+During May 2020, there was a network outage and opinions from that period are available in a special section with direct PDF links.
+
+Lower court information is systematically parsed and includes:
+- Texas Courts of Appeals (with district numbers)
+- Board of Disciplinary Appeals (BODA)
+- U.S. Fifth Circuit appeals
+
+The domain www.txcourts.gov is actually the Texas Judicial Branch portal and likely hosts content for multiple Texas courts, not just the Supreme Court. Other courts may include the Court of Criminal Appeals and various Courts of Appeals.
+"""
+
+special_document_types = ["Orders on Causes", "Administrative Orders", "Special Orders"]
+
+data_quality_notes = "Well-structured data with consistent metadata. Opinions include case numbers, party names, disposition, lower court info, and judge/justice names."
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Texas Supreme Court has excellent online coverage through www.txcourts.gov/supreme/. Key findings:
+
+**Domain Mismatch**: The court_url in courts.toml points to www.supreme.courts.state.tx.us (which does not resolve). The actual URL is www.txcourts.gov/supreme/. The old domain appears to be defunct.
+
+**Opinions**: Comprehensive coverage from October 2014 to present, organized by year and date. Each release date page contains all orders and opinions issued that day, with PDFs for each opinion type (majority, concurrence, dissent, per curiam). Historical opinions (pre-2014) available through legacy system and bulk PDFs.
+
+**Existing Scraper**: An active scraper exists (juriscraper.opinions.united_states.state.tex) that targets this site using the correct URL pattern: https://www.txcourts.gov/supreme/orders-opinions/{year}/
+
+**Structure**: Opinions are well-structured with tables containing:
+- Case number (docket)
+- Case title with party names
+- Lower court information (court name, district, case number)
+- Opinion PDFs (majority, concurrences, dissents)
+- Judge/Justice names
+
+**Other Content**:
+- Case search system on search.txcourts.gov subdomain
+- Oral arguments videos through Texas Bar CLE
+- Electronic briefs
+- Case mail subscription service
+- Document search
+
+**Technical**: Static HTML site, no JavaScript required for content access. No public API discovered. The site uses Microsoft IIS and appears to be built on Umbraco CMS (based on robots.txt disallow rules).
+
+**Robots Policy**: robots.txt exists with commented-out rate limiting suggestions (720 second crawl-delay, 1 request per 5 seconds). Most disallowed paths are admin/system directories. Opinion content is explicitly allowed.
+"""
+
+priority = "low"
+priority_reasoning = "Active scraper already exists and appears to be working correctly. The scraper was last updated in May 2025 to handle orders on causes pages. No scraper development needed unless issues are reported. The court_url in courts.toml should be updated from the defunct www.supreme.courts.state.tx.us to www.txcourts.gov."
+
+complexity = "simple"
+complexity_reasoning = "Static HTML with clear structure and consistent patterns. Existing scraper demonstrates feasibility. No JavaScript, auth, or captcha required."
+
+blockers = []

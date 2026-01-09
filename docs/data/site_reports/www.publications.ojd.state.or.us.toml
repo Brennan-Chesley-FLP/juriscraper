@@ -1,0 +1,422 @@
+# Court Site Research Report
+# Oregon Supreme Court - ContentDM System
+#
+# Note: The original URL www.publications.ojd.state.or.us no longer resolves.
+# The current system is hosted at ojd.contentdm.oclc.org
+
+[meta]
+domain = "ojd.contentdm.oclc.org"
+domain_aliases = ["www.publications.ojd.state.or.us"]
+court_ids = ["or"]
+court_name = "Oregon Supreme Court"
+court_url = "https://ojd.contentdm.oclc.org/digital/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "react"
+platform = "contentdm"
+scope = "statewide"
+shared_infrastructure = ["orctapp", "ortc"]
+has_api = true
+api_documented = true
+api_url = "https://cdm17027.contentdm.oclc.org/digital/api/"
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://ojd.contentdm.oclc.org/robots.txt"
+allows_scraping = true
+disallowed_paths = [
+    "/digital/search/",
+    "/digital/collection/*/search/",
+    "/cdm/search/",
+    "/config/",
+    "/error/",
+    "/results/",
+    "/utils/",
+    "/oai/",
+    "/ui/"
+]
+
+crawl_delay_seconds = 1
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = """
+Oregon Supreme Court opinions are available through the ContentDM API.
+The collection code is p17027coll3. Opinions include metadata such as:
+- Case name
+- Docket number
+- Decision date
+- Citation (Oregon Reports)
+- Judge/author
+- Publication status (Published/Unpublished)
+- Disposition
+- Lower court information
+
+API endpoint pattern:
+https://cdm17027.contentdm.oclc.org/digital/api/search/collection/p17027coll3/searchterm/{START_DATE}-{END_DATE}/field/dated/mode/exact/conn/and/maxRecords/200
+
+Download URL pattern:
+https://ojd.contentdm.oclc.org/digital/api/collection/{collectionAlias}/id/{itemId}/download
+"""
+example_urls = [
+    "https://ojd.contentdm.oclc.org/digital/collection/p17027coll3/id/9473",
+    "https://ojd.contentdm.oclc.org/digital/api/collection/p17027coll3/id/9473/download"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "ContentDM system does not group related opinions into clusters"
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = """
+Citations are included in the metadata for each opinion.
+Oregon Reports citations (e.g., "3 Or 568") and Pacific Reporter citations
+(e.g., "368 P3d 1205") are available in the citation field.
+"""
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = "Not observed in the Oregon Supreme Court collection during research"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Not observed during research"
+example_urls = []
+
+[content.dockets]
+status = "partial"
+notes = """
+Basic docket information is available including:
+- Docket number
+- Case name
+- Filing date
+- Lower court number (for appeals)
+
+Full docket sheets with all entries are not available.
+"""
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Individual docket entries and filings are not available"
+example_urls = []
+
+[content.recap_documents]
+status = "partial"
+notes = """
+Briefs are available in separate collections:
+- Oregon Supreme Court Briefs: p17027coll7
+- Oregon Court of Appeals Briefs: p17027coll8
+
+These are stored separately from opinions.
+"""
+example_urls = [
+    "https://ojd.contentdm.oclc.org/digital/collection/p17027coll7/id/29400"
+]
+
+[content.parties]
+status = "partial"
+notes = "Party names are included in the case name but not structured as separate entities"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "Party role information is not separately tracked"
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Attorney information is not included in opinion metadata"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = "Law firm information is not included"
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = "Attorney-party relationships are not tracked"
+example_urls = []
+
+[content.persons]
+status = "partial"
+notes = "Judge names are included in the 'judge' field of opinion metadata"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = "Judicial position information is not included"
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "partial"
+notes = """
+The system hosts multiple Oregon court collections:
+- Oregon Supreme Court (p17027coll3)
+- Oregon Court of Appeals (p17027coll5)
+- Oregon Tax Court (p17027coll6)
+"""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable to Oregon Supreme Court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Not separately tracked"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Not available"
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable to state courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = """
+Lower court information is available in the 'relhapt' field for appeals.
+This includes lower court case numbers.
+"""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable to state courts"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+[content.opinions_cited]
+status = "unavailable"
+notes = "Citation relationships would need to be extracted from opinion text"
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = "Would need to be extracted from opinion text"
+example_urls = []
+
+[content.tags]
+status = "partial"
+notes = """
+Opinions have subject tags/keywords in the 'subjec' field.
+For example: "state of oregon", "department of revenue", etc.
+"""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1870-09-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = """
+The collection includes opinions dating back to 1870 (3 Or 568).
+Coverage appears comprehensive from 1997 forward based on the existing scraper.
+Earlier opinions (pre-1997) are also available but may have gaps.
+"""
+
+update_frequency = "daily"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = ["date_range", "case_number", "party_name", "full_text", "subject"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = ["juriscraper.opinions.united_states.state.or"]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- The Oregon Supreme Court collection (p17027coll3) is separate from the
+  Court of Appeals collection (p17027coll5)
+- Some opinions are marked as "Nonprecedential opinion" or "Unpublished"
+  in the 'type' field
+- The 'descri' field contains disposition information
+- Per curiam opinions are indicated by judge="PC"
+"""
+
+special_document_types = []
+
+data_quality_notes = """
+- The existing scraper notes that some rows may lack case names
+  (e.g., "Miscellaneous Supreme Court dispositions")
+- Citation format in metadata is consistent (Oregon Reports format)
+"""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Oregon uses OCLC's ContentDM platform to host court documents. The system
+provides a well-documented API that returns JSON data. An existing scraper
+(juriscraper.opinions.united_states.state.or) already covers this court
+and appears to be working correctly as of 2025-09-23.
+
+The original URL (www.publications.ojd.state.or.us) no longer resolves and
+has been replaced by ojd.contentdm.oclc.org. The existing scraper uses the
+correct current URLs.
+
+Key technical details:
+- Platform: OCLC ContentDM
+- Primary API: cdm17027.contentdm.oclc.org/digital/api/
+- Collection code: p17027coll3
+- Search by date range supported
+- Maximum 200 records per API request
+- PDF downloads available via /download endpoint
+- Robots.txt allows API access with 1-second crawl delay
+- JavaScript required for web interface but API accessible without JS
+
+The scraper is well-maintained with recent updates in 2025 and implements
+proper date range searching with 15-day intervals.
+"""
+
+priority = "low"
+priority_reasoning = """
+Existing scraper is functional and recently updated. No action needed unless
+issues are reported. The scraper correctly handles:
+- Date-based searching
+- Pagination (200 records max per request)
+- Per curiam detection
+- Publication status
+- Lower court extraction
+- Citation extraction from PDFs
+"""
+
+complexity = "moderate"
+complexity_reasoning = """
+The ContentDM API requires understanding of:
+- Date range formatting (YYYYMMDD)
+- Collection codes
+- Secondary requests for detail metadata
+- Multi-level JSON structure (parent/child fields)
+
+However, the API is well-structured and documented, making implementation
+straightforward once the pattern is understood.
+"""
+
+blockers = []

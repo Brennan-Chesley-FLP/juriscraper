@@ -1,0 +1,323 @@
+# Court Site Research Report
+# Confederated Salish & Kootenai Tribes Court Website
+
+[meta]
+domain = "www.csktribes.org"
+court_ids = ["salishctapp"]
+court_name = "Confederated Salish & Kootenai Court of Appeals"
+court_url = "https://cskt.org/appellate-court/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "jquery"
+platform = "wordpress"
+scope = "court_specific"
+shared_infrastructure = []
+has_api = true
+api_documented = false
+api_url = "https://cskt.org/wp-json/filebird/v1/"
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = "https://www.csktribes.org/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "Appellate court opinions are available in PDF format through a WordPress FileBird file browser. The 'Court Forms & Filings' section on the appellate court page contains folders for: Civil Opinions (84+ files), Criminal Opinions, Dismissals, ProSe, and Rules of Appellate Procedure. Files are accessed via FileBird API endpoints at /wp-json/filebird/v1/"
+example_urls = [
+    "https://cskt.org/wp-content/uploads/2024/03/Tribal-Credit-v-Michel-2010-1.pdf",
+    "https://cskt.org/wp-content/uploads/2024/03/Stevens-v-Courville.pdf",
+    "https://cskt.org/wp-content/uploads/2024/03/Smith-v-SKC-2004.pdf"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Opinions are organized into folders (Civil, Criminal, Dismissals, ProSe) but not clustered by case or decision date."
+example_urls = []
+
+[content.citations]
+status = "unknown"
+notes = "Would need to parse PDF contents to determine if citation information is included in opinions."
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "No oral argument recordings or transcripts available on the site."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "No public docket information available. The site only provides court forms and filing fee information."
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Court forms and blank templates are available, but not filed court documents."
+example_urls = []
+
+[content.parties]
+status = "partial"
+notes = "Party names appear in opinion file names (e.g., 'Tribal Credit v Michel', 'Stevens v Courville') but detailed party information would require parsing the PDF contents."
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "The site has a page listing 'Attorneys & Others Admitted To Practice' but it appears to be behind a folder structure that may require navigation."
+example_urls = ["https://cskt.org/attorneys-others-admitted-to-practice/"]
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "partial"
+notes = "Current Appellate Court justices listed: Kelly McDonald (Chief Justice), Danny Tenenbaum (Associate Attorney Justice), James Taylor (Attorney Associate Justice), Gregory Dupuis (Tribal Member Associate Justice), Robert McDonald (Tribal Member Associate Justice). Abby Dupuis serves as Court Administrator."
+example_urls = [
+    "https://cskt.org/tribal-court/",
+    "https://cskt.org/appellate-court/"
+]
+
+[content.positions]
+status = "partial"
+notes = "Judicial positions listed with term lengths: Chief Justice (4-year term), Associate Justices (3-year terms). Current positions identified but no historical appointment data or biographical information available."
+example_urls = [
+    "https://cskt.org/tribal-court/",
+    "https://cskt.org/appellate-court/"
+]
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "partial"
+notes = "The site provides information about both the Tribal Court and the Appellate Court, including jurisdiction, structure, and meeting schedules."
+example_urls = [
+    "https://cskt.org/tribal-court/",
+    "https://cskt.org/appellate-court/"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Physical address: 51396 Highway 93 North, Pablo, MT 59855. Mailing address: P.O. Box 278, Pablo, MT 59855. Phone: (406) 675-2700 ext. 1032. Tribal government complex address: 42487 Complex Blvd., Pablo, MT 59855"
+example_urls = [
+    "https://cskt.org/tribal-court/",
+    "https://cskt.org/appellate-court/"
+]
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "N/A - Tribal court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "N/A - Tribal court"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "N/A - Tribal court"
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "N/A - Tribal court"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "N/A - Tribal court"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "N/A - Tribal court"
+example_urls = []
+
+[content.opinions_cited]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2001"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Historical opinions available dating back to at least 2001 based on file names (e.g., 'Smith v SKC 2001'). Files from 2003, 2004, 2007, 2010 also observed."
+update_frequency = "irregular"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["site_wide_search", "file_browser_search"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "The Confederated Salish & Kootenai Tribes operate both a Tribal Court and an Appellate Court. The Appellate Court has a unique 5-member panel structure: 1 Chief Justice (must be attorney), 2 Attorney Associate Justices, and 2 Tribal Member Lay Associate Justices. Each case panel consists of 2 attorney justices and 1 tribal member lay justice, unless rehearing en banc is granted. The courtroom is named the WILLIAM JOSEPH MORAN APPELLATE COURTROOM in honor of the first CSKT tribal member to serve as Chief Justice (2003-2008)."
+special_document_types = ["Chief Judge Administrative Orders", "ProSe filings", "Dismissals (separate category)"]
+data_quality_notes = "Opinion file naming conventions vary. Files are organized by type (Civil, Criminal, Dismissals, ProSe) but not consistently by date or case number."
+seasonal_notes = "The Appellate Court convenes in regular sessions the second week of February, April, June, and October. It may hold special sessions if necessary."
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The www.csktribes.org website (redirects to cskt.org) is the official website of the Confederated Salish & Kootenai Tribes. It is a WordPress-based site using the FileBird plugin for file management.
+
+IMPORTANT FINDING: The appellate court page DOES provide public access to opinions!
+
+The 'Court Forms & Filings' section at https://cskt.org/appellate-court/ contains a file browser with multiple folders:
+- Civil Opinions: 84+ PDF files available (showing 1-10 of 84 with pagination)
+- Criminal Opinions: Separate folder (count not determined)
+- Dismissals: Separate folder
+- ProSe: Separate folder
+- Rules of Appellate Procedure: Separate folder
+
+Technical Implementation:
+The site uses WordPress FileBird plugin with JSON API endpoints that could be leveraged for scraping:
+- POST https://cskt.org/wp-json/filebird/v1/get-attachments (retrieves file listings)
+- GET https://cskt.org/wp-json/filebird/v1/get-dl-folders (gets folder structure)
+
+Opinion PDFs follow the pattern: https://cskt.org/wp-content/uploads/YYYY/MM/filename.pdf
+Examples show files from 2001, 2003, 2004, 2007, 2010, and 2024.
+
+The site requires JavaScript to render the FileBird file browser interface, but the underlying API endpoints return JSON and could be accessed directly.
+
+This is a tribal appellate court, which represents relatively rare coverage in juriscraper. The availability of 20+ years of opinions makes this a valuable addition.
+"""
+priority = "medium"
+priority_reasoning = "Public access to tribal appellate opinions is available (which are rare in existing coverage). The FileBird API provides structured access. However, volume is likely lower than state courts, and the file organization by type rather than chronologically may complicate scraping. The tribal court nature and historical depth (2001-present) increase value."
+complexity = "moderate"
+complexity_reasoning = "Requires API interaction with WordPress FileBird endpoints to discover and retrieve files. The file browser requires JavaScript but the underlying JSON API is accessible. Would need to: (1) Query the FileBird API to get folder IDs, (2) Iterate through folders to get file listings with pagination, (3) Download PDFs from wp-content/uploads URLs. File naming conventions are inconsistent which may complicate metadata extraction."
+blockers = []

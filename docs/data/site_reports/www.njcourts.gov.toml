@@ -1,0 +1,330 @@
+# Court Site Research Report Template
+#
+# Research for www.judiciary.state.nj.us (redirects to www.njcourts.gov)
+# Multiple New Jersey courts share this infrastructure
+
+[meta]
+domain = "www.njcourts.gov"
+domain_aliases = ["www.judiciary.state.nj.us"]
+court_ids = ["nj", "njsuperctappdiv", "njtaxct"]
+court_name = "New Jersey Courts (Unified System)"
+court_url = "https://www.njcourts.gov/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "vanilla"
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = ["nj", "njsuperctappdiv", "njtaxct"]
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.njcourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/admin/", "/comment/reply/", "/filter/tips", "/node/add/", "/search/", "/user/register", "/user/password", "/user/login", "/user/logout", "/media/oembed"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Supreme Court, Appellate Court (published and unpublished), Tax Court (published and unpublished), and Trial Court (published and unpublished) opinions are all available. Opinions are posted at 10 a.m. each business day. Searchable by date range and keyword. PDF format only."
+example_urls = [
+    "https://www.njcourts.gov/system/files/court-opinions/2026/a_54_55_24.pdf",
+    "https://www.njcourts.gov/system/files/court-opinions/2026/a3223-23a3239-23.pdf",
+    "https://www.njcourts.gov/system/files/court-opinions/2025/09089-22opn.pdf"
+]
+
+[content.opinion_clusters]
+status = "partial"
+notes = "Opinions are grouped on the website but not explicitly clustered as related opinions. Some have oral argument links and summaries available."
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Case citations are included in the opinions themselves. Docket numbers are clearly displayed (e.g., A-54/55-24, A-3223-23)."
+example_urls = []
+
+[content.oral_arguments]
+status = "partial"
+notes = "Some Supreme Court opinions have associated oral argument information available through modal buttons on the opinions page."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "unavailable"
+notes = "Individual docket numbers are displayed with opinions, but full docket information and case tracking is not available on this public site."
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names are included in case names/titles but detailed party information is not separately available."
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unavailable"
+notes = "Judge information is not provided in the opinion listings. May be available within PDF documents."
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court type is clearly indicated (Supreme, Published Appellate, Published Tax, etc.)"
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Some case names indicate county information (e.g., 'Mercer County and Statewide'). Lower court information may be available within opinion text."
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unavailable"
+notes = "Citation relationships would need to be extracted from PDF content."
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Supreme Court opinions available from at least 2013. Tax Court from at least 2017. Appellate Court has extensive historical coverage with 1,119 published opinions (56 pages at 20 per page)."
+update_frequency = "daily"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["date_range", "keyword"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.nj",
+    "juriscraper.opinions.united_states.state.njsuperctappdiv_p",
+    "juriscraper.opinions.united_states.state.njsuperctappdiv_u",
+    "juriscraper.opinions.united_states.state.njtaxct_p",
+    "juriscraper.opinions.united_states.state.njtaxct_u"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "Domain changed from www.judiciary.state.nj.us to www.njcourts.gov (redirects in place). Site distinguishes between published and unpublished opinions for Appellate and Tax Courts. Published opinions set legal precedent and can be cited. Multiple courts share this unified infrastructure."
+special_document_types = []
+data_quality_notes = "Opinions are well-structured with consistent metadata (docket number, date, court type). Some opinions are marked as REDACTED or RECORD IMPOUNDED. Summaries are available for many Supreme Court opinions."
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+New Jersey has a well-maintained unified court website serving the Supreme Court, Superior Court Appellate Division, and Tax Court. All courts provide opinions in PDF format with searchable date ranges and keyword search. The site is publicly accessible with no login requirements.
+
+Existing scrapers in juriscraper already cover all three courts (nj, njsuperctappdiv, njtaxct) for both published and unpublished opinions. The scrapers use the current www.njcourts.gov URLs and parse the HTML structure to extract case metadata.
+
+The site structure is consistent across all court types, using the same HTML patterns and CSS classes. Opinions are paginated (20 per page) and can be filtered by date range. The site uses Drupal CMS and does not require JavaScript for basic functionality.
+
+No hidden APIs were discovered - the site renders opinions as server-side HTML. Document downloads are direct PDF links.
+"""
+
+priority = "low"
+priority_reasoning = "Existing scrapers already provide comprehensive coverage of all three courts. The site is stable and well-maintained. No apparent issues with current scraping infrastructure."
+
+complexity = "simple"
+complexity_reasoning = "Static HTML with consistent structure. No JavaScript rendering required. Clear pagination and date filtering. PDF documents are directly linked."
+
+blockers = []

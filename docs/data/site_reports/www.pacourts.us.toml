@@ -1,0 +1,364 @@
+# Court Site Research Report for Pennsylvania Courts
+#
+# Domain: www.pacourts.us
+# Research Date: 2026-01-09
+
+[meta]
+domain = "www.pacourts.us"
+court_ids = ["pa", "pacommwct", "pasuperct", "cjdpa"]
+court_name = "Unified Judicial System of Pennsylvania"
+court_url = "https://www.pacourts.us"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+has_api = true
+api_documented = false
+api_url = "https://www.pacourts.us/api/opinion"
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = "https://www.pacourts.us/robots.txt"
+allows_scraping = true
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Full opinions available for PA Supreme Court, Superior Court, and Commonwealth Court via JSON API. Includes precedential and non-precedential opinions. API endpoint: https://www.pacourts.us/api/opinion with parameters for date ranges, court type, and posting types. Documents are served as PDFs from /assets/opinions/{CourtType}/out/ directory."
+example_urls = [
+    "https://www.pacourts.us/assets/opinions/Supreme/out/J-37B-2025mo%20-%20106637662342573978.pdf",
+    "https://www.pacourts.us/assets/opinions/Superior/out/J-S42035-25o%20-%20106636878342507316.pdf",
+    "https://www.pacourts.us/courts/commonwealth-court/court-opinions"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinion clusters are available via API with related opinions (majority, concurring, dissenting) grouped together. Each cluster includes caption, docket number, disposition date, and multiple postings."
+example_urls = [
+    "https://www.pacourts.us/api/opinion?startDate=2026-01-08T00:00:00-05:00&endDate=2026-01-09T00:00:00-05:00&courtType=Supreme"
+]
+
+[content.citations]
+status = "partial"
+notes = "Some opinions include A.3d citations in the caption, particularly for Superior Court. Citations appear to be embedded in the opinion text rather than structured separately."
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = "Not immediately visible on the main opinion pages. May be available elsewhere on the site."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Docket sheets are available through the UJS Portal at ujsportal.pacourts.us for Appellate Courts, Criminal Courts of Common Pleas, Magisterial District Courts, and Philadelphia Municipal Court. Both public and secure (authenticated) access available."
+example_urls = [
+    "https://ujsportal.pacourts.us/Home/CaseInformation",
+    "https://www.pacourts.us/courts/supreme-court/docket-sheets",
+    "https://www.pacourts.us/courts/superior-court/docket-sheets"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Available through the UJS Portal docket sheets. Secure login provides additional content not accessible for public viewing."
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "RECAP documents are specific to PACER/federal courts. Not applicable to state courts."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names appear in case captions but structured party data may only be available in docket sheets."
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "May be available in docket sheets but not visible in opinion pages."
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judge/Justice information available. Opinion API includes author names. Site has dedicated pages for Supreme Court Justices, Superior Court Judges, and Commonwealth Court Judges."
+example_urls = [
+    "https://www.pacourts.us/courts/supreme-court/supreme-court-justices",
+    "https://www.pacourts.us/courts/superior-court/superior-court-judges",
+    "https://www.pacourts.us/courts/commonwealth-court-judges"
+]
+
+[content.positions]
+status = "partial"
+notes = "Judge positions and titles included in opinion author fields and judge directory pages."
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "partial"
+notes = "Information about judicial elections available at /learn/how-judges-are-elected"
+example_urls = [
+    "https://www.pacourts.us/learn/how-judges-are-elected"
+]
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Comprehensive information about all PA courts including Supreme Court, Superior Court, Commonwealth Court, Courts of Common Pleas, and Minor Courts."
+example_urls = [
+    "https://www.pacourts.us/courts"
+]
+
+[content.courthouses]
+status = "partial"
+notes = "Some courthouse information available, particularly for appellate courts. Individual County Courts page may have more location data."
+example_urls = [
+    "https://www.pacourts.us/courts/courts-of-common-pleas/individual-county-courts"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State courts do not handle bankruptcy matters."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = "May be available in docket sheets for criminal cases."
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = "May be available in docket sheets for criminal cases."
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable to state courts."
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Appellate opinions often reference the lower court from which the appeal originated."
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable to state courts."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable to state courts."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "partial"
+notes = "Citations to other cases appear in opinion text but are not structured separately."
+example_urls = []
+
+[content.parentheticals]
+status = "partial"
+notes = "Parenthetical explanations of cited cases may appear in opinion text."
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1998-02-15"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Supreme Court opinions back to 1998-04-27, Superior Court back to 1998-02-15, Commonwealth Court back to 1998-08-17 based on existing scraper first_opinion_date values."
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://www.pacourts.us/Rss/Opinions/Supreme/ (also /Superior/ and /Commonwealth/)"
+has_search = true
+search_capabilities = ["date_range", "court_type", "posting_type", "caption", "author", "full_text", "publication_type"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.pa",
+    "juriscraper.opinions.united_states.state.pasuperct",
+    "juriscraper.opinions.united_states.state.pacommwct"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- The API uses different keys for author and posting type depending on the court:
+  * PA Supreme Court uses AuthorCode and PostingTypeId
+  * Superior Court uses AuthorName and PostingTypeCode
+  * Commonwealth Court uses AuthorName and PostingTypeId
+
+- Superior Court distinguishes between "Precedential" and "Non-Precedential" opinions via PublicationType.Description
+
+- Opinions are grouped into clusters with multiple sub-opinions (majority, concurring, dissenting, etc.)
+
+- The UJS Portal (ujsportal.pacourts.us) is a separate system for docket sheets and case information, with both public and secure access levels
+
+- Some opinion documents require looking at the date to distinguish between posting types
+"""
+special_document_types = [
+    "Judgment Lists",
+    "Petitions for Allowance of Appeal",
+    "Disciplinary Orders",
+    "Appointment Orders"
+]
+data_quality_notes = "API provides structured data with consistent formatting. PDFs are the primary document format."
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Pennsylvania has an excellent, well-structured system for accessing court opinions via an undocumented JSON API. The site serves three appellate courts (Supreme, Superior, Commonwealth) plus the Court of Judicial Discipline. Existing scrapers are already in place and actively maintained.
+
+Key findings:
+1. **JSON API**: Undocumented but functional API at /api/opinion with comprehensive filters
+2. **Full coverage**: All three main appellate courts are covered by existing scrapers
+3. **Good data quality**: Structured JSON responses with consistent fields
+4. **Historical data**: Coverage back to 1998 for all three courts
+5. **RSS feeds**: Available for each court for ongoing monitoring
+6. **Separate docket system**: UJS Portal at ujsportal.pacourts.us handles dockets separately
+
+The existing scrapers (pa.py, pasuperct.py, pacommwct.py) use the JSON API effectively and handle the various opinion types, precedential status, and multi-opinion clusters appropriately.
+
+No significant gaps in opinion coverage. Docket data is available but through a different portal (ujsportal.pacourts.us) and would require separate scraper development if needed.
+"""
+priority = "low"
+priority_reasoning = "Excellent existing coverage. All three appellate courts have functional scrapers using the JSON API. No immediate action needed unless the API changes or there are specific requests for additional data types (dockets, oral arguments)."
+complexity = "simple"
+complexity_reasoning = "The JSON API makes scraping straightforward. Existing scrapers demonstrate the patterns needed. Any updates would be minor tweaks rather than complete rewrites."
+blockers = []

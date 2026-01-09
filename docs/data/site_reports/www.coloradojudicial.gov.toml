@@ -1,0 +1,415 @@
+# Court Site Research Report
+#
+# Colorado Judicial Branch Website Research Report
+# Note: www.courts.state.co.us redirects to www.coloradojudicial.gov
+
+[meta]
+domain = "www.coloradojudicial.gov"
+domain_aliases = ["www.courts.state.co.us"]
+court_ids = ["colo", "coloctapp"]
+court_name = "Colorado Judicial Branch"
+court_url = "https://www.coloradojudicial.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+# Is the site publicly accessible without login?
+public_access = true
+
+# Does the site require signup/registration?
+requires_signup = false
+
+# If signup required, how does one sign up?
+signup_method = ""
+
+# Does the site require payment or subscription?
+requires_payment = false
+payment_details = ""
+
+# Does the site use captchas?
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Does the site require JavaScript rendering?
+requires_javascript = true
+javascript_framework = "drupal"
+
+# What platform/vendor does the site use?
+platform = "drupal"
+
+# Is this a statewide portal or court-specific?
+scope = "statewide"
+
+# Does the site share infrastructure with other courts we scrape?
+shared_infrastructure = []
+
+# Does the site have an API?
+has_api = true
+api_documented = false
+api_url = "https://research.coloradojudicial.gov/search.json"
+
+# Are bulk downloads available?
+bulk_download_available = false
+bulk_download_details = ""
+
+# What document formats are provided?
+document_formats = ["pdf", "html"]
+
+# Session/authentication mechanism
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+# Does the site have a robots.txt?
+has_robots_txt = true
+robots_txt_url = "https://www.coloradojudicial.gov/robots.txt"
+
+# What does robots.txt say about our target paths?
+allows_scraping = true
+disallowed_paths = ["/core/", "/profiles/", "/admin/", "/comment/reply/", "/node/add/", "/search/", "/user/register", "/user/password", "/user/login", "/user/logout"]
+
+# Any crawl-delay specified?
+crawl_delay_seconds = 0
+
+# Any rate limit notices on the site?
+rate_limit_notice = ""
+
+# Terms of Service restrictions on automated access?
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+# What data types are available on this site?
+# Reference: juriscraper/scraper_driver/common/models/base.py
+#
+# Mark each as: "available", "unavailable", "unknown", "partial"
+# Use "partial" if only some records of that type are available
+#
+# For each content type:
+#   status: availability status
+#   notes: description and context
+#   example_urls: 1-3 real URLs demonstrating this content type
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Colorado Supreme Court and Court of Appeals opinions are available through the vLex-powered research portal. Published and unpublished opinions are available. The database contains 33,113 Supreme Court opinions and 96,509 Court of Appeals opinions. Data is accessible via JSON API. Supreme Court opinions from 2010-present; Court of Appeals includes older records. Both published and unpublished opinions are available."
+example_urls = [
+    "https://research.coloradojudicial.gov/en/vid/1100756070",
+    "https://research.coloradojudicial.gov/search/jurisdiction:US+content_type:2+court:14024_01/*",
+    "https://research.coloradojudicial.gov/search/jurisdiction:US+content_type:2+court:14024_02/*"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Citations are available in opinion metadata, including both Colorado official citations (e.g., 2023 CO 5, 2026COA1) and Pacific Reporter citations (e.g., 527 P.3d 371). API provides structured citation data."
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Live streaming and archives of oral arguments are available for both Supreme Court and Court of Appeals."
+example_urls = [
+    "https://www.coloradojudicial.gov/court-appeals/live?topic=77&wrapped=true",
+    "https://www.coloradojudicial.gov/supreme-court/supreme-court-oral-arguments"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = "Docket search is available at /dockets"
+example_urls = ["https://www.coloradojudicial.gov/dockets"]
+
+[content.docket_entries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names are included in opinion metadata via the API"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court information and locations are available on the site"
+example_urls = ["https://www.coloradojudicial.gov"]
+
+[content.courthouses]
+status = "available"
+notes = "Courthouse locations searchable by city or county"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable - state court system"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# What is the apparent date range of available records?
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2010-01-01"
+latest_date = "ongoing"
+
+# Are historical records available?
+has_historical = true
+historical_notes = "Supreme Court opinions from 2010-present. Court of Appeals includes both published and unpublished opinions with extensive historical coverage."
+
+# How often does the site appear to be updated?
+update_frequency = "daily"
+
+# Is there a way to subscribe to updates?
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+# Is there a searchable index?
+has_search = true
+search_capabilities = ["full_text", "date_range", "court_filter", "publication_status"]
+
+# Is it browse-only?
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+# Does an existing scraper in this repo cover this court?
+has_scraper = true
+
+# What module path(s)?
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.colo",
+    "juriscraper.opinions.united_states.state.coloctapp"
+]
+
+# What data types does the existing scraper cover?
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+# Known issues with existing scraper?
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+# Any special local rules or unusual practices?
+notes = "The main domain www.courts.state.co.us now redirects to www.coloradojudicial.gov. The opinion database is powered by vLex and uses a JSON API. Citation to unpublished Court of Appeals opinions is restricted - they can only be cited for case history, law of the case, or preclusion doctrines (except for opinions announced between January 1, 1970, and November 1, 1975)."
+
+# Unusual document types specific to this jurisdiction?
+special_document_types = []
+
+# Any known data quality issues?
+data_quality_notes = ""
+
+# Seasonal patterns (e.g., court recesses)?
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+# Free-form notes from the research process
+summary = """
+Colorado's judicial branch has migrated from www.courts.state.co.us to www.coloradojudicial.gov. The opinion database is now hosted on a vLex-powered platform at research.coloradojudicial.gov.
+
+The existing scrapers (colo.py for Supreme Court, coloctapp.py for Court of Appeals) successfully use the vLex JSON API. Key API details:
+
+**API Structure:**
+- Base URL: https://research.coloradojudicial.gov/search.json
+- Search parameters include: product_id=COLORADO, jurisdiction=US, content_type=2, court={court_code}
+- Court codes: 14024_01 (Supreme Court), 14024_02 (Court of Appeals)
+- Requires specific headers: X-Requested-With, X-Root-Account-Email, X-User-Email, X-Webapp-Seed
+- Supports pagination with per_page parameter (max 500 to avoid server errors)
+- Detail endpoint provides full metadata: /vid/{id}.json
+
+**Data Available:**
+- Case names, docket numbers, decision dates
+- Citations (both Colorado official and Pacific Reporter)
+- PDF URLs for Supreme Court, HTML content for Court of Appeals
+- Publication status (Published/Unpublished)
+- Abstracts and case summaries
+
+The API returns structured JSON with nested properties that include all necessary metadata. The existing scrapers are well-maintained with recent updates (2023-2025) and handle the vLex API correctly.
+"""
+
+# Recommended priority for building a scraper
+priority = "low"
+priority_reasoning = "Excellent existing scrapers already in place for both Supreme Court and Court of Appeals. The scrapers use the vLex JSON API effectively and have been recently updated (2023-2025). No additional work needed."
+
+# Estimated complexity
+complexity = "simple"
+complexity_reasoning = "The vLex JSON API is well-structured and provides all necessary metadata in a clean format. The existing scrapers demonstrate that this is a straightforward integration. However, note that specific headers are required for the API to work correctly."
+
+# Any blockers or concerns?
+blockers = []

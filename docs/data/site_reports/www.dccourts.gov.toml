@@ -1,0 +1,342 @@
+# Court Site Research Report: DC Courts
+# Domain: www.dccourts.gov
+# Research Date: 2026-01-09
+
+[meta]
+domain = "www.dccourts.gov"
+court_ids = ["dc"]
+court_name = "District of Columbia Court of Appeals"
+court_url = "https://www.dccourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = true
+captcha_type = "custom"  # eAccess case search has custom captcha
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false  # Main site works without JS, opinions page loads static HTML
+javascript_framework = "jquery"
+platform = "drupal"  # Site runs on Drupal CMS
+scope = "statewide"  # Serves both Court of Appeals and Superior Court
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""  # Public site, no auth required for opinions
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.dccourts.gov/robots.txt"
+allows_scraping = true  # Standard Drupal robots.txt, allows content crawling
+disallowed_paths = ["/admin/", "/search/", "/user/register/", "/user/login/", "/user/logout/", "/user/password/"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Court of Appeals opinions and Memorandum Opinions and Judgments (MOJs) available. Opinions are published and citable, MOJs are not published (per curiam, not citable except as permitted by Appellate Rule 28(g)). Searchable table with filtering by date, keyword, and type (opinions vs MOJs). PDFs available for download."
+example_urls = [
+    "https://www.dccourts.gov/sites/default/files/2026-01/Pennington%20v.%20First%20Hand%20Land%2025-CV-0400.pdf",
+    "https://www.dccourts.gov/sites/default/files/2025-12/In%20re%20Crane%20IV%2025-BG-766.pdf",
+    "https://www.dccourts.gov/sites/default/files/2025-12/MedStar%20v.%20Kaplan%2C%2024-CV-942UP.pdf"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Case numbers/docket numbers are displayed in the opinions table"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral arguments available via YouTube (DC Court of Appeals YouTube channel). Court provides real-time access to oral arguments and archived videos. Both in-person and hybrid/remote arguments conducted. Briefs for upcoming oral arguments available as PDF downloads on the oral arguments page."
+example_urls = [
+    "https://www.youtube.com/watch?v=BbecpvKiGRk",
+    "https://www.youtube.com/watch?v=E9lXZnLtDI4",
+    "https://www.dccourts.gov/sites/default/files/oral-arguments/Appellant%27s%20Brief%2025-CF-198.pdf"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Oral argument audio/video available on YouTube, but unclear if transcripts are provided"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Docket information available through eAccess system (eaccess.dccourts.gov) but requires captcha verification. System includes docket info for most cases and document images in some cases. Covers both Court of Appeals and Superior Court cases (civil, criminal, domestic violence, probate, tax). eAccess requires exact case number with proper spacing and formatting."
+example_urls = ["https://eaccess.dccourts.gov/eaccess/"]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through eAccess system, but captcha-protected"
+example_urls = []
+
+[content.recap_documents]
+status = "partial"
+notes = "Document images available in some cases through eAccess, but behind captcha"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names visible in case titles on opinions page and likely in eAccess dockets"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = "Attorney names may be in briefs but not indexed separately"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judge names listed in opinions table (e.g., 'Associate Judge Deahl', 'Per Curiam', 'Chief Judge Blackburne-Rigsby')"
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Site serves District of Columbia Court of Appeals and Superior Court. Court information, addresses, and contact info available."
+example_urls = []
+
+[content.courthouses]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "DC courts don't handle bankruptcy (federal jurisdiction)"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "This is a local DC court, not federal"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Lower court information appears in opinions (e.g., appeals from Superior Court)"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER court"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "MOJ lists posted monthly going back to September 1999 (per site description)"
+update_frequency = "daily"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = true
+search_capabilities = ["date_range", "case_number", "keyword", "type_filter"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = ["juriscraper.opinions.united_states.state.dc"]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "District of Columbia is unique as it functions as both a state and local court system. Court of Appeals is equivalent to a state supreme court. Site distinguishes between published opinions (citable) and MOJs (generally not citable)."
+special_document_types = ["Memorandum Opinion and Judgment (MOJ)"]
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+DC Courts website (www.dccourts.gov) is a well-organized Drupal-based site serving the District of Columbia Court of Appeals and Superior Court.
+
+**Strengths:**
+- Opinions readily available as PDFs with searchable table interface
+- No authentication required for opinions
+- Clean, structured data presentation
+- Oral arguments available via YouTube with archived videos
+- Existing scraper already in place and functional
+
+**Limitations:**
+- Case dockets require captcha (eAccess system)
+- No public API
+- MOJs are listed but not linked to full documents (only case name/number)
+- Superior Court content less structured than Court of Appeals
+
+**Existing Coverage:**
+The existing scraper (juriscraper/opinions/united_states/state/dc.py) covers Court of Appeals opinions, parsing the HTML table on the opinions page. It was updated in 2025 to use OpinionSiteLinear and extract lower court information.
+
+**Recommendations:**
+- Existing scraper appears adequate for opinions
+- Could potentially add oral arguments scraper using YouTube RSS or page scraping
+- eAccess docket system blocked by captcha - not practical to scrape
+- Consider monitoring for any API developments
+"""
+
+priority = "low"
+priority_reasoning = "Site already has functional scraper for opinions. Oral arguments available but require YouTube integration. Dockets blocked by captcha. No urgent needs identified."
+
+complexity = "simple"
+complexity_reasoning = "Existing scraper works well. Opinions page uses simple HTML table structure with direct PDF links. Site doesn't require JavaScript for core content."
+
+blockers = []

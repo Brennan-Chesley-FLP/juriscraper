@@ -1,0 +1,313 @@
+# Court Site Research Report: Navajo Nation Courts
+# Research Date: 2026-01-09
+# STATUS: DOMAIN INACCESSIBLE - REDIRECT TO UNRELATED SITE
+
+[meta]
+domain = "www.navajocourts.org"
+court_ids = ["navajoctapp", "navajodistct", "navajo"]
+court_name = "Navajo Nation Courts"
+court_url = "https://www.navajocourts.org"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = false
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = ""
+scope = ""
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = []
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = ""
+allows_scraping = false
+disallowed_paths = []
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "unavailable"
+notes = "Domain is inaccessible - redirects to unrelated website (fridakahlofans.com, a Frida Kahlo blog)"
+example_urls = []
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.citations]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.parties]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.persons]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.opinions_cited]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.tags]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = "Domain is inaccessible"
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = ""
+latest_date = ""
+has_historical = false
+historical_notes = ""
+update_frequency = ""
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = false
+search_capabilities = []
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "Tribal court system for the Navajo Nation"
+special_document_types = []
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+**CRITICAL FINDING: DOMAIN NO LONGER ACCESSIBLE**
+
+As of 2026-01-09, the domain www.navajocourts.org redirects to fridakahlofans.com,
+a completely unrelated website (a Frida Kahlo fan blog in Indonesian language). This indicates that:
+
+1. The domain registration may have lapsed
+2. The domain was taken over by a third party
+3. The Navajo Nation Courts have moved to a new domain
+
+**Action Items:**
+- Research alternate domains for Navajo Nation Courts
+- Check if courts moved to a .gov domain or tribal.gov subdomain
+- Search for current Navajo Nation judicial system website
+- Check Internet Archive (Wayback Machine) for historical content
+- Contact Navajo Nation government to determine current court website
+
+**Historical Context:**
+The Navajo Nation has three courts that were supposed to be covered by this domain:
+- navajoctapp: Navajo Court of Appeals
+- navajodistct: Navajo Nation District Court
+- navajo: Navajo Nation Supreme Court
+
+These courts may now be publishing opinions through a different online portal or may not have
+an online presence for case law.
+"""
+
+priority = "skip"
+priority_reasoning = "Domain is inaccessible and redirects to unrelated content. Cannot scrape a site that doesn't exist at this URL. Priority should be 'skip' until the correct domain is identified for Navajo Nation Courts."
+
+complexity = "n/a"
+complexity_reasoning = "Cannot assess complexity - site is inaccessible"
+
+blockers = ["Domain redirects to unrelated website", "Navajo Nation Courts website location unknown"]

@@ -1,0 +1,334 @@
+# Court Site Research Report
+# Mille Lacs Band of Ojibwe Court of Appeals
+
+[meta]
+domain = "millelacsband.com"
+court_ids = ["ojibwectapp"]
+court_name = "Mille Lacs Band of Ojibwe Court of Appeals"
+court_url = "https://millelacsband.com/government/judicial/court-of-appeals"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+
+platform = "custom"
+
+scope = "court_specific"
+
+shared_infrastructure = []
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = ""
+
+allows_scraping = true
+disallowed_paths = []
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "Court of Appeals opinions are available on the 'Mille Lacs Band Case Law Reporter' page from 1993 to 2017. Each opinion is provided as a PDF download with case name, docket number, date, and summary description. The page is a static HTML listing with direct links to PDF files. Coverage appears limited to published/significant decisions rather than all opinions. No new opinions appear to have been added since 2017."
+example_urls = [
+    "https://millelacsband.com/media/pages/government/judicial/district-court/mille-lacs-band-case-law-reporter/6596417213-1755803233/skm_c451i25082106200.pdf",
+    "https://millelacsband.com/media/pages/government/judicial/district-court/mille-lacs-band-case-law-reporter/71a2aa2a51-1662145659/1998-app-0001_b.m.-v.-p.j-05-22-1998.pdf",
+    "https://millelacsband.com/media/pages/government/judicial/district-court/mille-lacs-band-case-law-reporter/68f3fb0cc5-1662145665/1998-app-0003_mlbo-v-d.b-10-06-1998.pdf"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Opinions are individual documents, not grouped into clusters"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Docket numbers are included in case names (e.g., '2016-APP-0006') and dates are provided. There's a citation format guide available but full citation information is only in the PDFs."
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "The site mentions live-streaming capability for Band Assembly, but oral arguments for the Court of Appeals are not available"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.dockets]
+status = "unavailable"
+notes = "No docket information available on public website"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "This is a tribal court, not federal PACER"
+example_urls = []
+
+[content.parties]
+status = "partial"
+notes = "Party names are included in case titles but not as structured data"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Attorney admission information and forms are available, but attorney data from cases is not publicly available in structured form"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "partial"
+notes = "Current Justice names are listed: Bernida Humetewa (District III), Rhonda Sam (Associate Chief Justice, District I), Brenda Moose (District II)"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "partial"
+notes = "Election information is available on the site but not specific judicial retention data"
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "available"
+notes = "Court address: Government Center, 43408 Oodena Drive, Onamia, MN 56359. Phone: 320-532-7400. Hours: Monday-Friday 8:00 am - 5:00 pm (closed noon-1:00 pm)"
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "This is a tribal court, not federal"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "This is a tribal court, not federal PACER"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.opinions_cited]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = "Page includes note: 'To search this page using Internet Explorer or Chrome, press Control + F; in Safari, press Command + F' - indicating only browser-based search, no backend search functionality"
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1993-03-24"
+latest_date = "2017-03-17"
+
+has_historical = true
+historical_notes = "Case law reporter includes decisions from 1993 onwards, but appears not to have been updated since 2017"
+
+update_frequency = "unknown"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = false
+search_capabilities = []
+
+browse_only = true
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+
+scraper_modules = []
+
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- The Mille Lacs Band Court of Central Jurisdiction consists of both the District Court and Court of Appeals
+- Court philosophy emphasizes Zhawenimaa (keeping the people together) and non-adversarial proceedings
+- The Court has jurisdiction over Band members and those eligible to become Band members regardless of residence/domicile
+- Justices are required to be Band enrolled members and must be knowledgeable of the Constitution of the Minnesota Chippewa Tribe, Band laws, and unwritten customs and traditions
+- Court uses electronic filing system (File & ServeXpress) as of June 1, 2021
+- Court handles appeals from District Court, Minnesota Chippewa Tribal election appeals, and original jurisdiction matters
+"""
+
+special_document_types = []
+
+data_quality_notes = "The case law reporter appears to have not been updated since 2017, suggesting either the court has stopped publishing online or the website maintenance has lapsed."
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Mille Lacs Band of Ojibwe Court of Appeals maintains a public Case Law Reporter with opinions from 1993-2017.
+The site uses a simple static HTML structure with direct links to PDF opinions. Each case includes a docket number,
+date, case name, and summary. However, the reporter has not been updated since 2017, which is a significant concern.
+
+The court appears active based on other site content (current justices listed, active eFiling system, court rules
+dated as recently as 2023), so the lack of recent opinions on the website may indicate a lapse in public
+reporting rather than cessation of court operations.
+
+The site does not require JavaScript and has no robots.txt restrictions, making it technically straightforward
+to scrape. However, the lack of recent data significantly limits the value of creating a scraper.
+"""
+
+priority = "low"
+priority_reasoning = "The case law reporter has not been updated since 2017. Without recent opinions, there is limited value in creating a scraper. However, if the court resumes publishing opinions online, this would become a higher priority as it's a relatively easy site to scrape and represents an important tribal court jurisdiction."
+
+complexity = "simple"
+complexity_reasoning = "Static HTML site with direct PDF links. No JavaScript required, no API needed, straightforward to parse. The only complexity would be handling the PDF extraction if detailed content analysis is needed."
+
+blockers = [
+    "Case law reporter has not been updated since 2017 - unclear if court is still publishing opinions online",
+    "Would need to contact court to determine if/where more recent opinions are published"
+]

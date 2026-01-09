@@ -1,0 +1,438 @@
+# Court Site Research Report
+# Domain: www.courts.ca.gov
+# Research Date: 2026-01-09
+
+[meta]
+domain = "www.courts.ca.gov"
+court_ids = ["cal", "calctapp", "calctapp1d", "calctapp2d", "calctapp3d", "calctapp4d", "calctapp5d", "calctapp6d"]
+court_name = "California Judicial Branch"
+court_url = "https://www.courts.ca.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "jquery"
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf", "html"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.courts.ca.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/admin/", "/search/", "/user/", "/core/", "/profiles/", "/cjer"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Opinions are available in two categories:
+1. Published/Citable Opinions - Available from 1850-Present (searchable via LexisNexis no-fee service)
+2. Slip Opinions - Last 120 days posted on the main site, older opinions available via Case Information Search
+
+Both Supreme Court and Courts of Appeal opinions are available. Supreme Court opinions posted Mondays and Thursdays at 10:00 a.m. Court of Appeal opinions posted throughout the day.
+
+Opinions can be filtered by:
+- Court/District (Supreme, 1st-6th Districts, Appellate Division)
+- Case Number
+- Case Title
+
+Each opinion includes:
+- Case number
+- Filing date
+- Court/Division
+- Case caption
+- PDF download
+- HTML "Other Formats" view
+"""
+example_urls = [
+    "https://www.courts.ca.gov/opinions/documents/D084193.PDF",
+    "https://courts.ca.gov/opinion/published/2026-01-08/d084193",
+    "https://www.courts.ca.gov/opinions/publishedcitable-opinions"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Related cases are noted with links between case numbers (e.g., related case links shown on opinion pages)"
+example_urls = ["https://courts.ca.gov/opinions/publishedcitable-opinions"]
+
+[content.citations]
+status = "available"
+notes = "Official Reports citations available via LexisNexis partnership. Site also maintains archive of web pages cited in Supreme Court opinions."
+example_urls = ["https://www.courts.ca.gov/opinions/cited-supreme-court-opinions"]
+
+[content.oral_arguments]
+status = "unknown"
+notes = "Not observed on main opinions pages. May be available elsewhere on the site or via separate portals for individual courts."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """
+Docket information available via separate California Appellate Courts Case Information System at appellatecases.courtinfo.ca.gov
+
+Search capabilities include:
+- Supreme Court, Court of Appeal, or Trial Court case number
+- Party name (last name/organization required)
+- Attorney name or law firm
+- Case caption
+
+Case information updated once per hour throughout business day.
+E-mail notifications available for case activity updates.
+"""
+example_urls = [
+    "https://appellatecases.courtinfo.ca.gov/",
+    "https://appellatecases.courtinfo.ca.gov/search.cfm?dist=0"
+]
+
+[content.docket_entries]
+status = "available"
+notes = "Available via Case Information System. Includes case summary and detailed docket entries."
+example_urls = ["https://appellatecases.courtinfo.ca.gov/"]
+
+[content.recap_documents]
+status = "unknown"
+notes = "State courts do not use RECAP (federal court system). Individual court filings may be available but not systematically cataloged."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "available"
+notes = "Party information searchable via Case Information System. Can search by party last name/organization (minimum 2 characters required)."
+example_urls = ["https://appellatecases.courtinfo.ca.gov/search.cfm?dist=0"]
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "available"
+notes = "Attorney information searchable via Case Information System. Can search by attorney last name, first name, middle name, or law firm."
+example_urls = ["https://appellatecases.courtinfo.ca.gov/search.cfm?dist=0"]
+
+[content.attorney_organizations]
+status = "available"
+notes = "Law firm information searchable in attorney search function of Case Information System."
+example_urls = ["https://appellatecases.courtinfo.ca.gov/search.cfm?dist=0"]
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Chief Justice and judicial information available on policy/administration pages, but not systematically cataloged with cases."
+example_urls = ["https://courts.ca.gov/policy-administration/chief-justice-patricia-guerrero"]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+Comprehensive court information available:
+- Supreme Court: https://supreme.courts.ca.gov
+- Courts of Appeal: https://appellate.courts.ca.gov
+- Superior Courts: Directory available with 58 county superior courts
+- Court locator tool available to find local courts by city or zip code
+"""
+example_urls = [
+    "https://courts.ca.gov/courts",
+    "https://courts.ca.gov/find-my-court",
+    "https://courts.ca.gov/courts/superior-courts"
+]
+
+[content.courthouses]
+status = "partial"
+notes = "Location information available via court locator, but not systematically cataloged."
+example_urls = ["https://courts.ca.gov/find-my-court"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Bankruptcy is handled by federal courts, not California state courts."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Bankruptcy is handled by federal courts, not California state courts."
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Bankruptcy is handled by federal courts, not California state courts."
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "FJC IDB is for federal courts only."
+example_urls = []
+
+[content.originating_court_information]
+status = "available"
+notes = "Lower court information included in case records. Trial court case numbers searchable in Case Information System."
+example_urls = ["https://appellatecases.courtinfo.ca.gov/"]
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "PACER is for federal courts only."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "SCOTUS-specific content not applicable to state courts."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "partial"
+notes = "Archive of online sources cited in Supreme Court opinions maintained."
+example_urls = ["https://www.courts.ca.gov/opinions/cited-supreme-court-opinions"]
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1850-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Published opinions available from 1850 via LexisNexis partnership. Slip opinions for last 120 days directly on site."
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://appellatecases.courtinfo.ca.gov/email.cfm"
+has_search = true
+search_capabilities = ["case_number", "party_name", "attorney_name", "case_caption", "court_filter", "date_filter"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.cal",
+    "juriscraper.opinions.united_states.state.calctapp_1st",
+    "juriscraper.opinions.united_states.state.calctapp_2nd",
+    "juriscraper.opinions.united_states.state.calctapp_3rd",
+    "juriscraper.opinions.united_states.state.calctapp_4th_div1",
+    "juriscraper.opinions.united_states.state.calctapp_4th_div2",
+    "juriscraper.opinions.united_states.state.calctapp_4th_div3",
+    "juriscraper.opinions.united_states.state.calctapp_5th",
+    "juriscraper.opinions.united_states.state.calctapp_6th",
+    "juriscraper.opinions.united_states.state.calctapp_u",
+    "juriscraper.opinions.united_states.state.calctapp_app_div",
+    "juriscraper.opinions.united_states.state.calag"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+California appellate system structure:
+- Supreme Court (highest court)
+- 6 Courts of Appeal districts (some with multiple divisions)
+- 58 Superior Courts (trial courts, one per county)
+
+Published vs. Unpublished opinions:
+- All Supreme Court opinions are published
+- Only some Court of Appeal opinions are certified for publication
+- Unpublished opinions generally cannot be cited (Rule 8.1115)
+- Both types are public records and available on the site
+
+Two separate systems:
+1. www.courts.ca.gov - Main portal for slip opinions and general information
+2. appellatecases.courtinfo.ca.gov - Case information system for docket searches
+
+Official Reports partnership:
+- LexisNexis provides free searchable access to Official Reports (1850-present)
+- Slip opinions are preliminary versions; Official Reports are authoritative
+"""
+special_document_types = ["slip_opinions", "official_reports"]
+data_quality_notes = "High quality. Well-maintained system with clear distinction between published and unpublished opinions."
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+California operates a sophisticated dual-portal system for appellate court information:
+
+1. Main Portal (www.courts.ca.gov):
+   - Drupal-based, minimal JavaScript requirements
+   - Slip opinions posted daily (Supreme Court: M/Th 10am, Appeals: throughout day)
+   - 120-day window for recent opinions, then archived to Case Information System
+   - PDF and HTML formats available
+   - Clear filtering by court/district, case number, title
+   - Partnership with LexisNexis for historical Official Reports (1850-present)
+
+2. Case Information System (appellatecases.courtinfo.ca.gov):
+   - Legacy ColdFusion application
+   - Comprehensive docket search by case number, party, attorney, caption
+   - Hourly updates during business day
+   - Email notification system for case activity
+   - Calendar function for upcoming arguments
+
+Existing scrapers cover all courts and districts. The scrapers target the opinions listings
+at www.courts.ca.gov/cms/opinions.htm with court-specific parameters.
+
+Strengths:
+- Public access, no authentication required
+- Excellent historical coverage (1850-present)
+- Well-structured HTML, easy to parse
+- Multiple access points (direct URLs, search, browse)
+- Reliable daily updates
+- robots.txt permits crawling
+
+Weaknesses:
+- Two separate systems require different approaches
+- Slip opinions only kept 120 days on main site (then must use Case Info System)
+- No documented API
+- Unpublished opinions have citation restrictions (legal, not technical)
+"""
+
+priority = "medium"
+priority_reasoning = """
+Priority is medium because:
+- Existing scrapers already cover opinions well
+- System is stable and working
+- No immediate gaps or breaking issues observed
+- May want to add Case Information System scraping for richer docket data
+- Could add unpublished opinion scrapers if needed for completeness
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Simple complexity because:
+- Static HTML, minimal JavaScript
+- Well-structured pages with consistent patterns
+- Existing scrapers demonstrate straightforward XPath parsing
+- Public access, no authentication barriers
+- No captchas or anti-scraping measures
+- robots.txt is permissive
+"""
+
+blockers = []

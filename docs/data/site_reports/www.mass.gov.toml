@@ -1,0 +1,373 @@
+# Court Site Research Report: www.mass.gov
+#
+# This report documents research into the Massachusetts government portal
+# which serves as a central hub for various Massachusetts courts.
+
+[meta]
+domain = "www.mass.gov"
+court_ids = ["massappct", "masstaxbd", "maworkcompcom", "massdistctapp", "mahousct", "maprobct", "masssuperct", "masssuperctbarn", "masssuperctberk", "masssuperctmid", "masssuperctsuff", "masssuperctworc", "mass"]
+court_name = "Massachusetts Court System"
+court_url = "https://www.mass.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = true
+captcha_type = "recaptcha"
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "drupal"
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.mass.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/core/", "/profiles/", "/admin/", "/search/", "/node/*", "/doc/courts-dwnld-*"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """Published opinions from the Supreme Judicial Court and Appeals Court are available
+via the 'New opinions' page. Opinions are released daily and posted at 10 a.m. ET.
+PDFs are available for download. The site links to multiple unofficial collections
+including LexisNexis Massachusetts Reports Public Access (free), Social Law Library,
+Caselaw Access Project, CourtListener, and Google Scholar. Existing scrapers use
+the Social Law Library API."""
+example_urls = [
+    "https://www.mass.gov/doc/commonwealth-v-fujita-sjc-n11514/download",
+    "https://www.mass.gov/doc/dossantos-v-beth-israel-deaconess-hospital-milton-inc-sjc-l13749/download",
+    "https://www.mass.gov/info-details/new-opinions"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinions are grouped by release date on the 'New opinions' page"
+example_urls = ["https://www.mass.gov/info-details/new-opinions"]
+
+[content.citations]
+status = "available"
+notes = "Case citations are included in opinion documents (e.g., 'SJC 11514', 'AC 24-P-896')"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """Oral arguments are available for the Supreme Judicial Court. Live streams
+and archives are available. SJC oral arguments are streamed live via Suffolk
+University Law School's website and archived on the SJC YouTube channel. Appeals
+Court oral arguments calendar is also available."""
+example_urls = [
+    "https://www.suffolk.edu/sjc/",
+    "https://www.youtube.com/channel/UCOftbmknBche29CG41v19cA",
+    "https://www.mass.gov/info-details/supreme-judicial-court-oral-arguments"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Video/audio available but transcripts not explicitly mentioned"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """Trial Court dockets are accessible via masscourts.org portal (requires
+reCAPTCHA). SJC and Appeals Court dockets are available via ma-appellatecourts.org
+(protected by Cloudflare). The site provides extensive information about accessing
+dockets but actual access requires navigating to separate portals."""
+example_urls = [
+    "https://www.masscourts.org/eservices/home.page.2",
+    "https://ma-appellatecourts.org/index.php"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = """Docket entries are available through the masscourts.org portal for Trial
+Courts. Access requires solving reCAPTCHA. Attorney portal provides additional
+access for registered attorneys."""
+example_urls = ["https://www.masscourts.org/eservices/home.page.2"]
+
+[content.recap_documents]
+status = "partial"
+notes = "Court filings and documents available through docket systems but access varies by court type"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party information available in docket systems"
+example_urls = []
+
+[content.party_types]
+status = "partial"
+notes = "Available in case dockets"
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "Attorney information available in docket systems and attorney portal"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "partial"
+notes = "Attorney-party relationships available in docket systems"
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judge information available on court pages including Supreme Judicial Court Justices"
+example_urls = ["https://www.mass.gov/info-details/supreme-judicial-court-justices"]
+
+[content.positions]
+status = "partial"
+notes = "Judicial positions listed on court pages"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = "Massachusetts judges are appointed, not elected"
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Comprehensive court information available including contact info, locations, and organization structure"
+example_urls = [
+    "https://www.mass.gov/orgs/massachusetts-court-system",
+    "https://www.mass.gov/orgs/massachusetts-supreme-judicial-court"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Courthouse locations available via courthouse locator"
+example_urls = ["https://www.mass.gov/courthouse-locator"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Federal bankruptcy courts not covered by state portal"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "partial"
+notes = "Available in docket systems"
+example_urls = []
+
+[content.criminal_complaints]
+status = "partial"
+notes = "Available in docket systems"
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State courts only"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Lower court information available for appellate cases"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State courts only"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "State courts only"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = """Historical opinions available through various unofficial collections.
+Existing scrapers date back to 2017 for SJC and Appeals Court."""
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://visitor.r20.constantcontact.com/manage/optin?v=001lB8wlCTTQv2qbNbExcMdhtz0LyT0pAbSCyCzN37Fbay8WG0UQj4krvO_bYOBa6PoU-97gwqp6fG7HeVEE_Rtz1pmwIabV4YaG8JQk87W8sTL0DC6b13E2NuRRMGwl5dMYu3SaVm2SjVGNRt8vWcd18KOeWGI1tvUuJ4FkTnlY0Uq0Q6v-1Ww2E7MF-wi-5t5b3d90gH9Vw4_cgGDL7kRerhJ8_TWf3OdGgnAawvkvGSIWr2x24UZD1OOcdbSs84t"
+has_search = true
+search_capabilities = ["case_number", "party_name", "date_range"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.mass",
+    "juriscraper.opinions.united_states.state.massappct",
+    "juriscraper.opinions.united_states.state.massappct_u",
+    "juriscraper.opinions.united_states.state.masslandct",
+    "juriscraper.opinions.united_states.state.masssuperct"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """Massachusetts has a complex court structure with multiple portals:
+- www.mass.gov serves as the main information portal
+- masscourts.org provides Trial Court docket access (requires reCAPTCHA)
+- ma-appellatecourts.org provides appellate court dockets (Cloudflare protected)
+- Social Law Library provides API access for opinions (used by existing scrapers)
+- Appeals Court unpublished summary dispositions are hosted separately at 128archive.com"""
+special_document_types = []
+data_quality_notes = """Existing scrapers use Social Law Library API rather than
+scraping mass.gov directly. This provides cleaner JSON data."""
+seasonal_notes = """SJC hears oral arguments September through May, first full week
+of each month."""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Massachusetts uses a distributed portal system with www.mass.gov as the main
+information hub, but actual data access requires separate portals for different
+court types. Published opinions for SJC and Appeals Court are available and
+currently scraped via the Social Law Library API. Trial Court dockets require
+navigating reCAPTCHA. Appellate court dockets are protected by Cloudflare.
+
+Key findings:
+- Published opinions: Available, currently scraped via Social Law Library
+- Oral arguments: Available (SJC) via streaming and YouTube archive
+- Dockets: Available but require separate portal access with barriers (reCAPTCHA, Cloudflare)
+- Multiple unofficial opinion collections provide alternative access points
+"""
+
+priority = "low"
+priority_reasoning = """Existing scrapers provide good coverage of opinions via
+Social Law Library API. Docket access faces significant technical barriers (reCAPTCHA,
+Cloudflare). Oral arguments available but not currently prioritized for scraping."""
+
+complexity = "complex"
+complexity_reasoning = """Multiple separate portals with different access requirements.
+Trial Court portal uses reCAPTCHA. Appellate court portal uses Cloudflare protection.
+Current opinion scrapers wisely use Social Law Library API instead of scraping mass.gov
+directly."""
+
+blockers = [
+    "Trial Court docket portal requires solving reCAPTCHA",
+    "Appellate court docket portal protected by Cloudflare",
+    "No bulk download or API for dockets"
+]

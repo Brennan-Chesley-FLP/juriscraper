@@ -1,0 +1,394 @@
+# Court Site Research Report
+#
+# Maine Judicial Branch website research report
+# Note: The old URL www.courts.state.me.us redirects to www.courts.maine.gov
+
+[meta]
+domain = "www.courts.maine.gov"
+domain_aliases = ["www.courts.state.me.us"]
+court_ids = ["me"]
+court_name = "Supreme Judicial Court of Maine"
+court_url = "https://www.courts.maine.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "jquery"
+
+# The site uses Tyler Technologies' Odyssey system for eCourts/eFiling
+platform = "tyler"
+
+scope = "statewide"
+shared_infrastructure = []
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = "https://www.courts.maine.gov/robots.txt"
+
+allows_scraping = true
+disallowed_paths = []
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Supreme Judicial Court published opinions available from 2017-present on main page, with archives going back to at least 1997 (per site documentation). Opinions are in PDF format with structured HTML tables listing them by year."
+example_urls = [
+    "https://www.courts.maine.gov/courts/sjc/opinions.html",
+    "https://www.courts.maine.gov/courts/sjc/lawcourt/2025/25me098.pdf",
+    "https://www.courts.maine.gov/courts/sjc/lawcourt/2024/index.html"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinions are organized by year and include citation numbers, case names, and dates."
+example_urls = ["https://www.courts.maine.gov/courts/sjc/opinions.html"]
+
+[content.citations]
+status = "available"
+notes = "Official Maine citations provided in format like '2025 ME 98'. Site notes that permanent official versions are in Atlantic Reporter (2d and 3d Series), Maine's official reporter since 1966."
+example_urls = ["https://www.courts.maine.gov/courts/sjc/opinions.html"]
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral argument recordings available via YouTube. Unedited recordings available shortly after arguments on the Court's YouTube 'Live' page. Edited recordings available within a few days on YouTube 'Videos' page. Recordings since January 2024 available online; earlier recordings available by contacting clerk's office."
+example_urls = [
+    "https://www.courts.maine.gov/courts/sjc/recordings.html",
+    "https://youtube.com/live/Xk4D0NpiRoQ?feature=share",
+    "https://www.youtube.com/@mainesupremejudicialcourt2233/streams",
+    "https://www.youtube.com/@mainesupremejudicialcourt2233/videos"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "No transcripts found on the site, only audio/video recordings."
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Maine eCourts system (Tyler Odyssey) provides electronic case management and access to electronic court records. Currently deployed in some regions (Business and Consumer Docket statewide, Region 3 courts for all case types, Region 5 courts for family and civil cases). Expanding to Region 4 courts in February 2026. Access governed by Maine Rules of Electronic Court Systems (MRECS)."
+example_urls = [
+    "https://www.courts.maine.gov/ecourts/index.html",
+    "https://www.courts.maine.gov/ecourts/access.html",
+    "https://efileme.tylertech.cloud/OfsEfsp/ui/landing"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through Maine eCourts system for enrolled courts. Electronic filing (eFiling) available for various case types including family matters, child protection, criminal, small claims, evictions, foreclosures, juvenile, and protection orders."
+example_urls = ["https://www.courts.maine.gov/ecourts/access.html"]
+
+[content.recap_documents]
+status = "unavailable"
+notes = "RECAP is specific to federal PACER system. Maine is a state court system."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party information likely available through Maine eCourts electronic case management system, but not publicly browsable on main site."
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Supreme Court justices information available with biographies."
+example_urls = ["https://www.courts.maine.gov/courts/sjc/justices.html"]
+
+[content.positions]
+status = "partial"
+notes = "Current judicial positions listed for Supreme Court justices."
+example_urls = ["https://www.courts.maine.gov/courts/sjc/justices.html"]
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Comprehensive court location information available, including Supreme Judicial Court, Superior Courts, District Courts, and specialty courts."
+example_urls = [
+    "https://www.courts.maine.gov/courts/index.html",
+    "https://www.courts.maine.gov/courts/find-a-court.html",
+    "https://www.courts.maine.gov/courts/find-by-town.html"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Physical courthouse locations available via embedded Google Map and listings by city/town."
+example_urls = ["https://www.courts.maine.gov/courts/find-by-town.html"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Bankruptcy is handled by federal courts, not state courts."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "FJC IDB is federal-only data."
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "PACER is specific to federal courts."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1997-01-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Opinions published online since January 1997 according to site documentation. Archives available by year from 2017-2025 confirmed via navigation."
+
+update_frequency = "daily"
+
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://www.courts.maine.gov/news/signup.html"
+
+has_search = true
+search_capabilities = ["full_text"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.me",
+    "juriscraper.opinions.united_states.state.mesuperct",
+    "juriscraper.opinions.united_states_backscrapers.state.me",
+    "juriscraper.opinions.united_states_backscrapers.state.me_2013"
+]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- The site mentions that opinions are subject to motions for reconsideration and revision before final publication
+- Official permanent versions are in Atlantic Reporter (2d and 3d Series)
+- Site uses paragraph numbering system (¶1, ¶2, etc.) in opinions
+- The old domain www.courts.state.me.us redirects to www.courts.maine.gov
+- Maine eCourts is being rolled out in phases by region
+- There are 'Recent Memoranda of Decision' separate from published opinions
+"""
+
+special_document_types = ["Memoranda of Decision"]
+
+data_quality_notes = """
+- Opinions are well-structured in HTML tables
+- PDFs are the primary document format
+- Consistent citation format (YYYY ME ###)
+"""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Maine Judicial Branch website provides comprehensive access to Supreme Judicial Court
+opinions dating back to 1997, with well-structured HTML tables and PDF documents. The site
+has an existing working scraper for opinions. The site is currently implementing Maine
+eCourts (Tyler Odyssey system) which provides electronic filing and case management, though
+this is being rolled out in phases by region and case type.
+
+Oral arguments are available as YouTube recordings since January 2024, which could be
+cataloged but the actual video files would need to be accessed via YouTube's platform.
+
+The site does not have a robots.txt file and appears to allow scraping. The site is
+primarily static HTML with some JavaScript enhancements, making it straightforward to scrape.
+
+The existing scraper appears to be functioning well for Supreme Court opinions. Potential
+future work could include:
+1. Adding oral argument metadata scraper (linking to YouTube recordings)
+2. Exploring Maine eCourts API/portal for docket data (though access is governed by MRECS)
+3. Adding Superior Court opinion scraper (mesuperct.py already exists)
+"""
+
+priority = "low"
+priority_reasoning = """
+Existing scraper covers the primary content (Supreme Court opinions) and appears to be
+functioning. Oral arguments are available but stored on YouTube rather than directly on the
+court site. Docket data is behind the Maine eCourts system which likely requires
+authentication and is governed by specific access rules.
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+The opinions page uses simple HTML tables that are easy to parse. The existing scraper
+demonstrates this straightforward structure. No JavaScript rendering required, no authentication
+needed for opinions, and clear URL patterns.
+"""
+
+blockers = []

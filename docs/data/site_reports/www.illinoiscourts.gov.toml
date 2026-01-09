@@ -1,0 +1,338 @@
+# Court Site Research Report
+# Illinois Courts (Supreme Court and Appellate Court)
+
+[meta]
+domain = "www.illinoiscourts.gov"
+domain_aliases = ["www.state.il.us"]
+court_ids = ["ill", "illappct"]
+court_name = "Illinois Courts (Supreme Court and Appellate Court)"
+court_url = "https://www.illinoiscourts.gov/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = ""
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.illinoiscourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/antilles/", "/App_Code/", "/Bin/"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Supreme Court and Appellate Court opinions available via searchable database. Opinions include slip opinions, released opinions, and final opinions. Rule 23 orders also available. Searchable by date range, court type, decision type, and keyword. RSS feeds available for both Supreme Court and Appellate Court opinions."
+example_urls = [
+    "https://www.illinoiscourts.gov/top-level-opinions?type=supreme",
+    "https://www.illinoiscourts.gov/resources/cf55bcb5-b2c9-4ddb-9d5c-213e107cdf03/file",
+    "https://www.illinoiscourts.gov/resources/26d0f9c9-c584-40e0-a52a-6e975cff86c2/file"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Citations provided in standardized Illinois citation format (e.g., '2025 IL 131564')"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = "Oral argument audio and video available for both Supreme Court and Appellate Court. Searchable database with audio and video links. Livestream available for current term arguments. RSS feed available."
+example_urls = [
+    "https://www.illinoiscourts.gov/courts/supreme-court/oral-argument-audio-and-video/",
+    "https://www.illinoiscourts.gov/courts/appellate-court/oral-argument-audio/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Audio and video available, but unclear if transcripts are provided"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Supreme Court docket and briefs available. Docket information shown on opinions pages."
+example_urls = [
+    "https://www.illinoiscourts.gov/courts/supreme-court/docket/"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Justice information available with bios and photos"
+example_urls = [
+    "https://www.illinoiscourts.gov/courts/supreme-court/meet-the-justices/"
+]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court directory with interactive map showing all circuit courts"
+example_urls = [
+    "https://www.illinoiscourts.gov/courts-directory/interactive-map/by-court-type"
+]
+
+[content.courthouses]
+status = "partial"
+notes = "Supreme Court building information available"
+example_urls = [
+    "https://www.illinoiscourts.gov/courts/supreme-court/supreme-court-building-information/"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1996-05-22"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Opinions available back to 1996 for Supreme Court"
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "rss"
+subscription_url = "https://www.illinoiscourts.gov/views/courts/rss/opinions-supreme.aspx"
+has_search = true
+search_capabilities = ["date_range", "keyword", "court_type", "decision_type"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.ill",
+    "juriscraper.opinions.united_states.state.illappct",
+    "juriscraper.oral_args.united_states.state.ill",
+    "juriscraper.oral_args.united_states.state.illappct_1st_dist",
+    "juriscraper.oral_args.united_states.state.illappct_2nd_dist",
+    "juriscraper.oral_args.united_states.state.illappct_3rd_dist",
+    "juriscraper.oral_args.united_states.state.illappct_4th_dist",
+    "juriscraper.oral_args.united_states.state.illappct_5th_dist",
+    "juriscraper.oral_args.united_states.state.illappct_workers_comp"
+]
+covers_opinions = true
+covers_oral_arguments = true
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "The old www.state.il.us domain redirects to www.illinoiscourts.gov (via www.illinois.gov). The site distinguishes between 'opinions' and 'Rule 23 orders' which are non-precedential appellate decisions."
+special_document_types = ["Rule 23 Orders"]
+data_quality_notes = ""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Illinois Courts website (www.illinoiscourts.gov) provides comprehensive access to both Supreme Court and Appellate Court opinions and oral arguments. The site has a clean, modern design with good search functionality. All content is publicly accessible without authentication. The site uses standard HTML with server-side rendering - no JavaScript rendering required. Opinions are available as PDFs with standardized Illinois citations. RSS feeds are available for automated tracking of new opinions and oral arguments.
+
+Existing scrapers cover both opinions and oral arguments for the Supreme Court and all five Appellate Court districts plus Workers' Compensation. The scrapers were last updated in 2021-2022 to accommodate a redesign of the website.
+
+Note: The original task URL (www.state.il.us) redirects through www.illinois.gov to the actual court site at www.illinoiscourts.gov.
+"""
+priority = "low"
+priority_reasoning = "Existing scrapers already provide comprehensive coverage of opinions and oral arguments. Site structure appears stable and working well with current scrapers."
+complexity = "simple"
+complexity_reasoning = "Server-side rendered HTML, public access, standard pagination, existing working scrapers"
+blockers = []

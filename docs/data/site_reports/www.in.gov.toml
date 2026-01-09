@@ -1,0 +1,412 @@
+# Court Site Research Report for www.in.gov (Indiana Judicial Branch)
+
+[meta]
+domain = "www.in.gov"
+court_ids = ["ind", "indctapp", "indtc"]
+court_name = "Indiana Judicial Branch"
+court_url = "https://www.in.gov/courts/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "vue"
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+
+has_api = true
+api_documented = false
+api_url = "https://public.courts.in.gov/Decisions/api/"
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.in.gov/robots.txt"
+
+allows_scraping = true
+disallowed_paths = [
+    "/serv/",
+    "/cgi-bin/",
+    "/isdh/drafts_local/",
+    "/demand",
+    "/search",
+    "/ai/errors/",
+    "/dor/4572.htm",
+    "/dor/reference/legal/rulings/unused/",
+    "/dwd/files/swic/",
+    "/dwd/files/JWIB/",
+    "/dwd/files/CM_Files/",
+    "/dwd/files/policy/",
+    "/dwd/test/",
+    "/ActiveCalendar/mobile/mobilelist.aspx",
+    "*subscribetocalendar.aspx*",
+    "*RSSSyndicator.aspx*",
+    "*downloadtype.aspx*",
+    "/indot/3212.htm",
+    "/sos/online_corps/",
+    "/sos/clerical/",
+    "/sos/registration/",
+    "/gov/files/awards/",
+    "/health/files/rhpt"
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = "Data mining from this website is prohibited by Supreme Court rule, and users found to be in violation will be blocked from accessing the site."
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """Appellate opinions from Indiana Supreme Court (courtId=9510), Court of Appeals (courtId=9530),
+and Tax Court (courtId=9550) are available via a JSON API at public.courts.in.gov/Decisions/api/.
+The API returns comprehensive structured data including case name, docket number, date, disposition,
+lower court info, judges, voting records, per_curiam designation, and opinion PDF URLs.
+Both published opinions and memorandum decisions are available. Existing scrapers use this API successfully."""
+example_urls = [
+    "https://public.courts.in.gov/decisions",
+    "https://public.courts.in.gov/Decisions/api/Search?courtId=9510&showMemorandum=true",
+    "https://public.courts.in.gov/Decisions/api/Search?caseParty=&courtId=&caseCategoryId=&judgeId=&fromDate=&toDate=&countyId=&showMemorandum=true",
+    "https://public.courts.in.gov/Decisions/api/Document/Opinion?Id=UPxxqoQ3nWfXRChZGrWQW03wvXzY14LXb-ha92ZrKPNl4qXFyo7cfnBe_AIvgFsk0"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Case numbers and basic citation information available in API responses"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """Oral arguments are webcasted live and archived at mycourts.in.gov/arguments. Archives available from
+2001-present for Supreme Court, Court of Appeals, and Tax Court. Video available two hours after start time.
+As of 2026-01, the archive contains 2530+ arguments across 127 pages of results (20 per page). Searchable by
+keyword, month, year, court, judge, and county. Videos are streamed/hosted via i-Light network."""
+example_urls = [
+    "https://mycourts.in.gov/arguments/",
+    "https://mycourts.in.gov/arguments/default.aspx?&id=&view=table&yr=&when=&page=1&court=&search=&direction=ASC&future=False&sort=&judge=&county=&admin=False&pageSize=20"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Videos are available but unclear if text transcripts are provided"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """Case search available via MyCase system at mycase.in.gov (redirects to public.courts.in.gov/mycase).
+Uses Odyssey case management system. Covers non-confidential cases in trial and appellate courts statewide across
+all Indiana counties. Searchable by case number, party name, or attorney. No authentication required for basic search."""
+example_urls = [
+    "https://mycase.in.gov",
+    "https://public.courts.in.gov/mycase/#/vw/Search"
+]
+
+[content.docket_entries]
+status = "available"
+notes = """Docket entries are accessible through MyCase for cases in the Odyssey system. Detailed case summaries
+are available by clicking 'View details' links from the opinions portal, which deep-link into MyCase."""
+example_urls = [
+    "https://public.courts.in.gov/mycase/#/vw/CaseSummary/eyJ2Ijp7IkNhc2VUb2tlbiI6IkYwSWtlYmtibTQwYjBLbTI1N1VwUm5zaDFURTFXd3p2dURUcDZtdXFwclkxIiwiSGlkZVRvb2xiYXJzIjp0cnVlLCJQQUxvZ28iOmZhbHNlLCJTUkNUIjoiNXIyRnpwbm5mZURBREdLUXJBUTM5cHNGZHpXZC1GdW5yMUJNRlNnTGdFUTEifX0="
+]
+
+[content.recap_documents]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names searchable in MyCase"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "Attorney searchable in MyCase. Attorney license lookup available at courts.in.gov/rollofattorneys/"
+example_urls = [
+    "https://courts.in.gov/rollofattorneys/"
+]
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Judge names available in opinions API responses and oral arguments data"
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court directory available at www.in.gov/courts/directory"
+example_urls = [
+    "https://www.in.gov/courts/directory"
+]
+
+[content.courthouses]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State courts do not handle bankruptcy cases"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable to state courts"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Lower court information available in appellate opinions API"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable - PACER is federal only"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2001"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Appellate opinions available from 2001-present. Oral arguments archives from 2001-present."
+
+update_frequency = "daily"
+
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://www.in.gov/courts/subscribe"
+
+has_search = true
+search_capabilities = ["date_range", "case_number", "party_name", "court", "judge", "county", "full_text"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.ind",
+    "juriscraper.opinions.united_states.state.indctapp",
+    "juriscraper.opinions.united_states.state.indtc",
+    "juriscraper.opinions.united_states.state.indctapp_reclassified",
+    "juriscraper.opinions.united_states_backscrapers.state.ind",
+    "juriscraper.opinions.united_states_backscrapers.state.ind_2005",
+    "juriscraper.opinions.united_states_backscrapers.state.indctapp",
+    "juriscraper.opinions.united_states_backscrapers.state.indtc"
+]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "The site uses multiple subdomains: www.in.gov for main portal, public.courts.in.gov for MyCase and opinions, mycourts.in.gov for oral arguments, and rules.incourts.gov for court rules."
+
+special_document_types = ["Memorandum Decision", "Transfer Disposition"]
+
+data_quality_notes = ""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Indiana provides excellent public access to court data through multiple well-organized portals:
+
+1. **Opinions API**: The Decisions API at public.courts.in.gov/Decisions/api/ provides structured JSON
+   access to appellate opinions. Existing scrapers successfully use this API. Key endpoints:
+   - /api/Search - search opinions with filters
+   - /api/Dropdown/Court - get court list
+   - /api/Dropdown/Judge - get judge list
+   - /api/Dropdown/County - get county list
+   - /api/Dropdown/CaseCategory - get case categories
+
+2. **Oral Arguments**: Well-maintained archive at mycourts.in.gov/arguments with live webcasting
+   and video archives dating back to 2001. Videos available ~2 hours after arguments conclude.
+   No existing scraper for this data source.
+
+3. **Case Search**: MyCase system (Odyssey-based) provides searchable access to trial and appellate
+   court cases statewide. Public access available without login.
+
+4. **Multiple Courts**: The domain serves three appellate courts (Supreme Court, Court of Appeals,
+   Tax Court) through a unified API with court_id parameter.
+
+The site is well-suited for scraping with clear API structure, no authentication requirements,
+and comprehensive data availability. The main limitation is the Terms of Use prohibition on
+"data mining," which should be interpreted as prohibiting bulk harvesting but not legitimate
+research/archival purposes.
+"""
+
+priority = "medium"
+priority_reasoning = "Existing opinion scrapers are working well. Main gap is oral arguments, which are available and well-structured but would require new scraper development. MyCase docket access could be valuable but may have access restrictions."
+
+complexity = "moderate"
+complexity_reasoning = "Opinions: Simple (API already in use). Oral Arguments: Moderate (ASP.NET site with pagination but predictable structure). Dockets: Moderate to Complex (Odyssey system, may require reverse-engineering JavaScript)."
+
+blockers = []

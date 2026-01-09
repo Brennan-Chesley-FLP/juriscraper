@@ -1,0 +1,359 @@
+# Court Site Research Report
+# Office of Hearings and Appeals, U.S. Department of Education
+
+[meta]
+domain = "oha.ed.gov"
+court_ids = ["educationoha"]
+court_name = "Hearings & Appeals U.S. Department of Education"
+court_url = "https://oha.ed.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "vanilla"
+
+platform = "drupal"
+
+scope = "federal_agency"
+
+shared_infrastructure = []
+
+# AJAX API discovered for decisions database
+has_api = true
+api_documented = false
+api_url = "https://www.ed.gov/datagrid/ajax/table/oha_judges_decisions"
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = false
+robots_txt_url = ""
+
+allows_scraping = true
+disallowed_paths = []
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "893 decisions available from judges within the Office of Hearings and Appeals. These are administrative decisions on disputes involving the Department of Education and recipients of federal education funds. Decisions are organized by docket number and include both judges' decisions and Secretary decisions."
+example_urls = [
+    "https://www.ed.gov/laws-and-policy/hearings-and-appeals/oha-judges-decisions-database",
+    "https://www.ed.gov/laws-and-policy/hearings-and-appeals/hearings-and-appeals-secretary-decisions",
+    "https://www.ed.gov/media/document/oha-docket-number-25-31-cp-110499.pdf"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Decisions have docket numbers (e.g., 25-31-CP, 24-38-WG) but not traditional case citations"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Docket numbers are available for each decision along with respondent names, but full docket information is not available in the database"
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Respondent names are listed in the database (e.g., Disability Rights Washington, University of St. Thomas)"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Database contains 893 decisions. Recent decisions from 2024-2025 are visible, but the full date range is unclear without examining all records."
+
+update_frequency = "irregular"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = ["full_text", "docket_number"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+
+scraper_modules = []
+
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "This is not a traditional court but an administrative adjudication body within the U.S. Department of Education. OHA resolves disputes involving the Department and recipients of federal education funds. Decisions from judges can be appealed to the Secretary of Education (separate database available). There are also waiver and offset decisions for salary overpayment matters."
+
+special_document_types = ["waiver_decisions", "offset_decisions", "secretary_decisions"]
+
+data_quality_notes = "Some decisions note that 'some formatting features of the original decisions, such as page numbering, lines, and spacing, may have been modified or lost in the conversion from the original format to PDF.' Original decisions control in case of discrepancies."
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Office of Hearings and Appeals (OHA) within the U.S. Department of Education maintains a searchable
+database of administrative decisions. The site redirects from oha.ed.gov to www.ed.gov/laws-and-policy/hearings-and-appeals.
+
+Key findings:
+- 893 judges' decisions available in searchable database
+- Separate database for Secretary decisions (appeals of OHA decisions)
+- Additional database for waiver and offset decisions (salary overpayment matters)
+- AJAX API endpoint discovered: https://www.ed.gov/datagrid/ajax/table/oha_judges_decisions
+- No robots.txt file present
+- JavaScript required for database table functionality
+- All decisions available as PDFs
+- Site explicitly states decisions are public domain works
+
+The database table is powered by DataTables (jQuery plugin) and loads data via AJAX. This makes it
+straightforward to scrape programmatically by calling the AJAX endpoint directly rather than parsing
+the HTML table.
+
+Decisions are organized by docket number with a clear naming convention (e.g., 25-31-CP, 24-38-WG).
+The database shows 10 entries per page by default with pagination for the full 893 decisions.
+"""
+
+priority = "medium"
+priority_reasoning = "Federal administrative decisions are valuable for legal research, but this is a specialized administrative tribunal rather than a traditional court. No existing scraper exists. The AJAX API makes scraping straightforward."
+
+complexity = "simple"
+complexity_reasoning = "AJAX API endpoint is available, making data extraction straightforward. No authentication required. Public domain content explicitly stated. Standard DataTables pagination."
+
+blockers = [
+    "No robots.txt to indicate crawl rate preferences - should implement conservative rate limiting",
+    "Requires JavaScript to load database table, but AJAX endpoint can be called directly"
+]

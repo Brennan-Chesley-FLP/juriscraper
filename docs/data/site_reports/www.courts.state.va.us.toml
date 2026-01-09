@@ -1,0 +1,417 @@
+# Court Site Research Report: Virginia Court System
+#
+# This report documents the www.courts.state.va.us website which serves
+# both the Supreme Court of Virginia and the Court of Appeals of Virginia
+
+[meta]
+domain = "www.courts.state.va.us"
+court_ids = ["va", "vactapp"]
+court_name = "Virginia Court System"
+court_url = "https://www.courts.state.va.us/"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = false
+javascript_framework = "jquery"
+platform = "drupal"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf", "html"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.courts.state.va.us/robots.txt"
+allows_scraping = true
+disallowed_paths = [
+    "/core/",
+    "/profiles/",
+    "/admin/",
+    "/comment/reply/",
+    "/filter/tips",
+    "/node/add/",
+    "/search/",
+    "/user/register",
+    "/user/password",
+    "/user/login",
+    "/user/logout",
+    "/media/oembed"
+]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Supreme Court published opinions available at http://www.courts.state.va.us/scndex.htm
+Court of Appeals published opinions at https://www.vacourts.gov/wpcap.htm
+Court of Appeals unpublished opinions at https://www.vacourts.gov/wpcau.htm
+Existing scrapers cover these pages. Opinions include case name, docket number, date,
+summary (for Supreme Court), and disposition (for Court of Appeals).
+"""
+example_urls = [
+    "http://www.courts.state.va.us/scndex.htm",
+    "https://www.vacourts.gov/wpcap.htm",
+    "https://www.vacourts.gov/wpcau.htm"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Docket numbers are available in the opinions listings"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """
+Both Supreme Court and Court of Appeals have live oral argument streaming.
+PDF announcements indicate when oral arguments are available:
+- Supreme Court: /static/news/items/scv_oral_session_livestream.pdf
+- Court of Appeals: /static/news/items/cav_oral_session_livestream.pdf
+However, archived oral arguments availability is unknown.
+"""
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """
+Supreme Court case information system (ACMS-SCV) at https://eapps.courts.state.va.us/acms-public
+Allows searching by:
+- SCV Record Number
+- Party name (Appellant/Petitioner or Appellee/Respondent)
+- Case type
+- Lower tribunal
+- Tribunal case number
+- Status (Active/Inactive/Both)
+Case management system appears to be older technology (circa 2012) but functional.
+"""
+example_urls = [
+    "https://eapps.courts.state.va.us/acms-public"
+]
+
+[content.docket_entries]
+status = "unknown"
+notes = "ACMS system may contain docket entries but requires deeper exploration"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "RECAP is specific to federal PACER system"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "ACMS system contains party names for searching"
+example_urls = []
+
+[content.party_types]
+status = "partial"
+notes = "System distinguishes between Appellant/Petitioner and Appellee/Respondent"
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+Site provides comprehensive directory of Virginia courts including:
+- Circuit Courts (31 judicial circuits)
+- General District Courts (32 districts)
+- Juvenile and Domestic Relations District Courts (32 districts)
+- Magistrate offices (32 districts)
+Links available to individual court homepages.
+"""
+example_urls = [
+    "https://www.vacourts.gov/courts/circuit",
+    "https://www.vacourts.gov/courts/gd",
+    "https://www.vacourts.gov/courts/jdr"
+]
+
+[content.courthouses]
+status = "partial"
+notes = "Court directories likely contain location information"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Virginia state courts don't handle bankruptcy (federal jurisdiction)"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system, not federal"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "ACMS system includes lower tribunal information for appeals"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "PACER is federal system only"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable to Virginia state courts"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = """
+The ACMS system appears to have historical cases. The opinion pages (scndex.htm, wpcap.htm, wpcau.htm)
+appear to show recent opinions (existing scrapers limit to last 60 days for Supreme Court).
+"""
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "Listed on site as 'Subscribe to Updates'"
+has_search = true
+search_capabilities = [
+    "party_name",
+    "case_number",
+    "case_type",
+    "lower_tribunal",
+    "status"
+]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.va",
+    "juriscraper.opinions.united_states.state.vactapp_p",
+    "juriscraper.opinions.united_states.state.vactapp_u"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Virginia has a unique three-tier court system with Circuit Courts (trial courts of general jurisdiction),
+and two levels of district courts (General District and Juvenile & Domestic Relations).
+The Supreme Court and Court of Appeals handle appellate matters.
+
+The site uses both www.courts.state.va.us and www.vacourts.gov domains interchangeably.
+
+The ACMS (Appellate Case Management System) is older technology (Version 3.1.7 from 2012)
+but appears to still be functional. It has some JavaScript errors (jQuery not defined) but
+the core functionality appears intact.
+"""
+special_document_types = []
+data_quality_notes = """
+The Supreme Court opinions page (scndex.htm) provides summaries of opinions which is helpful.
+Court of Appeals pages provide disposition information.
+"""
+seasonal_notes = "Site maintenance occurs nightly from 3 a.m. to 6 a.m."
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Virginia Court System website provides good public access to opinions for both the
+Supreme Court and Court of Appeals. Existing scrapers already cover the main opinion
+pages effectively. The site also has an Appellate Case Management System (ACMS-SCV)
+that provides docket information but would require more complex scraping with session
+management.
+
+The site is built on Drupal and has some JavaScript issues (jQuery not loading properly)
+but the core HTML content is accessible without JavaScript rendering.
+
+Key opportunities:
+1. ACMS system could provide richer docket/case data but requires form-based searching
+2. Oral arguments availability should be investigated further
+3. Lower court case information systems were mentioned but not fully explored
+4. Court directories and judge information may be available
+
+The existing scrapers appear to be working well for opinions. No immediate scraper
+updates seem necessary unless the URLs have changed.
+"""
+priority = "medium"
+priority_reasoning = """
+Existing scrapers already cover the primary use case (opinions). Priority is medium for:
+1. Exploring ACMS docket data (would require more complex scraping)
+2. Investigating oral arguments archives
+3. Exploring lower court systems (Circuit, General District, JDR courts)
+
+The site allows scraping per robots.txt and provides good public access.
+"""
+complexity = "moderate"
+complexity_reasoning = """
+- Simple HTML scraping for opinions (already implemented)
+- Moderate complexity for ACMS docket system (requires form submission, session management)
+- Site has some JavaScript errors but core content is in HTML
+- No captchas or authentication required for public content
+- Some endpoints use older technology (circa 2012) which may have quirks
+"""
+blockers = []

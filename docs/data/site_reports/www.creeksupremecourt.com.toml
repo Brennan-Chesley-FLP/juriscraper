@@ -1,0 +1,384 @@
+# Court Site Research Report: Muscogee (Creek) Nation Supreme Court
+#
+# Research completed: 2026-01-09
+# Researcher: agent
+
+[meta]
+domain = "www.creeksupremecourt.com"
+court_ids = ["muscogee"]
+court_name = "Muscogee (Creek) Nation Supreme Court"
+court_url = "https://www.creeksupremecourt.com"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "squarespace"
+platform = "squarespace"
+scope = "court_specific"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.creeksupremecourt.com/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/config", "/search", "/account", "/commerce/digital-download/", "/api/", "/static/"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = "Final opinions available from 2009-2025, organized by year. PDFs include orders, opinions, and administrative orders. Some documents include briefs filed by parties."
+example_urls = [
+    "https://creeksupremecourt.com/s/Doc-8-Order-and-Opinion-06042025.pdf",
+    "https://creeksupremecourt.com/s/Doc-13-Order-and-Opinion-08302022.pdf",
+    "https://creeksupremecourt.com/s/SC_11-13.pdf"
+]
+
+[content.opinion_clusters]
+status = "partial"
+notes = "Cases are organized on a single page with expandable sections showing related documents (briefs, opinions). Some cases have multiple related documents grouped together."
+example_urls = ["https://creeksupremecourt.com/final-opinions"]
+
+[content.citations]
+status = "unavailable"
+notes = "Case citations are embedded in PDF documents but not exposed as structured data on the website."
+example_urls = []
+
+[content.oral_arguments]
+status = "partial"
+notes = "Live stream available during active court sessions via embedded YouTube player. No archive of past oral arguments appears to be available on the website."
+example_urls = ["https://www.creeksupremecourt.com/"]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Not observed on the website."
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Open cases listed with case numbers and party names. Disclaimer notes that the list may not be complete and official docket sheets must be requested from the Court Clerk. Final opinions page also lists historical dockets with documents."
+example_urls = [
+    "https://creeksupremecourt.com/open-cases",
+    "https://creeksupremecourt.com/final-opinions"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available documents for each case include briefs, orders, and opinions with filing dates embedded in filenames. Cases expand to show multiple documents when clicked."
+example_urls = ["https://creeksupremecourt.com/final-opinions"]
+
+[content.recap_documents]
+status = "partial"
+notes = "Briefs filed by appellants and respondents are available for some cases. All documents are in PDF format."
+example_urls = [
+    "https://creeksupremecourt.com/s/Doc-25-Order-for-Attorney-Discipline-07102025-2h35.pdf",
+    "https://creeksupremecourt.com/s/Doc-7-Respondents-Brief-In-Chief-01172025.pdf"
+]
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names are visible in case titles on the open cases and final opinions pages, but no structured party information is available."
+example_urls = [
+    "https://creeksupremecourt.com/open-cases",
+    "https://creeksupremecourt.com/final-opinions"
+]
+
+[content.party_types]
+status = "unavailable"
+notes = "Party roles (appellant, respondent, etc.) are not explicitly marked on the website."
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Attorney information not exposed on website, though briefs may contain attorney names."
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = "Law firm information not exposed on website."
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = "Attorney-party relationships not exposed on website."
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = "Justices listed on dedicated page with names and photos, but no structured biographical data."
+example_urls = ["https://www.creeksupremecourt.com/justices"]
+
+[content.positions]
+status = "unknown"
+notes = "Court indicates Chief Justice and Vice-Chief Justice are selected annually from the seven justices, but current officeholders not clearly identified on website."
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = "Educational background of justices not provided on website."
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = "Political affiliations not applicable for tribal court appointments."
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "ABA ratings not applicable for tribal court."
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = "Justices serve six-year terms after nomination by Principal Chief and confirmation by National Council, not retention elections."
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Court metadata available including jurisdiction, structure, and contact information."
+example_urls = ["https://www.creeksupremecourt.com/"]
+
+[content.courthouses]
+status = "available"
+notes = "Physical address provided: P.O. Box 546, Hwy 75 & Loop 56, Okmulgee, OK 74447. Phone and fax numbers available."
+example_urls = ["https://www.creeksupremecourt.com/"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable for tribal supreme court."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = "Not applicable for tribal supreme court."
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = "Not applicable for tribal supreme court."
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "While the court has jurisdiction over criminal matters, detailed criminal counts are not exposed on the website."
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = "Criminal complaint documents not separately exposed on website."
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Not applicable for tribal court."
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "As an appellate court, lower court information may be in case documents, but not structured on website."
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not applicable for tribal court."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable for tribal court."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unavailable"
+notes = "Citations embedded in PDF documents but not exposed as structured data."
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = "Not available as structured data."
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = "No tagging system observed."
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = "No search functionality observed on the website."
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2009-08-21"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Complete archive of final opinions from 2009 to present, organized by year. Coverage includes orders, opinions, and administrative orders."
+update_frequency = "irregular"
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+has_search = false
+search_capabilities = []
+browse_only = true
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+This is a tribal court exercising inherent sovereign authority. The court has exclusive
+appellate jurisdiction over all civil and criminal matters falling under Mvskoke
+(Muscogee Creek Nation) jurisdiction. The court was re-established by Article VII of
+the modern Mvskoke Nation Constitution ratified on October 6, 1979.
+
+Seven justices serve six-year terms after nomination by the Principal Chief and
+confirmation by the National Council. The court annually selects a Chief Justice and
+Vice-Chief Justice from its members.
+
+The website includes a disclaimer that case lists may not be complete and official
+docket sheets must be requested from the Court Clerk.
+"""
+special_document_types = ["Administrative Orders"]
+data_quality_notes = "Website explicitly notes that case lists may not be complete. For official records, contact required."
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Muscogee (Creek) Nation Supreme Court website is built on Squarespace and provides
+public access to final opinions from 2009-present in PDF format. The site has two main
+content sections: "Open Cases" (currently active appeals) and "Final Opinions"
+(historical archive organized by year).
+
+Opinions and related case documents (briefs, orders) are hosted as static PDFs. The
+site requires JavaScript for navigation but the actual document links are accessible
+once the page loads. No API exists - this is a standard Squarespace site with
+manually uploaded PDF files.
+
+The robots.txt blocks AI training bots (ClaudeBot, GPTBot, etc.) but does not restrict
+general web crawling. The site serves a single tribal court jurisdiction.
+
+Live streaming of oral arguments is available during active court sessions via embedded
+YouTube, but no archive of past oral arguments is provided.
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority due to:
+- Public access with no authentication required
+- Good historical coverage back to 2009
+- Represents important tribal court jurisdiction
+- No existing scraper
+- Simple technical implementation (Squarespace + static PDFs)
+
+However:
+- Limited scope (single tribal court)
+- No API or structured data
+- Disclaimer indicates incomplete case lists
+- Browse-only interface with no search
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Simple complexity due to:
+- Static HTML pages with predictable structure
+- All documents are direct PDF links
+- No authentication or rate limiting concerns
+- Standard Squarespace platform
+- Simple pagination by year
+
+Scraping approach:
+1. Parse main opinions page to get case listings by year
+2. Extract case numbers, titles, and document links
+3. Download PDF documents
+4. Parse metadata from filenames and case titles
+
+The main challenges are:
+- JavaScript required for initial page rendering
+- No structured metadata (must parse from text)
+- Manual extraction of dates from filenames
+- Expandable sections for some cases require interaction
+"""
+
+blockers = []

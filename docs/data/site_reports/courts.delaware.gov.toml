@@ -1,0 +1,499 @@
+# Court Site Research Report: courts.delaware.gov
+#
+# This report documents research findings for the Delaware Courts website,
+# which serves all Delaware state courts.
+
+[meta]
+domain = "courts.delaware.gov"
+court_ids = ["del", "delch", "delsuperct", "delctcompl", "delfamct", "deljudct"]
+court_name = "Delaware Courts (Statewide Portal)"
+court_url = "https://courts.delaware.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+# Site loads without JavaScript, though some features may require it
+requires_javascript = false
+javascript_framework = ""
+
+# Platform appears to be custom .aspx-based system (ASP.NET)
+platform = "custom"
+
+# This is a statewide portal serving all Delaware courts
+scope = "statewide"
+
+# All Delaware courts share this infrastructure
+shared_infrastructure = ["del", "delch", "delsuperct", "delctcompl", "delfamct", "deljudct"]
+
+# No public API discovered
+has_api = false
+api_documented = false
+api_url = ""
+
+# No bulk downloads identified
+bulk_download_available = false
+bulk_download_details = ""
+
+# Documents are provided as PDFs
+document_formats = ["pdf"]
+
+# Uses standard session cookies for navigation
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://courts.delaware.gov/robots.txt"
+
+# robots.txt primarily disallows specific opinion download URLs (specific IDs)
+# General opinions path appears to be allowed
+allows_scraping = true
+disallowed_paths = [
+    "/opinions/download.aspx?ID=144670",
+    "/opinions/download.aspx?ID=135640",
+    "/opinions/download.aspx?ID=80280",
+    "/opinions/download.aspx?ID=160340",
+    "/opinions/download.aspx?ID=213920",
+    "/opinions/download.aspx?ID=71240",
+    "/OPINIONS/download.ASPx?ID=71240",
+    "/opinions/download.aspx?ID=206330",
+    "/Superior/pdf/admin_order_2015_1.pdf",
+    "/opinions/download.aspx?ID=203680",
+    "/opinions/download.aspx?ID=237150",
+    "/_declt"
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Comprehensive opinions database accessible at /opinions/ with filtering by:
+- Court (Supreme Court, Court of Chancery, Superior Court, Court of Common Pleas, Family Court, Justice of the Peace)
+- Date range (past 7/30/180 days, this year, custom dates)
+- Case type (All, Civil, Criminal, Complex Commercial Litigation Division)
+- Search by keyword
+
+Each opinion listing includes:
+- Parties/Caption
+- Date
+- File Number (docket)
+- Court
+- Type (Civil/Criminal)
+- Judicial Officer
+- Description
+
+Download URL pattern: /Opinions/Download.aspx?id={numeric_id}
+
+Note: Site disclaimer states electronic versions may contain errors; print versions control.
+"""
+example_urls = [
+    "https://courts.delaware.gov/Opinions/Download.aspx?id=389860",
+    "https://courts.delaware.gov/opinions/List.aspx?ag=supreme%20court",
+    "https://courts.delaware.gov/opinions/List.aspx?ag=Court%20of%20Chancery"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Docket numbers are available in opinion listings"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """
+Supreme Court provides oral argument video recordings at /supreme/oralarguments/
+Page contains extensive list of video recordings with:
+- Case names
+- Dates
+- Video player embedded
+- Appears to be hosted externally (video content)
+
+Live and recorded proceedings of non-confidential cases argued in the Supreme Court.
+"""
+example_urls = [
+    "https://courts.delaware.gov/supreme/oralarguments/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Video recordings available but no separate transcripts identified"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = """
+Civil docket search available through CourtConnect system (separate subdomain):
+https://courtconnect.courts.delaware.gov/cc/cconnect/ck_public_qry_main.cp_main_idx
+
+CourtConnect covers:
+- Superior Court civil cases
+- Court of Common Pleas civil cases
+- Justice of the Peace Court civil cases
+
+Allows searching by:
+- Person's name
+- Business name
+- Case type
+- Judgments
+
+Criminal dockets not publicly accessible.
+"""
+example_urls = [
+    "https://courtconnect.courts.delaware.gov/cc/cconnect/ck_public_qry_main.cp_main_idx",
+    "https://courts.delaware.gov/docket.aspx"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through CourtConnect for civil cases only"
+example_urls = []
+
+[content.recap_documents]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party names visible in opinions and docket search"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "partial"
+notes = """
+Judicial officers listed for each opinion. Information about judges available
+in various sections:
+- /supreme/justices.aspx
+- Individual court pages list judges
+"""
+example_urls = []
+
+[content.positions]
+status = "partial"
+notes = "Judicial positions identified in opinions and court pages"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+Court information available throughout site:
+- Supreme Court: /supreme/
+- Court of Chancery: /chancery/
+- Superior Court: /superior/
+- Family Court: /family/
+- Court of Common Pleas: /commonpleas/
+- Justice of the Peace Court: /jpcourt/
+
+Hours and locations: /locations/
+"""
+example_urls = [
+    "https://courts.delaware.gov/locations/"
+]
+
+[content.courthouses]
+status = "available"
+notes = "Courthouse locations and hours available at /locations/"
+example_urls = [
+    "https://courts.delaware.gov/locations/"
+]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Delaware state courts do not handle bankruptcy (federal jurisdiction)"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system, not federal"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Supreme Court opinions include lower court information in opinion text"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Additional Content ---
+
+[content.calendars]
+status = "available"
+notes = """
+Court calendars available at /calendars/ including:
+- Court of Chancery calendars
+- Superior Court calendars (by county: Kent, New Castle, Sussex)
+- Justice of the Peace Court constable sales
+- Supreme Court argument lists
+
+Calendars can be filtered by court and county.
+"""
+example_urls = [
+    "https://courts.delaware.gov/calendars/"
+]
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+# Opinions available from current year, search supports custom date ranges
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Custom date search available; extent of historical coverage not determined"
+
+# Opinions appear daily
+update_frequency = "daily"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = ["date_range", "court_filter", "case_type", "keyword", "full_text"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.delaware",
+    "juriscraper.opinions.united_states.state.delch",
+    "juriscraper.opinions.united_states.state.delsuperct",
+    "juriscraper.opinions.united_states.state.delctcompl"
+]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Court of Chancery is a specialized business/equity court with significant
+  national importance for corporate law
+- Complex Commercial Litigation Division (CCLD) is a specialized division
+  within Superior Court
+- Family Court appears to have limited public opinion availability
+- Justice of the Peace Court handles small claims and traffic
+- CourtConnect is a separate system (ACS Government Solutions/Xerox) for
+  civil docket search, requires specific browser support
+"""
+
+special_document_types = []
+
+data_quality_notes = """
+Site disclaimer: "These electronic orders may contain computer-generated errors
+or other deviations from the official printed versions. In case of discrepancies
+between the print and electronic versions of orders, the print version controls."
+"""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Delaware Courts operates a comprehensive statewide portal serving all Delaware
+state courts. The site provides excellent public access to opinions from all
+courts, with a well-structured search interface. Existing scrapers cover the
+major courts for opinions (Supreme Court, Court of Chancery, Superior Court,
+Court of Common Pleas).
+
+Key findings:
+1. Opinions: Fully accessible with good search/filter capabilities
+2. Oral Arguments: Video recordings available for Supreme Court
+3. Dockets: Civil dockets available through separate CourtConnect system
+4. No public API identified
+5. Standard HTML/PDF delivery, site functions without JavaScript
+6. Multiple existing scrapers already in place
+
+Gaps in existing coverage:
+- Family Court opinions (delfamct) - may be limited due to confidentiality
+- Court on the Judiciary opinions (deljudct)
+- Oral argument video scraping not implemented
+- CourtConnect docket data not scraped
+
+The site is well-maintained, frequently updated, and respectful of robots.txt.
+Only specific opinion IDs are disallowed, likely problematic cases.
+"""
+
+priority = "low"
+priority_reasoning = """
+Good existing scraper coverage for major courts. The missing courts (Family Court,
+Court on the Judiciary) may have limited public data due to the nature of cases.
+Oral arguments are available but video scraping is complex. CourtConnect docket
+system would require separate integration. Main opinion sources are already covered.
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+For opinions: Simple HTML scraping, existing patterns work well, no JavaScript
+required, standard URL patterns. The existing scrapers demonstrate this.
+
+For new features (oral arguments, CourtConnect dockets): Would be moderate complexity
+due to separate systems and video handling requirements.
+"""
+
+blockers = []

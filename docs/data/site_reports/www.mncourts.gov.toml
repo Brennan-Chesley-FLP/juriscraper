@@ -1,0 +1,371 @@
+# Court Site Research Report
+# Domain: www.mncourts.gov
+# Research Date: 2026-01-09
+
+[meta]
+domain = "www.mncourts.gov"
+court_ids = ["minnctapp", "minn"]
+court_name = "Minnesota Judicial Branch"
+court_url = "https://www.mncourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "vanilla"
+platform = "custom"
+scope = "statewide"
+shared_infrastructure = []
+has_api = false
+api_documented = false
+api_url = ""
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.mncourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = ["/__data/assets/", "/__data/assets/pdf_file/", "/_designs/", "/_media/", "/_api/", "/*?sq_content_src=", "/*?SQ_DESIGN_NAME=", "/*_recache", "/*_edit", "/*_admin", "/*_login", "/*_performance", "/*_design", "/*_web_services", "/sandbox/", "/site-data-sources/", "/search"]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """Supreme Court and Court of Appeals opinions available via multiple channels:
+1. Recent opinions at mncourts.gov/supremecourt/recentopinions and mncourts.gov/courtofappeals/recentopinions
+2. PDF documents hosted at mncourts.gov/_media/migration/appellate/
+3. Searchable archive at mn.gov/law-library maintained by Minnesota State Law Library
+Existing scrapers use the Law Library search interface. Opinions released at 10:00 AM with media notice."""
+example_urls = [
+    "https://mncourts.gov/_media/migration/appellate/supreme-court/standard-opinions/07jan26/OPA240107-010726.pdf",
+    "https://mncourts.gov/supremecourt/recentopinions/minnesota-supreme-court-opinion",
+    "https://mn.gov/law-library/search/index.jsp?v:sources=mn-law-library-opinions"
+]
+
+[content.opinion_clusters]
+status = "available"
+notes = "Opinions grouped by release date. Opinion sets available at mncourts.gov/supremecourt/recentopinions/opinion-sets"
+example_urls = ["https://mncourts.gov/supremecourt/recentopinions/opinion-sets"]
+
+[content.citations]
+status = "available"
+notes = "Case citations included in opinion metadata (format: A24-0107, A23-1504, etc.)"
+example_urls = []
+
+[content.oral_arguments]
+status = "available"
+notes = """Oral arguments available for both Supreme Court and Court of Appeals:
+- Supreme Court calendar at mncourts.gov/supremecourt/calendar
+- Court of Appeals calendar at mncourts.gov/courtofappeals/calendar
+- YouTube channel: youtube.com/user/MNJudicialBranch
+- Supreme Court holds arguments first full week of month, September through May"""
+example_urls = [
+    "https://mncourts.gov/supremecourt/calendar",
+    "https://mncourts.gov/courtofappeals/calendar",
+    "https://www.youtube.com/user/MNJudicialBranch"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = "Video/audio available on YouTube but transcripts not explicitly mentioned"
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "available"
+notes = """Multiple access points for dockets:
+1. Minnesota Court Records Online (MCRO) for district court records at mncourts.gov/access-case-records/mcro
+2. Minnesota Appellate Courts Case Management System (P-MACS) at macsnc.courts.state.mn.us/ctrack/publicLogin.jsp
+3. In-person access at courthouse public terminals (most complete)"""
+example_urls = [
+    "https://mncourts.gov/access-case-records/mcro",
+    "http://macsnc.courts.state.mn.us/ctrack/publicLogin.jsp"
+]
+
+[content.docket_entries]
+status = "partial"
+notes = "Docket entries available through MCRO and P-MACS systems. Courthouse terminals provide most complete access."
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "RECAP is federal court-specific, not applicable to state courts"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Party information available in docket systems and opinions"
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "partial"
+notes = "Attorney information in case records. Attorney notification system via email for appellate cases."
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Judicial Officer Directory available at mncourts.gov/about-the-courts/judicialdirectory. Judge names included in opinions."
+example_urls = ["https://mncourts.gov/about-the-courts/judicialdirectory"]
+
+[content.positions]
+status = "partial"
+notes = "Judicial positions listed in directory"
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Comprehensive court information including contact info and locations via Find Courts feature"
+example_urls = ["https://mncourts.gov/find-courts"]
+
+[content.courthouses]
+status = "available"
+notes = "Courthouse locations searchable via Find Courts feature"
+example_urls = ["https://mncourts.gov/find-courts"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State courts do not handle bankruptcy (federal jurisdiction)"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "partial"
+notes = "Available in docket systems"
+example_urls = []
+
+[content.criminal_complaints]
+status = "partial"
+notes = "Available in docket systems"
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "Federal courts only"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Lower court information available for appellate cases"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "PACER is federal court system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable to state courts"
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1998-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Historical opinions available via Minnesota State Law Library archive at mn.gov/law-library. Existing scrapers indicate coverage back to 1998."
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://service.govdelivery.com/accounts/MNCOURTS/subscriber/new"
+has_search = true
+search_capabilities = ["full_text", "citation", "case_number", "party_name", "date_range"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = [
+    "juriscraper.opinions.united_states.state.minn",
+    "juriscraper.opinions.united_states.state.minnctapp_p",
+    "juriscraper.opinions.united_states.state.minnctapp_u",
+    "juriscraper.opinions.united_states.state.minnag"
+]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """Minnesota has a well-integrated statewide system:
+- Main portal at mncourts.gov for court information and recent opinions
+- Separate Law Library site at mn.gov/law-library for searchable opinion archive
+- MCRO (Minnesota Court Records Online) for district court dockets
+- P-MACS for appellate court dockets
+- Strong emphasis on self-help resources and public access
+- Email notification system for attorneys in appellate cases (mandatory as of July 2011)"""
+special_document_types = ["opinion sets", "orders on petitions for further review", "special release opinions"]
+data_quality_notes = "Existing scrapers use Law Library search interface rather than scraping mncourts.gov directly"
+seasonal_notes = "Supreme Court holds oral arguments September through May"
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Minnesota provides excellent public access to court records through a well-organized statewide system.
+Published opinions are freely available through multiple channels with daily updates at 10:00 AM.
+Existing scrapers successfully use the Minnesota State Law Library search interface for opinion data.
+
+Key findings:
+1. Opinions: Well covered by existing scrapers using Law Library search API
+2. Oral Arguments: Available on YouTube but no existing scraper
+3. Dockets: Available through MCRO (district) and P-MACS (appellate) systems
+4. Infrastructure: Clean, modern website with good public access features
+5. Documentation: Excellent self-help resources and clear navigation
+
+The state provides multiple access points (web, email notifications, courthouse terminals) and
+maintains a comprehensive Law Library archive with advanced search capabilities. The system is
+designed for both public and attorney access with separate portals as needed.
+"""
+
+priority = "low"
+priority_reasoning = """
+Opinions are already well-covered by existing scrapers using the Law Library search interface.
+Potential improvements include:
+1. Adding oral argument scraper for YouTube channel
+2. Exploring MCRO/P-MACS for docket data
+Priority is low because core opinion coverage exists and works well. Additional enhancements
+would be nice-to-have rather than critical.
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+- Simple: Opinions via Law Library search interface (already implemented)
+- Simple: Direct PDF downloads from mncourts.gov
+- Moderate: Oral arguments via YouTube
+- Moderate: Dockets via MCRO/P-MACS (may require form submission)
+The existing scraper architecture is clean and the Law Library interface provides structured data.
+"""
+
+blockers = []

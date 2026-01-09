@@ -1,0 +1,332 @@
+# Court Site Research Report
+# Florida Courts Statewide Portal
+
+[meta]
+domain = "www.flcourts.org"
+court_ids = ["fladistctapp"]
+court_name = "Florida District Courts of Appeal (Statewide Portal)"
+court_url = "https://www.flcourts.gov"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "react"
+platform = "next.js"
+scope = "statewide"
+shared_infrastructure = []
+has_api = true
+api_documented = false
+api_url = "https://flcourts-media.flcourts.gov/api/"
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.flcourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = [
+    "/admin/",
+    "/site_admin/",
+    "/search",
+    "/search/",
+    "/content/search",
+    "/content/advancedsearch",
+    "/content/tipafriend",
+    "/layout/set/print",
+    "/rss",
+    "/media/",
+    "/ezinfo/",
+    "/user/",
+    "/test-area/"
+]
+crawl_delay_seconds = 0
+rate_limit_notice = ""
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "partial"
+notes = "The statewide portal www.flcourts.gov is primarily an information portal, not a direct repository of opinions. Opinions from Florida's District Courts of Appeal are available through two main systems: (1) ACIS (Appellate Case Information System) - a statewide search portal for appellate court dockets and documents; and (2) Individual DCA websites (e.g., 6dca.flcourts.gov) which host opinions on separate subdomains. The www.flcourts.gov site redirects from www.flcourts.org and serves as the central information hub but does not directly host opinion documents."
+example_urls = [
+    "https://www.flcourts.gov/Courts-System/acis",
+    "https://www.flcourts.gov/Courts-System/Court-Structure/District-Courts-of-Appeal"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.oral_arguments]
+status = "unknown"
+notes = "May be available through ACIS or individual DCA sites"
+example_urls = []
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "ACIS (Appellate Case Information System) provides docket search functionality for Florida Supreme Court and all six District Courts of Appeal. Requires separate research of ACIS system."
+example_urls = ["https://www.flcourts.gov/Courts-System/acis"]
+
+[content.docket_entries]
+status = "partial"
+notes = "Available through ACIS for registered users and public documents"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not a PACER/RECAP system"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.party_types]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = "Comprehensive information about Florida's court system structure, locations, and organization"
+example_urls = [
+    "https://www.flcourts.gov/Courts-System/Court-Structure",
+    "https://www.flcourts.gov/Courts-System/Court-Structure/District-Courts-of-Appeal"
+]
+
+[content.courthouses]
+status = "partial"
+notes = "Court locator tool available on homepage"
+example_urls = ["https://www.flcourts.gov/"]
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "Not a PACER system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "unknown"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "ACIS provides access to historical appellate court records"
+update_frequency = "daily"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://confirmsubscription.com/h/j/9AE62DED5C797617"
+has_search = true
+search_capabilities = ["site-wide search"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = false
+scraper_modules = []
+covers_opinions = false
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = "www.flcourts.org redirects to www.flcourts.gov. This is the statewide information portal managed by the Office of the State Courts Administrator (OSCA). It serves as an informational hub rather than a direct repository of court opinions. The actual District Court of Appeal opinions are accessed through: (1) ACIS - a statewide appellate case management system requiring separate research, and (2) Individual DCA subdomains (e.g., 1dca.flcourts.gov, 2dca.flcourts.gov, etc.). Each of the six DCAs may have separate websites hosting their opinions. This domain should be researched primarily as an informational resource and gateway to the actual opinion sources."
+special_document_types = []
+data_quality_notes = "Site uses Next.js/React with API calls to flcourts-media.flcourts.gov for content delivery"
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+www.flcourts.org (redirects to www.flcourts.gov) is Florida's statewide courts information portal, NOT a direct source of District Court of Appeal opinions. Built with Next.js/React, it provides information about court structure, services, family law forms, and news. The site references ACIS (Appellate Case Information System) for accessing appellate court dockets and documents from the Florida Supreme Court and all six DCAs, but ACIS appears to be a separate application/portal requiring independent research. Individual DCAs also have their own subdomains (e.g., 6dca.flcourts.gov) that may host opinions directly. The court_id 'fladistctapp' in courts.toml lists this URL, but this is misleading - this domain is the statewide portal, not the actual opinion source. Scraping efforts should focus on: (1) ACIS system, (2) Individual DCA subdomains, or (3) API discovery from the actual opinion-hosting sites.
+"""
+priority = "low"
+priority_reasoning = "This is an informational portal, not a direct opinion source. While technically scrapable (Next.js with JSON API), it does not host the opinion content that would be valuable for juriscraper. The actual opinion sources are ACIS and individual DCA subdomains, which should be prioritized for research instead. The court_url in courts.toml for fladistctapp should likely point to ACIS or individual DCA sites rather than this statewide portal."
+complexity = "moderate"
+complexity_reasoning = "Modern Next.js/React SPA requiring JavaScript rendering. Has discoverable JSON API endpoints at flcourts-media.flcourts.gov/api/. However, since this site doesn't host opinions, complexity assessment is somewhat moot for scraping purposes."
+blockers = [
+    "Site does not host District Court of Appeal opinions - only provides information and links to ACIS/DCA sites",
+    "ACIS appears to be a separate system requiring independent research and possibly registration",
+    "Individual DCA opinions may be distributed across 6+ separate subdomain websites"
+]

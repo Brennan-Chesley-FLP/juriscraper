@@ -1,0 +1,400 @@
+# Court Site Research Report: Wyoming Judicial Branch
+#
+# This report documents the www.courts.state.wy.us website which serves
+# the Wyoming Supreme Court (redirects to www.wyocourts.gov)
+
+[meta]
+domain = "www.courts.state.wy.us"
+court_ids = ["wyo"]
+court_name = "Wyoming Supreme Court"
+court_url = "https://www.courts.state.wy.us"
+research_date = "2026-01-09"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "wordpress"
+platform = "wordpress"
+scope = "statewide"
+shared_infrastructure = []
+has_api = true
+api_documented = false
+api_url = "https://opinions.courts.state.wy.us/Home/GetOpinions"
+bulk_download_available = false
+bulk_download_details = ""
+document_formats = ["pdf"]
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://www.wyocourts.gov/robots.txt"
+allows_scraping = true
+disallowed_paths = [
+    "/*?*s=",
+    "/search",
+    "/*search*",
+    "/*?*search*",
+    "/*?*query*",
+    "/*?*keyword*"
+]
+crawl_delay_seconds = 0
+rate_limit_notice = "Custom bot protection rules - blocks search URLs to prevent bot abuse of Algolia API"
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Supreme Court opinions available via JSON API at https://opinions.courts.state.wy.us/Home/GetOpinions
+The API accepts StartDate and EndDate parameters (format: MM/DD/YYYY). Without parameters, returns entire dataset.
+Opinions are searchable by date range, appellant name, and appellee name.
+The website notes: "Opinions and orders published prior to 2006 are not available in this search."
+PDFs are hosted at https://documents.courts.state.wy.us/Opinions/
+Each opinion includes: OpinionID (citation like "2026 WY 5"), PublishDate, Appellant, Appellee, DocketNumber, and DocumentName (PDF filename).
+Existing scraper uses this API and has been maintained since 2014 with multiple updates.
+"""
+example_urls = [
+    "https://www.wyocourts.gov/wy-supreme-court-opinions/",
+    "https://opinions.courts.state.wy.us/Home/GetOpinions",
+    "https://documents.courts.state.wy.us/Opinions/S-25-0217%20Wallentine%20-%20Updated%20Order%20Affirming%20the%20District%20Court%27s%20Judgment%20and%20Sentence.pdf"
+]
+
+[content.opinion_clusters]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = "Opinion IDs follow standard citation format (e.g., '2026 WY 5')"
+example_urls = []
+
+[content.oral_arguments]
+status = "partial"
+notes = """
+The site mentions oral argument scheduling and livestreaming.
+Main page shows "Upcoming Oral Arguments" with specific dates and times.
+Note on main page: "Trial court livestreams unavailable until further notice"
+Supreme Court oral arguments appear to be available but archive accessibility unclear.
+"""
+example_urls = [
+    "https://www.wyocourts.gov/calendar/"
+]
+
+[content.audio_transcripts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "partial"
+notes = "Docket numbers are available in opinion metadata, but full docket information system not explored"
+example_urls = []
+
+[content.docket_entries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = "Appellant and appellee names available in opinion metadata and searchable"
+example_urls = []
+
+[content.party_types]
+status = "partial"
+notes = "System distinguishes appellant and appellee"
+example_urls = []
+
+[content.attorneys]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "available"
+notes = "Information about justices and judges available on court pages"
+example_urls = [
+    "https://www.wyocourts.gov/supreme-court/"
+]
+
+[content.positions]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+Comprehensive information about Wyoming court system:
+- Supreme Court
+- District Courts
+- Chancery Court
+- Circuit Courts
+- Treatment and Diversion Courts
+"""
+example_urls = [
+    "https://www.wyocourts.gov/supreme-court/",
+    "https://www.wyocourts.gov/district-court/",
+    "https://www.wyocourts.gov/court/chancery-court/",
+    "https://www.wyocourts.gov/circuit-courts/"
+]
+
+[content.courthouses]
+status = "partial"
+notes = "Contact information available: Wyoming Supreme Court at 2301 Capitol Avenue, Cheyenne, WY 82001"
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "State court system - bankruptcy is federal jurisdiction"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+[content.originating_court_information]
+status = "partial"
+notes = "Existing scraper extracts lower court and judge from opinion text"
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State court system"
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unknown"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unknown"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "2006-01-01"
+latest_date = "ongoing"
+has_historical = true
+historical_notes = "Opinions available from 2006 onwards via the search system. Pre-2006 opinions not available in the searchable database."
+update_frequency = "weekly"
+has_subscription = true
+subscription_type = "email"
+subscription_url = "https://public.govdelivery.com/accounts/WYJB/subscriber/new?qsp=CODE_RED"
+has_search = true
+search_capabilities = ["date_range", "appellant_name", "appellee_name"]
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+scraper_modules = ["juriscraper.opinions.united_states.state.wyo"]
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+known_issues = []
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+Wyoming uses www.courts.state.wy.us which redirects to www.wyocourts.gov.
+The site uses multiple subdomains:
+- www.wyocourts.gov (main WordPress site)
+- opinions.courts.state.wy.us (JSON API)
+- documents.courts.state.wy.us (PDF storage)
+
+Wyoming has a unique Chancery Court with its own orders and decisions section.
+"""
+special_document_types = ["chancery_court_orders"]
+data_quality_notes = """
+The JSON API provides clean, structured data.
+Opinion citations follow consistent format (YYYY WY ###).
+All PDFs are directly accessible without authentication.
+"""
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+Wyoming's judicial branch has a modern, well-designed website built on WordPress.
+The site recently underwent a redesign and is actively maintained.
+
+Key findings:
+- Excellent JSON API at opinions.courts.state.wy.us/Home/GetOpinions
+- API accepts date range parameters for targeted scraping
+- Opinions available from 2006 onwards
+- Clean data structure: OpinionID, dates, parties, docket numbers, document URLs
+- PDFs hosted on separate subdomain (documents.courts.state.wy.us)
+- Existing scraper is modern and well-maintained (updated 2024)
+- Site has custom bot protection for search but allows opinion scraping
+- robots.txt blocks search abuse but permits normal crawling
+- Oral arguments are mentioned but archive accessibility unclear
+- Chancery Court has separate orders/decisions section
+
+The existing scraper (wyo.py) is excellent:
+- Uses the JSON API directly
+- Supports backscraping with date ranges
+- Extracts lower court info from opinion text
+- Well-documented history of updates (2014, 2015, 2016, 2024)
+- No known issues
+
+Domain redirect note: www.courts.state.wy.us → www.wyocourts.gov
+API and document subdomains use the old courts.state.wy.us domain.
+"""
+priority = "low"
+priority_reasoning = """
+Existing scraper is modern, uses the API, and appears to work well.
+No updates needed unless:
+1. API endpoint changes
+2. Oral argument archiving becomes available and needs scraping
+3. Chancery Court orders become a priority
+The site is well-maintained and provides excellent public access via API.
+"""
+complexity = "simple"
+complexity_reasoning = """
+- JSON API with clean structure
+- No authentication required
+- Straightforward date range parameters
+- Direct PDF links
+- Existing scraper demonstrates simplicity
+- robots.txt allows scraping of opinion content
+Main complexity is handling the domain redirect and multiple subdomains.
+"""
+blockers = []

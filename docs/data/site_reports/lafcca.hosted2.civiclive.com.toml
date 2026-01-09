@@ -1,0 +1,349 @@
+# Court Site Research Report
+# Louisiana Court of Appeal, First Circuit
+
+[meta]
+domain = "lafcca.hosted2.civiclive.com"
+court_ids = ["lactapp_1"]
+court_name = "Louisiana Court of Appeal, First Circuit"
+court_url = "https://lafcca.hosted2.civiclive.com"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "custom"
+
+# Site uses CivicLive CMS platform
+platform = "civiclive"
+
+scope = "court_specific"
+
+# Other Louisiana Court of Appeal circuits use different systems:
+# - 2nd Circuit: https://www.la2nd.org
+# - 4th Circuit: (different domain)
+# - 5th Circuit: (different domain)
+shared_infrastructure = []
+
+has_api = true
+api_documented = false
+api_url = "https://lafcca.hosted2.civiclive.com/portal/svc/ContentItemSvc.asmx"
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://lafcca.hosted2.civiclive.com/robots.txt"
+
+allows_scraping = true
+disallowed_paths = [
+    "/Search/",
+    "/WebApi/",
+    "/WebServices/",
+    "/portal/svc/",
+    "/Common/controls/StaffDirectory/ws/StaffDirectoryWS.asmx/",
+    "/Common/controls/WorkspaceCalendar/ws/WorkspaceCalendarWS.asmx/",
+    "/common/controls/General/CalendarPicker/CalendarPickerWS.asmx/"
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+[content.opinions]
+status = "available"
+notes = "Opinions are available from 1988 to present, organized by year. The site uses an API endpoint (/portal/svc/ContentItemSvc.asmx/GetItemList) to fetch opinion metadata including case names, docket numbers, download links, and filing dates. Opinions are provided as PDF downloads."
+example_urls = [
+    "https://lafcca.hosted2.civiclive.com/common/pages/GetFile.ashx?key=VLAEAK9P",
+    "https://lafcca.hosted2.civiclive.com/common/pages/GetFile.ashx?key=87MEAAhM",
+    "https://lafcca.hosted2.civiclive.com/common/pages/GetFile.ashx?key=9bMEAA5M"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = "Opinions are individual documents, not grouped into clusters on this site"
+example_urls = []
+
+[content.citations]
+status = "partial"
+notes = "Docket numbers are included in opinion filenames (e.g., '2024 CA 1220') but full citation information is only available within the PDF documents themselves"
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "No oral argument audio or video is available on the website. The docket section shows oral argument schedules/calendars but not recordings."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.dockets]
+status = "partial"
+notes = "The site provides oral argument docket calendars showing scheduled hearings with case numbers and judge panels. However, full case dockets with filing history are not available on the public website. There is a separate records system (ecaseaccess.la-fcca.org) that may contain docket information but requires cookies/session access."
+example_urls = [
+    "https://lafcca.hosted2.civiclive.com/docket",
+    "https://lafcca.hosted2.civiclive.com/common/pages/GetFile.ashx?key=dr4EAI1B"
+]
+
+[content.docket_entries]
+status = "unavailable"
+notes = "Not available on public website. May be available through the records system at ecaseaccess.la-fcca.org"
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "This is a state court, not federal PACER/RECAP"
+example_urls = []
+
+[content.parties]
+status = "partial"
+notes = "Party names are included in case names within opinion titles, but structured party data is not available"
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = "Attorney information may be in the PDF opinions but is not available as structured data"
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.persons]
+status = "partial"
+notes = "Judge names appear in oral argument dockets but not in structured format"
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.courthouses]
+status = "partial"
+notes = "Address information is displayed on the site: 1600 North Third Street, Baton Rouge, LA 70802, Phone: 225-382-3000"
+example_urls = []
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "This is an appellate court, not a bankruptcy court"
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_counts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "This is a state court, not federal"
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "This is a state court, not federal PACER"
+example_urls = []
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.opinions_cited]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1988-01-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = "Opinions available from 1988-2005 are grouped together. Individual years from 2006 onwards."
+
+update_frequency = "irregular"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = ["full_text"]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = ["juriscraper.opinions.united_states.state.lactapp_1"]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = [
+    "Scraper requires annual parameter updates (see line 28-29 in lactapp_1.py)",
+    "Issue #1357 - Site has changed requiring scraper updates (as of 2025-07-31)"
+]
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- The site requires electronic filing as of January 1, 2026 (no longer accepts mail/shipping)
+- Filing fees increased on January 1, 2026
+- Public decision days are scheduled: 2026 dates include Feb 27, Apr 17, Jun 5
+- Court is closed for holidays (Dec 24-26, 2025; Dec 31, 2025 - Jan 2, 2026)
+- For state/parish/municipal electronic filings, use Option 15 (effective Aug 1, 2025)
+"""
+
+special_document_types = []
+
+data_quality_notes = ""
+
+seasonal_notes = "Court has scheduled public decision days a few times per year rather than continuous publication"
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The Louisiana Court of Appeal First Circuit maintains a well-structured website on the CivicLive platform.
+Opinions are available via an undocumented JSON API (ContentItemSvc.asmx) that returns metadata and download
+links. An existing scraper is in place but requires periodic maintenance for parameter updates.
+
+The site provides comprehensive opinion coverage from 1988 to present. Oral argument dockets/calendars are
+available but not the arguments themselves. A separate records system exists (ecaseaccess.la-fcca.org) but
+requires authentication/cookies.
+
+The API endpoint POST /portal/svc/ContentItemSvc.asmx/GetItemList accepts a parentId and Params JSON
+payload to retrieve paginated opinion lists with download URLs.
+"""
+
+priority = "low"
+priority_reasoning = "Existing scraper already in place and functional, though requires periodic maintenance. Site is stable and provides good API access."
+
+complexity = "moderate"
+complexity_reasoning = "Requires JavaScript to load content and uses an undocumented API with year-specific parameters that need annual updates. However, the API structure is consistent and well-understood by the existing scraper."
+
+blockers = []

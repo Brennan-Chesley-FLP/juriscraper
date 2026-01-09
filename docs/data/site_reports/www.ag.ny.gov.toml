@@ -1,0 +1,466 @@
+# Court Site Research Report
+# New York Attorney General
+# Domain: www.ag.ny.gov (ag.ny.gov)
+
+[meta]
+domain = "ag.ny.gov"
+domain_aliases = ["www.ag.ny.gov"]
+court_ids = ["nyag"]
+court_name = "New York Attorney General"
+court_url = "https://ag.ny.gov"
+research_date = "2026-01-08"
+researcher = "agent"
+
+# =============================================================================
+# ACCESS & AUTHENTICATION
+# =============================================================================
+
+[access]
+public_access = true
+requires_signup = false
+signup_method = ""
+requires_payment = false
+payment_details = ""
+has_captcha = false
+captcha_type = ""
+
+# =============================================================================
+# TECHNICAL CHARACTERISTICS
+# =============================================================================
+
+[technical]
+requires_javascript = true
+javascript_framework = "unknown"
+
+# Drupal-based content management system
+platform = "drupal"
+
+scope = "statewide"
+shared_infrastructure = []
+
+has_api = false
+api_documented = false
+api_url = ""
+
+bulk_download_available = false
+bulk_download_details = ""
+
+document_formats = ["pdf"]
+
+auth_mechanism = ""
+
+# =============================================================================
+# ROBOTS & RATE LIMITING
+# =============================================================================
+
+[robots]
+has_robots_txt = true
+robots_txt_url = "https://ag.ny.gov/robots.txt"
+
+allows_scraping = true
+disallowed_paths = [
+    "/core/",
+    "/profiles/",
+    "/admin/",
+    "/comment/reply/",
+    "/filter/tips",
+    "/node/add/",
+    "/search/",
+    "/user/register",
+    "/user/password",
+    "/user/login",
+    "/user/logout",
+    "/media/oembed",
+    "/node/*",
+    "/press-releases-for-month/*",
+    "/archive-press-releases-for-month/*",
+    "/press-release/19*",
+    "/press-release/200*",
+    "/press-release/2010*",
+    "/press-release/2011*",
+    "/press-release/2012*",
+    "/press-release/2013*",
+    "/press-release/2014*",
+    "/press-release/2015*",
+    "/press-release/2016*",
+    "/press-release/2017*",
+    "/press-release/2018*"
+]
+
+crawl_delay_seconds = 0
+
+rate_limit_notice = ""
+
+tos_restrictions = ""
+
+# =============================================================================
+# CONTENT & DATA TYPES
+# =============================================================================
+
+[content]
+
+# --- Core Case Data ---
+
+[content.opinions]
+status = "available"
+notes = """
+Attorney General opinions are available from 1995 to present (536 opinions as of 2026-01-08).
+Opinions fall into two categories:
+- Formal opinions: Issued to state departments and agencies, signed by the Attorney General
+- Informal opinions: Issued to local governments at the request of municipal attorneys
+
+Opinions can be searched by:
+- Numerical index (year/summary number)
+- Subject matter
+- Statute
+
+All opinions are available as PDF downloads.
+"""
+example_urls = [
+    "https://ag.ny.gov/sites/default/files/opinions/2023-f1.ws__15.pdf",
+    "https://ag.ny.gov/sites/default/files/opinions/2021-2_pw.pdf",
+    "https://ag.ny.gov/sites/default/files/opinions/2018-1_pw.pdf"
+]
+
+[content.opinion_clusters]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.citations]
+status = "available"
+notes = """
+Each opinion includes:
+- Opinion number (e.g., "2023-F1", "2021-2")
+- Type (Formal or Informal)
+- Related statutes with full statutory citations
+"""
+example_urls = []
+
+[content.oral_arguments]
+status = "unavailable"
+notes = "Attorney General opinions are written legal advisory opinions, not court decisions."
+example_urls = []
+
+[content.audio_transcripts]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Docket Data ---
+
+[content.dockets]
+status = "unavailable"
+notes = "These are advisory opinions, not court cases with dockets."
+example_urls = []
+
+[content.docket_entries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.recap_documents]
+status = "unavailable"
+notes = "Not applicable - these are state AG opinions, not federal court documents."
+example_urls = []
+
+# --- Party & Attorney Data ---
+
+[content.parties]
+status = "partial"
+notes = """
+Opinion titles indicate the requesting entity (e.g., "County of Westchester",
+"Village of Port Chester", "Office of the State Comptroller") but not full party details.
+"""
+example_urls = []
+
+[content.party_types]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorneys]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.attorney_organizations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.roles]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- People & Judges ---
+
+[content.persons]
+status = "unavailable"
+notes = "Opinions are institutional products of the Attorney General's office."
+example_urls = []
+
+[content.positions]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.education]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.political_affiliations]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.aba_ratings]
+status = "unavailable"
+notes = "Not applicable."
+example_urls = []
+
+[content.retention_events]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Court & Location Data ---
+
+[content.courts]
+status = "available"
+notes = """
+Information about the Office of the New York State Attorney General,
+including regional offices and contact information.
+"""
+example_urls = [
+    "https://ag.ny.gov/about/about-office/regional-offices"
+]
+
+[content.courthouses]
+status = "available"
+notes = """
+Main office: The Capitol, Albany NY 12224-0341
+Regional offices information available on website.
+"""
+example_urls = []
+
+# --- Bankruptcy-Specific ---
+
+[content.bankruptcy_information]
+status = "unavailable"
+notes = "Not applicable."
+example_urls = []
+
+[content.claims]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.claim_history]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Criminal-Specific ---
+
+[content.criminal_counts]
+status = "unavailable"
+notes = "These are civil legal opinions."
+example_urls = []
+
+[content.criminal_complaints]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Federal-Specific ---
+
+[content.fjc_integrated_database]
+status = "unavailable"
+notes = "State attorney general office."
+example_urls = []
+
+[content.originating_court_information]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.pacer_html_files]
+status = "unavailable"
+notes = "State office, not federal PACER."
+example_urls = []
+
+# --- SCOTUS-Specific ---
+
+[content.scotus_docket_metadata]
+status = "unavailable"
+notes = "Not applicable."
+example_urls = []
+
+# --- Citation Analysis ---
+
+[content.opinions_cited]
+status = "unavailable"
+notes = "Citations are listed in opinions but not separately indexed."
+example_urls = []
+
+[content.parentheticals]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# --- Other ---
+
+[content.tags]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+[content.search_queries]
+status = "unavailable"
+notes = ""
+example_urls = []
+
+# =============================================================================
+# COVERAGE & FRESHNESS
+# =============================================================================
+
+[coverage]
+url_is_current = true
+alternate_urls = []
+alternate_url_notes = ""
+earliest_date = "1995-01-01"
+latest_date = "ongoing"
+
+has_historical = true
+historical_notes = """
+Opinions available from 1995 to present (536 total as of 2026-01-08).
+Pre-1995 opinions are not available on the website.
+"""
+
+update_frequency = "irregular"
+
+has_subscription = false
+subscription_type = ""
+subscription_url = ""
+
+has_search = true
+search_capabilities = [
+    "year_summary_number",
+    "subject",
+    "statute",
+    "keyword",
+    "opinion_type"
+]
+
+browse_only = false
+
+# =============================================================================
+# EXISTING COVERAGE
+# =============================================================================
+
+[existing_scraper]
+has_scraper = true
+
+scraper_modules = ["juriscraper.opinions.united_states.state.nyag"]
+
+covers_opinions = true
+covers_oral_arguments = false
+covers_dockets = false
+
+known_issues = [
+    "Scraper uses old URL pattern (appeals-and-opinions/numerical-index) - site now uses /libraries-documents/opinions/opinions-year"
+]
+
+# =============================================================================
+# JURISDICTION QUIRKS
+# =============================================================================
+
+[quirks]
+notes = """
+- Attorney General opinions are legal advisory opinions, not court decisions
+- They represent the AG's interpretation of law for state agencies and local governments
+- Two types of opinions: Formal (to state agencies) and Informal (to local governments)
+- Opinions are not binding precedent but carry persuasive authority
+- Site uses Drupal CMS with Disallow rules blocking old press releases
+"""
+
+special_document_types = [
+    "Formal Opinions (to state agencies)",
+    "Informal Opinions (to local governments)"
+]
+
+data_quality_notes = """
+Opinions are well-structured with consistent metadata:
+- Opinion number and type
+- Subject title
+- Abstract
+- Related statutes with full citations
+- PDF download links
+
+All opinions appear to be complete with full text in PDF format.
+"""
+
+seasonal_notes = ""
+
+# =============================================================================
+# RESEARCH NOTES
+# =============================================================================
+
+[research_notes]
+summary = """
+The New York Attorney General's website provides public access to legal opinions
+issued since 1995. These are advisory legal opinions provided to state agencies
+(formal opinions) and local governments (informal opinions).
+
+Key findings:
+- 536 opinions available from 1995-present
+- All opinions in PDF format
+- Three search methods: numerical index, subject, statute
+- Existing scraper in repository but uses outdated URL pattern
+- Drupal-based CMS
+- Public access, no authentication required
+- No JavaScript rendering required for opinion lists
+- Clear, consistent metadata for each opinion
+
+The opinions represent the Attorney General's legal interpretations and while
+not binding court precedent, they carry significant persuasive authority for
+New York law interpretation.
+"""
+
+priority = "medium"
+priority_reasoning = """
+Medium priority due to:
++ Existing scraper coverage (though needs update)
++ Significant volume of opinions (536+)
++ Public access with no barriers
++ Clear legal research value
++ Well-structured metadata
++ PDF format readily available
+
+- Not court decisions (advisory opinions only)
+- Existing scraper already provides coverage
+- Scraper needs URL pattern update
+- Moderate volume compared to court opinions
+- Specialized audience (government lawyers primarily)
+"""
+
+complexity = "simple"
+complexity_reasoning = """
+Simple complexity because:
+- Static HTML pages for opinion lists
+- Minimal JavaScript required
+- Clear, consistent page structure
+- PDF downloads with direct URLs
+- Pagination is straightforward
+- No authentication or rate limiting
+- Existing scraper provides model (just needs URL update)
+
+The main work would be updating the existing scraper to use the new URL
+pattern (/libraries-documents/opinions/opinions-year instead of
+appeals-and-opinions/numerical-index).
+"""
+
+blockers = []

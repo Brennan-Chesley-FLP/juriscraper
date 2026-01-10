@@ -81,6 +81,9 @@ dev = [
   "types-docutils>=0.22.3.20251115",
   "pytest-cov>=7.0.0",
   "coverage>=7.13.1",
+  "fastapi>=0.128.0",
+  "aiosqlite>=0.22.1",
+  "zstandard>=0.25.0",
 ]
 
 [tool.pytest.ini_options]

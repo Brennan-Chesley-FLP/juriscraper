@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - LocalDevDriver{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h1>Scraper Runs</h1>
+
+    <div class="actions">
+        <button id="scan-btn" class="btn btn-secondary">Scan for New Runs</button>
+        <button id="new-run-btn" class="btn btn-primary" disabled title="Not yet implemented">New Run</button>
+    </div>
+
+    <div class="run-sections">
+        <!-- Running -->
+        <section class="run-section">
+            <h2>Running <span id="running-count" class="badge">0</span></h2>
+            <div id="running-runs" class="run-grid">
+                <p class="empty-state">No running scrapers</p>
+            </div>
+        </section>
+
+        <!-- Loaded (Ready to Start) -->
+        <section class="run-section">
+            <h2>Loaded <span id="loaded-count" class="badge">0</span></h2>
+            <div id="loaded-runs" class="run-grid">
+                <p class="empty-state">No loaded scrapers</p>
+            </div>
+        </section>
+
+        <!-- Unloaded -->
+        <section class="run-section">
+            <h2>Available <span id="unloaded-count" class="badge">0</span></h2>
+            <div id="unloaded-runs" class="run-grid">
+                <p class="empty-state">No available runs</p>
+            </div>
+        </section>
+
+        <!-- Stopped -->
+        <section class="run-section">
+            <h2>Stopped <span id="stopped-count" class="badge">0</span></h2>
+            <div id="stopped-runs" class="run-grid">
+                <p class="empty-state">No stopped runs</p>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Run card template
+function createRunCard(run) {
+    const statusColors = {
+        'running': 'status-running',
+        'loaded': 'status-loaded',
+        'unloaded': 'status-unloaded',
+        'stopped': 'status-stopped',
+        'stopping': 'status-stopping'
+    };
+
+    const statusClass = statusColors[run.status] || 'status-unknown';
+
+    return `
+        <div class="run-card" data-run-id="${run.run_id}">
+            <div class="run-header">
+                <h3><a href="/runs/${run.run_id}">${run.run_id}</a></h3>
+                <span class="status ${statusClass}">${run.status}</span>
+            </div>
+            <div class="run-meta">
+                <p>Created: ${new Date(run.created_at).toLocaleString()}</p>
+                ${run.started_at ? `<p>Started: ${new Date(run.started_at).toLocaleString()}</p>` : ''}
+            </div>
+            <div class="run-actions">
+                ${run.status === 'loaded' ? `<button onclick="startRun('${run.run_id}')" class="btn btn-sm btn-primary">Start</button>` : ''}
+                ${run.status === 'running' ? `<button onclick="stopRun('${run.run_id}')" class="btn btn-sm btn-danger">Stop</button>` : ''}
+                ${run.status === 'unloaded' || run.status === 'stopped' ? `<button onclick="deleteRun('${run.run_id}')" class="btn btn-sm btn-danger">Delete</button>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// Load runs from API
+async function loadRuns() {
+    try {
+        const response = await fetch('/api/runs');
+        const data = await response.json();
+
+        const running = data.runs.filter(r => r.status === 'running' || r.status === 'stopping');
+        const loaded = data.runs.filter(r => r.status === 'loaded');
+        const unloaded = data.runs.filter(r => r.status === 'unloaded');
+        const stopped = data.runs.filter(r => r.status === 'stopped');
+
+        document.getElementById('running-count').textContent = running.length;
+        document.getElementById('loaded-count').textContent = loaded.length;
+        document.getElementById('unloaded-count').textContent = unloaded.length;
+        document.getElementById('stopped-count').textContent = stopped.length;
+
+        renderRuns('running-runs', running);
+        renderRuns('loaded-runs', loaded);
+        renderRuns('unloaded-runs', unloaded);
+        renderRuns('stopped-runs', stopped);
+    } catch (error) {
+        console.error('Failed to load runs:', error);
+    }
+}
+
+function renderRuns(containerId, runs) {
+    const container = document.getElementById(containerId);
+    if (runs.length === 0) {
+        container.innerHTML = '<p class="empty-state">None</p>';
+    } else {
+        container.innerHTML = runs.map(createRunCard).join('');
+    }
+}
+
+// Actions
+async function scanRuns() {
+    try {
+        await fetch('/api/runs/scan', { method: 'POST' });
+        loadRuns();
+    } catch (error) {
+        alert('Failed to scan: ' + error.message);
+    }
+}
+
+async function startRun(runId) {
+    try {
+        await fetch(`/api/runs/${runId}/start`, { method: 'POST' });
+        loadRuns();
+    } catch (error) {
+        alert('Failed to start: ' + error.message);
+    }
+}
+
+async function stopRun(runId) {
+    try {
+        await fetch(`/api/runs/${runId}/stop`, { method: 'POST' });
+        loadRuns();
+    } catch (error) {
+        alert('Failed to stop: ' + error.message);
+    }
+}
+
+async function deleteRun(runId) {
+    if (!confirm(`Delete run "${runId}"? This cannot be undone.`)) return;
+    try {
+        await fetch(`/api/runs/${runId}`, { method: 'DELETE' });
+        loadRuns();
+    } catch (error) {
+        alert('Failed to delete: ' + error.message);
+    }
+}
+
+// Event listeners
+document.getElementById('scan-btn').addEventListener('click', scanRuns);
+
+// Initial load
+loadRuns();
+
+// Auto-refresh every 5 seconds
+setInterval(loadRuns, 5000);
+</script>
+{% endblock %}

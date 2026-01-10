@@ -1,0 +1,120 @@
+"""LocalDevDriver package for SQLite-backed local scraper development.
+
+This package provides a development driver that extends AsyncDriver with:
+- Persistent request queue in SQLite
+- Response archival with zstd compression
+- Resumability from graceful shutdown
+- WARC export capability
+- Web interface integration via callbacks
+"""
+
+from juriscraper.scraper_driver.driver.dev_driver.compression import (
+    DEFAULT_COMPRESSION_LEVEL,
+    DEFAULT_DICT_SIZE,
+    compress,
+    compress_response,
+    decompress,
+    decompress_response,
+    get_compression_dict,
+    get_dict_by_id,
+    recompress_responses,
+    train_compression_dict,
+)
+from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+    LocalDevDriver,
+    Page,
+    ProgressEvent,
+    RequestRecord,
+    ResponseRecord,
+    ResultRecord,
+)
+from juriscraper.scraper_driver.driver.dev_driver.errors import (
+    ErrorRecord,
+    classify_error,
+    count_errors,
+    get_error,
+    list_errors,
+    resolve_error,
+    store_error,
+)
+from juriscraper.scraper_driver.driver.dev_driver.rate_limiter import (
+    AioSQLiteBucket,
+    JitterRateLimitInterceptor,
+)
+from juriscraper.scraper_driver.driver.dev_driver.schema import (
+    SCHEMA_VERSION,
+    get_next_queue_counter,
+    get_schema_version,
+    init_database,
+)
+from juriscraper.scraper_driver.driver.dev_driver.stats import (
+    CompressionStats,
+    DevDriverStats,
+    ErrorStats,
+    QueueStats,
+    ResultStats,
+    ThroughputStats,
+    get_compression_stats,
+    get_error_stats,
+    get_queue_stats,
+    get_result_stats,
+    get_stats,
+    get_throughput_stats,
+)
+from juriscraper.scraper_driver.driver.dev_driver.warc_export import (
+    export_warc,
+    export_warc_for_continuation,
+)
+
+__all__ = [
+    # Main driver
+    "LocalDevDriver",
+    "Page",
+    "ProgressEvent",
+    "RequestRecord",
+    "ResponseRecord",
+    "ResultRecord",
+    # Compression
+    "DEFAULT_COMPRESSION_LEVEL",
+    "DEFAULT_DICT_SIZE",
+    "compress",
+    "compress_response",
+    "decompress",
+    "decompress_response",
+    "get_compression_dict",
+    "get_dict_by_id",
+    "recompress_responses",
+    "train_compression_dict",
+    # Errors
+    "ErrorRecord",
+    "classify_error",
+    "count_errors",
+    "get_error",
+    "list_errors",
+    "resolve_error",
+    "store_error",
+    # Rate limiting
+    "AioSQLiteBucket",
+    "JitterRateLimitInterceptor",
+    # Schema
+    "SCHEMA_VERSION",
+    "get_next_queue_counter",
+    "get_schema_version",
+    "init_database",
+    # Stats
+    "CompressionStats",
+    "DevDriverStats",
+    "ErrorStats",
+    "QueueStats",
+    "ResultStats",
+    "ThroughputStats",
+    "get_compression_stats",
+    "get_error_stats",
+    "get_queue_stats",
+    "get_result_stats",
+    "get_stats",
+    "get_throughput_stats",
+    # WARC export
+    "export_warc",
+    "export_warc_for_continuation",
+]

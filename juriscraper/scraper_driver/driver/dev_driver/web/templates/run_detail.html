@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}{{ run_id }} - LocalDevDriver{% endblock %}
+
+{% block content %}
+<div class="run-detail">
+    <div class="page-header">
+        <h1>{{ run_id }}</h1>
+        <span id="run-status" class="status">Loading...</span>
+    </div>
+
+    <div class="actions">
+        <a href="/" class="btn btn-secondary">Back to Dashboard</a>
+        <button id="start-btn" class="btn btn-primary" style="display:none;">Start</button>
+        <button id="stop-btn" class="btn btn-danger" style="display:none;">Stop</button>
+    </div>
+
+    <!-- Stats -->
+    <section class="stats-section">
+        <h2>Statistics</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Queue</h3>
+                <div id="queue-stats">Loading...</div>
+            </div>
+            <div class="stat-card">
+                <h3>Compression</h3>
+                <div id="compression-stats">Loading...</div>
+            </div>
+            <div class="stat-card">
+                <h3>Errors</h3>
+                <div id="error-stats">Loading...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Recent Errors -->
+    <section class="errors-section">
+        <h2>Recent Errors</h2>
+        <div id="errors-list">Loading...</div>
+    </section>
+
+    <!-- Request Queue -->
+    <section class="queue-section">
+        <h2>Request Queue</h2>
+        <div class="filters">
+            <select id="status-filter">
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+                <option value="held">Held</option>
+            </select>
+        </div>
+        <div id="requests-list">Loading...</div>
+    </section>
+
+    <!-- WebSocket Events -->
+    <section class="events-section">
+        <h2>Live Events</h2>
+        <div id="ws-status" class="ws-status">Disconnected</div>
+        <button id="connect-ws" class="btn btn-sm btn-secondary">Connect</button>
+        <div id="events-log" class="events-log"></div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const runId = '{{ run_id }}';
+let ws = null;
+
+// Load run details
+async function loadRunDetails() {
+    try {
+        const response = await fetch(`/api/runs/${runId}`);
+        if (!response.ok) {
+            document.getElementById('run-status').textContent = 'Not Found';
+            return;
+        }
+        const run = await response.json();
+
+        document.getElementById('run-status').textContent = run.status;
+        document.getElementById('run-status').className = `status status-${run.status}`;
+
+        // Show/hide action buttons
+        document.getElementById('start-btn').style.display = run.status === 'loaded' ? 'inline-block' : 'none';
+        document.getElementById('stop-btn').style.display = run.status === 'running' ? 'inline-block' : 'none';
+    } catch (error) {
+        console.error('Failed to load run details:', error);
+    }
+}
+
+// Load request queue
+async function loadRequests() {
+    const statusFilter = document.getElementById('status-filter').value;
+    const url = statusFilter
+        ? `/api/runs/${runId}/requests?status=${statusFilter}&limit=20`
+        : `/api/runs/${runId}/requests?limit=20`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            document.getElementById('requests-list').innerHTML = '<p class="error">Failed to load (run may not be loaded)</p>';
+            return;
+        }
+        const data = await response.json();
+
+        if (data.items.length === 0) {
+            document.getElementById('requests-list').innerHTML = '<p class="empty-state">No requests</p>';
+            return;
+        }
+
+        const html = data.items.map(req => `
+            <div class="request-item">
+                <span class="status status-${req.status}">${req.status}</span>
+                <span class="method">${req.method}</span>
+                <span class="url" title="${req.url}">${truncate(req.url, 60)}</span>
+                <span class="continuation">${req.continuation}</span>
+                ${req.retry_count > 0 ? `<span class="retries">Retries: ${req.retry_count}</span>` : ''}
+            </div>
+        `).join('');
+
+        document.getElementById('requests-list').innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load requests:', error);
+    }
+}
+
+// Load errors
+async function loadErrors() {
+    try {
+        const response = await fetch(`/api/runs/${runId}/errors?limit=10`);
+        if (!response.ok) {
+            document.getElementById('errors-list').innerHTML = '<p class="error">Failed to load</p>';
+            return;
+        }
+        const data = await response.json();
+
+        if (data.items.length === 0) {
+            document.getElementById('errors-list').innerHTML = '<p class="empty-state">No errors</p>';
+            return;
+        }
+
+        const html = data.items.map(err => `
+            <div class="error-item ${err.is_resolved ? 'resolved' : ''}">
+                <span class="error-type">${err.error_type}</span>
+                <span class="error-message">${truncate(err.message, 80)}</span>
+                <span class="error-url" title="${err.request_url}">${truncate(err.request_url, 40)}</span>
+                ${err.is_resolved ? '<span class="badge resolved">Resolved</span>' : ''}
+            </div>
+        `).join('');
+
+        document.getElementById('errors-list').innerHTML = html;
+
+        // Also update error stats
+        const summaryResponse = await fetch(`/api/runs/${runId}/errors/summary`);
+        if (summaryResponse.ok) {
+            const summary = await summaryResponse.json();
+            document.getElementById('error-stats').innerHTML = `
+                <p>Total: ${summary.total}</p>
+                <p>Unresolved: ${summary.unresolved}</p>
+                <p>Resolved: ${summary.resolved}</p>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load errors:', error);
+    }
+}
+
+// Load compression stats
+async function loadCompressionStats() {
+    try {
+        const response = await fetch(`/api/runs/${runId}/compression/stats`);
+        if (!response.ok) {
+            document.getElementById('compression-stats').innerHTML = '<p class="error">Failed to load</p>';
+            return;
+        }
+        const stats = await response.json();
+
+        document.getElementById('compression-stats').innerHTML = `
+            <p>Responses: ${stats.total_responses}</p>
+            <p>Ratio: ${stats.compression_ratio}x</p>
+            <p>With Dict: ${stats.with_dict_count}</p>
+        `;
+    } catch (error) {
+        console.error('Failed to load compression stats:', error);
+    }
+}
+
+// WebSocket connection
+function connectWebSocket() {
+    if (ws) {
+        ws.close();
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${window.location.host}/ws/runs/${runId}`);
+
+    ws.onopen = () => {
+        document.getElementById('ws-status').textContent = 'Connected';
+        document.getElementById('ws-status').className = 'ws-status connected';
+        addEvent('system', 'Connected to WebSocket');
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        addEvent(data.event_type || 'message', JSON.stringify(data.data || data));
+    };
+
+    ws.onclose = () => {
+        document.getElementById('ws-status').textContent = 'Disconnected';
+        document.getElementById('ws-status').className = 'ws-status disconnected';
+        addEvent('system', 'Disconnected from WebSocket');
+    };
+
+    ws.onerror = (error) => {
+        addEvent('error', 'WebSocket error');
+    };
+}
+
+function addEvent(type, message) {
+    const log = document.getElementById('events-log');
+    const time = new Date().toLocaleTimeString();
+    log.innerHTML = `<div class="event event-${type}"><span class="time">${time}</span> <span class="type">${type}</span> ${message}</div>` + log.innerHTML;
+
+    // Keep only last 50 events
+    while (log.children.length > 50) {
+        log.removeChild(log.lastChild);
+    }
+}
+
+// Actions
+async function startRun() {
+    try {
+        await fetch(`/api/runs/${runId}/start`, { method: 'POST' });
+        loadRunDetails();
+    } catch (error) {
+        alert('Failed to start: ' + error.message);
+    }
+}
+
+async function stopRun() {
+    try {
+        await fetch(`/api/runs/${runId}/stop`, { method: 'POST' });
+        loadRunDetails();
+    } catch (error) {
+        alert('Failed to stop: ' + error.message);
+    }
+}
+
+// Utility
+function truncate(str, len) {
+    if (!str) return '';
+    return str.length > len ? str.substring(0, len) + '...' : str;
+}
+
+// Event listeners
+document.getElementById('start-btn').addEventListener('click', startRun);
+document.getElementById('stop-btn').addEventListener('click', stopRun);
+document.getElementById('connect-ws').addEventListener('click', connectWebSocket);
+document.getElementById('status-filter').addEventListener('change', loadRequests);
+
+// Initial load
+loadRunDetails();
+loadRequests();
+loadErrors();
+loadCompressionStats();
+
+// Auto-refresh every 5 seconds
+setInterval(() => {
+    loadRunDetails();
+    loadRequests();
+    loadErrors();
+}, 5000);
+</script>
+{% endblock %}

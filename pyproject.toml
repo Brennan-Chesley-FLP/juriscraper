@@ -78,6 +78,8 @@ dev = [
   "sphinx-rtd-theme>=0.5.1",
   "sphinx-autobuild>=2024.10.3",
   "types-docutils>=0.22.3.20251115",
+  "pytest-cov>=7.0.0",
+  "coverage>=7.13.1",
 ]
 
 [tool.pytest.ini_options]

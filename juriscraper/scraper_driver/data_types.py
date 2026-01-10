@@ -64,6 +64,24 @@ class ScraperStatus(Enum):
     RETIRED = "retired"
 
 
+@dataclass(frozen=True)
+class StepInfo:
+    """Metadata about a scraper step method.
+
+    Used by LocalDevDriver web interface to display available steps,
+    their priorities, and to populate controls for pause_step/resume_step.
+
+    Attributes:
+        name: The method name (continuation string).
+        priority: Priority hint for queue ordering (lower = higher priority).
+        encoding: Character encoding for text/HTML decoding.
+    """
+
+    name: str
+    priority: int
+    encoding: str
+
+
 class BaseScraper(Generic[ScraperReturnType]):
     """Base class for all scrapers.
 
@@ -197,6 +215,54 @@ class BaseScraper(Generic[ScraperReturnType]):
         )
 
         return build_params_for_scraper(cls)
+
+    @classmethod
+    def list_steps(cls) -> list[StepInfo]:
+        """List all step methods defined on this scraper.
+
+        Introspects the class to find all methods decorated with @step
+        and returns their metadata.
+
+        This is useful for the web interface to display available steps,
+        their priorities, and to populate dropdowns for pause_step/resume_step.
+
+        Returns:
+            List of StepInfo objects for each decorated step method.
+
+        Example:
+            >>> class MyScraper(BaseScraper[CaseData]):
+            ...     @step
+            ...     def parse_listing(self, lxml_tree): ...
+            ...
+            ...     @step(priority=5)
+            ...     def parse_detail(self, lxml_tree): ...
+            ...
+            >>> MyScraper.list_steps()
+            [StepInfo(name='parse_listing', priority=9, encoding='utf-8'),
+             StepInfo(name='parse_detail', priority=5, encoding='utf-8')]
+        """
+        from juriscraper.scraper_driver.common.decorators import (
+            get_step_metadata,
+        )
+
+        steps = []
+        for name in dir(cls):
+            if name.startswith("_"):
+                continue
+            try:
+                method = getattr(cls, name)
+                metadata = get_step_metadata(method)
+                if metadata is not None:
+                    steps.append(
+                        StepInfo(
+                            name=name,
+                            priority=metadata.priority,
+                            encoding=metadata.encoding,
+                        )
+                    )
+            except Exception:
+                continue
+        return steps
 
 
 @dataclass(frozen=True)

@@ -24,9 +24,14 @@ from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     BaseRequest,
     BaseScraper,
+    HttpMethod,
+    HTTPRequestParams,
     NavigatingRequest,
     NonNavigatingRequest,
     Response,
+    ScraperYield,
+    SpeculationContext,
+    SpeculativeRequest,
 )
 from juriscraper.scraper_driver.driver.async_driver import AsyncDriver
 from juriscraper.scraper_driver.driver.dev_driver.schema import (
@@ -37,7 +42,12 @@ from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
 from juriscraper.scraper_driver.driver.dev_driver.stats import DevDriverStats
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Awaitable, Callable
+    from collections.abc import AsyncIterator, Awaitable, Callable, Generator
+
+    # Type alias for speculation response callback (async version)
+    # Called when a SpeculativeRequest receives a non-2xx response
+    # Returns True to continue (and optionally process continuation), False to stop
+    OnSpeculationResponseAsync = Callable[[Response, str], Awaitable[bool]]
 
 logger = logging.getLogger(__name__)
 
@@ -106,10 +116,17 @@ class LocalDevDriver(
         num_workers: int = 1,
         resume: bool = True,
         max_backoff_time: float = 3600.0,
+        on_speculation_response: OnSpeculationResponseAsync | None = None,
     ) -> None:
         """Initialize the driver.
 
         Note: Use LocalDevDriver.open() for proper async initialization.
+
+        Args:
+            on_speculation_response: Optional async callback invoked when a SpeculativeRequest
+                receives a non-2xx response. Receives (response, continuation_name) and should
+                return True to resume the generator with True (continue speculation) or False to
+                resume with False (stop speculation). Not called for 2xx responses.
         """
         # Initialize parent without interceptors - we'll add them after DB setup
         super().__init__(
@@ -123,6 +140,7 @@ class LocalDevDriver(
         self.jitter = jitter
         self.resume = resume
         self.max_backoff_time = max_backoff_time
+        self.on_speculation_response = on_speculation_response
 
         # Database connection (set by _init_db)
         self._db: aiosqlite.Connection | None = None
@@ -134,6 +152,12 @@ class LocalDevDriver(
 
         # Stop event for graceful shutdown (always set, not optional like in parent)
         self.stop_event: asyncio.Event = asyncio.Event()
+
+        # Parked generator storage for speculative requests
+        # Maps unique speculation ID -> SpeculationContext
+        # These are stored in memory since generators can't be serialized
+        self._parked_generators: dict[str, SpeculationContext] = {}
+        self._speculation_counter: int = 0
 
     @classmethod
     @asynccontextmanager
@@ -255,6 +279,11 @@ class LocalDevDriver(
 
         Overrides AsyncDriver.enqueue_request to persist to SQLite.
 
+        For SpeculativeRequest with speculation_context:
+        - Parks the generator in memory (generators can't be serialized)
+        - Stores a speculation_id in the DB to link back to the parked generator
+        - If deduplicated, enqueues a ResumeStep with False instead of dropping
+
         Args:
             new_request: The new request to enqueue.
             context: Response or originating request for URL resolution.
@@ -276,14 +305,37 @@ class LocalDevDriver(
                 SQL.SELECT_REQUEST_BY_DEDUP_KEY, (dedup_key,)
             )
             if await cursor.fetchone():
-                # Duplicate found, skip
+                # Duplicate found - for SpeculativeRequest, we still need to
+                # resume the parked generator with False
+                if (
+                    isinstance(resolved_request, SpeculativeRequest)
+                    and resolved_request.speculation_context
+                ):
+                    await self._enqueue_resume_step(
+                        resolved_request.speculation_context, False
+                    )
                 return
+
+        # Handle SpeculativeRequest with context - park the generator
+        speculation_id: str | None = None
+        if (
+            isinstance(resolved_request, SpeculativeRequest)
+            and resolved_request.speculation_context
+        ):
+            # Generate unique ID and park the generator
+            self._speculation_counter += 1
+            speculation_id = f"spec_{self._speculation_counter}"
+            self._parked_generators[speculation_id] = (
+                resolved_request.speculation_context
+            )
 
         # Get next queue counter for FIFO ordering
         queue_counter = await get_next_queue_counter(self._db)
 
         # Serialize request data
-        request_data = self._serialize_request(resolved_request)
+        request_data = self._serialize_request(
+            resolved_request, speculation_id
+        )
 
         # Get parent request ID if context is a Response
         parent_id: int | None = None
@@ -331,11 +383,66 @@ class LocalDevDriver(
             },
         )
 
-    def _serialize_request(self, request: BaseRequest) -> dict[str, Any]:
+    async def _enqueue_resume_step(
+        self, ctx: SpeculationContext, predicate_result: bool
+    ) -> None:
+        """Enqueue a ResumeStep to resume a parked generator.
+
+        ResumeStep is an in-memory control flow marker, not a DB request.
+        We store it in the parked_generators dict and enqueue a special
+        request type that will trigger the resume.
+
+        Args:
+            ctx: The speculation context containing the parked generator.
+            predicate_result: The value to send to the generator (True/False).
+        """
+        assert self._db is not None
+
+        # Generate unique ID for this resume
+        self._speculation_counter += 1
+        resume_id = f"resume_{self._speculation_counter}"
+
+        # Store the context with the result
+        # We'll create a modified context that includes the predicate_result
+        self._parked_generators[resume_id] = ctx
+
+        # Get next queue counter
+        queue_counter = await get_next_queue_counter(self._db)
+
+        # Insert a special "resume" request type
+        await self._db.execute(
+            SQL.INSERT_REQUEST,
+            (
+                ctx.parent_request.priority,  # Inherit priority
+                queue_counter,
+                "resume",  # Special request type
+                "GET",  # Dummy method
+                "",  # Empty URL
+                None,  # No headers
+                None,  # No cookies
+                None,  # No body
+                ctx.originating_continuation,  # Store continuation for reference
+                "",  # No current_location
+                None,  # No accumulated_data
+                None,  # No aux_data
+                json.dumps(
+                    {"predicate_result": predicate_result}
+                ),  # Store result in permanent_json
+                resume_id,  # Store resume_id in expected_type
+                None,  # No dedup_key
+                None,  # No parent_id
+            ),
+        )
+        await self._db.commit()
+
+    def _serialize_request(
+        self, request: BaseRequest, speculation_id: str | None = None
+    ) -> dict[str, Any]:
         """Serialize a BaseRequest to dictionary for DB storage.
 
         Args:
             request: The request to serialize.
+            speculation_id: Optional ID for tracking parked generator (for SpeculativeRequest).
 
         Returns:
             Dictionary with serialized request data.
@@ -347,10 +454,15 @@ class LocalDevDriver(
         if callable(continuation) and not isinstance(continuation, str):
             continuation = continuation.__name__
 
-        # Determine request type
+        # Determine request type and expected_type
         if isinstance(request, ArchiveRequest):
             request_type = "archive"
             expected_type = request.expected_type
+        elif isinstance(request, SpeculativeRequest):
+            request_type = "speculative"
+            expected_type = (
+                speculation_id  # Store speculation_id in expected_type field
+            )
         elif isinstance(request, NonNavigatingRequest):
             request_type = "non_navigating"
             expected_type = None
@@ -389,11 +501,15 @@ class LocalDevDriver(
             "expected_type": expected_type,
         }
 
-    async def _get_next_request(self) -> tuple[int, BaseRequest] | None:
+    async def _get_next_request(
+        self,
+    ) -> tuple[int, BaseRequest | tuple[BaseRequest, str]] | None:
         """Get the next pending request from the database.
 
         Returns:
-            Tuple of (request_id, BaseRequest) or None if queue is empty.
+            Tuple of (request_id, deserialized) or None if queue is empty.
+            deserialized is either a BaseRequest or a tuple of (request, speculation_id)
+            for speculative/resume requests.
 
         Notes:
             - Skips 'held' status requests
@@ -420,7 +536,9 @@ class LocalDevDriver(
         request = self._deserialize_request(row)
         return (request_id, request)
 
-    def _deserialize_request(self, row: tuple[Any, ...]) -> BaseRequest:
+    def _deserialize_request(
+        self, row: tuple[Any, ...]
+    ) -> BaseRequest | tuple[BaseRequest, str]:
         """Deserialize a database row to a BaseRequest.
 
         Args:
@@ -428,13 +546,9 @@ class LocalDevDriver(
 
         Returns:
             Reconstructed BaseRequest (NavigatingRequest, NonNavigatingRequest,
-            or ArchiveRequest depending on request_type).
+            ArchiveRequest, or SpeculativeRequest depending on request_type).
+            For SpeculativeRequest, returns tuple of (request, speculation_id).
         """
-        from juriscraper.scraper_driver.data_types import (
-            HttpMethod,
-            HTTPRequestParams,
-        )
-
         (
             _id,
             request_type,
@@ -482,6 +596,33 @@ class LocalDevDriver(
                 priority=priority,
                 expected_type=expected_type,
             )
+        elif request_type == "speculative":
+            # expected_type stores the speculation_id
+            speculation_id = expected_type
+            spec_request = SpeculativeRequest(
+                request=http_params,
+                continuation=continuation,
+                current_location=current_location,
+                accumulated_data=accumulated_data,
+                aux_data=aux_data,
+                permanent=permanent,
+                priority=priority,
+            )
+            return (spec_request, speculation_id)
+        elif request_type == "resume":
+            # Resume request - expected_type stores the resume_id
+            # Return a dummy request with the resume_id
+            resume_id = expected_type
+            resume_request = NavigatingRequest(
+                request=http_params,
+                continuation=continuation,
+                current_location=current_location,
+                accumulated_data=accumulated_data,
+                aux_data=aux_data,
+                permanent=permanent,
+                priority=priority,
+            )
+            return (resume_request, resume_id)
         elif request_type == "non_navigating":
             return NonNavigatingRequest(
                 request=http_params,
@@ -899,6 +1040,11 @@ class LocalDevDriver(
     async def _db_worker(self, worker_id: int) -> None:
         """Worker that processes requests from the database queue.
 
+        Handles:
+        - Regular requests (NavigatingRequest, NonNavigatingRequest, ArchiveRequest)
+        - SpeculativeRequest: execute HTTP, determine success, enqueue resume, call continuation
+        - ResumeStep: resume parked generator with True/False
+
         Args:
             worker_id: Identifier for this worker.
         """
@@ -919,9 +1065,26 @@ class LocalDevDriver(
                 if result is None:
                     break
 
-            request_id, request = result
+            request_id, deserialized = result
+
+            # Handle tuple return for SpeculativeRequest
+            speculation_id: str | None = None
+            if isinstance(deserialized, tuple):
+                request, speculation_id = deserialized
+            else:
+                request = deserialized
 
             try:
+                # Check for ResumeStep (stored as "resume" request type)
+                # This is detected by checking the request type in the DB row
+                # Since _deserialize_request returns the row data, we need to check
+                # if this is a resume by looking at speculation_id pattern
+                if speculation_id and speculation_id.startswith("resume_"):
+                    await self._execute_resume_with_storage(
+                        request_id, speculation_id
+                    )
+                    continue
+
                 await self._emit_progress(
                     "request_started",
                     {
@@ -938,75 +1101,16 @@ class LocalDevDriver(
                     else request.continuation.__name__
                 )
 
-                # Process the request using parent class methods
-                response: Response = (
-                    await self.resolve_archive_request(request)
-                    if isinstance(request, ArchiveRequest)
-                    else await self.resolve_request(request)
-                )
+                # Handle SpeculativeRequest with parked generator
+                if speculation_id and speculation_id.startswith("spec_"):
+                    await self._resolve_speculative_with_storage(
+                        request_id, request, speculation_id, continuation_name
+                    )
+                    continue
 
-                # Store the response in the database
-                await self._store_response(
-                    request_id, response, continuation_name
-                )
-
-                # Get continuation method
-                continuation_method = self.scraper.get_continuation(
-                    continuation_name
-                )
-
-                # Process yielded items
-                from juriscraper.scraper_driver.common.deferred_validation import (
-                    DeferredValidation,
-                )
-                from juriscraper.scraper_driver.common.exceptions import (
-                    DataFormatAssumptionException,
-                )
-                from juriscraper.scraper_driver.data_types import ParsedData
-
-                for item in continuation_method(response):
-                    match item:
-                        case ParsedData():
-                            raw_data = item.unwrap()
-                            # Handle deferred validation
-                            if isinstance(raw_data, DeferredValidation):
-                                try:
-                                    validated_data = raw_data.confirm()
-                                    await self._store_result(
-                                        request_id, validated_data
-                                    )
-                                    # Also call parent handler for callbacks
-                                    await self.handle_data(validated_data)
-                                except DataFormatAssumptionException as e:
-                                    # Store as invalid result
-                                    await self._store_result(
-                                        request_id,
-                                        e.failed_doc,
-                                        is_valid=False,
-                                        validation_errors=e.errors,
-                                    )
-                                    # Let parent handle the error callback
-                                    if self.on_invalid_data:
-                                        await self.on_invalid_data(raw_data)
-                            else:
-                                await self._store_result(request_id, raw_data)
-                                await self.handle_data(raw_data)
-                        case NavigatingRequest():
-                            await self.enqueue_request(item, response)
-                        case NonNavigatingRequest() | ArchiveRequest():
-                            await self.enqueue_request(item, request)
-                        case None:
-                            pass
-
-                # Mark completed
-                await self._mark_request_completed(request_id)
-
-                await self._emit_progress(
-                    "request_completed",
-                    {
-                        "request_id": request_id,
-                        "url": request.request.url,
-                    },
+                # Regular request flow
+                await self._process_regular_request(
+                    request_id, request, continuation_name
                 )
 
             except Exception as e:
@@ -1058,6 +1162,371 @@ class LocalDevDriver(
                         "error_type": type(e).__name__,
                     },
                 )
+
+    async def _process_regular_request(
+        self,
+        request_id: int,
+        request: BaseRequest,
+        continuation_name: str,
+    ) -> None:
+        """Process a regular (non-speculative, non-resume) request.
+
+        Args:
+            request_id: Database ID of the request.
+            request: The request to process.
+            continuation_name: Name of the continuation method.
+        """
+        # Process the request using parent class methods
+        response: Response = (
+            await self.resolve_archive_request(request)
+            if isinstance(request, ArchiveRequest)
+            else await self.resolve_request(request)
+        )
+
+        # Store the response in the database
+        await self._store_response(request_id, response, continuation_name)
+
+        # Get continuation method and process generator
+        continuation_method = self.scraper.get_continuation(continuation_name)
+        gen = continuation_method(response)
+
+        await self._process_generator_with_storage(
+            gen, response, request, continuation_name, request_id
+        )
+
+        # Mark completed
+        await self._mark_request_completed(request_id)
+
+        await self._emit_progress(
+            "request_completed",
+            {
+                "request_id": request_id,
+                "url": request.request.url,
+            },
+        )
+
+    async def _process_generator_with_storage(
+        self,
+        gen: Generator[ScraperYield, bool | None, None],
+        response: Response,
+        parent_request: BaseRequest,
+        continuation_name: str,
+        request_id: int,
+    ) -> None:
+        """Process generator with DB storage, parking on SpeculativeRequest.
+
+        Uses simple iteration (for item in gen). Values are only sent to
+        generators via _execute_resume() when processing a ResumeStep.
+
+        Args:
+            gen: The generator from the continuation method.
+            response: The Response that triggered this continuation.
+            parent_request: The request that initiated this continuation.
+            continuation_name: Name of the continuation method.
+            request_id: Database ID for result storage.
+        """
+        from juriscraper.scraper_driver.common.deferred_validation import (
+            DeferredValidation,
+        )
+        from juriscraper.scraper_driver.common.exceptions import (
+            DataFormatAssumptionException,
+            HTMLStructuralAssumptionException,
+        )
+        from juriscraper.scraper_driver.data_types import ParsedData
+
+        try:
+            for item in gen:
+                match item:
+                    case SpeculativeRequest():
+                        # Park the generator and enqueue with context
+                        ctx = SpeculationContext(
+                            parked_generator=gen,
+                            parent_request=parent_request,
+                            original_response=response,
+                            originating_continuation=continuation_name,
+                        )
+                        await self.enqueue_request(
+                            item.with_context(ctx), response
+                        )
+                        return  # Generator parked - stop processing
+
+                    case ParsedData():
+                        raw_data = item.unwrap()
+                        # Handle deferred validation
+                        if isinstance(raw_data, DeferredValidation):
+                            try:
+                                validated_data = raw_data.confirm()
+                                await self._store_result(
+                                    request_id, validated_data
+                                )
+                                await self.handle_data(validated_data)
+                            except DataFormatAssumptionException as e:
+                                await self._store_result(
+                                    request_id,
+                                    e.failed_doc,
+                                    is_valid=False,
+                                    validation_errors=e.errors,
+                                )
+                                if self.on_invalid_data:
+                                    await self.on_invalid_data(raw_data)
+                        else:
+                            await self._store_result(request_id, raw_data)
+                            await self.handle_data(raw_data)
+
+                    case NavigatingRequest():
+                        await self.enqueue_request(item, response)
+
+                    case NonNavigatingRequest() | ArchiveRequest():
+                        await self.enqueue_request(item, parent_request)
+
+                    case None:
+                        pass
+
+        except HTMLStructuralAssumptionException as e:
+            if self.on_structural_error:
+                should_continue = await self.on_structural_error(e)
+                if not should_continue:
+                    return
+            else:
+                raise
+
+    async def _resolve_speculative_with_storage(
+        self,
+        request_id: int,
+        request: BaseRequest,
+        speculation_id: str,
+        continuation_name: str,
+    ) -> None:
+        """Execute speculative request with DB storage, determine success, enqueue resume.
+
+        Flow:
+        - 2xx response: always success (True), call continuation
+        - Non-2xx response: call on_speculation_response callback to decide
+
+        Args:
+            request_id: Database ID of the request.
+            request: The SpeculativeRequest to process.
+            speculation_id: ID linking to the parked generator.
+            continuation_name: Name of the continuation method.
+        """
+        from juriscraper.scraper_driver.common.exceptions import (
+            TransientException,
+        )
+
+        # Get the parked generator context
+        ctx = self._parked_generators.get(speculation_id)
+        if ctx is None:
+            logger.warning(
+                f"Speculation context {speculation_id} not found - "
+                "generator may have been lost on restart"
+            )
+            await self._mark_request_completed(request_id)
+            return
+
+        # Execute HTTP request
+        try:
+            response = await self.resolve_request(request)
+        except TransientException as e:
+            if self.on_transient_exception:
+                should_continue = await self.on_transient_exception(e)
+                if not should_continue:
+                    # Clean up parked generator
+                    del self._parked_generators[speculation_id]
+                    await self._mark_request_failed(request_id, str(e))
+                    return
+                # Enqueue resume with False - transient error means don't continue
+                await self._enqueue_resume_step(ctx, False)
+                del self._parked_generators[speculation_id]
+                await self._mark_request_completed(request_id)
+                return
+            else:
+                raise
+
+        # Store response
+        await self._store_response(request_id, response, continuation_name)
+
+        # Determine success based on status code
+        is_success_status = 200 <= response.status_code < 300
+
+        if is_success_status:
+            # 2xx response: always continue
+            should_continue = True
+        elif self.on_speculation_response:
+            # Non-2xx: let callback decide
+            should_continue = await self.on_speculation_response(
+                response, continuation_name
+            )
+        else:
+            # Non-2xx with no callback: don't continue
+            should_continue = False
+
+        # Enqueue ResumeStep FIRST (before processing continuation)
+        await self._enqueue_resume_step(ctx, should_continue)
+
+        # Clean up parked generator reference (it's now tracked by resume_id)
+        del self._parked_generators[speculation_id]
+
+        # THEN process continuation if approved AND response was successful
+        if should_continue and is_success_status:
+            continuation = self.scraper.get_continuation(continuation_name)
+            gen = continuation(response)
+            await self._process_generator_with_storage(
+                gen, response, request, continuation_name, request_id
+            )
+
+        await self._mark_request_completed(request_id)
+        await self._emit_progress(
+            "request_completed",
+            {
+                "request_id": request_id,
+                "url": request.request.url,
+            },
+        )
+
+    async def _execute_resume_with_storage(
+        self, request_id: int, resume_id: str
+    ) -> None:
+        """Execute a ResumeStep: resume the parked generator with the result.
+
+        Args:
+            request_id: Database ID of the resume request.
+            resume_id: ID linking to the parked generator.
+        """
+        assert self._db is not None
+
+        # Get the parked generator context
+        ctx = self._parked_generators.get(resume_id)
+        if ctx is None:
+            logger.warning(
+                f"Resume context {resume_id} not found - "
+                "generator may have been lost on restart"
+            )
+            await self._mark_request_completed(request_id)
+            return
+
+        # Get the predicate_result from the DB (stored in permanent_json)
+        cursor = await self._db.execute(
+            "SELECT permanent_json FROM requests WHERE id = ?", (request_id,)
+        )
+        row = await cursor.fetchone()
+        if row and row[0]:
+            data = json.loads(row[0])
+            predicate_result = data.get("predicate_result", False)
+        else:
+            predicate_result = False
+
+        # Clean up
+        del self._parked_generators[resume_id]
+
+        gen = ctx.parked_generator
+        response = ctx.original_response
+        parent_request = ctx.parent_request
+        continuation_name = ctx.originating_continuation
+
+        # Send the value and continue processing remaining yields
+        try:
+            item = gen.send(predicate_result)
+        except StopIteration:
+            await self._mark_request_completed(request_id)
+            return
+
+        # Handle the first item after resume, then loop for rest
+        await self._handle_yield_and_continue_with_storage(
+            gen, item, response, parent_request, continuation_name, request_id
+        )
+
+        await self._mark_request_completed(request_id)
+
+    async def _handle_yield_and_continue_with_storage(
+        self,
+        gen: Generator[ScraperYield, bool | None, None],
+        item: ScraperYield,
+        response: Response,
+        parent_request: BaseRequest,
+        continuation_name: str,
+        request_id: int,
+    ) -> None:
+        """Handle a yield and continue processing the generator with DB storage.
+
+        Called after _execute_resume_with_storage sends a value. Processes the
+        first yielded item, then continues with simple iteration for remaining items.
+
+        Args:
+            gen: The generator to continue processing.
+            item: The first item yielded after send().
+            response: The original response for context.
+            parent_request: The parent request for context.
+            continuation_name: The continuation name for context.
+            request_id: Database ID for result storage.
+        """
+        from juriscraper.scraper_driver.common.deferred_validation import (
+            DeferredValidation,
+        )
+        from juriscraper.scraper_driver.common.exceptions import (
+            DataFormatAssumptionException,
+            HTMLStructuralAssumptionException,
+        )
+        from juriscraper.scraper_driver.data_types import ParsedData
+
+        try:
+            while True:
+                match item:
+                    case SpeculativeRequest():
+                        # Park again
+                        ctx = SpeculationContext(
+                            parked_generator=gen,
+                            parent_request=parent_request,
+                            original_response=response,
+                            originating_continuation=continuation_name,
+                        )
+                        await self.enqueue_request(
+                            item.with_context(ctx), response
+                        )
+                        return
+
+                    case ParsedData():
+                        raw_data = item.unwrap()
+                        if isinstance(raw_data, DeferredValidation):
+                            try:
+                                validated_data = raw_data.confirm()
+                                await self._store_result(
+                                    request_id, validated_data
+                                )
+                                await self.handle_data(validated_data)
+                            except DataFormatAssumptionException as e:
+                                await self._store_result(
+                                    request_id,
+                                    e.failed_doc,
+                                    is_valid=False,
+                                    validation_errors=e.errors,
+                                )
+                                if self.on_invalid_data:
+                                    await self.on_invalid_data(raw_data)
+                        else:
+                            await self._store_result(request_id, raw_data)
+                            await self.handle_data(raw_data)
+
+                    case NavigatingRequest():
+                        await self.enqueue_request(item, response)
+
+                    case NonNavigatingRequest() | ArchiveRequest():
+                        await self.enqueue_request(item, parent_request)
+
+                    case None:
+                        pass
+
+                try:
+                    item = next(gen)  # Simple iteration after the initial send
+                except StopIteration:
+                    break
+
+        except HTMLStructuralAssumptionException as e:
+            if self.on_structural_error:
+                should_continue = await self.on_structural_error(e)
+                if not should_continue:
+                    return
+            else:
+                raise
 
     # --- Status ---
 

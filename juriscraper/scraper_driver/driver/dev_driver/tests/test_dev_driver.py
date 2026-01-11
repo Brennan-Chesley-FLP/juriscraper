@@ -549,7 +549,9 @@ class TestRequestTypeRoundTrip:
             """
         )
         row = await cursor.fetchone()
-        deserialized = driver._deserialize_request(row)
+        result = driver._deserialize_request(row)
+        # NavigatingRequest returns BaseRequest directly
+        deserialized = result if not isinstance(result, tuple) else result[0]
 
         assert deserialized.request.data == binary_body
 
@@ -632,7 +634,9 @@ class TestRequestTypeRoundTrip:
             """
         )
         row = await cursor.fetchone()
-        deserialized = driver._deserialize_request(row)
+        result = driver._deserialize_request(row)
+        # NavigatingRequest returns BaseRequest directly
+        deserialized = result if not isinstance(result, tuple) else result[0]
 
         # Verify deserialized correctly with empty defaults
         assert deserialized.request.headers is None
@@ -3022,7 +3026,13 @@ class TestGracefulShutdownAndResume:
             result = await driver._get_next_request()
 
             assert result is not None
-            request_id, request = result
+            request_id, deserialized = result
+            # NavigatingRequest returns BaseRequest directly
+            request = (
+                deserialized
+                if not isinstance(deserialized, tuple)
+                else deserialized[0]
+            )
             assert request.request.url == "https://example.com/pending"
 
             # The pending request should now be marked in_progress
@@ -6676,3 +6686,420 @@ class TestCancellationMethods:
         async with LocalDevDriver.open(scraper, db_path) as driver:
             count = await driver.cancel_requests_by_continuation("nonexistent")
             assert count == 0
+
+
+class TestSpeculativeRequestHandling:
+    """Tests for SpeculativeRequest support in LocalDevDriver."""
+
+    async def test_speculative_request_with_200_response_continues(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that 200 response to speculative request returns True."""
+        from collections.abc import Generator
+        from unittest.mock import AsyncMock, MagicMock
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+            ParsedData,
+            Response,
+            ScraperYield,
+            SpeculativeRequest,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+
+        class SpeculativeScraper(BaseScraper[dict]):
+            def __init__(self) -> None:
+                self.speculative_results: list[bool] = []
+                self.pages_processed: list[int] = []
+
+            def get_entry(self) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/start"
+                    ),
+                    continuation="parse_start",
+                )
+
+            @step
+            def parse_start(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                for page in range(1, 4):
+                    should_continue = yield SpeculativeRequest(
+                        request=HTTPRequestParams(
+                            method=HttpMethod.GET,
+                            url=f"https://example.com/page/{page}",
+                        ),
+                        continuation="parse_page",
+                    )
+                    self.speculative_results.append(
+                        should_continue
+                        if should_continue is not None
+                        else False
+                    )
+                    if not should_continue:
+                        break
+
+            @step
+            def parse_page(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                page_num = int(response.url.split("/")[-1])
+                self.pages_processed.append(page_num)
+                yield ParsedData({"page": page_num})
+
+        db_path = tmp_path / "test_speculative.db"
+        scraper = SpeculativeScraper()
+        collected_data: list[dict] = []
+
+        async def on_data(data: dict) -> None:
+            collected_data.append(data)
+
+        async with LocalDevDriver.open(scraper, db_path) as driver:
+            driver.on_data = on_data
+            # Mock the HTTP request method
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.headers = {}
+            mock_response.content = b""
+            mock_response.text = ""
+            driver._client = MagicMock()
+            driver._client.request = AsyncMock(return_value=mock_response)
+
+            await driver.run()
+
+        # All speculative requests should return True (200 responses)
+        assert scraper.speculative_results == [True, True, True]
+        # All pages should be processed
+        assert scraper.pages_processed == [1, 2, 3]
+        # Data should be collected
+        assert len(collected_data) == 3
+
+    async def test_speculative_request_with_404_returns_false(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that 404 response without callback returns False."""
+        from collections.abc import Generator
+        from unittest.mock import AsyncMock, MagicMock
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+            ParsedData,
+            Response,
+            ScraperYield,
+            SpeculativeRequest,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+
+        class SpeculativeScraper(BaseScraper[dict]):
+            def __init__(self) -> None:
+                self.speculative_results: list[bool] = []
+
+            def get_entry(self) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/start"
+                    ),
+                    continuation="parse_start",
+                )
+
+            @step
+            def parse_start(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                for page in range(1, 4):
+                    should_continue = yield SpeculativeRequest(
+                        request=HTTPRequestParams(
+                            method=HttpMethod.GET,
+                            url=f"https://example.com/page/{page}",
+                        ),
+                        continuation="parse_page",
+                    )
+                    self.speculative_results.append(
+                        should_continue
+                        if should_continue is not None
+                        else False
+                    )
+                    if not should_continue:
+                        break
+
+            @step
+            def parse_page(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                yield ParsedData({"page": response.url})
+
+        db_path = tmp_path / "test_speculative_404.db"
+        scraper = SpeculativeScraper()
+
+        async with LocalDevDriver.open(scraper, db_path) as driver:
+            # First returns 200, second returns 404
+            call_count = 0
+
+            def make_response(**kwargs):
+                nonlocal call_count
+                call_count += 1
+                mock = MagicMock()
+                # First call (start page) and second call (page 1) return 200
+                if call_count <= 2:
+                    mock.status_code = 200
+                else:
+                    mock.status_code = 404
+                mock.headers = {}
+                mock.content = b""
+                mock.text = ""
+                return mock
+
+            driver._client = MagicMock()
+            driver._client.request = AsyncMock(side_effect=make_response)
+
+            await driver.run()
+
+        # First speculative: True (200), Second: False (404)
+        assert scraper.speculative_results == [True, False]
+
+    async def test_speculative_request_with_callback(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that on_speculation_response callback is called for non-2xx."""
+        from collections.abc import Generator
+        from unittest.mock import AsyncMock, MagicMock
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+            ParsedData,
+            Response,
+            ScraperYield,
+            SpeculativeRequest,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+
+        class SpeculativeScraper(BaseScraper[dict]):
+            def __init__(self) -> None:
+                self.speculative_results: list[bool] = []
+
+            def get_entry(self) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/start"
+                    ),
+                    continuation="parse_start",
+                )
+
+            @step
+            def parse_start(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                for page in range(1, 4):
+                    should_continue = yield SpeculativeRequest(
+                        request=HTTPRequestParams(
+                            method=HttpMethod.GET,
+                            url=f"https://example.com/page/{page}",
+                        ),
+                        continuation="parse_page",
+                    )
+                    self.speculative_results.append(
+                        should_continue
+                        if should_continue is not None
+                        else False
+                    )
+                    if not should_continue:
+                        break
+
+            @step
+            def parse_page(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                yield ParsedData({"page": response.url})
+
+        db_path = tmp_path / "test_speculative_callback.db"
+        scraper = SpeculativeScraper()
+        callback_calls: list[tuple[int, str]] = []
+
+        async def speculation_callback(
+            response: Response, continuation_name: str
+        ) -> bool:
+            callback_calls.append((response.status_code, continuation_name))
+            return True  # Always continue
+
+        async with LocalDevDriver.open(
+            scraper, db_path, on_speculation_response=speculation_callback
+        ) as driver:
+            call_count = 0
+
+            def make_response(**kwargs):
+                nonlocal call_count
+                call_count += 1
+                mock = MagicMock()
+                # Start page: 200, page 1: 404, page 2: 200, page 3: 200
+                if call_count == 2:
+                    mock.status_code = 404
+                else:
+                    mock.status_code = 200
+                mock.headers = {}
+                mock.content = b""
+                mock.text = ""
+                return mock
+
+            driver._client = MagicMock()
+            driver._client.request = AsyncMock(side_effect=make_response)
+
+            await driver.run()
+
+        # Callback was called for the 404
+        assert len(callback_calls) == 1
+        assert callback_calls[0] == (404, "parse_page")
+
+        # All speculative results should be True (callback returned True)
+        assert scraper.speculative_results == [True, True, True]
+
+    async def test_speculative_request_serialization_roundtrip(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that SpeculativeRequest can be serialized and deserialized."""
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+            SpeculativeRequest,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+
+        class SimpleScraper(BaseScraper[str]):
+            def get_entry(self) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com"
+                    ),
+                    continuation="parse",
+                )
+
+            def parse(self, response):
+                return []
+
+        db_path = tmp_path / "test_spec_roundtrip.db"
+        scraper = SimpleScraper()
+
+        async with LocalDevDriver.open(scraper, db_path) as driver:
+            # Create a speculative request
+            spec_request = SpeculativeRequest(
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET,
+                    url="https://example.com/speculative",
+                    headers={"X-Test": "value"},
+                ),
+                continuation="parse",
+                current_location="test_location",
+                accumulated_data={"key": "value"},
+                aux_data={"aux": "data"},
+                permanent={"perm": "data"},
+                priority=5,
+            )
+
+            # Serialize with speculation_id
+            serialized = driver._serialize_request(spec_request, "spec_123")
+
+            assert serialized["request_type"] == "speculative"
+            assert serialized["expected_type"] == "spec_123"
+            assert serialized["url"] == "https://example.com/speculative"
+            assert serialized["method"] == "GET"
+
+    async def test_speculative_deduplication_resumes_generator(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that deduplicated speculative requests resume with False."""
+        from collections.abc import Generator
+        from unittest.mock import AsyncMock, MagicMock
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+            ParsedData,
+            Response,
+            ScraperYield,
+            SpeculativeRequest,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+
+        class DuplicateScraper(BaseScraper[dict]):
+            def __init__(self) -> None:
+                self.results: list[bool] = []
+
+            def get_entry(self) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/start"
+                    ),
+                    continuation="parse_start",
+                )
+
+            @step
+            def parse_start(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                # First speculative request
+                result1 = yield SpeculativeRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/page"
+                    ),
+                    continuation="parse_page",
+                )
+                self.results.append(result1 if result1 is not None else False)
+
+                # Same URL again - should be deduplicated
+                result2 = yield SpeculativeRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/page"
+                    ),
+                    continuation="parse_page",
+                )
+                self.results.append(result2 if result2 is not None else False)
+
+            @step
+            def parse_page(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                yield ParsedData({"url": response.url})
+
+        db_path = tmp_path / "test_spec_dedup.db"
+        scraper = DuplicateScraper()
+
+        async with LocalDevDriver.open(scraper, db_path) as driver:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.headers = {}
+            mock_response.content = b""
+            mock_response.text = ""
+            driver._client = MagicMock()
+            driver._client.request = AsyncMock(return_value=mock_response)
+
+            await driver.run()
+
+        # First should succeed (True), second should be deduplicated (False)
+        assert scraper.results == [True, False]

@@ -175,7 +175,7 @@ def _process_yielded_request(yielded: Any) -> Any:
 
 
 def step(
-    func: Callable[..., Generator[ScraperYield, None, None]] | None = None,
+    func: Callable[..., Generator[ScraperYield, Any, None]] | None = None,
     *,
     priority: int = 9,
     encoding: str = "utf-8",
@@ -230,8 +230,8 @@ def step(
     """
 
     def decorator(
-        fn: Callable[..., Generator[ScraperYield, None, None]],
-    ) -> Callable[..., Generator[ScraperYield, None, None]]:
+        fn: Callable[..., Generator[ScraperYield, Any, None]],
+    ) -> Callable[..., Generator[ScraperYield, bool | None, None]]:
         # Inspect the function signature to determine what to inject
         sig = inspect.signature(fn)
         param_names = [p.name for p in sig.parameters.values()]
@@ -245,7 +245,7 @@ def step(
             response: Response,
             *args: Any,
             **kwargs: Any,
-        ) -> Generator[ScraperYield, None, None]:
+        ) -> Generator[ScraperYield, bool | None, None]:
             # Build kwargs for injection based on parameter names
             injected_kwargs: dict[str, Any] = {}
 
@@ -292,9 +292,18 @@ def step(
             gen = fn(scraper_self, *args, **injected_kwargs, **kwargs)
 
             # Yield from the generator, processing requests to resolve Callables
-            for yielded in gen:
-                processed = _process_yielded_request(yielded)
-                yield processed
+            # Use .send() pattern to support bidirectional generators for
+            # SpeculativeRequest - values sent to us get passed through to
+            # the underlying generator
+            send_value: bool | None = None
+            while True:
+                try:
+                    yielded = gen.send(send_value)
+                    processed = _process_yielded_request(yielded)
+                    # Capture value sent to us and pass through on next iteration
+                    send_value = yield processed
+                except StopIteration:
+                    break
 
         # Attach metadata to the wrapper
         wrapper._step_metadata = metadata  # type: ignore[attr-defined]

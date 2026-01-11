@@ -36,15 +36,24 @@ from juriscraper.scraper_driver.data_types import (
     ArchiveResponse,
     BaseRequest,
     BaseScraper,
+    HTTPRequestParams,
     NavigatingRequest,
     NonNavigatingRequest,
     ParsedData,
     Response,
+    ResumeStep,
     ScraperYield,
     SkipDeduplicationCheck,
+    SpeculationContext,
+    SpeculativeRequest,
 )
 
 logger = logging.getLogger(__name__)
+
+# Type alias for speculation response callback (async version)
+# Called when a SpeculativeRequest receives a non-2xx response
+# Returns True to continue (and optionally process continuation), False to stop
+OnSpeculationResponseAsync = Callable[[Response, str], Awaitable[bool]]
 
 ScraperReturnDatatype = TypeVar("ScraperReturnDatatype")
 
@@ -160,6 +169,7 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
         duplicate_check: Callable[[str], Awaitable[bool]] | None = None,
         stop_event: asyncio.Event | None = None,
         num_workers: int = 1,
+        on_speculation_response: OnSpeculationResponseAsync | None = None,
     ) -> None:
         """Initialize the driver.
 
@@ -197,6 +207,10 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
             stop_event: Optional asyncio.Event for graceful shutdown. When set, workers
                 will stop processing after completing their current request.
             num_workers: Number of concurrent workers to process requests. Defaults to 1.
+            on_speculation_response: Optional async callback invoked when a SpeculativeRequest
+                receives a non-2xx response. Receives (response, continuation_name) and should
+                return True to resume the generator with True (continue speculation) or False to
+                resume with False (stop speculation). Not called for 2xx responses (which always continue).
         """
         self.scraper = scraper
         # Use asyncio.PriorityQueue for async-compatible priority queue
@@ -221,6 +235,7 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
         self.duplicate_check = duplicate_check
         self.stop_event = stop_event
         self.num_workers = num_workers
+        self.on_speculation_response = on_speculation_response
 
         # Initialize httpx async client for reuse across requests
         self._client = httpx.AsyncClient()
@@ -327,70 +342,66 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
                 break
 
             try:
-                # Wrap request resolution to catch transient exceptions
-                try:
-                    response: Response = (
-                        await self.resolve_archive_request(request)
-                        if isinstance(request, ArchiveRequest)
-                        else await self.resolve_request(request)
-                    )
-                except TransientException as e:
-                    # Handle transient errors via callback
-                    if self.on_transient_exception:
-                        # Invoke callback - if it returns False, stop this worker
-                        should_continue = await self.on_transient_exception(e)
-                        if not should_continue:
-                            break
-                        # If callback returns True, continue processing next request
-                        continue
-                    else:
-                        # No callback provided - propagate exception normally
-                        raise
+                # Step 19: Use match/case for exhaustive request type handling
+                match request:
+                    case ResumeStep():
+                        # Resume a parked generator (no HTTP)
+                        await self._execute_resume(request)
 
-                # Handle Callable continuations (convert to string)
-                continuation_name = (
-                    request.continuation
-                    if isinstance(request.continuation, str)
-                    else getattr(
-                        request.continuation,
-                        "__name__",
-                        str(request.continuation),
-                    )
-                )
+                    case SpeculativeRequest() if request.speculation_context:
+                        # Speculative request with context: resolve and enqueue resume
+                        await self._resolve_speculative(request)
 
-                continuation_method: Callable[
-                    [Response],
-                    Generator[ScraperYield[ScraperReturnDatatype], None, None],
-                ] = self.scraper.get_continuation(continuation_name)
+                    case (
+                        NavigatingRequest()
+                        | NonNavigatingRequest()
+                        | ArchiveRequest()
+                        | SpeculativeRequest()
+                    ):
+                        # Normal request flow (includes SpeculativeRequest without context)
+                        # Wrap request resolution to catch transient exceptions
+                        try:
+                            response: Response = (
+                                await self.resolve_archive_request(request)
+                                if isinstance(request, ArchiveRequest)
+                                else await self.resolve_request(request)
+                            )
+                        except TransientException as e:
+                            # Handle transient errors via callback
+                            if self.on_transient_exception:
+                                should_continue = (
+                                    await self.on_transient_exception(e)
+                                )
+                                if not should_continue:
+                                    break
+                                continue
+                            else:
+                                raise
 
-                # Wrap continuation execution to catch structural errors
-                try:
-                    for item in continuation_method(response):
-                        match item:
-                            case ParsedData():
-                                data = item.unwrap()
-                                await self.handle_data(data)
-                            case NavigatingRequest():
-                                await self.enqueue_request(item, response)
-                            case NonNavigatingRequest() | ArchiveRequest():
-                                await self.enqueue_request(item, request)
-                            case None:
-                                pass
-                            case _:
-                                # This should never happen if ScraperYield type is correct,
-                                # but provides a safety net during development
-                                assert_never(item)
-                except HTMLStructuralAssumptionException as e:
-                    # Handle structural errors via callback
-                    if self.on_structural_error:
-                        # Invoke callback - if it returns False, stop this worker
-                        should_continue = await self.on_structural_error(e)
-                        if not should_continue:
-                            break
-                        # If callback returns True, continue processing next request
-                    else:
-                        # No callback provided - propagate exception normally
-                        raise
+                        # Handle Callable continuations (convert to string)
+                        continuation_name = (
+                            request.continuation
+                            if isinstance(request.continuation, str)
+                            else getattr(
+                                request.continuation,
+                                "__name__",
+                                str(request.continuation),
+                            )
+                        )
+
+                        continuation_method = self.scraper.get_continuation(
+                            continuation_name
+                        )
+
+                        # Process the generator
+                        gen = continuation_method(response)
+                        await self._process_generator(
+                            gen, response, request, continuation_name
+                        )
+
+                    case _:
+                        # Exhaustive match - should never reach here
+                        assert_never(request)  # type: ignore[arg-type]
             finally:
                 # Always mark task as done to allow join() to complete
                 self.request_queue.task_done()
@@ -424,6 +435,15 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
                 if self.duplicate_check and not await self.duplicate_check(
                     dedup_key
                 ):
+                    # Step 19: If this is a SpeculativeRequest with context,
+                    # we still need to resume the parked generator with False
+                    if (
+                        isinstance(resolved_request, SpeculativeRequest)
+                        and resolved_request.speculation_context
+                    ):
+                        await self._enqueue_resume_step(
+                            resolved_request.speculation_context, False
+                        )
                     return
 
         # Push onto queue with priority and counter for stable ordering
@@ -587,3 +607,231 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
             # Not deferred validation - invoke callback if provided
             if self.on_data:
                 await self.on_data(data)
+
+    # =========================================================================
+    # Step 19: Speculative Request Support
+    # =========================================================================
+
+    async def _process_generator(
+        self,
+        gen: Generator[ScraperYield, bool | None, None],
+        response: Response,
+        parent_request: BaseRequest,
+        continuation_name: str,
+    ) -> None:
+        """Process generator, parking on SpeculativeRequest.
+
+        Uses simple iteration (for item in gen). Values are only sent to
+        generators via _execute_resume() when processing a ResumeStep.
+
+        Args:
+            gen: The generator from the continuation method.
+            response: The Response that triggered this continuation.
+            parent_request: The request that initiated this continuation.
+            continuation_name: Name of the continuation method (for context tracking).
+        """
+        try:
+            for item in gen:
+                match item:
+                    case SpeculativeRequest():
+                        # Park the generator and enqueue with context
+                        ctx = SpeculationContext(
+                            parked_generator=gen,
+                            parent_request=parent_request,
+                            original_response=response,
+                            originating_continuation=continuation_name,
+                        )
+                        await self.enqueue_request(
+                            item.with_context(ctx), response
+                        )
+                        return  # Generator parked - stop processing
+
+                    case ParsedData():
+                        await self.handle_data(item.unwrap())
+                    case NavigatingRequest():
+                        await self.enqueue_request(item, response)
+                    case NonNavigatingRequest() | ArchiveRequest():
+                        await self.enqueue_request(item, parent_request)
+                    case None:
+                        pass
+                    case _:
+                        assert_never(item)
+        except HTMLStructuralAssumptionException as e:
+            # Handle structural errors via callback
+            if self.on_structural_error:
+                should_continue = await self.on_structural_error(e)
+                if not should_continue:
+                    return
+            else:
+                raise
+
+    async def _resolve_speculative(self, request: SpeculativeRequest) -> None:
+        """Execute speculative request, determine success, enqueue resume, process continuation.
+
+        Flow:
+        - 2xx response: always success (True), call continuation
+        - Non-2xx response: call on_speculation_response callback to decide
+
+        Args:
+            request: The SpeculativeRequest with speculation_context attached.
+        """
+        ctx = request.speculation_context
+        assert ctx is not None  # Guaranteed by match guard in _worker()
+
+        # Wrap request resolution to catch transient exceptions
+        try:
+            response = await self.resolve_request(request)
+        except TransientException as e:
+            if self.on_transient_exception:
+                should_continue = await self.on_transient_exception(e)
+                if not should_continue:
+                    return
+                # Enqueue resume with False - transient error means don't continue
+                await self._enqueue_resume_step(ctx, False)
+                return
+            else:
+                raise
+
+        # Get continuation name
+        continuation_name = (
+            request.continuation
+            if isinstance(request.continuation, str)
+            else request.continuation.__name__
+        )
+
+        # Determine success based on status code
+        is_success_status = 200 <= response.status_code < 300
+
+        if is_success_status:
+            # 2xx response: always continue
+            should_continue = True
+        elif self.on_speculation_response:
+            # Non-2xx: let callback decide (e.g., track consecutive 404s)
+            should_continue = await self.on_speculation_response(
+                response, continuation_name
+            )
+        else:
+            # Non-2xx with no callback: don't continue
+            should_continue = False
+
+        # Enqueue ResumeStep FIRST (before processing continuation)
+        # Priority inherited from parent request to maintain traversal order
+        await self._enqueue_resume_step(ctx, should_continue)
+
+        # THEN process continuation if approved AND response was successful
+        if should_continue and is_success_status:
+            continuation = self.scraper.get_continuation(continuation_name)
+            gen = continuation(response)
+            await self._process_generator(
+                gen, response, request, continuation_name
+            )
+
+    async def _enqueue_resume_step(
+        self, ctx: SpeculationContext, predicate_result: bool
+    ) -> None:
+        """Enqueue a ResumeStep to resume a parked generator.
+
+        Args:
+            ctx: The speculation context containing the parked generator.
+            predicate_result: The value to send to the generator (True/False).
+        """
+        from juriscraper.scraper_driver.data_types import HttpMethod
+
+        resume_step = ResumeStep(
+            request=HTTPRequestParams(
+                method=HttpMethod.GET, url=""
+            ),  # Dummy, not used
+            continuation=ctx.originating_continuation,
+            priority=ctx.parent_request.priority,  # Inherit from original
+            speculation_context=ctx,
+            predicate_result=predicate_result,
+        )
+        async with self._queue_lock:
+            await self.request_queue.put(
+                (resume_step.priority, self._queue_counter, resume_step)
+            )
+            self._queue_counter += 1
+
+    async def _execute_resume(self, resume_step: ResumeStep) -> None:
+        """Execute a ResumeStep: resume the parked generator with the result.
+
+        Args:
+            resume_step: The ResumeStep containing the context and result.
+        """
+        ctx = resume_step.speculation_context
+        assert ctx is not None  # ResumeStep always has speculation_context
+        send_value = resume_step.predicate_result
+
+        gen = ctx.parked_generator
+        response = ctx.original_response
+        parent_request = ctx.parent_request
+        continuation_name = ctx.originating_continuation
+
+        # Send the value and continue processing remaining yields
+        try:
+            item = gen.send(send_value)
+        except StopIteration:
+            return
+
+        # Handle the first item after resume, then loop for rest
+        await self._handle_yield_and_continue(
+            gen, item, response, parent_request, continuation_name
+        )
+
+    async def _handle_yield_and_continue(
+        self,
+        gen: Generator[ScraperYield, bool | None, None],
+        item: ScraperYield,
+        response: Response,
+        parent_request: BaseRequest,
+        continuation_name: str,
+    ) -> None:
+        """Handle a yield and continue processing the generator.
+
+        Called after _execute_resume sends a value. Processes the first yielded
+        item, then continues with simple iteration for remaining items.
+
+        Args:
+            gen: The generator to continue processing.
+            item: The first item yielded after send().
+            response: The original response for context.
+            parent_request: The parent request for context.
+            continuation_name: The continuation name for context.
+        """
+        try:
+            while True:
+                match item:
+                    case SpeculativeRequest():
+                        # Park again
+                        ctx = SpeculationContext(
+                            parked_generator=gen,
+                            parent_request=parent_request,
+                            original_response=response,
+                            originating_continuation=continuation_name,
+                        )
+                        await self.enqueue_request(
+                            item.with_context(ctx), response
+                        )
+                        return
+                    case ParsedData():
+                        await self.handle_data(item.unwrap())
+                    case NavigatingRequest():
+                        await self.enqueue_request(item, response)
+                    case NonNavigatingRequest() | ArchiveRequest():
+                        await self.enqueue_request(item, parent_request)
+                    case None:
+                        pass
+                    case _:
+                        assert_never(item)
+
+                try:
+                    item = next(gen)  # Simple iteration after the initial send
+                except StopIteration:
+                    break
+        except HTMLStructuralAssumptionException as e:
+            if self.on_structural_error:
+                should_continue = await self.on_structural_error(e)
+                if not should_continue:
+                    return
+            else:
+                raise

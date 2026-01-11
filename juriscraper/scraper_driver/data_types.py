@@ -152,7 +152,8 @@ class BaseScraper(Generic[ScraperReturnType]):
     def get_continuation(
         self, name: str
     ) -> Callable[
-        [Response], Generator[ScraperYield[ScraperReturnType], None, None]
+        [Response],
+        Generator[ScraperYield[ScraperReturnType], bool | None, None],
     ]:
         """Resolve a continuation name to the actual method.
 
@@ -173,7 +174,7 @@ class BaseScraper(Generic[ScraperReturnType]):
         return cast(
             Callable[
                 [Response],
-                Generator[ScraperYield[ScraperReturnType], None, None],
+                Generator[ScraperYield[ScraperReturnType], bool | None, None],
             ],
             method,
         )
@@ -840,18 +841,171 @@ class ArchiveResponse(Response):
 
 
 # =============================================================================
+# Speculative Request Types (Step 19)
+# =============================================================================
+
+
+@dataclass
+class SpeculationContext:
+    """Mutable container for parked generator state.
+
+    When a scraper yields a SpeculativeRequest, the driver "parks" the generator
+    by storing it in this context. The context is then attached to the
+    SpeculativeRequest before it goes through the normal pipeline.
+
+    This allows the generator to be resumed later when the speculative request
+    is resolved, sending back True/False to indicate whether the scraper should
+    continue generating more speculative requests.
+
+    Attributes:
+        parked_generator: The suspended generator that yielded the speculative request.
+        parent_request: The request that initiated the continuation containing the generator.
+        original_response: The Response that was passed to the continuation method.
+        originating_continuation: Name of the continuation method that yielded this request.
+    """
+
+    parked_generator: Generator[ScraperYield, bool | None, None]
+    parent_request: BaseRequest
+    original_response: Response
+    originating_continuation: str
+
+
+@dataclass(frozen=True)
+class SpeculativeRequest(NonNavigatingRequest):
+    """Request that returns True/False to the yielding generator.
+
+    When a scraper needs to probe for pages that may or may not exist
+    (e.g., infinite pagination), it can yield a SpeculativeRequest.
+    The driver will:
+
+    1. Park the generator (store reference in speculation_context)
+    2. Enqueue request through normal pipeline (interceptors, dedup, etc.)
+    3. Execute HTTP request
+    4. If 2xx response: resume generator with True, call continuation
+    5. If non-2xx response: call on_speculation_response callback to decide
+       - Callback returns True: resume with True, call continuation
+       - Callback returns False: resume with False, skip continuation
+    6. Generator receives True/False, decides whether to yield more
+
+    Example usage:
+        page = 1
+        while True:
+            should_continue = yield SpeculativeRequest(
+                request=HTTPRequestParams(url=f"/cases?page={page}"),
+                continuation="parse_page",
+            )
+            if not should_continue:
+                break  # Stop pagination
+            page += 1
+
+    Attributes:
+        speculation_context: Container holding the parked generator (set by driver).
+    """
+
+    speculation_context: SpeculationContext | None = None
+
+    def with_context(self, ctx: SpeculationContext) -> SpeculativeRequest:
+        """Return new instance with context attached.
+
+        The driver calls this before enqueuing the request to attach
+        the parked generator information.
+
+        Args:
+            ctx: The speculation context containing the parked generator.
+
+        Returns:
+            A new SpeculativeRequest with the context attached.
+        """
+        import dataclasses
+
+        return dataclasses.replace(self, speculation_context=ctx)
+
+    def resolve_from(
+        self, context: Response | NonNavigatingRequest
+    ) -> SpeculativeRequest:
+        """Create a new request with URL resolved from a Response or NonNavigatingRequest.
+
+        Like NonNavigatingRequest, SpeculativeRequest preserves current_location.
+
+        Args:
+            context: Response from a NavigatingRequest or the originating NonNavigatingRequest.
+
+        Returns:
+            A new SpeculativeRequest with resolved URL and preserved speculation_context.
+        """
+        request, location, parent = self.resolve_request_from(context)
+        merged_permanent = {**parent.permanent, **self.permanent}
+        return SpeculativeRequest(
+            request=request,
+            continuation=self.continuation,
+            current_location=location,
+            previous_requests=parent.previous_requests + [parent],
+            accumulated_data=self.accumulated_data,
+            aux_data=self.aux_data,
+            priority=self.priority,
+            deduplication_key=self.deduplication_key,
+            permanent=merged_permanent,
+            speculation_context=self.speculation_context,
+        )
+
+
+@dataclass(frozen=True)
+class ResumeStep(BaseRequest):
+    """Queued item to resume a parked generator.
+
+    This is not an HTTP request - it's a control-flow marker that tells
+    the driver to resume a parked generator with a result value.
+
+    When the driver pops a ResumeStep from the queue, it:
+    1. Gets the parked generator from speculation_context
+    2. Sends predicate_result (True/False) to the generator
+    3. Continues processing the generator's remaining yields
+
+    ResumeStep inherits priority from the original parent request to maintain
+    depth-first/A* traversal ordering in the queue.
+
+    Attributes:
+        speculation_context: The context containing the parked generator.
+        predicate_result: True/False value to send to the generator.
+    """
+
+    # Override: ResumeStep doesn't do HTTP, so skip deduplication
+    deduplication_key: str | None | SkipDeduplicationCheck = field(
+        default_factory=SkipDeduplicationCheck
+    )
+
+    # These fields are semantically required but have defaults to satisfy
+    # dataclass field ordering (BaseRequest has optional fields)
+    speculation_context: SpeculationContext | None = field(
+        default=None, repr=False
+    )
+    predicate_result: bool = True
+
+    def resolve_from(
+        self, context: Response | NonNavigatingRequest
+    ) -> ResumeStep:
+        """ResumeStep doesn't need URL resolution - return self unchanged."""
+        return self
+
+
+# =============================================================================
 # Type Alias for Scraper Yields
 # =============================================================================
 
-# A scraper can yield ParsedData, NavigatingRequest, NonNavigatingRequest, or ArchiveRequest.
+# A scraper can yield ParsedData, NavigatingRequest, NonNavigatingRequest,
+# ArchiveRequest, SpeculativeRequest, or None.
 # This type alias enables exhaustive pattern matching in the driver.
 ScraperYield = (
     ParsedData[T]
     | NavigatingRequest
     | NonNavigatingRequest
     | ArchiveRequest
+    | SpeculativeRequest
     | None
 )
 
 # Type alias for scraper generator - what continuation methods return
-ScraperGenerator = Generator[ScraperYield[T], None, None]
+# The second type parameter (bool | None) is the SendType - values sent back
+# to the generator via .send(). This is only used for SpeculativeRequest
+# to send True/False indicating whether to continue.
+ScraperGenerator = Generator[ScraperYield[T], bool | None, None]

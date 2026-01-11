@@ -222,3 +222,11 @@ Choosing Worker Count
 
 One worker should cause the AsyncDriver to behave basically the same as the SyncDriver.
 More workers might overwhelm servers, be mindful.
+
+
+Next Steps
+----------
+
+In :doc:`22_speculative_request`, we introduce speculative requests for handling
+infinite pagination and optional resources. Scrapers can yield requests that may
+or may not exist, receiving a boolean response to decide whether to continue.

@@ -18,6 +18,7 @@ Supported parameter names:
 
 The decorator also handles:
 - Attaching priority metadata to functions
+- Attaching encoding and xsd metadata for drivers to optionally use
 - Auto-resolving Callable continuations to string names
 - Automatic yielding from wrapped generators
 """
@@ -50,11 +51,18 @@ class StepMetadata:
     Attributes:
         priority: Priority hint for queue ordering (lower = higher priority).
         encoding: Character encoding for text/HTML decoding.
+        xsd: Optional path to XSD schema file for structural validation hints.
     """
 
-    def __init__(self, priority: int = 9, encoding: str = "utf-8"):
+    def __init__(
+        self,
+        priority: int = 9,
+        encoding: str = "utf-8",
+        xsd: str | None = None,
+    ):
         self.priority = priority
         self.encoding = encoding
+        self.xsd = xsd
 
 
 def _parse_json(response: Response) -> Any:
@@ -179,6 +187,7 @@ def step(
     *,
     priority: int = 9,
     encoding: str = "utf-8",
+    xsd: str | None = None,
 ) -> Any:
     """Decorator for scraper step methods with automatic argument injection.
 
@@ -217,10 +226,18 @@ def step(
                 continuation=self.parse_next_page  # Callable!
             )
 
+        @step(xsd="schemas/court_page.xsd")
+        def parse_court_page(self, lxml_tree: CheckedHtmlElement):
+            # XSD reference available via get_step_metadata() for drivers
+            # to optionally use when evaluating structural errors
+            ...
+
     Args:
         func: The scraper step method to decorate (when used without parens).
         priority: Priority hint for queue ordering (lower = higher priority).
         encoding: Character encoding for text/HTML decoding.
+        xsd: Optional path to XSD schema file. Drivers may use this hint
+            when evaluating structural assumption errors.
 
     Returns:
         Decorated function with automatic argument injection.
@@ -237,7 +254,7 @@ def step(
         param_names = [p.name for p in sig.parameters.values()]
 
         # Create metadata
-        metadata = StepMetadata(priority=priority, encoding=encoding)
+        metadata = StepMetadata(priority=priority, encoding=encoding, xsd=xsd)
 
         @wraps(fn)
         def wrapper(

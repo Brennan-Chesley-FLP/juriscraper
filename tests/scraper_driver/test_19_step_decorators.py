@@ -566,6 +566,60 @@ class TestEncodingParameter:
         assert metadata.encoding == "latin-1"
 
 
+class TestXsdParameter:
+    """Tests for xsd parameter support."""
+
+    def test_default_xsd_is_none(self):
+        """The @step decorator shall have xsd=None by default."""
+
+        class NoXsdScraper(BaseScraper[dict]):
+            @step
+            def parse(
+                self, response: Response
+            ) -> Generator[ScraperYield, None, None]:
+                yield ParsedData(data={})
+
+        scraper = NoXsdScraper()
+        metadata = get_step_metadata(scraper.parse)
+
+        assert metadata is not None
+        assert metadata.xsd is None
+
+    def test_xsd_attached_when_specified(self):
+        """The @step decorator shall attach xsd path when specified."""
+
+        class XsdScraper(BaseScraper[dict]):
+            @step(xsd="schemas/court_page.xsd")
+            def parse(
+                self, response: Response
+            ) -> Generator[ScraperYield, None, None]:
+                yield ParsedData(data={})
+
+        scraper = XsdScraper()
+        metadata = get_step_metadata(scraper.parse)
+
+        assert metadata is not None
+        assert metadata.xsd == "schemas/court_page.xsd"
+
+    def test_xsd_with_other_parameters(self):
+        """The @step decorator shall support xsd alongside priority and encoding."""
+
+        class CombinedScraper(BaseScraper[dict]):
+            @step(priority=3, encoding="latin-1", xsd="schemas/special.xsd")
+            def parse(
+                self, response: Response
+            ) -> Generator[ScraperYield, None, None]:
+                yield ParsedData(data={})
+
+        scraper = CombinedScraper()
+        metadata = get_step_metadata(scraper.parse)
+
+        assert metadata is not None
+        assert metadata.priority == 3
+        assert metadata.encoding == "latin-1"
+        assert metadata.xsd == "schemas/special.xsd"
+
+
 class TestMultipleParameterInjection:
     """Tests for injecting multiple parameters simultaneously."""
 

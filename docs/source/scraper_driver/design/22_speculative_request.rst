@@ -248,3 +248,11 @@ proper priority order, maintaining A*/depth-first traversal semantics.
 chosen to pin the generator to a thread here. If we decide on more complex deployment procedures that involve
 shipping the queue around, we'll need to rethink this. If we make a multithreaded driver (not just async) we'll
 have to take special care. Both of these options seem unlikely at this time.
+
+
+Next Steps
+----------
+
+In :doc:`23_playwright_driver`, we introduce a browser-based driver that uses
+Playwright for HTTP execution. This enables JavaScript rendering, session
+management, and handling of sites that require a real browser environment.

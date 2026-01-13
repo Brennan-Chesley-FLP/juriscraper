@@ -52,6 +52,8 @@ class StepMetadata:
         priority: Priority hint for queue ordering (lower = higher priority).
         encoding: Character encoding for text/HTML decoding.
         xsd: Optional path to XSD schema file for structural validation hints.
+        speculative: Whether this step handles speculative requests. When True,
+            consumers can configure the maximum speculative ID for this step.
     """
 
     def __init__(
@@ -59,10 +61,12 @@ class StepMetadata:
         priority: int = 9,
         encoding: str = "utf-8",
         xsd: str | None = None,
+        speculative: bool = False,
     ):
         self.priority = priority
         self.encoding = encoding
         self.xsd = xsd
+        self.speculative = speculative
 
 
 def _parse_json(response: Response) -> Any:
@@ -188,6 +192,7 @@ def step(
     priority: int = 9,
     encoding: str = "utf-8",
     xsd: str | None = None,
+    speculative: bool = False,
 ) -> Any:
     """Decorator for scraper step methods with automatic argument injection.
 
@@ -232,12 +237,21 @@ def step(
             # to optionally use when evaluating structural errors
             ...
 
+        @step(speculative=True)
+        def parse_case(self, lxml_tree: CheckedHtmlElement):
+            # Marks this step as handling speculative requests.
+            # Consumers can configure max speculative ID via params.
+            ...
+
     Args:
         func: The scraper step method to decorate (when used without parens).
         priority: Priority hint for queue ordering (lower = higher priority).
         encoding: Character encoding for text/HTML decoding.
         xsd: Optional path to XSD schema file. Drivers may use this hint
             when evaluating structural assumption errors.
+        speculative: Whether this step handles speculative requests. When True,
+            consumers can configure the maximum speculative ID for this step
+            via the params system.
 
     Returns:
         Decorated function with automatic argument injection.
@@ -254,7 +268,12 @@ def step(
         param_names = [p.name for p in sig.parameters.values()]
 
         # Create metadata
-        metadata = StepMetadata(priority=priority, encoding=encoding, xsd=xsd)
+        metadata = StepMetadata(
+            priority=priority,
+            encoding=encoding,
+            xsd=xsd,
+            speculative=speculative,
+        )
 
         @wraps(fn)
         def wrapper(

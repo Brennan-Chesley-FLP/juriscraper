@@ -4,10 +4,12 @@ This module provides a system for annotating Pydantic model fields as
 searchable, allowing scrapers to advertise which fields can be filtered
 when querying for data.
 
-Three filter types are supported:
+Four filter types are supported:
 - DateRange: Filter by date range (gte/lte)
 - SetFilter: Filter by a set of allowed values
 - UniqueMatch: Filter by exact match (single value)
+- SpeculativeID: Filter by greater-than (gt) or exact match (eq) for
+  auto-incremented IDs used in speculative scraping
 
 Example usage in a ScrapedData model:
 
@@ -17,6 +19,7 @@ Example usage in a ScrapedData model:
         date_filed: Annotated[date, DateRange()]
         case_type: Annotated[str, SetFilter()]
         docket_number: Annotated[str, UniqueMatch()]
+        case_id: Annotated[str, SpeculativeID()]
 
 Example usage for querying:
 
@@ -24,6 +27,7 @@ Example usage for querying:
     params.CaseData.date_filed.gte = date(2000, 1, 1)
     params.CaseData.case_type.values = {"civil", "criminal"}
     params.CaseData.docket_number.value = "2024-001"
+    params.CaseData.case_id.gt = "12345"  # Start from this ID
 
     # Set to None to disable filtering for that field
     params.CaseData.date_filed = None
@@ -100,8 +104,28 @@ class UniqueMatch:
     pass
 
 
+@dataclass(frozen=True)
+class SpeculativeID:
+    """Marker for speculative ID filtering.
+
+    When used with typing.Annotated, indicates that the field is an
+    auto-incremented ID that can be used for speculative scraping.
+    Supports greater-than (gt) for resuming from a known ID, or
+    exact match (eq) for fetching a specific ID.
+
+    Example:
+        case_id: Annotated[str, SpeculativeID()]
+
+    Usage in params:
+        params.CaseData.case_id.gt = "12345"  # Start after this ID
+        params.CaseData.case_id.eq = "12346"  # Fetch exactly this ID
+    """
+
+    pass
+
+
 # Type for any searchable marker
-SearchableMarker = DateRange | SetFilter | UniqueMatch
+SearchableMarker = DateRange | SetFilter | UniqueMatch | SpeculativeID
 
 
 # =============================================================================
@@ -156,6 +180,25 @@ class UniqueMatchValue:
         return self.value is not None
 
 
+@dataclass
+class SpeculativeIDValue:
+    """Runtime filter value for SpeculativeID fields.
+
+    Attributes:
+        gt: Start after this ID (exclusive). None means start from beginning.
+        eq: Fetch exactly this ID. None means no exact match filter.
+
+    Note: If both gt and eq are set, eq takes precedence.
+    """
+
+    gt: Any = None
+    eq: Any = None
+
+    def is_set(self) -> bool:
+        """Return True if any filter value is set."""
+        return self.gt is not None or self.eq is not None
+
+
 # =============================================================================
 # Field Proxy (for attribute-style access)
 # =============================================================================
@@ -174,7 +217,10 @@ class FieldProxy(Generic[T]):
         self,
         field_name: str,
         marker: SearchableMarker,
-        filter_value: DateRangeFilter | SetFilterValue | UniqueMatchValue,
+        filter_value: DateRangeFilter
+        | SetFilterValue
+        | UniqueMatchValue
+        | SpeculativeIDValue,
     ) -> None:
         self._field_name = field_name
         self._marker = marker
@@ -191,7 +237,14 @@ class FieldProxy(Generic[T]):
         return self._marker
 
     @property
-    def filter(self) -> DateRangeFilter | SetFilterValue | UniqueMatchValue:
+    def filter(
+        self,
+    ) -> (
+        DateRangeFilter
+        | SetFilterValue
+        | UniqueMatchValue
+        | SpeculativeIDValue
+    ):
         """Return the filter value holder."""
         return self._filter_value
 
@@ -270,6 +323,43 @@ class FieldProxy(Generic[T]):
             )
         self._filter_value.value = val
 
+    # SpeculativeIDValue attributes
+    @property
+    def gt(self) -> Any:
+        """Get the greater-than ID value (SpeculativeID only)."""
+        if not isinstance(self._filter_value, SpeculativeIDValue):
+            raise AttributeError(
+                f"Field '{self._field_name}' is not a SpeculativeID field"
+            )
+        return self._filter_value.gt
+
+    @gt.setter
+    def gt(self, val: Any) -> None:
+        """Set the greater-than ID value (SpeculativeID only)."""
+        if not isinstance(self._filter_value, SpeculativeIDValue):
+            raise AttributeError(
+                f"Field '{self._field_name}' is not a SpeculativeID field"
+            )
+        self._filter_value.gt = val
+
+    @property
+    def eq(self) -> Any:
+        """Get the exact match ID value (SpeculativeID only)."""
+        if not isinstance(self._filter_value, SpeculativeIDValue):
+            raise AttributeError(
+                f"Field '{self._field_name}' is not a SpeculativeID field"
+            )
+        return self._filter_value.eq
+
+    @eq.setter
+    def eq(self, val: Any) -> None:
+        """Set the exact match ID value (SpeculativeID only)."""
+        if not isinstance(self._filter_value, SpeculativeIDValue):
+            raise AttributeError(
+                f"Field '{self._field_name}' is not a SpeculativeID field"
+            )
+        self._filter_value.eq = val
+
     def is_set(self) -> bool:
         """Return True if any filter value is configured."""
         return self._filter_value.is_set()
@@ -328,7 +418,9 @@ class ModelProxy:
             # Look for a searchable marker in the metadata
             marker: SearchableMarker | None = None
             for arg in args[1:]:  # Skip first arg (the actual type)
-                if isinstance(arg, DateRange | SetFilter | UniqueMatch):
+                if isinstance(
+                    arg, DateRange | SetFilter | UniqueMatch | SpeculativeID
+                ):
                     marker = arg
                     break
 
@@ -336,14 +428,20 @@ class ModelProxy:
                 continue
 
             # Create appropriate filter value holder based on marker type
+            filter_value: (
+                DateRangeFilter
+                | SetFilterValue
+                | UniqueMatchValue
+                | SpeculativeIDValue
+            )
             if isinstance(marker, DateRange):
-                filter_value: (
-                    DateRangeFilter | SetFilterValue | UniqueMatchValue
-                ) = DateRangeFilter()
+                filter_value = DateRangeFilter()
             elif isinstance(marker, SetFilter):
                 filter_value = SetFilterValue()
             elif isinstance(marker, UniqueMatch):
                 filter_value = UniqueMatchValue()
+            elif isinstance(marker, SpeculativeID):
+                filter_value = SpeculativeIDValue()
             else:
                 # Unknown marker type, skip
                 continue
@@ -395,6 +493,74 @@ class ModelProxy:
 
 
 # =============================================================================
+# Speculative Steps Proxy (for configuring starting IDs)
+# =============================================================================
+
+
+class SpeculativeStepsProxy:
+    """Proxy for configuring speculative step starting IDs.
+
+    When a step is marked with @step(speculative=True), consumers can
+    configure the starting ID for that step via this proxy.
+
+    Example:
+        params = MyScraper.params()
+        params.speculative.parse_case = 100  # Start from ID 100
+
+    The default starting ID is 1 for all speculative steps.
+    """
+
+    def __init__(self, speculative_steps: set[str]) -> None:
+        """Initialize with the set of speculative step names.
+
+        Args:
+            speculative_steps: Set of step names marked as speculative.
+        """
+        self._speculative_steps = speculative_steps
+        self._starting_ids: dict[str, int] = dict.fromkeys(
+            speculative_steps, 1
+        )
+
+    def __getattr__(self, name: str) -> int:
+        """Get the starting ID for a speculative step."""
+        if name.startswith("_"):
+            raise AttributeError(
+                f"'{type(self).__name__}' has no attribute '{name}'"
+            )
+        if name in self._starting_ids:
+            return self._starting_ids[name]
+        raise AttributeError(
+            f"'{name}' is not a speculative step. "
+            f"Available: {', '.join(self._speculative_steps) or 'none'}"
+        )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Set the starting ID for a speculative step."""
+        if name.startswith("_"):
+            object.__setattr__(self, name, value)
+            return
+        if name in self._starting_ids:
+            if not isinstance(value, int):
+                raise TypeError(
+                    f"Starting ID must be an integer (got {type(value).__name__})"
+                )
+            self._starting_ids[name] = value
+        else:
+            raise AttributeError(
+                f"'{name}' is not a speculative step. "
+                f"Available: {', '.join(self._speculative_steps) or 'none'}"
+            )
+
+    def get_starting_ids(self) -> dict[str, int]:
+        """Return all speculative step starting IDs."""
+        return self._starting_ids.copy()
+
+    def get_speculative_steps(self) -> set[str]:
+        """Return the set of speculative step names."""
+        return self._speculative_steps.copy()
+
+
+# =============================================================================
 # Params Container (root object returned by BaseScraper.params())
 # =============================================================================
 
@@ -403,20 +569,44 @@ class ScraperParams:
     """Container for scraper parameters built from data model annotations.
 
     Provides attribute-style access to filter parameters for each data type
-    a scraper can return.
+    a scraper can return, plus configuration for speculative steps.
 
     Example:
         params = MyScraper.params()
         params.CaseData.date_filed.gte = date(2024, 1, 1)
         params.OralArgumentData = None  # Don't return this type
+        params.speculative.parse_case = 100  # Start speculative scraping from ID 100
     """
 
     def __init__(self) -> None:
         self._models: dict[str, ModelProxy] = {}
+        self._speculative: SpeculativeStepsProxy | None = None
 
     def _add_model(self, model_class: type[BaseModel]) -> None:
         """Add a data model to the params container."""
         self._models[model_class.__name__] = ModelProxy(model_class)
+
+    def _set_speculative_steps(self, speculative_steps: set[str]) -> None:
+        """Set the speculative steps proxy.
+
+        Args:
+            speculative_steps: Set of step names marked as speculative.
+        """
+        self._speculative = SpeculativeStepsProxy(speculative_steps)
+
+    @property
+    def speculative(self) -> SpeculativeStepsProxy:
+        """Access speculative step configuration.
+
+        Returns:
+            Proxy for configuring speculative step starting IDs.
+
+        Raises:
+            AttributeError: If no speculative steps are defined.
+        """
+        if self._speculative is None:
+            raise AttributeError("Scraper has no speculative steps defined")
+        return self._speculative
 
     def __getattr__(self, name: str) -> ModelProxy:
         """Get a model proxy by class name."""
@@ -497,11 +687,39 @@ def _extract_union_args(type_hint: Any) -> list[type]:
     return [type_hint]
 
 
+def _find_speculative_steps(scraper_class: type) -> set[str]:
+    """Find all speculative steps defined on a scraper class.
+
+    Args:
+        scraper_class: A scraper class that inherits from BaseScraper[T]
+
+    Returns:
+        Set of step names that are marked as speculative.
+    """
+    from juriscraper.scraper_driver.common.decorators import get_step_metadata
+
+    speculative_steps: set[str] = set()
+
+    for name in dir(scraper_class):
+        if name.startswith("_"):
+            continue
+        try:
+            method = getattr(scraper_class, name)
+            metadata = get_step_metadata(method)
+            if metadata is not None and metadata.speculative:
+                speculative_steps.add(name)
+        except Exception:
+            continue
+
+    return speculative_steps
+
+
 def build_params_for_scraper(scraper_class: type) -> ScraperParams:
     """Build a ScraperParams instance from a scraper class.
 
     Introspects the scraper's generic type parameter to find data models,
-    then builds proxies for each model's searchable fields.
+    then builds proxies for each model's searchable fields. Also discovers
+    speculative steps for starting ID configuration.
 
     Args:
         scraper_class: A scraper class that inherits from BaseScraper[T]
@@ -531,5 +749,10 @@ def build_params_for_scraper(scraper_class: type) -> ScraperParams:
                 # Skip non-class types (like None, forward refs)
                 if isinstance(t, type) and issubclass(t, BaseModel):
                     params._add_model(t)
+
+    # Find and add speculative steps
+    speculative_steps = _find_speculative_steps(scraper_class)
+    if speculative_steps:
+        params._set_speculative_steps(speculative_steps)
 
     return params

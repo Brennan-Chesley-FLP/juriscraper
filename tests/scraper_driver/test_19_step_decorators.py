@@ -620,6 +620,66 @@ class TestXsdParameter:
         assert metadata.xsd == "schemas/special.xsd"
 
 
+class TestSpeculativeParameter:
+    """Tests for speculative parameter support."""
+
+    def test_default_speculative_is_false(self):
+        """The @step decorator shall have speculative=False by default."""
+
+        class NoSpeculativeScraper(BaseScraper[dict]):
+            @step
+            def parse(
+                self, response: Response
+            ) -> Generator[ScraperYield, None, None]:
+                yield ParsedData(data={})
+
+        scraper = NoSpeculativeScraper()
+        metadata = get_step_metadata(scraper.parse)
+
+        assert metadata is not None
+        assert metadata.speculative is False
+
+    def test_speculative_attached_when_true(self):
+        """The @step decorator shall attach speculative=True when specified."""
+
+        class SpeculativeScraper(BaseScraper[dict]):
+            @step(speculative=True)
+            def parse(
+                self, response: Response
+            ) -> Generator[ScraperYield, None, None]:
+                yield ParsedData(data={})
+
+        scraper = SpeculativeScraper()
+        metadata = get_step_metadata(scraper.parse)
+
+        assert metadata is not None
+        assert metadata.speculative is True
+
+    def test_speculative_with_other_parameters(self):
+        """The @step decorator shall support speculative alongside other params."""
+
+        class CombinedScraper(BaseScraper[dict]):
+            @step(
+                priority=3,
+                encoding="latin-1",
+                xsd="schemas/special.xsd",
+                speculative=True,
+            )
+            def parse(
+                self, response: Response
+            ) -> Generator[ScraperYield, None, None]:
+                yield ParsedData(data={})
+
+        scraper = CombinedScraper()
+        metadata = get_step_metadata(scraper.parse)
+
+        assert metadata is not None
+        assert metadata.priority == 3
+        assert metadata.encoding == "latin-1"
+        assert metadata.xsd == "schemas/special.xsd"
+        assert metadata.speculative is True
+
+
 class TestMultipleParameterInjection:
     """Tests for injecting multiple parameters simultaneously."""
 

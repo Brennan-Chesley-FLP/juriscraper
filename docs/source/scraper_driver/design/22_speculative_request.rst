@@ -18,13 +18,14 @@ with the driver determining whether to continue based on the responses for misse
 
 .. code-block:: python
 
-    @step
+    @step(speculative=True)
     def parse_list(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
         page = 1
         while True:
             should_continue = yield SpeculativeRequest(
                 request=HTTPRequestParams(url=f"/cases?page={page}"),
                 continuation="parse_page",
+                speculative_id=page,  # Track progress for resumption
             )
 
             if not should_continue:
@@ -69,7 +70,11 @@ A request that returns ``True/False`` to the yielding generator:
     @dataclass(frozen=True)
     class SpeculativeRequest(NonNavigatingRequest):
         """Request that returns True/False to the yielding generator."""
+        speculative_id: int = 1  # Track which ID is being fetched
         speculation_context: SpeculationContext | None = None
+
+The ``speculative_id`` field tracks which sequential ID is being fetched. Consumers
+can configure the starting ID for each speculative step via params (see below).
 
 SpeculationContext
 ^^^^^^^^^^^^^^^^^^
@@ -200,13 +205,14 @@ Infinite Pagination
 .. code-block:: python
 
     class InfinitePaginationScraper(BaseScraper[CaseData]):
-        @step
+        @step(speculative=True)
         def parse_list(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
             page = 1
             while True:
                 should_continue = yield SpeculativeRequest(
                     request=HTTPRequestParams(url=f"/cases?page={page}"),
                     continuation="parse_page",
+                    speculative_id=page,
                 )
 
                 if not should_continue:
@@ -227,15 +233,127 @@ resolves, resumes, then continues to the next:
 
 .. code-block:: python
 
-    @step
+    @step(speculative=True)
     def parse_sections(self, response) -> Generator[ScraperYield, bool | None, None]:
         for section_id in range(1, 100):
             has_section = yield SpeculativeRequest(
                 request=HTTPRequestParams(url=f"/doc/{doc_id}/section/{section_id}"),
                 continuation="parse_section",
+                speculative_id=section_id,
             )
             if not has_section:
                 break  # No more sections
+
+
+Configuring Starting IDs via Params
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Steps marked with ``@step(speculative=True)`` can have their starting ID
+configured by consumers via params. This enables resumable scraping:
+
+.. code-block:: python
+
+    class CaseIDScraper(BaseScraper[CaseData]):
+        @step(speculative=True)
+        def parse_cases(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
+            # Get starting ID from params (defaults to 1)
+            params = self.params()
+            start_id = params.speculative.parse_cases
+
+            case_id = start_id
+            while True:
+                should_continue = yield SpeculativeRequest(
+                    request=HTTPRequestParams(url=f"/cases/{case_id}"),
+                    continuation="parse_case",
+                    speculative_id=case_id,
+                )
+
+                if not should_continue:
+                    break
+
+                case_id += 1
+
+**Consumer configuration:**
+
+.. code-block:: python
+
+    # Resume from a specific ID
+    params = CaseIDScraper.params()
+    params.speculative.parse_cases = 12345  # Start from ID 12345
+
+    # Multiple speculative steps can be configured independently
+    params.speculative.parse_cases = 100
+    params.speculative.parse_details = 50
+
+Tracking Speculative IDs with accumulated_data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more complex scenarios, pass the current ID through ``accumulated_data``.
+This allows child steps to access the current speculative ID:
+
+.. code-block:: python
+
+    from typing import Annotated
+    from juriscraper.scraper_driver.common.searchable import SpeculativeID
+
+    class CaseData(ScrapedData):
+        """Case data with speculative ID for resumable scraping."""
+        case_id: Annotated[str, SpeculativeID()]
+        case_name: str
+
+    class ResumableScraper(BaseScraper[CaseData]):
+        @step(speculative=True)
+        def parse_list(
+            self, lxml_tree, accumulated_data: dict
+        ) -> Generator[ScraperYield, bool | None, None]:
+            # Get starting ID from params
+            params = self.params()
+            current_id = params.speculative.parse_list
+
+            while True:
+                should_continue = yield SpeculativeRequest(
+                    request=HTTPRequestParams(url=f"/cases/{current_id}"),
+                    continuation="parse_case",
+                    speculative_id=current_id,
+                    # Pass the current ID so parse_case can track progress
+                    accumulated_data={
+                        "speculative_id": {
+                            "CaseData": {"case_id": current_id}
+                        }
+                    },
+                )
+
+                if not should_continue:
+                    break
+
+                current_id += 1
+
+        @step
+        def parse_case(
+            self, lxml_tree, accumulated_data: dict
+        ) -> Generator[ScraperYield, bool | None, None]:
+            current_id = accumulated_data["speculative_id"]["CaseData"]["case_id"]
+            case_name = lxml_tree.checked_xpath("//h1/text()", "case name")[0]
+
+            yield ParsedData(
+                data=CaseData(case_id=str(current_id), case_name=case_name)
+            )
+
+**Consuming with field params:**
+
+.. code-block:: python
+
+    # Configure starting ID via speculative step
+    params = ResumableScraper.params()
+    params.speculative.parse_list = 12345  # Start from ID 12345
+
+    # Or filter results by ID using SpeculativeID marker
+    params.CaseData.case_id.gt = "12345"  # Only return cases after ID 12345
+    params.CaseData.case_id.eq = "12346"  # Only return this specific case
+
+The ``SpeculativeID`` marker (see :doc:`20_search_and_standardization`) provides
+``.gt`` for greater-than filtering and ``.eq`` for exact match on result data,
+while ``params.speculative`` controls where scraping starts.
 
 
 Design Decisions

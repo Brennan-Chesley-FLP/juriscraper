@@ -22,6 +22,8 @@ from juriscraper.scraper_driver.common.searchable import (
     DateRangeFilter,
     SetFilter,
     SetFilterValue,
+    SpeculativeID,
+    SpeculativeIDValue,
     UniqueMatch,
     UniqueMatchValue,
     build_params_for_scraper,
@@ -46,6 +48,11 @@ class TestMarkerClasses:
         """The UniqueMatch marker shall be immutable."""
         marker = UniqueMatch()
         assert marker == UniqueMatch()
+
+    def test_speculative_id_marker_is_frozen(self) -> None:
+        """The SpeculativeID marker shall be immutable."""
+        marker = SpeculativeID()
+        assert marker == SpeculativeID()
 
 
 class TestFilterValueHolders:
@@ -88,6 +95,23 @@ class TestFilterValueHolders:
     def test_unique_match_value_is_set_with_value(self) -> None:
         """The UniqueMatchValue shall report is_set when value is present."""
         filter_val = UniqueMatchValue(value="2024-001")
+        assert filter_val.is_set()
+
+    def test_speculative_id_value_defaults_to_none(self) -> None:
+        """The SpeculativeIDValue shall default to None for both gt and eq."""
+        filter_val = SpeculativeIDValue()
+        assert filter_val.gt is None
+        assert filter_val.eq is None
+        assert not filter_val.is_set()
+
+    def test_speculative_id_value_is_set_with_gt(self) -> None:
+        """The SpeculativeIDValue shall report is_set when gt is set."""
+        filter_val = SpeculativeIDValue(gt="12345")
+        assert filter_val.is_set()
+
+    def test_speculative_id_value_is_set_with_eq(self) -> None:
+        """The SpeculativeIDValue shall report is_set when eq is set."""
+        filter_val = SpeculativeIDValue(eq="12346")
         assert filter_val.is_set()
 
 
@@ -136,6 +160,20 @@ class TestFieldMetadataAnnotation:
         fields = params.CaseData.get_searchable_fields()
         assert "docket_number" in fields
         assert isinstance(fields["docket_number"].marker, UniqueMatch)
+
+    def test_speculative_id_field_detected(self) -> None:
+        """The params builder shall detect SpeculativeID annotated fields."""
+
+        class CaseData(ScrapedData):
+            case_id: Annotated[str, SpeculativeID()]
+
+        class TestScraper(BaseScraper[CaseData]):
+            pass
+
+        params = build_params_for_scraper(TestScraper)
+        fields = params.CaseData.get_searchable_fields()
+        assert "case_id" in fields
+        assert isinstance(fields["case_id"].marker, SpeculativeID)
 
     def test_non_searchable_fields_ignored(self) -> None:
         """The params builder shall ignore fields without searchable annotation."""
@@ -213,6 +251,36 @@ class TestAttributeStyleAccess:
         params.CaseData.docket_number.value = "2024-001"
 
         assert params.CaseData.docket_number.value == "2024-001"
+
+    def test_speculative_id_gt_access(self) -> None:
+        """The params shall allow setting gt via attribute access."""
+
+        class CaseData(ScrapedData):
+            case_id: Annotated[str, SpeculativeID()]
+
+        class TestScraper(BaseScraper[CaseData]):
+            pass
+
+        params = build_params_for_scraper(TestScraper)
+        params.CaseData.case_id.gt = "12345"
+
+        assert params.CaseData.case_id.gt == "12345"
+        assert params.CaseData.case_id.eq is None
+
+    def test_speculative_id_eq_access(self) -> None:
+        """The params shall allow setting eq via attribute access."""
+
+        class CaseData(ScrapedData):
+            case_id: Annotated[str, SpeculativeID()]
+
+        class TestScraper(BaseScraper[CaseData]):
+            pass
+
+        params = build_params_for_scraper(TestScraper)
+        params.CaseData.case_id.eq = "12346"
+
+        assert params.CaseData.case_id.eq == "12346"
+        assert params.CaseData.case_id.gt is None
 
     def test_wrong_attribute_raises_error(self) -> None:
         """Accessing wrong attribute type shall raise AttributeError."""
@@ -492,6 +560,46 @@ class TestFieldProxyIsSet:
 
         assert params.CaseData.docket.is_set()
 
+    def test_speculative_id_is_set_false_initially(self) -> None:
+        """SpeculativeID field shall report is_set=False initially."""
+
+        class CaseData(ScrapedData):
+            case_id: Annotated[str, SpeculativeID()]
+
+        class TestScraper(BaseScraper[CaseData]):
+            pass
+
+        params = build_params_for_scraper(TestScraper)
+        assert not params.CaseData.case_id.is_set()
+
+    def test_speculative_id_is_set_true_after_gt(self) -> None:
+        """SpeculativeID field shall report is_set=True after setting gt."""
+
+        class CaseData(ScrapedData):
+            case_id: Annotated[str, SpeculativeID()]
+
+        class TestScraper(BaseScraper[CaseData]):
+            pass
+
+        params = build_params_for_scraper(TestScraper)
+        params.CaseData.case_id.gt = "12345"
+
+        assert params.CaseData.case_id.is_set()
+
+    def test_speculative_id_is_set_true_after_eq(self) -> None:
+        """SpeculativeID field shall report is_set=True after setting eq."""
+
+        class CaseData(ScrapedData):
+            case_id: Annotated[str, SpeculativeID()]
+
+        class TestScraper(BaseScraper[CaseData]):
+            pass
+
+        params = build_params_for_scraper(TestScraper)
+        params.CaseData.case_id.eq = "12346"
+
+        assert params.CaseData.case_id.is_set()
+
 
 class TestErrorHandling:
     """Tests for error handling in the searchable system."""
@@ -546,3 +654,230 @@ class TestErrorHandling:
             pytest.fail("Expected ValueError")
         except ValueError as e:
             assert "None" in str(e)
+
+
+class TestSpeculativeStepsProxy:
+    """Tests for speculative step configuration via params.speculative."""
+
+    def test_speculative_property_raises_without_steps(self) -> None:
+        """Accessing speculative on scraper without speculative steps raises."""
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            pass
+
+        params = build_params_for_scraper(TestScraper)
+
+        with pytest.raises(
+            AttributeError,
+            match="no speculative steps|no data model 'speculative'",
+        ):
+            _ = params.speculative
+
+    def test_speculative_steps_detected(self) -> None:
+        """Speculative steps shall be detected from @step(speculative=True)."""
+        from collections.abc import Generator
+        from typing import Any
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import ScraperYield
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @step(speculative=True)
+            def parse_case(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+        params = build_params_for_scraper(TestScraper)
+        steps = params.speculative.get_speculative_steps()
+
+        assert "parse_case" in steps
+
+    def test_speculative_default_starting_id(self) -> None:
+        """Speculative steps shall default to starting ID of 1."""
+        from collections.abc import Generator
+        from typing import Any
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import ScraperYield
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @step(speculative=True)
+            def parse_case(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+        params = build_params_for_scraper(TestScraper)
+
+        assert params.speculative.parse_case == 1
+
+    def test_speculative_set_starting_id(self) -> None:
+        """Speculative starting ID shall be configurable."""
+        from collections.abc import Generator
+        from typing import Any
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import ScraperYield
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @step(speculative=True)
+            def parse_case(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+        params = build_params_for_scraper(TestScraper)
+        params.speculative.parse_case = 100
+
+        assert params.speculative.parse_case == 100
+
+    def test_speculative_invalid_step_raises(self) -> None:
+        """Accessing non-existent speculative step raises AttributeError."""
+        from collections.abc import Generator
+        from typing import Any
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import ScraperYield
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @step(speculative=True)
+            def parse_case(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+        params = build_params_for_scraper(TestScraper)
+
+        with pytest.raises(AttributeError, match="not a speculative step"):
+            _ = params.speculative.nonexistent_step
+
+    def test_speculative_set_invalid_step_raises(self) -> None:
+        """Setting non-existent speculative step raises AttributeError."""
+        from collections.abc import Generator
+        from typing import Any
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import ScraperYield
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @step(speculative=True)
+            def parse_case(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+        params = build_params_for_scraper(TestScraper)
+
+        with pytest.raises(AttributeError, match="not a speculative step"):
+            params.speculative.nonexistent_step = 50
+
+    def test_speculative_set_non_integer_raises(self) -> None:
+        """Setting speculative starting ID to non-integer raises TypeError."""
+        from collections.abc import Generator
+        from typing import Any
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import ScraperYield
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @step(speculative=True)
+            def parse_case(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+        params = build_params_for_scraper(TestScraper)
+
+        with pytest.raises(TypeError, match="must be an integer"):
+            params.speculative.parse_case = "not an int"  # type: ignore
+
+    def test_speculative_get_starting_ids(self) -> None:
+        """get_starting_ids shall return all configured starting IDs."""
+        from collections.abc import Generator
+        from typing import Any
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import ScraperYield
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @step(speculative=True)
+            def parse_case(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+            @step(speculative=True)
+            def parse_detail(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+        params = build_params_for_scraper(TestScraper)
+        params.speculative.parse_case = 100
+        params.speculative.parse_detail = 200
+
+        starting_ids = params.speculative.get_starting_ids()
+
+        assert starting_ids == {"parse_case": 100, "parse_detail": 200}
+
+    def test_speculative_multiple_steps(self) -> None:
+        """Multiple speculative steps shall be independently configurable."""
+        from collections.abc import Generator
+        from typing import Any
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import ScraperYield
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @step(speculative=True)
+            def parse_case(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+            @step(speculative=True)
+            def parse_detail(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+            @step  # Not speculative
+            def parse_list(
+                self, response: Any
+            ) -> Generator[ScraperYield[CaseData], Any, None]:
+                yield None
+
+        params = build_params_for_scraper(TestScraper)
+        steps = params.speculative.get_speculative_steps()
+
+        assert "parse_case" in steps
+        assert "parse_detail" in steps
+        assert "parse_list" not in steps

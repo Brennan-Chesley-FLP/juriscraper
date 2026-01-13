@@ -902,6 +902,7 @@ class SpeculativeRequest(NonNavigatingRequest):
         speculation_context: Container holding the parked generator (set by driver).
     """
 
+    speculative_id: int = 1
     speculation_context: SpeculationContext | None = None
 
     def with_context(self, ctx: SpeculationContext) -> SpeculativeRequest:
@@ -946,6 +947,7 @@ class SpeculativeRequest(NonNavigatingRequest):
             deduplication_key=self.deduplication_key,
             permanent=merged_permanent,
             speculation_context=self.speculation_context,
+            speculative_id=self.speculative_id,
         )
 
 

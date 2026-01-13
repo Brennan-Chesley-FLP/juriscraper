@@ -169,7 +169,7 @@ This enables:
 2. **Automatic param building** - The params() method knows what's filterable
 3. **Documentation generation** - Searchability appears in auto-generated docs
 
-**Three Filter Types:**
+**Four Filter Types:**
 
 .. code-block:: python
 
@@ -180,9 +180,10 @@ This enables:
 
     from juriscraper.scraper_driver.common.models.base import Docket
     from juriscraper.scraper_driver.common.searchable import (
-        DateRange,    # gte/lte date bounds
-        SetFilter,    # Set of allowed values
-        UniqueMatch,  # Exact single value match
+        DateRange,      # gte/lte date bounds
+        SetFilter,      # Set of allowed values
+        UniqueMatch,    # Exact single value match
+        SpeculativeID,  # gt/eq for auto-incremented IDs
     )
 
 
@@ -198,6 +199,9 @@ This enables:
 
         # Unique match: filter by exact value
         docket_number: Annotated[str | None, UniqueMatch()] = Field(default=None)
+
+        # Speculative ID: for resumable scraping with auto-incremented IDs
+        case_id: Annotated[str | None, SpeculativeID()] = Field(default=None)
 
 **Filter Behavior:**
 
@@ -217,6 +221,9 @@ This enables:
    * - ``UniqueMatch``
      - ``.value`` (single)
      - Exact ID/number lookup
+   * - ``SpeculativeID``
+     - ``.gt``, ``.eq``
+     - Resumable scraping with sequential IDs
 
 
 The params() Interface

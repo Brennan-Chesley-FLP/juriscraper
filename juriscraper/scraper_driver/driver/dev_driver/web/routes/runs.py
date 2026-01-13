@@ -41,12 +41,37 @@ class RunListResponse(BaseModel):
     total: int
 
 
+class ParamsFieldData(BaseModel):
+    """Filter data for a single field."""
+
+    gte: str | None = None  # For DateRange
+    lte: str | None = None  # For DateRange
+    values: list[str] | None = None  # For SetFilter
+    value: str | None = None  # For UniqueMatch
+
+
+class ParamsModelData(BaseModel):
+    """Configuration for a single data model."""
+
+    enabled: bool = True
+    fields: dict[str, ParamsFieldData] = Field(default_factory=dict)
+
+
+class ParamsData(BaseModel):
+    """Full parameter configuration."""
+
+    models: dict[str, ParamsModelData] = Field(default_factory=dict)
+
+
 class CreateRunRequest(BaseModel):
     """Request model for creating a new run."""
 
     run_id: str = Field(..., description="Unique identifier for the run")
-    scraper_name: str = Field(
-        ..., description="Name of the scraper class to use"
+    scraper_path: str = Field(
+        ..., description="Full scraper path (module.path:ClassName)"
+    )
+    params: ParamsData | None = Field(
+        default=None, description="Optional scraper parameters"
     )
     base_delay: float = Field(
         default=10.0, description="Base rate limit delay in seconds"
@@ -68,6 +93,28 @@ class StopRunRequest(BaseModel):
 
     timeout: float = Field(
         default=30.0, description="Timeout for graceful stop in seconds"
+    )
+
+
+class LoadRunRequest(BaseModel):
+    """Request model for loading an existing run."""
+
+    scraper_path: str | None = Field(
+        default=None,
+        description="Full scraper path (module.path:ClassName). If not provided, uses scraper_name from database.",
+    )
+    base_delay: float = Field(
+        default=10.0, description="Base rate limit delay in seconds"
+    )
+    jitter: float = Field(
+        default=2.0, description="Rate limit jitter in seconds"
+    )
+    num_workers: int = Field(
+        default=1, description="Number of concurrent workers"
+    )
+    max_backoff_time: float = Field(
+        default=3600.0,
+        description="Maximum total backoff time before marking failed",
     )
 
 
@@ -137,29 +184,216 @@ async def create_run(
     specified configuration. The run is created in 'loaded' state
     and must be explicitly started.
 
-    Note: This endpoint requires the scraper to be registered or
-    dynamically loaded. Currently returns a placeholder response
-    as scraper registry is not yet implemented.
-
     Args:
-        request: Run configuration including scraper name and parameters.
+        request: Run configuration including scraper path and parameters.
 
     Returns:
         The created run details.
 
     Raises:
         HTTPException: 400 if run_id already exists.
-        HTTPException: 400 if scraper not found.
+        HTTPException: 404 if scraper not found.
     """
-    # TODO: Implement scraper registry to look up scraper by name
-    # For now, return an error explaining this limitation
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=(
-            "Scraper registry not yet implemented. "
-            "Use the Python API to create runs with a scraper instance."
-        ),
+    from juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry import (
+        get_registry,
     )
+
+    # Get registry and look up scraper
+    try:
+        registry = get_registry()
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Scraper registry not initialized",
+        ) from e
+
+    # Check if scraper exists
+    scraper_info = registry.get_scraper(request.scraper_path)
+    if scraper_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scraper '{request.scraper_path}' not found",
+        )
+
+    # Convert params to dict format for registry
+    params_data = None
+    if request.params:
+        params_data = {
+            "models": {
+                model_name: {
+                    "enabled": model_data.enabled,
+                    "fields": {
+                        field_name: {
+                            "gte": field_data.gte,
+                            "lte": field_data.lte,
+                            "values": field_data.values,
+                            "value": field_data.value,
+                        }
+                        for field_name, field_data in model_data.fields.items()
+                    },
+                }
+                for model_name, model_data in request.params.models.items()
+            }
+        }
+
+    # Instantiate scraper with parameters
+    scraper = registry.instantiate_scraper(request.scraper_path, params_data)
+    if scraper is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to instantiate scraper '{request.scraper_path}'",
+        )
+
+    # Create run
+    try:
+        run_info = await manager.create_run(
+            run_id=request.run_id,
+            scraper=scraper,
+            base_delay=request.base_delay,
+            jitter=request.jitter,
+            num_workers=request.num_workers,
+            max_backoff_time=request.max_backoff_time,
+        )
+        return _run_info_to_response(run_info)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+
+
+@router.post("/{run_id}/load", response_model=RunResponse)
+async def load_run(
+    run_id: str,
+    request: LoadRunRequest,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> RunResponse:
+    """Load an existing run from its database.
+
+    Opens the database and prepares the driver for running. The scraper
+    can be specified explicitly or inferred from the database metadata.
+
+    Args:
+        run_id: The unique identifier of the run.
+        request: Load configuration including optional scraper path.
+
+    Returns:
+        Updated run details with status 'loaded'.
+
+    Raises:
+        HTTPException: 404 if run not found or scraper not found.
+        HTTPException: 400 if run already loaded.
+    """
+    import aiosqlite
+
+    from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
+    from juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry import (
+        get_registry,
+    )
+
+    # Get run info
+    run_info = await manager.get_run(run_id)
+    if run_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run '{run_id}' not found",
+        )
+
+    if run_info.driver is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Run '{run_id}' is already loaded",
+        )
+
+    # Determine scraper path
+    scraper_path = request.scraper_path
+
+    if scraper_path is None:
+        # Query the database for the scraper_name
+        try:
+            async with aiosqlite.connect(run_info.db_path) as db:
+                cursor = await db.execute(SQL.SELECT_RUN_STATUS_AND_NAME)
+                row = await cursor.fetchone()
+                if row is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Run '{run_id}' has no metadata. Cannot determine scraper.",
+                    )
+                scraper_name = row[1]
+        except aiosqlite.Error as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to read database: {e}",
+            ) from e
+
+        # Find a scraper with this name in the registry
+        try:
+            registry = get_registry()
+        except RuntimeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Scraper registry not initialized",
+            ) from e
+
+        # Search for scraper by name (class name matches)
+        matching_scrapers = [
+            s for s in registry.list_scrapers() if s.class_name == scraper_name
+        ]
+        if not matching_scrapers:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Scraper '{scraper_name}' not found in registry. "
+                f"Specify scraper_path explicitly.",
+            )
+        if len(matching_scrapers) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Multiple scrapers named '{scraper_name}' found. "
+                f"Specify scraper_path explicitly: "
+                f"{[s.full_path for s in matching_scrapers]}",
+            )
+        scraper_path = matching_scrapers[0].full_path
+
+    # Get registry and instantiate scraper
+    try:
+        registry = get_registry()
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Scraper registry not initialized",
+        ) from e
+
+    scraper_info = registry.get_scraper(scraper_path)
+    if scraper_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scraper '{scraper_path}' not found",
+        )
+
+    # Instantiate scraper (without params for resume - they're in the DB)
+    scraper = registry.instantiate_scraper(scraper_path)
+    if scraper is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to instantiate scraper '{scraper_path}'",
+        )
+
+    # Load run
+    try:
+        run_info = await manager.load_run(
+            run_id=run_id,
+            scraper=scraper,
+            base_delay=request.base_delay,
+            jitter=request.jitter,
+            num_workers=request.num_workers,
+            max_backoff_time=request.max_backoff_time,
+        )
+        return _run_info_to_response(run_info)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
 
 
 @router.post("/{run_id}/start", response_model=RunResponse)

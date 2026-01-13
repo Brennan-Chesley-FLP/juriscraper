@@ -8,7 +8,7 @@
 
     <div class="actions">
         <button id="scan-btn" class="btn btn-secondary">Scan for New Runs</button>
-        <button id="new-run-btn" class="btn btn-primary" disabled title="Not yet implemented">New Run</button>
+        <button id="new-run-btn" class="btn btn-primary">New Run</button>
     </div>
 
     <div class="run-sections">
@@ -45,10 +45,73 @@
         </section>
     </div>
 </div>
+
+<!-- New Run Modal -->
+<div id="new-run-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Create New Run</h2>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="new-run-form">
+            <div class="form-section">
+                <h3>Basic Configuration</h3>
+
+                <div class="form-group">
+                    <label for="run-id">Run ID</label>
+                    <input type="text" id="run-id" name="run_id" required
+                           placeholder="e.g., nyscef-2024-01">
+                    <small>Unique identifier for this run</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="scraper-select">Scraper</label>
+                    <select id="scraper-select" name="scraper_path" required>
+                        <option value="">Select a scraper...</option>
+                    </select>
+                    <small>Select the scraper to run</small>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="base-delay">Base Delay (s)</label>
+                        <input type="number" id="base-delay" name="base_delay"
+                               value="10.0" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="jitter">Jitter (s)</label>
+                        <input type="number" id="jitter" name="jitter"
+                               value="2.0" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="workers">Workers</label>
+                        <input type="number" id="workers" name="num_workers"
+                               value="1" min="1" max="10">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section" id="params-section" style="display: none;">
+                <h3>Scraper Parameters</h3>
+                <div id="params-container">
+                    <!-- Dynamic parameter fields will be inserted here -->
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Run</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Scrapers data
+let scrapersData = [];
+
 // Run card template
 function createRunCard(run) {
     const statusColors = {
@@ -72,6 +135,7 @@ function createRunCard(run) {
                 ${run.started_at ? `<p>Started: ${new Date(run.started_at).toLocaleString()}</p>` : ''}
             </div>
             <div class="run-actions">
+                ${run.status === 'unloaded' || run.status === 'stopped' ? `<button onclick="loadRun('${run.run_id}')" class="btn btn-sm btn-primary">Load</button>` : ''}
                 ${run.status === 'loaded' ? `<button onclick="startRun('${run.run_id}')" class="btn btn-sm btn-primary">Start</button>` : ''}
                 ${run.status === 'running' ? `<button onclick="stopRun('${run.run_id}')" class="btn btn-sm btn-danger">Stop</button>` : ''}
                 ${run.status === 'unloaded' || run.status === 'stopped' ? `<button onclick="deleteRun('${run.run_id}')" class="btn btn-sm btn-danger">Delete</button>` : ''}
@@ -114,6 +178,218 @@ function renderRuns(containerId, runs) {
     }
 }
 
+// Load scrapers from API
+async function loadScrapers() {
+    try {
+        const response = await fetch('/api/scrapers');
+        const data = await response.json();
+        scrapersData = data.scrapers;
+
+        const select = document.getElementById('scraper-select');
+        select.innerHTML = '<option value="">Select a scraper...</option>';
+
+        for (const scraper of scrapersData) {
+            const option = document.createElement('option');
+            option.value = scraper.full_path;
+            option.textContent = `${scraper.class_name} (${scraper.status})`;
+            option.dataset.scraperData = JSON.stringify(scraper);
+            select.appendChild(option);
+        }
+    } catch (error) {
+        console.error('Failed to load scrapers:', error);
+    }
+}
+
+// Build parameter form for selected scraper
+function buildParamsForm(scraper) {
+    const container = document.getElementById('params-container');
+    const section = document.getElementById('params-section');
+
+    if (!scraper.models || scraper.models.length === 0) {
+        section.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    section.style.display = 'block';
+    container.innerHTML = '';
+
+    for (const model of scraper.models) {
+        const modelDiv = document.createElement('div');
+        modelDiv.className = 'model-section';
+        modelDiv.innerHTML = `
+            <div class="model-header">
+                <label class="checkbox-label">
+                    <input type="checkbox"
+                           id="model-${model.name}-enabled"
+                           name="models.${model.name}.enabled"
+                           checked>
+                    <strong>${model.name}</strong>
+                </label>
+            </div>
+            <div class="model-fields" id="model-${model.name}-fields">
+            </div>
+        `;
+
+        const fieldsDiv = modelDiv.querySelector('.model-fields');
+
+        for (const field of model.fields) {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'form-group field-group';
+
+            let fieldHtml = `<label>${field.name}</label>`;
+
+            if (field.filter_type === 'DateRange') {
+                fieldHtml += `
+                    <div class="date-range">
+                        <input type="date"
+                               name="models.${model.name}.fields.${field.name}.gte"
+                               placeholder="From">
+                        <span>to</span>
+                        <input type="date"
+                               name="models.${model.name}.fields.${field.name}.lte"
+                               placeholder="To">
+                    </div>
+                `;
+            } else if (field.filter_type === 'SetFilter') {
+                fieldHtml += `
+                    <input type="text"
+                           name="models.${model.name}.fields.${field.name}.values"
+                           placeholder="Comma-separated values">
+                    <small>Enter values separated by commas</small>
+                `;
+            } else if (field.filter_type === 'UniqueMatch') {
+                fieldHtml += `
+                    <input type="text"
+                           name="models.${model.name}.fields.${field.name}.value"
+                           placeholder="Exact value">
+                `;
+            }
+
+            if (field.description) {
+                fieldHtml += `<small>${field.description}</small>`;
+            }
+
+            fieldDiv.innerHTML = fieldHtml;
+            fieldsDiv.appendChild(fieldDiv);
+        }
+
+        // Toggle fields when checkbox changes
+        const checkbox = modelDiv.querySelector(`#model-${model.name}-enabled`);
+        checkbox.addEventListener('change', () => {
+            fieldsDiv.style.display = checkbox.checked ? 'block' : 'none';
+        });
+
+        container.appendChild(modelDiv);
+    }
+}
+
+// Modal functions
+function openModal() {
+    document.getElementById('new-run-modal').classList.add('active');
+    document.getElementById('new-run-form').reset();
+    document.getElementById('params-section').style.display = 'none';
+    document.getElementById('params-container').innerHTML = '';
+}
+
+function closeModal() {
+    document.getElementById('new-run-modal').classList.remove('active');
+}
+
+// Handle scraper selection
+document.getElementById('scraper-select').addEventListener('change', (e) => {
+    const option = e.target.selectedOptions[0];
+    if (option && option.dataset.scraperData) {
+        const scraper = JSON.parse(option.dataset.scraperData);
+        buildParamsForm(scraper);
+    } else {
+        document.getElementById('params-section').style.display = 'none';
+        document.getElementById('params-container').innerHTML = '';
+    }
+});
+
+// Handle form submission
+document.getElementById('new-run-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+
+    // Build request body
+    const body = {
+        run_id: formData.get('run_id'),
+        scraper_path: formData.get('scraper_path'),
+        base_delay: parseFloat(formData.get('base_delay')),
+        jitter: parseFloat(formData.get('jitter')),
+        num_workers: parseInt(formData.get('num_workers')),
+        params: { models: {} }
+    };
+
+    // Process params from form
+    for (const [key, value] of formData.entries()) {
+        if (key.startsWith('models.')) {
+            const parts = key.split('.');
+            // models.<ModelName>.enabled or models.<ModelName>.fields.<fieldName>.<prop>
+            const modelName = parts[1];
+
+            if (!body.params.models[modelName]) {
+                body.params.models[modelName] = { enabled: true, fields: {} };
+            }
+
+            if (parts[2] === 'enabled') {
+                body.params.models[modelName].enabled = value === 'on';
+            } else if (parts[2] === 'fields' && parts[3] && parts[4]) {
+                const fieldName = parts[3];
+                const prop = parts[4];
+
+                if (!body.params.models[modelName].fields[fieldName]) {
+                    body.params.models[modelName].fields[fieldName] = {};
+                }
+
+                if (prop === 'values' && value) {
+                    // Split comma-separated values
+                    body.params.models[modelName].fields[fieldName][prop] =
+                        value.split(',').map(v => v.trim()).filter(v => v);
+                } else if (value) {
+                    body.params.models[modelName].fields[fieldName][prop] = value;
+                }
+            }
+        }
+    }
+
+    // Handle unchecked checkboxes (not in formData)
+    const checkboxes = e.target.querySelectorAll('input[type="checkbox"][name$=".enabled"]');
+    for (const checkbox of checkboxes) {
+        const parts = checkbox.name.split('.');
+        const modelName = parts[1];
+        if (!checkbox.checked) {
+            if (!body.params.models[modelName]) {
+                body.params.models[modelName] = { enabled: false, fields: {} };
+            } else {
+                body.params.models[modelName].enabled = false;
+            }
+        }
+    }
+
+    try {
+        const response = await fetch('/api/runs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to create run');
+        }
+
+        closeModal();
+        loadRuns();
+        alert(`Run '${body.run_id}' created successfully!`);
+    } catch (error) {
+        alert('Error creating run: ' + error.message);
+    }
+});
+
 // Actions
 async function scanRuns() {
     try {
@@ -121,6 +397,24 @@ async function scanRuns() {
         loadRuns();
     } catch (error) {
         alert('Failed to scan: ' + error.message);
+    }
+}
+
+async function loadRun(runId) {
+    try {
+        const response = await fetch(`/api/runs/${runId}/load`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})  // Use defaults (scraper from DB)
+        });
+        if (response.ok) {
+            loadRuns();
+        } else {
+            const data = await response.json();
+            alert('Failed to load run: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to load run: ' + error.message);
     }
 }
 
@@ -154,9 +448,18 @@ async function deleteRun(runId) {
 
 // Event listeners
 document.getElementById('scan-btn').addEventListener('click', scanRuns);
+document.getElementById('new-run-btn').addEventListener('click', openModal);
+
+// Close modal on outside click
+document.getElementById('new-run-modal').addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal')) {
+        closeModal();
+    }
+});
 
 // Initial load
 loadRuns();
+loadScrapers();
 
 // Auto-refresh every 5 seconds
 setInterval(loadRuns, 5000);

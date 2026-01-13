@@ -6,6 +6,13 @@ the LocalDevDriver, checking status, viewing statistics, managing errors,
 and exporting data.
 
 Usage:
+    # Start the web interface
+    python -m juriscraper.scraper_driver.driver.dev_driver.run --serve
+
+    # Start with custom options
+    python -m juriscraper.scraper_driver.driver.dev_driver.run \\
+        --serve --runs-dir ./my_runs --port 9000
+
     # Run a scraper
     python -m juriscraper.scraper_driver.driver.dev_driver.run \\
         --scraper myproject.scrapers:MyScraper \\
@@ -427,6 +434,29 @@ async def cmd_resolve_error(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    """Start the web interface server."""
+    import uvicorn
+
+    from juriscraper.scraper_driver.driver.dev_driver.web.app import create_app
+
+    runs_dir = Path(args.runs_dir)
+    runs_dir.mkdir(parents=True, exist_ok=True)
+
+    app = create_app(runs_dir=runs_dir)
+
+    print(f"Starting web server at http://{args.host}:{args.port}")
+    print(f"Runs directory: {runs_dir.absolute()}")
+
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        log_level="info" if args.verbose else "warning",
+    )
+    return 0
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser."""
     parser = argparse.ArgumentParser(
@@ -436,8 +466,30 @@ def create_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--db",
-        required=True,
-        help="Path to SQLite database file",
+        help="Path to SQLite database file (required for most commands)",
+    )
+
+    # Web server options
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="Start the web interface server",
+    )
+    parser.add_argument(
+        "--runs-dir",
+        default="runs",
+        help="Directory containing run databases (default: runs)",
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind server to (default: 127.0.0.1)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to bind server to (default: 8000)",
     )
 
     # Run options
@@ -587,6 +639,18 @@ def main() -> int:
         level=level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+
+    # Handle serve command specially (synchronous)
+    if args.serve:
+        try:
+            return cmd_serve(args)
+        except KeyboardInterrupt:
+            print("\nServer stopped")
+            return 0
+
+    # All other commands require --db
+    if not args.db:
+        parser.error("--db is required for this command")
 
     try:
         return asyncio.run(main_async(args))

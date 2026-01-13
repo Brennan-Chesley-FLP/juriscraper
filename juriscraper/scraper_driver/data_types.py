@@ -130,6 +130,22 @@ class BaseScraper(Generic[ScraperReturnType]):
     requires_auth: ClassVar[bool] = False
     msec_per_request_rate_limit: ClassVar[int | None] = None
 
+    def __init__(self, params: ScraperParams | None = None) -> None:
+        """Initialize the scraper with optional search parameters.
+
+        Args:
+            params: ScraperParams instance with search filters configured.
+                Build via MyScraper.params() and set filters like:
+                    params.MyModel.date_filed.gte = date(2024, 1, 1)
+                    params.MyModel.court_id.values = {"court1", "court2"}
+                    params.MyModel.docket_number.value = "2024-001"
+        """
+        self._params = params
+
+    def get_params(self) -> ScraperParams | None:
+        """Return the params instance for this scraper."""
+        return self._params
+
     def get_entry(self) -> NavigatingRequest:
         """Create the initial request to start scraping.
 

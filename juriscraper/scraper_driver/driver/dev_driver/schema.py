@@ -20,7 +20,7 @@ from pathlib import Path
 import aiosqlite
 
 # Schema version for migrations
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # SQL statements for creating tables
 _CREATE_REQUESTS = """
@@ -227,6 +227,9 @@ CREATE TABLE IF NOT EXISTS errors (
     status_code INTEGER,                     -- For HTMLResponseAssumptionException
     timeout_seconds REAL,                    -- For RequestTimeoutException
 
+    -- Stack trace
+    traceback TEXT,                          -- Full Python traceback
+
     -- Resolution tracking
     is_resolved BOOLEAN NOT NULL DEFAULT FALSE,
     resolved_at TIMESTAMP,
@@ -321,19 +324,41 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     for index_sql in _CREATE_RATE_ITEMS_INDEXES:
         await db.execute(index_sql)
 
-    # Record schema version if not present
-    cursor = await db.execute(
-        "SELECT version FROM schema_info ORDER BY version DESC LIMIT 1"
-    )
-    row = await cursor.fetchone()
-    if row is None:
+    # Run migrations
+    await _run_migrations(db)
+
+    await db.commit()
+    return db
+
+
+async def _run_migrations(db: aiosqlite.Connection) -> None:
+    """Run any pending database migrations.
+
+    Args:
+        db: An open aiosqlite connection.
+    """
+    current_version = await get_schema_version(db)
+
+    # Migration 1 -> 2: Add traceback column to errors table
+    if current_version < 2:
+        # Check if column exists
+        cursor = await db.execute("PRAGMA table_info(errors)")
+        columns = [row[1] for row in await cursor.fetchall()]
+        if "traceback" not in columns:
+            await db.execute("ALTER TABLE errors ADD COLUMN traceback TEXT")
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (2,),
+        )
+
+    # Record initial schema version if not present
+    if current_version == 0:
         await db.execute(
             "INSERT INTO schema_info (version) VALUES (?)",
             (SCHEMA_VERSION,),
         )
-
-    await db.commit()
-    return db
 
 
 async def get_schema_version(db: aiosqlite.Connection) -> int:

@@ -430,7 +430,7 @@ def get_run_manager() -> RunManager:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Lifespan context manager for FastAPI app.
 
-    Handles startup (scan runs directory) and shutdown (stop all runs).
+    Handles startup (scan runs directory, scan scrapers) and shutdown (stop all runs).
     """
     global _run_manager
 
@@ -444,6 +444,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     discovered = await _run_manager.scan_runs()
     logger.info(f"Discovered {len(discovered)} existing runs")
 
+    # Initialize scraper registry
+    from juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry import (
+        init_registry,
+    )
+
+    sd_dir = getattr(app.state, "sd_dir", None)
+    registry = init_registry(sd_dir)
+    logger.info(f"Discovered {len(registry.list_scrapers())} scrapers")
+
     yield
 
     # Shutdown all runs
@@ -451,11 +460,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     _run_manager = None
 
 
-def create_app(runs_dir: Path | None = None) -> FastAPI:
+def create_app(
+    runs_dir: Path | None = None, sd_dir: Path | None = None
+) -> FastAPI:
     """Create a new FastAPI application.
 
     Args:
         runs_dir: Directory for run database files. Defaults to "runs".
+        sd_dir: Directory containing scrapers. Defaults to juriscraper/sd.
 
     Returns:
         Configured FastAPI application.
@@ -470,6 +482,7 @@ def create_app(runs_dir: Path | None = None) -> FastAPI:
         responses_router,
         results_router,
         runs_router,
+        scrapers_router,
         views_router,
         websocket_router,
     )
@@ -481,8 +494,9 @@ def create_app(runs_dir: Path | None = None) -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Store runs_dir in app state for lifespan access
+    # Store config in app state for lifespan access
     app.state.runs_dir = runs_dir or Path("runs")
+    app.state.sd_dir = sd_dir
 
     # Mount static files
     static_dir = Path(__file__).parent / "static"
@@ -492,6 +506,7 @@ def create_app(runs_dir: Path | None = None) -> FastAPI:
         )
 
     # Include API routers
+    app.include_router(scrapers_router)
     app.include_router(runs_router)
     app.include_router(requests_router)
     app.include_router(responses_router)

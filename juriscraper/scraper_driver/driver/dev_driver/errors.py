@@ -13,6 +13,7 @@ Error Types:
 from __future__ import annotations
 
 import json
+import traceback as tb
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -53,6 +54,7 @@ class ErrorRecord:
         failed_doc: For validation errors - the document that failed.
         status_code: For transient errors - HTTP status code.
         timeout_seconds: For transient errors - timeout duration.
+        traceback: Full Python stack trace.
         is_resolved: Whether this error has been resolved.
         resolved_at: When this error was resolved.
         resolution_notes: Notes about how the error was resolved.
@@ -76,6 +78,7 @@ class ErrorRecord:
     failed_doc: dict[str, Any] | None
     status_code: int | None
     timeout_seconds: float | None
+    traceback: str | None
     is_resolved: bool
     resolved_at: datetime | None
     resolution_notes: str | None
@@ -100,6 +103,7 @@ class ErrorRecord:
                 "validation_errors": self.validation_errors,
                 "status_code": self.status_code,
                 "timeout_seconds": self.timeout_seconds,
+                "traceback": self.traceback,
                 "is_resolved": self.is_resolved,
                 "resolved_at": self.resolved_at.isoformat()
                 if self.resolved_at
@@ -154,6 +158,11 @@ async def store_error(
     error_type = classify_error(exc)
     error_class = f"{type(exc).__module__}.{type(exc).__name__}"
     message = str(exc)
+
+    # Capture traceback
+    traceback_str = "".join(
+        tb.format_exception(type(exc), exc, exc.__traceback__)
+    )
 
     # Extract URL from exception if available
     if request_url is None:
@@ -220,6 +229,7 @@ async def store_error(
             failed_doc_json,
             status_code,
             timeout_seconds,
+            traceback_str,
         ),
     )
     await db.commit()
@@ -255,6 +265,7 @@ def _row_to_error_record(row: tuple[Any, ...]) -> ErrorRecord:
         failed_doc_json,
         status_code,
         timeout_seconds,
+        traceback_str,
         is_resolved,
         resolved_at,
         resolution_notes,
@@ -300,6 +311,7 @@ def _row_to_error_record(row: tuple[Any, ...]) -> ErrorRecord:
         failed_doc=failed_doc,
         status_code=status_code,
         timeout_seconds=timeout_seconds,
+        traceback=traceback_str,
         is_resolved=bool(is_resolved),
         resolved_at=resolved_at_dt,
         resolution_notes=resolution_notes,

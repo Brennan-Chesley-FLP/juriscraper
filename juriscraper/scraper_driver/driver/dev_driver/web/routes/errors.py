@@ -46,6 +46,11 @@ class ErrorResponse(BaseModel):
     model_name: str | None = None
     status_code: int | None = None
     timeout_seconds: float | None = None
+    # Full details
+    traceback: str | None = None
+    context: dict[str, Any] | None = None
+    validation_errors: list[dict[str, Any]] | None = None
+    failed_doc: dict[str, Any] | None = None
 
 
 class ErrorListResponse(BaseModel):
@@ -109,7 +114,40 @@ async def _get_db_for_run(run_id: str, manager: RunManager):
 
 
 def _row_to_error(row) -> ErrorResponse:
-    """Convert a database row to ErrorResponse."""
+    """Convert a database row to ErrorResponse.
+
+    Row format from SELECT_ERRORS_PAGE_FOR_WEB / SELECT_ERROR_BY_ID_FOR_WEB:
+    0: id, 1: request_id, 2: error_type, 3: error_class, 4: message,
+    5: request_url, 6: is_resolved, 7: resolved_at, 8: resolution_notes,
+    9: created_at, 10: selector, 11: selector_type, 12: expected_min,
+    13: expected_max, 14: actual_count, 15: model_name, 16: status_code,
+    17: timeout_seconds, 18: traceback, 19: context_json,
+    20: validation_errors_json, 21: failed_doc_json
+    """
+    import json
+
+    # Parse JSON fields
+    context = None
+    if row[19]:
+        try:
+            context = json.loads(row[19])
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    validation_errors = None
+    if row[20]:
+        try:
+            validation_errors = json.loads(row[20])
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    failed_doc = None
+    if row[21]:
+        try:
+            failed_doc = json.loads(row[21])
+        except (json.JSONDecodeError, TypeError):
+            pass
+
     return ErrorResponse(
         id=row[0],
         request_id=row[1],
@@ -129,6 +167,10 @@ def _row_to_error(row) -> ErrorResponse:
         model_name=row[15],
         status_code=row[16],
         timeout_seconds=row[17],
+        traceback=row[18],
+        context=context,
+        validation_errors=validation_errors,
+        failed_doc=failed_doc,
     )
 
 

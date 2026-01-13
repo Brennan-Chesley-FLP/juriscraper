@@ -1,6 +1,7 @@
 """Route modules for LocalDevDriver web interface.
 
 This package contains all API route modules:
+- scrapers: Scraper discovery and parameter schema endpoints
 - runs: Run management endpoints
 - requests: Request listing and cancellation endpoints
 - responses: Response viewing and content retrieval
@@ -32,6 +33,9 @@ from juriscraper.scraper_driver.driver.dev_driver.web.routes.results import (
 from juriscraper.scraper_driver.driver.dev_driver.web.routes.runs import (
     router as runs_router,
 )
+from juriscraper.scraper_driver.driver.dev_driver.web.routes.scrapers import (
+    router as scrapers_router,
+)
 from juriscraper.scraper_driver.driver.dev_driver.web.routes.views import (
     router as views_router,
 )
@@ -47,6 +51,7 @@ __all__ = [
     "responses_router",
     "results_router",
     "runs_router",
+    "scrapers_router",
     "views_router",
     "websocket_router",
 ]

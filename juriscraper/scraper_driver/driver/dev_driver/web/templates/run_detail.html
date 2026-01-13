@@ -11,6 +11,7 @@
 
     <div class="actions">
         <a href="/" class="btn btn-secondary">Back to Dashboard</a>
+        <button id="load-btn" class="btn btn-primary" style="display:none;">Load</button>
         <button id="start-btn" class="btn btn-primary" style="display:none;">Start</button>
         <button id="stop-btn" class="btn btn-danger" style="display:none;">Stop</button>
     </div>
@@ -64,12 +65,32 @@
         <div id="events-log" class="events-log"></div>
     </section>
 </div>
+
+<!-- Error Detail Modal -->
+<div id="error-modal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h2>Error Details</h2>
+            <button class="close-btn" onclick="closeErrorModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem; max-height: 70vh; overflow-y: auto;">
+            <div id="error-detail-content">Loading...</div>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeErrorModal()">Close</button>
+            <button type="button" class="btn btn-info" id="view-html-btn" style="display:none;">View Response HTML</button>
+            <button type="button" class="btn btn-primary" id="requeue-btn" onclick="requeueCurrentError()">Requeue Request</button>
+            <button type="button" class="btn btn-danger" id="resolve-btn" onclick="resolveCurrentError()">Mark Resolved</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 const runId = '{{ run_id }}';
 let ws = null;
+let currentErrorId = null;
 
 // Load run details
 async function loadRunDetails() {
@@ -85,6 +106,7 @@ async function loadRunDetails() {
         document.getElementById('run-status').className = `status status-${run.status}`;
 
         // Show/hide action buttons
+        document.getElementById('load-btn').style.display = run.status === 'unloaded' || run.status === 'stopped' ? 'inline-block' : 'none';
         document.getElementById('start-btn').style.display = run.status === 'loaded' ? 'inline-block' : 'none';
         document.getElementById('stop-btn').style.display = run.status === 'running' ? 'inline-block' : 'none';
     } catch (error) {
@@ -131,9 +153,9 @@ async function loadRequests() {
 // Load errors
 async function loadErrors() {
     try {
-        const response = await fetch(`/api/runs/${runId}/errors?limit=10`);
+        const response = await fetch(`/api/runs/${runId}/errors?limit=10&unresolved_only=false`);
         if (!response.ok) {
-            document.getElementById('errors-list').innerHTML = '<p class="error">Failed to load</p>';
+            document.getElementById('errors-list').innerHTML = '<p class="error">Failed to load (run may not be loaded)</p>';
             return;
         }
         const data = await response.json();
@@ -144,7 +166,7 @@ async function loadErrors() {
         }
 
         const html = data.items.map(err => `
-            <div class="error-item ${err.is_resolved ? 'resolved' : ''}">
+            <div class="error-item ${err.is_resolved ? 'resolved' : ''}" onclick="showErrorDetail(${err.id})" style="cursor: pointer;">
                 <span class="error-type">${err.error_type}</span>
                 <span class="error-message">${truncate(err.message, 80)}</span>
                 <span class="error-url" title="${err.request_url}">${truncate(err.request_url, 40)}</span>
@@ -167,6 +189,214 @@ async function loadErrors() {
     } catch (error) {
         console.error('Failed to load errors:', error);
     }
+}
+
+// Show error detail modal
+async function showErrorDetail(errorId) {
+    currentErrorId = errorId;
+    document.getElementById('error-modal').classList.add('active');
+    document.getElementById('error-detail-content').innerHTML = 'Loading...';
+
+    try {
+        const response = await fetch(`/api/runs/${runId}/errors/${errorId}`);
+        if (!response.ok) {
+            document.getElementById('error-detail-content').innerHTML = '<p class="error">Failed to load error details</p>';
+            return;
+        }
+        const err = await response.json();
+
+        // Try to fetch the response for this request to get response_id
+        let responseId = null;
+        if (err.request_id) {
+            try {
+                const respResponse = await fetch(`/api/runs/${runId}/responses?request_id=${err.request_id}&limit=1`);
+                if (respResponse.ok) {
+                    const respData = await respResponse.json();
+                    if (respData.items && respData.items.length > 0) {
+                        responseId = respData.items[0].id;
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch response for request:', e);
+            }
+        }
+
+        // Update button states
+        document.getElementById('requeue-btn').style.display = err.request_id && !err.is_resolved ? 'inline-block' : 'none';
+        document.getElementById('resolve-btn').style.display = err.is_resolved ? 'none' : 'inline-block';
+        document.getElementById('view-html-btn').style.display = responseId ? 'inline-block' : 'none';
+        document.getElementById('view-html-btn').onclick = responseId ? () => viewResponseHtml(responseId) : null;
+
+        let html = `
+            <div class="error-detail">
+                <div class="detail-section">
+                    <h3>Error Information</h3>
+                    <table class="detail-table">
+                        <tr><th>ID</th><td>${err.id}</td></tr>
+                        <tr><th>Type</th><td><span class="status status-failed">${err.error_type}</span></td></tr>
+                        <tr><th>Class</th><td><code>${err.error_class}</code></td></tr>
+                        <tr><th>URL</th><td style="word-break: break-all;">${err.request_url}</td></tr>
+                        <tr><th>Request ID</th><td>${err.request_id || 'N/A'}</td></tr>
+                        <tr><th>Created</th><td>${err.created_at ? new Date(err.created_at).toLocaleString() : 'N/A'}</td></tr>
+                        <tr><th>Status</th><td>${err.is_resolved ? '<span class="badge resolved">Resolved</span>' : '<span class="badge" style="background: #e74c3c;">Unresolved</span>'}</td></tr>
+                    </table>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Message</h3>
+                    <pre class="error-message-full">${escapeHtml(err.message)}</pre>
+                </div>
+        `;
+
+        // Type-specific details
+        if (err.error_type === 'structural' && err.selector) {
+            html += `
+                <div class="detail-section">
+                    <h3>Selector Details</h3>
+                    <table class="detail-table">
+                        <tr><th>Selector</th><td><code>${escapeHtml(err.selector)}</code></td></tr>
+                        <tr><th>Type</th><td>${err.selector_type || 'N/A'}</td></tr>
+                        <tr><th>Expected</th><td>${err.expected_min !== null ? `${err.expected_min}-${err.expected_max}` : 'N/A'}</td></tr>
+                        <tr><th>Actual</th><td>${err.actual_count !== null ? err.actual_count : 'N/A'}</td></tr>
+                    </table>
+                </div>
+            `;
+        }
+
+        if (err.error_type === 'validation' && err.model_name) {
+            html += `
+                <div class="detail-section">
+                    <h3>Validation Details</h3>
+                    <table class="detail-table">
+                        <tr><th>Model</th><td><code>${err.model_name}</code></td></tr>
+                    </table>
+                </div>
+            `;
+            if (err.validation_errors) {
+                html += `
+                    <div class="detail-section">
+                        <h3>Validation Errors</h3>
+                        <pre class="code-block">${escapeHtml(JSON.stringify(err.validation_errors, null, 2))}</pre>
+                    </div>
+                `;
+            }
+            if (err.failed_doc) {
+                html += `
+                    <div class="detail-section">
+                        <h3>Failed Document</h3>
+                        <pre class="code-block">${escapeHtml(JSON.stringify(err.failed_doc, null, 2))}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        if (err.error_type === 'transient') {
+            html += `
+                <div class="detail-section">
+                    <h3>Transient Error Details</h3>
+                    <table class="detail-table">
+                        ${err.status_code ? `<tr><th>Status Code</th><td>${err.status_code}</td></tr>` : ''}
+                        ${err.timeout_seconds ? `<tr><th>Timeout</th><td>${err.timeout_seconds}s</td></tr>` : ''}
+                    </table>
+                </div>
+            `;
+        }
+
+        if (err.context) {
+            html += `
+                <div class="detail-section">
+                    <h3>Context</h3>
+                    <pre class="code-block">${escapeHtml(JSON.stringify(err.context, null, 2))}</pre>
+                </div>
+            `;
+        }
+
+        if (err.traceback) {
+            html += `
+                <div class="detail-section">
+                    <h3>Stack Trace</h3>
+                    <pre class="traceback">${escapeHtml(err.traceback)}</pre>
+                </div>
+            `;
+        }
+
+        if (err.is_resolved) {
+            html += `
+                <div class="detail-section">
+                    <h3>Resolution</h3>
+                    <table class="detail-table">
+                        <tr><th>Resolved At</th><td>${err.resolved_at ? new Date(err.resolved_at).toLocaleString() : 'N/A'}</td></tr>
+                        <tr><th>Notes</th><td>${err.resolution_notes || 'N/A'}</td></tr>
+                    </table>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+        document.getElementById('error-detail-content').innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load error details:', error);
+        document.getElementById('error-detail-content').innerHTML = '<p class="error">Failed to load error details</p>';
+    }
+}
+
+function closeErrorModal() {
+    document.getElementById('error-modal').classList.remove('active');
+    currentErrorId = null;
+}
+
+async function requeueCurrentError() {
+    if (!currentErrorId) return;
+    try {
+        const response = await fetch(`/api/runs/${runId}/errors/${currentErrorId}/requeue`, { method: 'POST' });
+        if (response.ok) {
+            alert('Error requeued successfully');
+            closeErrorModal();
+            loadErrors();
+            loadRequests();
+        } else {
+            const data = await response.json();
+            alert('Failed to requeue: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to requeue: ' + error.message);
+    }
+}
+
+async function resolveCurrentError() {
+    if (!currentErrorId) return;
+    const notes = prompt('Resolution notes (optional):');
+    if (notes === null) return; // User cancelled
+
+    try {
+        const response = await fetch(`/api/runs/${runId}/errors/${currentErrorId}/resolve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notes: notes })
+        });
+        if (response.ok) {
+            alert('Error marked as resolved');
+            closeErrorModal();
+            loadErrors();
+        } else {
+            const data = await response.json();
+            alert('Failed to resolve: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to resolve: ' + error.message);
+    }
+}
+
+function viewResponseHtml(responseId) {
+    // Open the response HTML in a new tab
+    window.open(`/api/runs/${runId}/responses/${responseId}/content`, '_blank');
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
 
 // Load compression stats
@@ -232,6 +462,27 @@ function addEvent(type, message) {
 }
 
 // Actions
+async function loadRun() {
+    try {
+        const response = await fetch(`/api/runs/${runId}/load`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})  // Use defaults (scraper from DB)
+        });
+        if (response.ok) {
+            loadRunDetails();
+            loadRequests();
+            loadErrors();
+            loadCompressionStats();
+        } else {
+            const data = await response.json();
+            alert('Failed to load run: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to load run: ' + error.message);
+    }
+}
+
 async function startRun() {
     try {
         await fetch(`/api/runs/${runId}/start`, { method: 'POST' });
@@ -257,10 +508,18 @@ function truncate(str, len) {
 }
 
 // Event listeners
+document.getElementById('load-btn').addEventListener('click', loadRun);
 document.getElementById('start-btn').addEventListener('click', startRun);
 document.getElementById('stop-btn').addEventListener('click', stopRun);
 document.getElementById('connect-ws').addEventListener('click', connectWebSocket);
 document.getElementById('status-filter').addEventListener('change', loadRequests);
+
+// Close error modal on outside click
+document.getElementById('error-modal').addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal')) {
+        closeErrorModal();
+    }
+});
 
 // Initial load
 loadRunDetails();

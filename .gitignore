@@ -209,3 +209,4 @@ tests/fixtures/cassettes/
 # Swap files
 *.swp
 *~
+runs

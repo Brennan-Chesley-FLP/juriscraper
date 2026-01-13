@@ -338,15 +338,15 @@ class SQL:
             request_id, error_type, error_class, message, request_url,
             context_json, selector, selector_type, expected_min, expected_max,
             actual_count, model_name, validation_errors_json, failed_doc_json,
-            status_code, timeout_seconds
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            status_code, timeout_seconds, traceback
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     SELECT_ERROR_FULL = """
         SELECT id, request_id, error_type, error_class, message, request_url,
                context_json, selector, selector_type, expected_min, expected_max,
                actual_count, model_name, validation_errors_json, failed_doc_json,
-               status_code, timeout_seconds, is_resolved, resolved_at,
+               status_code, timeout_seconds, traceback, is_resolved, resolved_at,
                resolution_notes, created_at
         FROM errors
         WHERE id = ?
@@ -359,7 +359,7 @@ class SQL:
                e.request_url, e.context_json, e.selector, e.selector_type,
                e.expected_min, e.expected_max, e.actual_count, e.model_name,
                e.validation_errors_json, e.failed_doc_json, e.status_code,
-               e.timeout_seconds, e.is_resolved, e.resolved_at,
+               e.timeout_seconds, e.traceback, e.is_resolved, e.resolved_at,
                e.resolution_notes, e.created_at
         FROM errors e
         LEFT JOIN requests r ON e.request_id = r.id
@@ -372,7 +372,7 @@ class SQL:
         SELECT id, request_id, error_type, error_class, message, request_url,
                context_json, selector, selector_type, expected_min, expected_max,
                actual_count, model_name, validation_errors_json, failed_doc_json,
-               status_code, timeout_seconds, is_resolved, resolved_at,
+               status_code, timeout_seconds, traceback, is_resolved, resolved_at,
                resolution_notes, created_at
         FROM errors e
         {where_clause}
@@ -617,7 +617,8 @@ class SQL:
         SELECT id, request_id, error_type, error_class, message, request_url,
                is_resolved, resolved_at, resolution_notes, created_at,
                selector, selector_type, expected_min, expected_max, actual_count,
-               model_name, status_code, timeout_seconds
+               model_name, status_code, timeout_seconds, traceback, context_json,
+               validation_errors_json, failed_doc_json
         FROM errors
         {where_clause}
         ORDER BY created_at DESC
@@ -628,7 +629,8 @@ class SQL:
         SELECT id, request_id, error_type, error_class, message, request_url,
                is_resolved, resolved_at, resolution_notes, created_at,
                selector, selector_type, expected_min, expected_max, actual_count,
-               model_name, status_code, timeout_seconds
+               model_name, status_code, timeout_seconds, traceback, context_json,
+               validation_errors_json, failed_doc_json
         FROM errors
         WHERE id = ?
     """

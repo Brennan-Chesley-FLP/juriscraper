@@ -244,6 +244,76 @@ resolves, resumes, then continues to the next:
             if not has_section:
                 break  # No more sections
 
+Tracking Speculative IDs with accumulated_data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For resumable scraping, pass the last successfully processed ID through
+``accumulated_data``. This allows consumers to resume from where they left off:
+
+.. code-block:: python
+
+    from typing import Annotated
+    from juriscraper.scraper_driver.common.searchable import SpeculativeID
+
+    class CaseData(ScrapedData):
+        """Case data with speculative ID for resumable scraping."""
+        case_id: Annotated[str, SpeculativeID()]
+        case_name: str
+
+    class ResumableScraper(BaseScraper[CaseData]):
+        @step
+        def parse_list(
+            self, lxml_tree, accumulated_data: dict
+        ) -> Generator[ScraperYield, bool | None, None]:
+            # Get starting ID from params (if resuming)
+            start_id = accumulated_data.get("speculative_id", {}).get(
+                "CaseData", {}
+            ).get("case_id", 0)
+
+            current_id = start_id + 1
+            while True:
+                should_continue = yield SpeculativeRequest(
+                    request=HTTPRequestParams(url=f"/cases/{current_id}"),
+                    continuation="parse_case",
+                    # Pass the current ID so parse_case can track progress
+                    accumulated_data={
+                        "speculative_id": {
+                            "CaseData": {"case_id": current_id}
+                        }
+                    },
+                )
+
+                if not should_continue:
+                    break
+
+                current_id += 1
+
+        @step
+        def parse_case(
+            self, lxml_tree, accumulated_data: dict
+        ) -> Generator[ScraperYield, bool | None, None]:
+            current_id = accumulated_data["speculative_id"]["CaseData"]["case_id"]
+            case_name = lxml_tree.checked_xpath("//h1/text()", "case name")[0]
+
+            yield ParsedData(
+                data=CaseData(case_id=str(current_id), case_name=case_name)
+            )
+
+**Consuming with params:**
+
+.. code-block:: python
+
+    # Resume from a specific ID
+    params = ResumableScraper.params()
+    params.CaseData.case_id.gt = "12345"  # Start after ID 12345
+
+    # Or fetch a specific ID
+    params.CaseData.case_id.eq = "12346"  # Only fetch this ID
+
+The ``SpeculativeID`` marker (see :doc:`20_search_and_standardization`) provides
+``.gt`` for greater-than filtering and ``.eq`` for exact match, enabling
+consumers to resume scraping from a known checkpoint.
+
 
 Configuring Starting IDs via Params
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

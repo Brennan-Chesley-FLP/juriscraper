@@ -13,6 +13,7 @@ Key behaviors tested:
 - SkipDeduplicationCheck can bypass deduplication entirely
 """
 
+from collections.abc import Generator
 from pathlib import Path
 
 from juriscraper.scraper_driver.data_types import (
@@ -239,8 +240,8 @@ class TestCustomDedupKey:
         """The custom deduplication_key shall be preserved when request is resolved."""
 
         class CustomKeyScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -286,8 +287,8 @@ class TestDuplicateCheckCallback:
         """The duplicate_check callback shall prevent duplicate requests from being enqueued."""
 
         class DuplicateScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -339,8 +340,8 @@ class TestDuplicateCheckCallback:
         """The driver shall enqueue all requests when no duplicate_check is provided."""
 
         class DuplicateScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -383,8 +384,8 @@ class TestDuplicateCheckCallback:
         """The duplicate_check callback shall allow requests with different keys."""
 
         class MultiPageScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -435,8 +436,8 @@ class TestDuplicateCheckCallback:
         """The duplicate_check callback shall work with custom deduplication keys."""
 
         class CustomKeyScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -507,8 +508,8 @@ class TestSkipDeduplicationCheck:
         """SkipDeduplicationCheck shall bypass the duplicate_check callback entirely."""
 
         class SkipDedupScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -562,8 +563,8 @@ class TestSkipDeduplicationCheck:
         """SkipDeduplicationCheck requests shall not be tracked in seen keys."""
 
         class MixedDedupScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",

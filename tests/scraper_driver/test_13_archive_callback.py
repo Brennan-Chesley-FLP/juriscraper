@@ -11,6 +11,7 @@ Key behaviors tested:
 - Integration with ArchiveRequest/ArchiveResponse flow
 """
 
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
@@ -99,8 +100,8 @@ class TestCustomArchiveCallback:
         """The on_archive callback shall receive file content."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/files/test.pdf",
@@ -164,8 +165,8 @@ class TestCustomArchiveCallback:
         """The on_archive callback return value shall be used as file_url in ArchiveResponse."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/files/test.pdf",
@@ -217,8 +218,8 @@ class TestCustomArchiveCallback:
         """The on_archive callback shall allow saving files to custom locations."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/files/test.pdf",
@@ -282,8 +283,8 @@ class TestArchiveCallbackIntegration:
         """The driver shall use default_archive_callback when on_archive is None."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/files/test.pdf",
@@ -328,8 +329,8 @@ class TestArchiveCallbackIntegration:
         """The on_archive callback shall be called for each ArchiveRequest."""
 
         class MultiFileScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/files/test.pdf",

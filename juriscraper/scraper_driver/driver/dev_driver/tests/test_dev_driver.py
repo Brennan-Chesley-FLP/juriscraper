@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Generator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -1893,8 +1894,8 @@ class TestRunManager:
         )
 
         class MockScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -2432,19 +2433,19 @@ class TestRunsAPI:
 
         assert response.status_code == 404
 
-    def test_create_run_not_implemented(self, client) -> None:
-        """Test creating a run returns 501 (not implemented)."""
+    def test_create_run_scraper_not_found(self, client) -> None:
+        """Test creating a run with unknown scraper returns 404."""
         with client:
             response = client.post(
                 "/api/runs",
                 json={
                     "run_id": "new_run",
-                    "scraper_name": "TestScraper",
+                    "scraper_path": "test.module:TestScraper",
                 },
             )
 
-        assert response.status_code == 501
-        assert "registry" in response.json()["detail"].lower()
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
 
 
 class TestWebSocketManager:
@@ -2660,8 +2661,8 @@ class TestGracefulShutdownAndResume:
         )
 
         class MockScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -3123,8 +3124,8 @@ class TestDeduplication:
         )
 
         class MockScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -3685,7 +3686,6 @@ class TestRequestLineageTracking:
         - /listing yields requests to /detail/1, /detail/2
         - Each detail request should track /listing as parent
         """
-        from collections.abc import Generator
 
         from juriscraper.scraper_driver.data_types import (
             BaseScraper,
@@ -3705,8 +3705,8 @@ class TestRequestLineageTracking:
         class MultiStepScraper(BaseScraper[str]):
             """Scraper that navigates from listing to detail pages."""
 
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/listing",
@@ -3792,7 +3792,6 @@ class TestRequestStatusMarking:
         self, db_path: Path
     ) -> None:
         """Test that successful requests are marked as completed."""
-        from collections.abc import Generator
 
         from juriscraper.scraper_driver.data_types import (
             BaseScraper,
@@ -3810,8 +3809,8 @@ class TestRequestStatusMarking:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/page",
@@ -3849,7 +3848,6 @@ class TestRequestStatusMarking:
 
     async def test_failed_request_marked_failed(self, db_path: Path) -> None:
         """Test that requests with errors are marked as failed."""
-        from collections.abc import Generator
 
         from juriscraper.scraper_driver.common.exceptions import (
             HTMLStructuralAssumptionException,
@@ -3870,8 +3868,8 @@ class TestRequestStatusMarking:
         )
 
         class FailingScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/fail",
@@ -3921,7 +3919,6 @@ class TestExponentialBackoff:
 
     async def test_transient_error_triggers_retry(self, db_path: Path) -> None:
         """Test that transient errors trigger retry with backoff."""
-        from collections.abc import Generator
 
         from juriscraper.scraper_driver.common.exceptions import (
             RequestTimeoutException,
@@ -3938,8 +3935,8 @@ class TestExponentialBackoff:
         )
 
         class RetryScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/flaky",
@@ -4013,7 +4010,6 @@ class TestExponentialBackoff:
         self, db_path: Path
     ) -> None:
         """Test that exceeding max backoff time marks request as failed."""
-        from collections.abc import Generator
 
         from juriscraper.scraper_driver.common.exceptions import (
             RequestTimeoutException,
@@ -4033,8 +4029,8 @@ class TestExponentialBackoff:
         )
 
         class AlwaysFailScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/always-fail",
@@ -4087,7 +4083,6 @@ class TestCompressionRoundTrip:
 
     async def test_response_compression_roundtrip(self, db_path: Path) -> None:
         """Test that responses are correctly compressed and decompressed."""
-        from collections.abc import Generator
 
         from juriscraper.scraper_driver.data_types import (
             BaseScraper,
@@ -4108,8 +4103,8 @@ class TestCompressionRoundTrip:
         large_html = "<html><body>" + ("Content " * 1000) + "</body></html>"
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/large",
@@ -4162,7 +4157,6 @@ class TestDataStorage:
 
     async def test_parsed_data_stored_in_results(self, db_path: Path) -> None:
         """Test that ParsedData is correctly stored in results table."""
-        from collections.abc import Generator
         from typing import Any
 
         from juriscraper.scraper_driver.data_types import (
@@ -4183,8 +4177,8 @@ class TestDataStorage:
 
         # Use dicts instead of dataclasses since they're directly JSON serializable
         class DataScraper(BaseScraper[dict[str, Any]]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/case",
@@ -4251,7 +4245,6 @@ class TestRequeueErroredRequests:
 
     async def test_requeue_single_error(self, db_path: Path) -> None:
         """Test re-enqueueing a single errored request."""
-        from collections.abc import Generator
 
         from juriscraper.scraper_driver.common.exceptions import (
             HTMLStructuralAssumptionException,
@@ -4274,8 +4267,8 @@ class TestRequeueErroredRequests:
         class FailThenSucceedScraper(BaseScraper[str]):
             calls = 0
 
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/requeue-test",
@@ -4367,8 +4360,8 @@ class TestListRequestsFiltering:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -4443,8 +4436,8 @@ class TestListRequestsFiltering:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -4505,8 +4498,8 @@ class TestListRequestsFiltering:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -4584,8 +4577,8 @@ class TestWarcExportByContinuation:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -4691,8 +4684,8 @@ class TestWarcExportByContinuation:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -4736,8 +4729,8 @@ class TestHeadersOnlyResponse:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.HEAD,
                         url="https://example.com/resource",
@@ -4830,8 +4823,8 @@ class TestHeadersOnlyResponse:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -4902,8 +4895,8 @@ class TestGracefulShutdownSigterm:
         processed_count = 0
 
         class MultiPageScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/page1",
@@ -5009,8 +5002,8 @@ class TestGracefulShutdownSigterm:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -5076,8 +5069,8 @@ class TestGracefulShutdownSigterm:
         completed_urls: list[str] = []
 
         class MultiStepScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/start",
@@ -5207,8 +5200,8 @@ class TestDevDriverVsOtherDrivers:
         dev_driver_results: list[dict] = []
 
         class TestScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/cases",
@@ -5315,8 +5308,8 @@ class TestDevDriverVsOtherDrivers:
         )
 
         class ResultProducingScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/data",
@@ -5415,8 +5408,8 @@ class TestDeferredValidationHandling:
         received_data: list[CaseData] = []
 
         class ValidDataScraper(BaseScraper[CaseData]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/case",
@@ -5516,8 +5509,8 @@ class TestDeferredValidationHandling:
         invalid_data_received: list[Any] = []
 
         class InvalidDataScraper(BaseScraper[StrictCaseData]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/case",
@@ -5605,8 +5598,8 @@ class TestNonNavigatingRequestHandling:
         collected_data: list[dict] = []
 
         class NonNavScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/main",
@@ -5702,8 +5695,8 @@ class TestNonNavigatingRequestHandling:
         )
 
         class AccumulatingScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com/listing",
@@ -5782,8 +5775,8 @@ class TestRequeueErrorsByType:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -5872,8 +5865,8 @@ class TestRequeueErrorsByType:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -5948,8 +5941,8 @@ class TestRequeueErrorsByType:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -5992,8 +5985,8 @@ class TestResponsesAndResultsListing:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6085,8 +6078,8 @@ class TestResponsesAndResultsListing:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6154,8 +6147,8 @@ class TestResponsesAndResultsListing:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6221,8 +6214,8 @@ class TestGetterMethods:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6283,8 +6276,8 @@ class TestGetterMethods:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6314,8 +6307,8 @@ class TestGetterMethods:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6364,8 +6357,8 @@ class TestGetterMethods:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6399,8 +6392,8 @@ class TestCancellationMethods:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6452,8 +6445,8 @@ class TestCancellationMethods:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6506,8 +6499,8 @@ class TestCancellationMethods:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6558,8 +6551,8 @@ class TestCancellationMethods:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6591,8 +6584,8 @@ class TestCancellationMethods:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6669,8 +6662,8 @@ class TestCancellationMethods:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",
@@ -6695,7 +6688,6 @@ class TestSpeculativeRequestHandling:
         self, tmp_path: Path
     ) -> None:
         """Test that 200 response to speculative request returns True."""
-        from collections.abc import Generator
         from unittest.mock import AsyncMock, MagicMock
 
         from juriscraper.scraper_driver.common.decorators import step
@@ -6718,8 +6710,8 @@ class TestSpeculativeRequestHandling:
                 self.speculative_results: list[bool] = []
                 self.pages_processed: list[int] = []
 
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url="https://example.com/start"
                     ),
@@ -6785,7 +6777,6 @@ class TestSpeculativeRequestHandling:
         self, tmp_path: Path
     ) -> None:
         """Test that 404 response without callback returns False."""
-        from collections.abc import Generator
         from unittest.mock import AsyncMock, MagicMock
 
         from juriscraper.scraper_driver.common.decorators import step
@@ -6807,8 +6798,8 @@ class TestSpeculativeRequestHandling:
             def __init__(self) -> None:
                 self.speculative_results: list[bool] = []
 
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url="https://example.com/start"
                     ),
@@ -6874,7 +6865,6 @@ class TestSpeculativeRequestHandling:
         self, tmp_path: Path
     ) -> None:
         """Test that on_speculation_response callback is called for non-2xx."""
-        from collections.abc import Generator
         from unittest.mock import AsyncMock, MagicMock
 
         from juriscraper.scraper_driver.common.decorators import step
@@ -6896,8 +6886,8 @@ class TestSpeculativeRequestHandling:
             def __init__(self) -> None:
                 self.speculative_results: list[bool] = []
 
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url="https://example.com/start"
                     ),
@@ -6987,8 +6977,8 @@ class TestSpeculativeRequestHandling:
         )
 
         class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url="https://example.com"
                     ),
@@ -7029,7 +7019,6 @@ class TestSpeculativeRequestHandling:
         self, tmp_path: Path
     ) -> None:
         """Test that deduplicated speculative requests resume with False."""
-        from collections.abc import Generator
         from unittest.mock import AsyncMock, MagicMock
 
         from juriscraper.scraper_driver.common.decorators import step
@@ -7051,8 +7040,8 @@ class TestSpeculativeRequestHandling:
             def __init__(self) -> None:
                 self.results: list[bool] = []
 
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url="https://example.com/start"
                     ),

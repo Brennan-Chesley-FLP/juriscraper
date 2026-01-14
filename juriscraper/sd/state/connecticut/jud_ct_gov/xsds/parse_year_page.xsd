@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Connecticut Appellate Courts Year Archive Pages
+
+  URL Patterns:
+  - Supreme Court: https://www.jud.ct.gov/external/supapp/archiveAROsup{YY}.htm
+  - Appellate Court: https://www.jud.ct.gov/external/supapp/archiveAROap{YY}.htm
+
+  This schema describes the expected structure of year-specific archive pages
+  that list opinions published in the Connecticut Law Journal.
+
+  Step: parse_year_page
+  XPaths used:
+    - XPATH_PUBLICATION_HEADERS: //h3[contains(text(), 'Published in the Connecticut Law Journal')]
+    - Opinion list items: following-sibling::*[self::p or self::ul][position() <= 2]/self::ul/li | following-sibling::ul[1]/li
+    - Opinion links: .//a
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Year Archive Page Structure
+      ===========================
+
+      Both courts' year archive pages list opinions grouped by Connecticut Law Journal
+      publication date. The structure consists of repeating sections:
+
+      h3 (publication date header)
+      p (empty paragraph)
+      ul (list of opinions)
+
+      Page Variations:
+
+      1. Supreme Court (archiveAROsup{YY}.htm):
+         - Title pattern: "Archive of Supreme Court Opinions - {YYYY}"
+         - h1: "Archive of Supreme Court Opinions"
+         - Docket prefix: SC (e.g., "SC21125")
+
+      2. Appellate Court (archiveAROap{YY}.htm):
+         - Title pattern: "Archive of Appellate Court Opinions - {YYYY}"
+         - h1: "Archive of Appellate Court Opinions"
+         - Docket prefix: AC (e.g., "AC12345")
+
+      Common Structure:
+      - h3 text: "Published in the Connecticut Law Journal of December 30, 2025:"
+      - Opinion list items contain:
+        - Link text: docket number with optional type (e.g., "SC21125", "AC12345 Dissent")
+        - Following text: "- Case Name" (e.g., "- State v. Enrrique H.")
+        - Link href: relative PDF URL (e.g., "Cases/AROcr/CR353/CR353.8.pdf")
+
+      Opinion Types (indicated in link text):
+        - Plain docket: "SC21125" or "AC12345" - majority opinion
+        - "{prefix}21082 Dissent" - dissenting opinion
+        - "{prefix}21082 Concurrence" - concurring opinion
+        - "{prefix}20815 Concurrence &amp; Dissent" - combined concurrence and dissent
+        - "{prefix}21010 Appendix" - appendix document
+        - "{prefix}240221 Order on Motion" - order on motion
+        - "{prefix}20802 Second Concurrence" - second concurring opinion
+        - "{prefix}21055, {prefix}21068" - consolidated dockets
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing a year archive page -->
+  <xs:element name="year-archive-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Page title pattern (varies by court) -->
+        <xs:element name="title">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="Archive of (Supreme|Appellate) Court Opinions - 20[0-9]{2}"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+
+        <!-- Main heading (varies by court) -->
+        <xs:element name="h1">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="Archive of (Supreme|Appellate) Court Opinions"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+
+        <!-- Year subheading -->
+        <xs:element name="h2">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="20[0-9]{2}"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+
+        <!-- Previous Years link (varies by court) -->
+        <xs:element name="previous-years-link">
+          <xs:complexType>
+            <xs:simpleContent>
+              <xs:extension base="xs:string">
+                <xs:attribute name="href">
+                  <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                      <xs:pattern value="archiveARO(sup|ap)\.htm"/>
+                    </xs:restriction>
+                  </xs:simpleType>
+                </xs:attribute>
+              </xs:extension>
+            </xs:simpleContent>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Publication date sections (repeating) -->
+        <xs:element name="publication-section" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+
+              <!-- Publication date header -->
+              <xs:element name="h3">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <!-- Pattern: "Published in the Connecticut Law Journal of {Month} {Day}, {Year}:" -->
+                      <xs:attribute name="date-pattern" type="xs:string"
+                        default="Published in the Connecticut Law Journal of [A-Za-z]+ \d{1,2}, \d{4}:"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+
+              <!-- Opinion list -->
+              <xs:element name="opinion-list">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="opinion-item" maxOccurs="unbounded">
+                      <xs:complexType>
+                        <xs:sequence>
+
+                          <!-- Opinion link (PDF) -->
+                          <xs:element name="link">
+                            <xs:complexType>
+                              <xs:simpleContent>
+                                <xs:extension base="xs:string">
+                                  <!-- Link text contains docket number and optional type -->
+                                  <xs:attribute name="href" use="required">
+                                    <xs:simpleType>
+                                      <xs:restriction base="xs:string">
+                                        <!-- PDF URL pattern -->
+                                        <xs:pattern value="Cases/AROcr/CR[0-9]+/(CR|ORD)[0-9]+\.[0-9]+[A-Z]?\.pdf"/>
+                                      </xs:restriction>
+                                    </xs:simpleType>
+                                  </xs:attribute>
+                                </xs:extension>
+                              </xs:simpleContent>
+                            </xs:complexType>
+                          </xs:element>
+
+                          <!-- Case name (text following link) -->
+                          <xs:element name="case-name" type="xs:string"/>
+
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Quick Links sidebar -->
+        <xs:element name="quick-links" minOccurs="0"/>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Docket Number Pattern -->
+  <xs:simpleType name="docketNumberType">
+    <xs:annotation>
+      <xs:documentation>
+        Docket number format:
+        - Supreme Court: SC followed by digits (e.g., "SC21125")
+        - Appellate Court: AC followed by digits (e.g., "AC12345")
+        May include multiple dockets separated by comma and space
+        Examples: "SC21125", "AC12345", "SC21078, SC21079", "AC12345, AC12346"
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="(SC|AC)\d+(,\s*(SC|AC)\d+)*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Opinion Type Pattern -->
+  <xs:simpleType name="opinionTypeType">
+    <xs:annotation>
+      <xs:documentation>
+        Opinion types that may appear after docket number:
+        - (none) = majority
+        - Dissent
+        - Concurrence
+        - Concurrence &amp; Dissent
+        - First Dissent, Second Dissent, Third Dissent
+        - Second Concurrence, Third Concurrence
+        - Appendix
+        - Order on Motion
+        - Order on Motion Appendix
+        - Order on Motion Dissent
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value=""/>
+      <xs:enumeration value="Dissent"/>
+      <xs:enumeration value="Concurrence"/>
+      <xs:enumeration value="Concurrence &amp; Dissent"/>
+      <xs:enumeration value="First Dissent"/>
+      <xs:enumeration value="Second Dissent"/>
+      <xs:enumeration value="Third Dissent"/>
+      <xs:enumeration value="Second Concurrence"/>
+      <xs:enumeration value="Third Concurrence"/>
+      <xs:enumeration value="Appendix"/>
+      <xs:enumeration value="Order on Motion"/>
+      <xs:enumeration value="Order on Motion Appendix"/>
+      <xs:enumeration value="Order on Motion Dissent"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Structural Assumptions (used by scraper) -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. XPATH_PUBLICATION_HEADERS: //h3[contains(text(), 'Published in the Connecticut Law Journal')]
+         - Description: "publication date headers"
+         - min_count: 1
+         - Expected: h3 elements with publication date
+
+      2. Opinion list items (relative to h3):
+         following-sibling::*[self::p or self::ul][position() &lt;= 2]/self::ul/li | following-sibling::ul[1]/li
+         - Description: "opinion list items"
+         - min_count: 0 (some dates may have no opinions after filtering)
+         - Expected: li elements containing opinion links
+
+      3. Opinion links (relative to li):
+         .//a
+         - Description: "opinion links"
+         - min_count: 0 (allows empty items)
+         - Expected: anchor elements with PDF hrefs
+
+      Regex Patterns Used:
+      - DATE_PATTERN: r"Published in the Connecticut Law Journal of ([A-Za-z]+ \d{1,2}, \d{4}):"
+      - DOCKET_PATTERN: r"^((SC|AC)\d+(?:,\s*(SC|AC)\d+)*)"
+      - OPINION_TYPE_PATTERN: r"(Dissent|Concurrence|Concurrence &amp; Dissent|Appendix|Order on Motion|
+                                 First Dissent|Second Dissent|Third Dissent|Second Concurrence|Third Concurrence)"
+
+      Data Extraction:
+      - Publication date: from h3 text via DATE_PATTERN
+      - Docket number: from link text via DOCKET_PATTERN
+      - Opinion type: from link text via OPINION_TYPE_PATTERN
+      - PDF URL: from link href attribute
+      - Case name: text after link, pattern "- Case Name" or "– Case Name" (en-dash)
+
+      Edge Cases:
+      - Multiple dockets: "SC21078, SC21079" or "AC12345, AC12346" treated as single case
+      - Multiple opinions per case: same docket with Dissent/Concurrence suffix
+      - Order on Motion: "SC240221 Order on Motion" - special docket format
+      - Some list items may have link not in listitem (malformed HTML)
+      - Scraper filters by expected_prefix to avoid cross-court references
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

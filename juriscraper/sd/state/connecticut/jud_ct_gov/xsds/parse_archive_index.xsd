@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Connecticut Appellate Courts Archive Index Pages
+
+  URLs:
+  - Supreme Court: https://www.jud.ct.gov/external/supapp/archiveAROsup.htm
+  - Appellate Court: https://www.jud.ct.gov/external/supapp/archiveAROap.htm
+
+  This schema describes the expected structure of the archive index pages
+  that list years with available opinions for both courts.
+
+  Step: parse_archive_index
+  XPath used: //ul//li/a[strong] | //td//ul//li/a[strong]
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Archive Index Page Structure
+      ============================
+
+      Both archive index pages contain year links organized in lists.
+      Each year is a link containing a strong element with the year text.
+
+      Page Variations:
+
+      1. Supreme Court (archiveAROsup.htm):
+         - Title: "Archive of Officially Released Supreme Court Opinions"
+         - h1: "Archive of Supreme Court Opinions"
+         - Year links in TABLE structure: //td//ul//li/a[strong]
+         - href pattern: archiveAROsup{YY}.htm
+
+      2. Appellate Court (archiveAROap.htm):
+         - Title: "CT Judicial Branch Committees and Commissions" (misleading)
+         - h1: "Archive of Appellate Court Opinions"
+         - Year links in plain UL lists: //ul//li/a[strong]
+         - href pattern: archiveAROap{YY}.htm
+
+      Common Structure:
+      - Year links contain: a > strong > "YYYY"
+      - Link text: 4-digit year (e.g., "2025")
+      - Years range from 2000 to current year
+
+      XPath Assertions:
+      1. //ul//li/a[strong] | //td//ul//li/a[strong] - Must return at least 1 year link
+      2. Year links should have href matching pattern: archiveARO(sup|ap)\d{2}\.htm
+      3. Year text should be a valid 4-digit year (2000-current)
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the main content area -->
+  <xs:element name="archive-index-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Page title (varies by court) -->
+        <xs:element name="title" type="xs:string"/>
+
+        <!-- Main heading (varies by court) -->
+        <xs:element name="h1" type="xs:string"/>
+
+        <!-- Year links - may be in table (Supreme) or plain lists (Appellate) -->
+        <xs:element name="year-links">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="year-link" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="strong">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:string">
+                          <!-- Year must be 4 digits, 2000 or later -->
+                          <xs:pattern value="20[0-9]{2}"/>
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:element>
+                  </xs:sequence>
+                  <xs:attribute name="href" use="required">
+                    <xs:simpleType>
+                      <xs:restriction base="xs:string">
+                        <!-- URL pattern: archiveARO(sup|ap){YY}.htm -->
+                        <xs:pattern value="archiveARO(sup|ap)[0-9]{2}\.htm"/>
+                      </xs:restriction>
+                    </xs:simpleType>
+                  </xs:attribute>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Quick Links sidebar (optional content) -->
+        <xs:element name="quick-links" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="link" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="href" type="xs:string" use="required"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Structural Assumptions (used by scraper) -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. XPATH_YEAR_LINKS: //ul//li/a[strong] | //td//ul//li/a[strong]
+         - Description: "year links"
+         - min_count: 1
+         - Expected: Links to year archive pages
+         - Note: Combined XPath handles both table (Supreme) and list (Appellate) layouts
+
+      Validation Rules:
+      - Each link must have href attribute
+      - Link text (inside strong) must be a valid year
+      - Years range from 2000 to current year
+
+      Known Year Range (as of capture):
+      2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+      2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019,
+      2020, 2021, 2022, 2023, 2024, 2025, 2026
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

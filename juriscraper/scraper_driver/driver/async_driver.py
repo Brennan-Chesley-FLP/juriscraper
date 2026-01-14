@@ -238,7 +238,12 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
         self.on_speculation_response = on_speculation_response
 
         # Initialize httpx async client for reuse across requests
-        self._client = httpx.AsyncClient()
+        # Use scraper's SSL context if provided (for servers requiring specific ciphers)
+        ssl_context = scraper.get_ssl_context()
+        if ssl_context:
+            self._client = httpx.AsyncClient(verify=ssl_context)
+        else:
+            self._client = httpx.AsyncClient()
 
     async def run(self) -> None:
         """Run the scraper starting from the scraper's entry point.
@@ -261,14 +266,18 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
             if self.stop_event and self.stop_event.is_set():
                 return
 
-            entry_request = self.scraper.get_entry()
-            # Initialize priority queue with entry request
+            # Initialize priority queue with entry requests from get_entry generator
             self.request_queue = asyncio.PriorityQueue()
             self._queue_counter = 0
-            await self.request_queue.put(
-                (entry_request.priority, self._queue_counter, entry_request)
-            )
-            self._queue_counter += 1
+            for entry_request in self.scraper.get_entry():
+                await self.request_queue.put(
+                    (
+                        entry_request.priority,
+                        self._queue_counter,
+                        entry_request,
+                    )
+                )
+                self._queue_counter += 1
 
             # Start workers
             workers = [

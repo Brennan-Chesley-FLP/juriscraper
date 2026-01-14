@@ -234,8 +234,7 @@ def get_searchability(scraper_class: type) -> dict[str, dict[str, list[str]]]:
 def discover_scrapers() -> list[dict]:
     """Find all new-architecture scraper classes.
 
-    Walks the juriscraper.sd_scrapers.scrapers package tree and finds
-    all classes that:
+    Walks the juriscraper.sd package tree and finds all classes that:
     - Inherit from BaseScraper
     - Have court_ids defined (non-empty)
 
@@ -243,8 +242,8 @@ def discover_scrapers() -> list[dict]:
         List of metadata dictionaries for each discovered scraper.
     """
     scrapers: list[dict] = []
-    base_package = "juriscraper.sd_scrapers.scrapers"
-    base_path = PROJECT_ROOT / "juriscraper" / "sd_scrapers" / "scrapers"
+    base_package = "juriscraper.sd"
+    base_path = PROJECT_ROOT / "juriscraper" / "sd"
 
     if not base_path.exists():
         print(f"Warning: {base_path} not found")
@@ -256,6 +255,9 @@ def discover_scrapers() -> list[dict]:
     except ImportError as e:
         print(f"Warning: Could not import {base_package}: {e}")
         return scrapers
+
+    # Track seen scraper classes to avoid duplicates from re-exports
+    seen_scrapers: set[str] = set()
 
     # Walk all submodules
     for _importer, modname, ispkg in pkgutil.walk_packages(
@@ -281,6 +283,12 @@ def discover_scrapers() -> list[dict]:
                 and hasattr(obj, "court_ids")
                 and getattr(obj, "court_ids", None)  # Non-empty
             ):
+                # Deduplicate by full class path
+                full_path = f"{obj.__module__}.{obj.__name__}"
+                if full_path in seen_scrapers:
+                    continue
+                seen_scrapers.add(full_path)
+
                 metadata = extract_metadata(obj)
                 if metadata:
                     scrapers.append(metadata)
@@ -305,10 +313,12 @@ def extract_metadata(scraper_class: type) -> dict | None:
     status = getattr(scraper_class, "status", None)
     return_type_info = get_return_type_info(scraper_class)
 
+    msec = getattr(scraper_class, "msec_per_request_rate_limit", None)
+
     return {
         "scraper_id": scraper_class.__name__,
         "court_ids": sorted(court_ids),
-        "court_url": getattr(scraper_class, "court_url", ""),
+        "court_url": getattr(scraper_class, "court_url", "") or "",
         "data_types": get_data_types(scraper_class),
         "searchability": get_searchability(scraper_class),
         "return_type": return_type_info.get("return_type", ""),
@@ -317,11 +327,9 @@ def extract_metadata(scraper_class: type) -> dict | None:
         "status": status.value if status else "unknown",
         "version": getattr(scraper_class, "version", None) or "",
         "last_verified": getattr(scraper_class, "last_verified", None) or "",
-        "oldest_record": oldest.isoformat() if oldest else None,
+        "oldest_record": oldest.isoformat() if oldest else "",
         "requires_auth": getattr(scraper_class, "requires_auth", False),
-        "msec_per_request": getattr(
-            scraper_class, "msec_per_request_rate_limit", None
-        ),
+        "msec_per_request": msec if msec is not None else 0,
         "module_path": scraper_class.__module__,
         "docstring": (scraper_class.__doc__ or "").strip(),
     }

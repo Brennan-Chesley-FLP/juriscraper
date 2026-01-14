@@ -275,8 +275,8 @@ class TestIntegrationWithScraper:
 
         # Create a scraper that yields deferred validation with invalid data
         class InvalidDataScraper(BaseScraper[BugCourtCaseData]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001",
@@ -329,8 +329,8 @@ class TestIntegrationWithScraper:
 
         # Create a scraper that yields deferred validation with invalid data
         class InvalidDataScraper(BaseScraper[BugCourtCaseData]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001",
@@ -388,8 +388,8 @@ class TestIntegrationWithScraper:
 
         # Create a scraper that yields deferred validation with invalid data
         class InvalidDataScraper(BaseScraper[BugCourtCaseData]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001",

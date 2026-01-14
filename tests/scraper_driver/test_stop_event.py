@@ -10,6 +10,7 @@ Key behaviors tested:
 """
 
 import threading
+from collections.abc import Generator
 from pathlib import Path
 
 from juriscraper.scraper_driver.data_types import (
@@ -33,8 +34,8 @@ class TestStopEventBasic:
         """The driver shall not process any requests when stop_event is set before run()."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -70,8 +71,8 @@ class TestStopEventBasic:
         """The driver shall complete all requests when stop_event is not set."""
 
         class MultiPageScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -118,8 +119,8 @@ class TestStopEventBasic:
         """The driver shall work normally when no stop_event is provided."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -156,8 +157,8 @@ class TestStopEventMidRun:
         requests_processed = []
 
         class TrackingScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",

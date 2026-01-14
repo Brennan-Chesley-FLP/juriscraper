@@ -31,8 +31,8 @@ class SimplePlaywrightScraper(BaseScraper[dict]):
         self.pages_visited: list[str] = []
         self.data_collected: list[dict] = []
 
-    def get_entry(self) -> NavigatingRequest:
-        return NavigatingRequest(
+    def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+        yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
                 url="https://example.com",
@@ -54,8 +54,8 @@ class MultiPageScraper(BaseScraper[dict]):
     def __init__(self) -> None:
         self.pages_visited: list[str] = []
 
-    def get_entry(self) -> NavigatingRequest:
-        return NavigatingRequest(
+    def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+        yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
                 url="https://example.com",
@@ -92,8 +92,8 @@ class NonNavigatingScraper(BaseScraper[dict]):
     def __init__(self) -> None:
         self.api_responses: list[dict] = []
 
-    def get_entry(self) -> NavigatingRequest:
-        return NavigatingRequest(
+    def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+        yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
                 url="https://example.com",
@@ -232,8 +232,8 @@ class TestPlaywrightDriverHeaders:
         captured_headers: list[dict] = []
 
         class HeaderCaptureScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://httpbin.org/headers",
@@ -269,8 +269,8 @@ class TestPlaywrightDriverBrowserOptions:
         captured_ua: list[str] = []
 
         class UAScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url="https://example.com",

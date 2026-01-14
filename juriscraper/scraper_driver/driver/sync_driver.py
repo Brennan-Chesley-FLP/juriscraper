@@ -251,7 +251,12 @@ class SyncDriver(Generic[ScraperReturnDatatype]):
         self.on_speculation_response = on_speculation_response
 
         # Initialize httpx client for reuse across requests
-        self._client = httpx.Client()
+        # Use scraper's SSL context if provided (for servers requiring specific ciphers)
+        ssl_context = scraper.get_ssl_context()
+        if ssl_context:
+            self._client = httpx.Client(verify=ssl_context)
+        else:
+            self._client = httpx.Client()
 
     def run(self) -> None:
         """Run the scraper starting from the scraper's entry point.
@@ -270,14 +275,18 @@ class SyncDriver(Generic[ScraperReturnDatatype]):
         error: Exception | None = None
 
         try:
-            entry_request = self.scraper.get_entry()
-            # Step 15: Initialize priority queue with entry request
+            # Initialize priority queue with entry requests from get_entry generator
             self.request_queue = []
-            heapq.heappush(
-                self.request_queue,
-                (entry_request.priority, self._queue_counter, entry_request),
-            )
-            self._queue_counter += 1
+            for entry_request in self.scraper.get_entry():
+                heapq.heappush(
+                    self.request_queue,
+                    (
+                        entry_request.priority,
+                        self._queue_counter,
+                        entry_request,
+                    ),
+                )
+                self._queue_counter += 1
 
             while self.request_queue:
                 # Check for graceful shutdown before processing next request

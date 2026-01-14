@@ -42,8 +42,8 @@ class TestResponseInjection:
         """The @step decorator shall inject response when parameter is named 'response'."""
 
         class ResponseScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -82,8 +82,8 @@ class TestRequestInjection:
         """The @step decorator shall inject request when parameter is named 'request'."""
 
         class RequestScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -122,8 +122,8 @@ class TestPreviousRequestInjection:
         """The @step decorator shall inject previous_request from the request chain."""
 
         class PreviousScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -173,8 +173,8 @@ class TestPreviousRequestInjection:
         """The @step decorator shall inject None for previous_request when no previous request exists."""
 
         class NoPreviousScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -212,8 +212,8 @@ class TestJsonContentInjection:
         """The @step decorator shall inject json_content when parameter is named 'json_content'."""
 
         class JsonScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/api/cases/BCC-2024-001",
@@ -250,8 +250,8 @@ class TestJsonContentInjection:
         """The @step decorator shall raise ScraperAssumptionException when JSON parsing fails."""
 
         class BadJsonScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",  # Returns HTML, not JSON
@@ -295,8 +295,8 @@ class TestLxmlTreeInjection:
         """The @step decorator shall inject lxml_tree when parameter is named 'lxml_tree'."""
 
         class HtmlScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases",
@@ -338,8 +338,8 @@ class TestTextInjection:
         """The @step decorator shall inject text when parameter is named 'text'."""
 
         class TextScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -378,8 +378,8 @@ class TestCallableContinuationResolution:
         """The @step decorator shall resolve Callable continuations to function names."""
 
         class CallableScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -689,8 +689,8 @@ class TestMultipleParameterInjection:
         """The @step decorator shall support injecting multiple parameters in one function."""
 
         class MultiInjectionScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -787,8 +787,8 @@ class TestLocalFilepathInjection:
         from juriscraper.scraper_driver.data_types import ArchiveRequest
 
         class ArchiveScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -840,8 +840,8 @@ class TestLocalFilepathInjection:
         """The @step decorator shall inject None for local_filepath when not ArchiveResponse."""
 
         class RegularScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -881,8 +881,8 @@ class TestAccumulatedDataInjection:
         """The @step decorator shall inject accumulated_data when parameter is named 'accumulated_data'."""
 
         class AccumulatedDataScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -942,8 +942,8 @@ class TestAuxDataInjection:
         """The @step decorator shall inject aux_data when parameter is named 'aux_data'."""
 
         class AuxDataScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -1000,8 +1000,8 @@ class TestCombinedDataInjection:
         """The @step decorator shall inject both accumulated_data and aux_data when both are requested."""
 
         class CombinedDataScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",

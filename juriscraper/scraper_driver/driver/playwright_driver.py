@@ -296,13 +296,17 @@ class PlaywrightDriver(Generic[ScraperReturnDatatype]):
             if self.stop_event and self.stop_event.is_set():
                 return
 
-            entry_request = self.scraper.get_entry()
             self.request_queue = asyncio.PriorityQueue()
             self._queue_counter = 0
-            await self.request_queue.put(
-                (entry_request.priority, self._queue_counter, entry_request)
-            )
-            self._queue_counter += 1
+            for entry_request in self.scraper.get_entry():
+                await self.request_queue.put(
+                    (
+                        entry_request.priority,
+                        self._queue_counter,
+                        entry_request,
+                    )
+                )
+                self._queue_counter += 1
 
             # Process queue (single worker for now - tabs provide concurrency)
             while True:

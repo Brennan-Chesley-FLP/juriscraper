@@ -12,6 +12,7 @@ Key behaviors tested:
 - Driver applies permanent data when making HTTP requests
 """
 
+from collections.abc import Generator
 from pathlib import Path
 
 from juriscraper.scraper_driver.data_types import (
@@ -35,8 +36,8 @@ class TestPermanentHeaders:
         """The permanent headers shall persist across the request chain."""
 
         class HeaderPersistenceScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -81,8 +82,8 @@ class TestPermanentHeaders:
         """The permanent headers shall be inherited by child requests."""
 
         class HeaderInheritanceScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -135,8 +136,8 @@ class TestPermanentHeaders:
         """The permanent headers shall be merged with child headers."""
 
         class HeaderMergeScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -193,8 +194,8 @@ class TestPermanentCookies:
         """The permanent cookies shall persist across the request chain."""
 
         class CookiePersistenceScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -236,8 +237,8 @@ class TestPermanentCookies:
         """The permanent cookies shall be inherited by child requests."""
 
         class CookieInheritanceScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -293,8 +294,8 @@ class TestPermanentMerging:
         """The child permanent data shall override parent for same key."""
 
         class OverrideScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -347,8 +348,8 @@ class TestPermanentMerging:
         """The permanent dict shall support both headers and cookies simultaneously."""
 
         class MultiKeyScrap(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -397,8 +398,8 @@ class TestPermanentIsolation:
         """The permanent dict shall be deep copied to prevent sharing between branches."""
 
         class IsolationScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -462,8 +463,8 @@ class TestPermanentAuthFlow:
         """The permanent data shall support authentication token workflow."""
 
         class AuthFlowScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/login",

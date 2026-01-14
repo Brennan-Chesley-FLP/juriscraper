@@ -972,31 +972,31 @@ class LocalDevDriver(
             has_requests = row[0] > 0 if row else False
 
             if not has_requests:
-                # Seed queue with entry point
-                entry_request = self.scraper.get_entry()
-                queue_counter = await get_next_queue_counter(self._db)
-                request_data = self._serialize_request(entry_request)
+                # Seed queue with entry points from get_entry generator
+                for entry_request in self.scraper.get_entry():
+                    queue_counter = await get_next_queue_counter(self._db)
+                    request_data = self._serialize_request(entry_request)
 
-                await self._db.execute(
-                    SQL.INSERT_ENTRY_REQUEST,
-                    (
-                        entry_request.priority,
-                        queue_counter,
-                        request_data["method"],
-                        request_data["url"],
-                        request_data["headers_json"],
-                        request_data["cookies_json"],
-                        request_data["body"],
-                        request_data["continuation"],
-                        request_data["current_location"],
-                        request_data["accumulated_data_json"],
-                        request_data["aux_data_json"],
-                        request_data["permanent_json"],
-                        entry_request.deduplication_key
-                        if isinstance(entry_request.deduplication_key, str)
-                        else None,
-                    ),
-                )
+                    await self._db.execute(
+                        SQL.INSERT_ENTRY_REQUEST,
+                        (
+                            entry_request.priority,
+                            queue_counter,
+                            request_data["method"],
+                            request_data["url"],
+                            request_data["headers_json"],
+                            request_data["cookies_json"],
+                            request_data["body"],
+                            request_data["continuation"],
+                            request_data["current_location"],
+                            request_data["accumulated_data_json"],
+                            request_data["aux_data_json"],
+                            request_data["permanent_json"],
+                            entry_request.deduplication_key
+                            if isinstance(entry_request.deduplication_key, str)
+                            else None,
+                        ),
+                    )
                 await self._db.commit()
 
             # Start workers

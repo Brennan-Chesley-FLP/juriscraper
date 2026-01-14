@@ -73,13 +73,13 @@ class BugCourtScraperWithAccumulatedData(BaseScraper[dict]):
 
     BASE_URL = "http://127.0.0.1"
 
-    def get_entry(self) -> NavigatingRequest:
+    def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Create the initial request to start scraping.
 
         Returns:
             A NavigatingRequest that will call parse_appeals_list.
         """
-        return NavigatingRequest(
+        yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
                 url=f"{self.BASE_URL}/appeals",

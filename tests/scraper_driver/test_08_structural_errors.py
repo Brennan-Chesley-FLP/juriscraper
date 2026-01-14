@@ -632,8 +632,8 @@ class TestStructuralErrorCallback:
 
         # Create a custom scraper that immediately encounters a structural error
         class ErrorScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001?error=true",
@@ -705,8 +705,8 @@ class TestStructuralErrorCallback:
 
         # Create a scraper that yields error page then normal page
         class MixedScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases",
@@ -790,8 +790,8 @@ class TestStructuralErrorCallback:
 
         # Create a scraper that encounters structural error
         class ErrorScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001?error=true",
@@ -849,8 +849,8 @@ class TestStructuralErrorCallback:
 
         # Create a scraper that encounters structural error
         class ErrorScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001?error=true",

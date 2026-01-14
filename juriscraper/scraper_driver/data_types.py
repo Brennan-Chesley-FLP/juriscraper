@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import ssl
 from collections.abc import Callable, Generator
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -130,6 +131,35 @@ class BaseScraper(Generic[ScraperReturnType]):
     requires_auth: ClassVar[bool] = False
     msec_per_request_rate_limit: ClassVar[int | None] = None
 
+    # SSL/TLS configuration for servers requiring specific ciphers or TLS versions.
+    # If set, drivers will use this context for HTTPS connections.
+    # Example usage for a scraper requiring specific ciphers:
+    #     @classmethod
+    #     def get_ssl_context(cls) -> ssl.SSLContext:
+    #         ctx = ssl.create_default_context()
+    #         ctx.set_ciphers("AES256-SHA256")
+    #         return ctx
+    ssl_context: ClassVar[ssl.SSLContext | None] = None
+
+    @classmethod
+    def get_ssl_context(cls) -> ssl.SSLContext | None:
+        """Return an SSL context for HTTPS connections, if needed.
+
+        Override this method in scrapers that require custom SSL configuration
+        (e.g., specific ciphers or TLS versions for legacy servers).
+
+        Returns:
+            An ssl.SSLContext configured for this scraper, or None to use defaults.
+
+        Example:
+            @classmethod
+            def get_ssl_context(cls) -> ssl.SSLContext:
+                ctx = ssl.create_default_context()
+                ctx.set_ciphers("AES256-SHA256")
+                return ctx
+        """
+        return cls.ssl_context
+
     def __init__(self, params: ScraperParams | None = None) -> None:
         """Initialize the scraper with optional search parameters.
 
@@ -146,20 +176,33 @@ class BaseScraper(Generic[ScraperReturnType]):
         """Return the params instance for this scraper."""
         return self._params
 
-    def get_entry(self) -> NavigatingRequest:
-        """Create the initial request to start scraping.
+    def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+        """Create the initial request(s) to start scraping.
 
-        Subclasses should override this method to specify their entry
-        point and initial continuation method.
+        Subclasses should override this method to yield their entry
+        point(s) and initial continuation method(s). This is a generator
+        to allow scrapers that support multiple data types to yield
+        separate entry requests for each type.
 
-        Args:
-            url: The entry URL to start scraping from.
-
-        Returns:
-            A NavigatingRequest for the entry page.
+        Yields:
+            NavigatingRequest for each entry point.
 
         Raises:
             NotImplementedError: If the subclass doesn't override this method.
+
+        Example:
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                # Yield separate requests for each data type
+                if self._should_scrape_opinions():
+                    yield NavigatingRequest(
+                        request=HTTPRequestParams(method=HttpMethod.GET, url=OPINIONS_URL),
+                        continuation=self.parse_opinions_index,
+                    )
+                if self._should_scrape_dockets():
+                    yield NavigatingRequest(
+                        request=HTTPRequestParams(method=HttpMethod.GET, url=DOCKETS_URL),
+                        continuation=self.parse_dockets_index,
+                    )
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement get_entry()"

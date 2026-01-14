@@ -207,7 +207,7 @@ class TestBugCourtScraperWithAccumulatedData:
             content=html.encode(),
             text=html,
             url=f"{server_url}/appeals",
-            request=scraper.get_entry(),
+            request=next(scraper.get_entry()),
         )
 
         results = list(scraper.parse_appeals_list(response))

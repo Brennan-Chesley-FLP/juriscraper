@@ -1,13 +1,77 @@
 [meta]
-generated = "2026-01-10"
+generated = "2026-01-13"
 description = "Auto-generated court scraper registry"
 
 [stats]
-total_scrapers = 0
+total_scrapers = 1
 total_courts_known = 2340
-total_courts_covered = 0
+total_courts_covered = 2
 
-[scrapers]
+[scrapers.ConnScraper]
+scraper_id = "ConnScraper"
+court_ids = [
+    "conn",
+    "connappct",
+]
+court_url = "https://www.jud.ct.gov/"
+data_types = [
+    "dockets",
+    "opinions",
+    "oral_arguments",
+]
+return_type = "ConnOpinionCluster | ConnOralArgument | ConnDocket"
+parent_model = "Audio, Docket, OpinionCluster"
+model_hierarchy = [
+    "ConnOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+    "ConnOralArgument",
+    "Audio",
+    "ConnDocket",
+    "Docket",
+]
+status = "in_development"
+version = "2025-01-13"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.connecticut.jud_ct_gov.scraper"
+docstring = "Unified scraper for Connecticut appellate court opinions, oral arguments, and dockets.\n\nScrapes opinions, oral argument audio, and docket information from the CT Judicial Branch.\nSupports both Supreme Court (conn) and Appellate Court (connappct).\n\nUsage:\n    # Scrape everything (all data types, both courts)\n    scraper = ConnScraper()\n\n    # Scrape only opinions (disable other data types)\n    params = ConnScraper.params()\n    params.ConnOralArgument = None\n    params.ConnDocket = None\n    scraper = ConnScraper(params=params)\n\n    # Scrape only oral arguments (disable other data types)\n    params = ConnScraper.params()\n    params.ConnOpinionCluster = None\n    params.ConnDocket = None\n    scraper = ConnScraper(params=params)\n\n    # Scrape only dockets starting from CRN 90000\n    params = ConnScraper.params()\n    params.ConnOpinionCluster = None\n    params.ConnOralArgument = None\n    params.ConnDocket.crn.gt = 90000\n    scraper = ConnScraper(params=params)\n\n    # Scrape a specific docket by CRN\n    params = ConnScraper.params()\n    params.ConnOpinionCluster = None\n    params.ConnOralArgument = None\n    params.ConnDocket.crn.eq = 92788\n    scraper = ConnScraper(params=params)\n\n    # Scrape only Supreme Court\n    params = ConnScraper.params()\n    params.ConnOpinionCluster.court_id.values = {\"conn\"}\n    params.ConnOralArgument.court_id.values = {\"conn\"}\n    params.ConnDocket.court_id.values = {\"conn\"}\n    scraper = ConnScraper(params=params)\n\n    # Filter opinions by date range\n    params = ConnScraper.params()\n    params.ConnOpinionCluster.date_filed.gte = date(2025, 12, 1)\n    params.ConnOpinionCluster.date_filed.lte = date(2025, 12, 31)\n    scraper = ConnScraper(params=params)\n\n    # Filter oral arguments by date range\n    params = ConnScraper.params()\n    params.ConnOralArgument.date_argued.gte = date(2025, 9, 1)\n    params.ConnOralArgument.date_argued.lte = date(2025, 9, 30)\n    scraper = ConnScraper(params=params)"
+
+[scrapers.ConnScraper.searchability.ConnOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "docket_id",
+]
+
+[scrapers.ConnScraper.searchability.ConnOralArgument]
+DateRange = [
+    "date_argued",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "docket_number",
+]
+
+[scrapers.ConnScraper.searchability.ConnDocket]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "docket_id",
+]
 
 [jurisdictions.AL]
 total_court_types = 30
@@ -395,7 +459,7 @@ coverage_pct = 0.0
 
 [jurisdictions.CT]
 total_court_types = 42
-covered_court_types = 0
+covered_court_types = 6
 courts = [
     "conn",
     "connappct",
@@ -412,7 +476,7 @@ courts = [
     "pequotct",
     "pequotctapp",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.143
 
 [jurisdictions.DE]
 total_court_types = 30

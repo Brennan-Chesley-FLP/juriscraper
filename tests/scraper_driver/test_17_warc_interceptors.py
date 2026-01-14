@@ -12,6 +12,7 @@ Key behaviors tested:
 - Cache key generation is consistent
 """
 
+from collections.abc import Generator
 from pathlib import Path
 
 from juriscraper.scraper_driver.common.warc_interceptors import (
@@ -39,8 +40,8 @@ class TestWarcCapture:
         """The WarcCaptureInterceptor shall record responses to WARC file."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -79,8 +80,8 @@ class TestWarcCapture:
         """The WarcCaptureInterceptor shall support .warc.gz compressed format."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -120,8 +121,8 @@ class TestWarcCapture:
         """The WarcCaptureInterceptor shall record multiple responses to same file."""
 
         class MultiRequestScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -174,8 +175,8 @@ class TestWarcCache:
         """The WarcCacheInterceptor shall replay responses from WARC file."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -227,8 +228,8 @@ class TestWarcCache:
         """The WarcCacheInterceptor shall short-circuit requests on cache hit."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -310,8 +311,8 @@ class TestWarcDeterminism:
         """The WARC replay shall produce identical results across multiple runs."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -367,8 +368,8 @@ class TestWarcDeterminism:
         """The WARC workflow shall support record-once, replay-many pattern."""
 
         class MultiPageScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",

@@ -42,8 +42,8 @@ class TestRateLimitInterceptor:
         class SimpleScraper(BaseScraper[dict]):
             """Scraper that makes multiple requests."""
 
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases",
@@ -107,8 +107,8 @@ class TestRateLimitInterceptor:
         """RateLimitInterceptor shall support requests_per_minute configuration."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/rate-limited",
@@ -160,8 +160,8 @@ class TestAdaptiveRateLimiting:
         class RateLimitedScraper(BaseScraper[dict]):
             """Scraper that hits rate-limited endpoint repeatedly."""
 
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/rate-limited",
@@ -224,8 +224,8 @@ class TestAdaptiveRateLimiting:
         """RateLimitInterceptor shall allow disabling adaptive rate limiting."""
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/rate-limited",
@@ -274,8 +274,8 @@ class TestRateLimiterInterceptorOrdering:
         )
 
         class SimpleScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",

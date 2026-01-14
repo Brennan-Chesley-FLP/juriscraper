@@ -281,7 +281,7 @@ class TestBugCourtScraperWithAuxData:
             content=html.encode(),
             text=html,
             url=f"{server_url}/cases",
-            request=scraper.get_entry(),
+            request=next(scraper.get_entry()),
         )
 
         results = list(scraper.parse_list(response))
@@ -308,7 +308,7 @@ class TestBugCourtScraperWithAuxData:
             content=html.encode(),
             text=html,
             url=f"{server_url}/cases",
-            request=scraper.get_entry(),
+            request=next(scraper.get_entry()),
         )
 
         results = list(scraper.parse_list(response))

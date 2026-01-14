@@ -11,6 +11,7 @@ Key behaviors tested:
 - Priority is preserved through request resolution
 """
 
+from collections.abc import Generator
 from pathlib import Path
 
 from juriscraper.scraper_driver.data_types import (
@@ -36,8 +37,8 @@ class TestPriorityOrdering:
         """The driver shall process requests with lower priority numbers first."""
 
         class PriorityScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -107,8 +108,8 @@ class TestPriorityOrdering:
         """The ArchiveRequest shall have default priority of 1."""
 
         class ArchivePriorityScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -162,8 +163,8 @@ class TestPriorityOrdering:
         """The driver shall maintain FIFO ordering for requests with the same priority."""
 
         class FIFOScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -215,8 +216,8 @@ class TestPriorityOrdering:
         """The priority shall be preserved when requests are resolved."""
 
         class ResolutionScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -275,8 +276,8 @@ class TestMemoryOptimization:
         """The driver shall process high-priority terminal requests to reduce queue size."""
 
         class OptimizationScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",
@@ -347,7 +348,7 @@ class TestDefaultPriorities:
         """The BaseRequest shall have a default priority of 9."""
 
         class DefaultPriorityScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
                 request = NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
@@ -357,7 +358,7 @@ class TestDefaultPriorities:
                 )
                 # Verify default priority before yielding
                 assert request.priority == 9
-                return request
+                yield request
 
             def parse(self, response: Response):
                 yield ParsedData(data={"success": True})
@@ -381,8 +382,8 @@ class TestDefaultPriorities:
         """The ArchiveRequest shall have a default priority of 1."""
 
         class ArchiveDefaultScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",

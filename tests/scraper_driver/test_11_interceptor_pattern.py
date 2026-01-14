@@ -103,8 +103,8 @@ class TestInterceptorShortCircuit:
         class SimpleScraper(BaseScraper[dict]):
             """Simple scraper for testing interceptor short-circuit."""
 
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/test",

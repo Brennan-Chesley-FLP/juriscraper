@@ -250,7 +250,7 @@ class TestRequestCurrentLocation:
         self, scraper: BugCourtScraperWithAPI
     ):
         """The entry request shall have an empty current_location."""
-        entry = scraper.get_entry()
+        entry = next(scraper.get_entry())
 
         assert entry.current_location == ""
         assert len(entry.previous_requests) == 0

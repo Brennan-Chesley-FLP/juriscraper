@@ -44,8 +44,8 @@ class SimpleSpeculativeScraper(BaseScraper[dict]):
         self.speculative_results: list[bool] = []
         self.pages_processed: list[int] = []
 
-    def get_entry(self) -> NavigatingRequest:
-        return NavigatingRequest(
+    def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+        yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET, url="https://example.com/start"
             ),
@@ -90,8 +90,8 @@ class MultipleSpeculativeScraper(BaseScraper[dict]):
     def __init__(self) -> None:
         self.results: list[tuple[str, bool]] = []
 
-    def get_entry(self) -> NavigatingRequest:
-        return NavigatingRequest(
+    def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+        yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET, url="https://example.com/"
             ),
@@ -368,8 +368,8 @@ class TestSpeculativeRequestDeduplication:
             def __init__(self) -> None:
                 self.results: list[bool] = []
 
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url="https://example.com/start"
                     ),

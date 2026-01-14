@@ -89,6 +89,9 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "migration: marks tests as migration comparison tests (deselect with '-m \"not migration\"')",
+]
 filterwarnings = [
     # Warnings from external libraries we can't fix
     "ignore:'count' is passed as positional argument:DeprecationWarning",

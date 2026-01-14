@@ -224,8 +224,8 @@ class TestSyncDriverRaisesHTTPResponseException:
 
         # Create a scraper that requests the error endpoint
         class ErrorEndpointScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001?server_error=true",
@@ -296,8 +296,8 @@ class TestSyncDriverRaisesHTTPResponseException:
 
         # Create a scraper
         class TestScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001",
@@ -349,8 +349,8 @@ class TestSyncDriverRaisesHTTPResponseException:
         from tests.scraper_driver.utils import collect_results
 
         class ErrorScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001?server_error=true",
@@ -404,8 +404,8 @@ class TestTransientExceptionCallback:
 
         # Create a scraper that encounters transient error
         class TransientErrorScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001?server_error=true",
@@ -463,8 +463,8 @@ class TestTransientExceptionCallback:
 
         # Create a scraper that yields error request then normal request
         class MixedScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases",
@@ -537,8 +537,8 @@ class TestTransientExceptionCallback:
 
         # Create a scraper that encounters transient error
         class ErrorScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001?server_error=true",
@@ -586,8 +586,8 @@ class TestTransientExceptionCallback:
 
         # Create a scraper
         class TestScraper(BaseScraper[dict]):
-            def get_entry(self) -> NavigatingRequest:
-                return NavigatingRequest(
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=f"{server_url}/cases/BCC-2024-001",

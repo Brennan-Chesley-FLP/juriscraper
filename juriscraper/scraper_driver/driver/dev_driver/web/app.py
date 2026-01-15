@@ -495,6 +495,7 @@ def create_app(
     from fastapi.staticfiles import StaticFiles
 
     from juriscraper.scraper_driver.driver.dev_driver.web.routes import (
+        archived_files_router,
         compression_router,
         debug_router,
         errors_router,
@@ -536,6 +537,7 @@ def create_app(
     app.include_router(compression_router)
     app.include_router(export_router)
     app.include_router(debug_router)
+    app.include_router(archived_files_router)
     app.include_router(websocket_router)
 
     # Include view routers (HTML pages) - must be last to avoid route conflicts

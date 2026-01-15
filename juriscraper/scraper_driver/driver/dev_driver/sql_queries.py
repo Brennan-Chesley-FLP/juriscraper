@@ -779,3 +779,48 @@ class SQL:
             last_error = 'Cancelled by user (batch)'
         WHERE continuation = ? AND status IN ('pending', 'held')
     """
+
+    # =========================================================================
+    # archived_files queries
+    # =========================================================================
+
+    INSERT_ARCHIVED_FILE = """
+        INSERT INTO archived_files (
+            request_id, file_path, original_url, expected_type, file_size, content_hash
+        ) VALUES (?, ?, ?, ?, ?, ?)
+    """
+
+    SELECT_ARCHIVED_FILES_LIST = """
+        SELECT af.id, af.request_id, af.file_path, af.original_url,
+               af.expected_type, af.file_size, af.content_hash, af.created_at,
+               r.continuation
+        FROM archived_files af
+        LEFT JOIN requests r ON af.request_id = r.id
+        {where_clause}
+        ORDER BY af.created_at DESC
+        LIMIT ? OFFSET ?
+    """
+
+    SELECT_ARCHIVED_FILE_BY_ID = """
+        SELECT af.id, af.request_id, af.file_path, af.original_url,
+               af.expected_type, af.file_size, af.content_hash, af.created_at,
+               r.continuation
+        FROM archived_files af
+        LEFT JOIN requests r ON af.request_id = r.id
+        WHERE af.id = ?
+    """
+
+    SELECT_ARCHIVED_FILE_BY_URL = """
+        SELECT id, file_path, file_size, content_hash
+        FROM archived_files
+        WHERE original_url = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+    """
+
+    SELECT_ARCHIVED_FILES_STATS = """
+        SELECT
+            COUNT(*) as total_files,
+            COALESCE(SUM(file_size), 0) as total_size
+        FROM archived_files
+    """

@@ -78,6 +78,31 @@ class CompressionStatsResponse(BaseModel):
     no_dict_count: int
 
 
+class CompressionStatsByContinuationItem(BaseModel):
+    """Compression stats for a single continuation/dictionary combination."""
+
+    continuation: str
+    dict_id: int | None = None
+    dict_version: int | None = None
+    response_count: int = 0
+    total_original_bytes: int = 0
+    total_compressed_bytes: int = 0
+    compression_ratio: float = 0.0
+    has_trained_dict: bool = (
+        False  # Whether a trained dict exists for this continuation
+    )
+
+
+class CompressionStatsByContinuationResponse(BaseModel):
+    """Response model for compression stats grouped by continuation."""
+
+    items: list[CompressionStatsByContinuationItem]
+    grand_total_responses: int
+    grand_total_original: int
+    grand_total_compressed: int
+    overall_ratio: float
+
+
 async def _get_db_for_run(run_id: str, manager: RunManager):
     """Get database connection for a loaded run."""
     run_info = await manager.get_run(run_id)
@@ -231,6 +256,88 @@ async def get_compression_stats(
         compression_ratio=round(ratio, 2),
         with_dict_count=with_dict,
         no_dict_count=no_dict,
+    )
+
+
+@router.get(
+    "/stats-by-continuation",
+    response_model=CompressionStatsByContinuationResponse,
+)
+async def get_compression_stats_by_continuation(
+    run_id: str,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> CompressionStatsByContinuationResponse:
+    """Get compression statistics grouped by continuation and dictionary version.
+
+    Returns a breakdown of compression stats for each continuation, showing
+    which dictionary is being used and the compression ratios achieved.
+
+    Args:
+        run_id: The run identifier.
+
+    Returns:
+        Compression statistics grouped by continuation.
+    """
+    db = await _get_db_for_run(run_id, manager)
+
+    # First, get set of continuations that have trained dictionaries
+    dict_cursor = await db.execute(
+        "SELECT DISTINCT continuation FROM compression_dicts"
+    )
+    continuations_with_dicts = {row[0] for row in await dict_cursor.fetchall()}
+
+    # Query stats grouped by continuation and dictionary
+    query = """
+        SELECT
+            r.continuation,
+            r.compression_dict_id,
+            d.version,
+            COUNT(*) as response_count,
+            COALESCE(SUM(r.content_size_original), 0) as total_original,
+            COALESCE(SUM(r.content_size_compressed), 0) as total_compressed
+        FROM responses r
+        LEFT JOIN compression_dicts d ON r.compression_dict_id = d.id
+        GROUP BY r.continuation, r.compression_dict_id
+        ORDER BY r.continuation, d.version DESC NULLS LAST
+    """
+    cursor = await db.execute(query)
+    rows = await cursor.fetchall()
+
+    items: list[CompressionStatsByContinuationItem] = []
+    grand_total_responses = 0
+    grand_total_original = 0
+    grand_total_compressed = 0
+
+    for continuation, dict_id, version, count, total_orig, total_comp in rows:
+        ratio = total_orig / total_comp if total_comp > 0 else 0.0
+        items.append(
+            CompressionStatsByContinuationItem(
+                continuation=continuation,
+                dict_id=dict_id,
+                dict_version=version,
+                response_count=count,
+                total_original_bytes=total_orig,
+                total_compressed_bytes=total_comp,
+                compression_ratio=round(ratio, 2),
+                has_trained_dict=continuation in continuations_with_dicts,
+            )
+        )
+        grand_total_responses += count
+        grand_total_original += total_orig
+        grand_total_compressed += total_comp
+
+    overall_ratio = (
+        grand_total_original / grand_total_compressed
+        if grand_total_compressed > 0
+        else 0.0
+    )
+
+    return CompressionStatsByContinuationResponse(
+        items=items,
+        grand_total_responses=grand_total_responses,
+        grand_total_original=grand_total_original,
+        grand_total_compressed=grand_total_compressed,
+        overall_ratio=round(overall_ratio, 2),
     )
 
 

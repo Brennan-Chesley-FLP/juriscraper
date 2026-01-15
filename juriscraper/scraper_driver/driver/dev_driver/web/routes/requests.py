@@ -73,6 +73,26 @@ class CancelByContinuationRequest(BaseModel):
     continuation: str = Field(..., description="Continuation to filter by")
 
 
+class RequestSummaryItem(BaseModel):
+    """Summary counts for a single continuation."""
+
+    continuation: str
+    pending: int = 0
+    in_progress: int = 0
+    completed: int = 0
+    failed: int = 0
+    held: int = 0
+    cancelled: int = 0
+    total: int = 0
+
+
+class RequestSummaryResponse(BaseModel):
+    """Response model for request summary endpoint."""
+
+    items: list[RequestSummaryItem]
+    grand_total: int
+
+
 async def _get_db_for_run(run_id: str, manager: RunManager):
     """Get database connection for a loaded run.
 
@@ -178,6 +198,68 @@ async def list_requests(
         offset=offset,
         limit=limit,
         has_more=offset + len(items) < total,
+    )
+
+
+@router.get("/summary", response_model=RequestSummaryResponse)
+async def get_request_summary(
+    run_id: str,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> RequestSummaryResponse:
+    """Get request counts grouped by continuation and status.
+
+    Returns a pivot table with one row per continuation, showing counts
+    for each status (pending, in_progress, completed, failed, held, cancelled).
+
+    Args:
+        run_id: The run identifier.
+
+    Returns:
+        Summary of request counts by continuation and status.
+    """
+    db = await _get_db_for_run(run_id, manager)
+
+    # Query counts grouped by continuation and status
+    query = """
+        SELECT continuation, status, COUNT(*) as count
+        FROM requests
+        GROUP BY continuation, status
+        ORDER BY continuation
+    """
+    cursor = await db.execute(query)
+    rows = await cursor.fetchall()
+
+    # Build pivot table
+    summaries: dict[str, RequestSummaryItem] = {}
+    grand_total = 0
+
+    for continuation, status_val, count in rows:
+        if continuation not in summaries:
+            summaries[continuation] = RequestSummaryItem(
+                continuation=continuation
+            )
+
+        item = summaries[continuation]
+        grand_total += count
+        item.total += count
+
+        # Map status to field
+        if status_val == "pending":
+            item.pending = count
+        elif status_val == "in_progress":
+            item.in_progress = count
+        elif status_val == "completed":
+            item.completed = count
+        elif status_val == "failed":
+            item.failed = count
+        elif status_val == "held":
+            item.held = count
+        elif status_val == "cancelled":
+            item.cancelled = count
+
+    return RequestSummaryResponse(
+        items=list(summaries.values()),
+        grand_total=grand_total,
     )
 
 

@@ -35,6 +35,12 @@
         </div>
     </section>
 
+    <!-- Compression by Continuation -->
+    <section class="compression-section">
+        <h2>Compression by Continuation</h2>
+        <div id="compression-details">Loading...</div>
+    </section>
+
     <!-- Recent Errors -->
     <section class="errors-section">
         <h2>Recent Errors</h2>
@@ -45,7 +51,11 @@
     <section class="queue-section">
         <h2>Request Queue</h2>
         <div class="filters">
-            <select id="status-filter">
+            <div class="view-toggle">
+                <button id="summary-view-btn" class="btn btn-sm btn-primary">Summary</button>
+                <button id="list-view-btn" class="btn btn-sm btn-secondary">List</button>
+            </div>
+            <select id="status-filter" style="display:none;">
                 <option value="">All Statuses</option>
                 <option value="pending">Pending</option>
                 <option value="in_progress">In Progress</option>
@@ -54,7 +64,8 @@
                 <option value="held">Held</option>
             </select>
         </div>
-        <div id="requests-list">Loading...</div>
+        <div id="requests-summary">Loading...</div>
+        <div id="requests-list" style="display:none;">Loading...</div>
     </section>
 
     <!-- WebSocket Events -->
@@ -84,6 +95,22 @@
         </div>
     </div>
 </div>
+
+<!-- Requests Detail Modal -->
+<div id="requests-detail-modal" class="modal">
+    <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-header">
+            <h2 id="requests-detail-title">Requests</h2>
+            <button class="close-btn" onclick="closeRequestsDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem; max-height: 70vh; overflow-y: auto;">
+            <div id="requests-detail-content">Loading...</div>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeRequestsDetailModal()">Close</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -91,6 +118,7 @@
 const runId = '{{ run_id }}';
 let ws = null;
 let currentErrorId = null;
+let currentView = 'summary'; // 'summary' or 'list'
 
 // Load run details
 async function loadRunDetails() {
@@ -112,6 +140,135 @@ async function loadRunDetails() {
     } catch (error) {
         console.error('Failed to load run details:', error);
     }
+}
+
+// Load request summary (pivot table)
+async function loadRequestSummary() {
+    try {
+        const response = await fetch(`/api/runs/${runId}/requests/summary`);
+        if (!response.ok) {
+            document.getElementById('requests-summary').innerHTML = '<p class="error">Failed to load (run may not be loaded)</p>';
+            return;
+        }
+        const data = await response.json();
+
+        if (data.items.length === 0) {
+            document.getElementById('requests-summary').innerHTML = '<p class="empty-state">No requests</p>';
+            return;
+        }
+
+        // Build summary table
+        let html = `
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Continuation</th>
+                        <th>Pending</th>
+                        <th>In Progress</th>
+                        <th>Completed</th>
+                        <th>Failed</th>
+                        <th>Held</th>
+                        <th>Cancelled</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        for (const item of data.items) {
+            html += `
+                <tr>
+                    <td class="continuation-name">${escapeHtml(item.continuation)}</td>
+                    <td class="count-cell ${item.pending > 0 ? 'has-count' : ''}" onclick="openFilteredRequests('${escapeHtml(item.continuation)}', 'pending')">${item.pending}</td>
+                    <td class="count-cell ${item.in_progress > 0 ? 'has-count status-in_progress' : ''}" onclick="openFilteredRequests('${escapeHtml(item.continuation)}', 'in_progress')">${item.in_progress}</td>
+                    <td class="count-cell ${item.completed > 0 ? 'has-count status-completed' : ''}" onclick="openFilteredRequests('${escapeHtml(item.continuation)}', 'completed')">${item.completed}</td>
+                    <td class="count-cell ${item.failed > 0 ? 'has-count status-failed' : ''}" onclick="openFilteredRequests('${escapeHtml(item.continuation)}', 'failed')">${item.failed}</td>
+                    <td class="count-cell ${item.held > 0 ? 'has-count status-held' : ''}" onclick="openFilteredRequests('${escapeHtml(item.continuation)}', 'held')">${item.held}</td>
+                    <td class="count-cell ${item.cancelled > 0 ? 'has-count' : ''}" onclick="openFilteredRequests('${escapeHtml(item.continuation)}', 'cancelled')">${item.cancelled}</td>
+                    <td class="total-cell">${item.total}</td>
+                </tr>
+            `;
+        }
+
+        html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td><strong>Grand Total</strong></td>
+                        <td colspan="7"><strong>${data.grand_total}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+
+        document.getElementById('requests-summary').innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load request summary:', error);
+    }
+}
+
+// Switch between summary and list views
+function switchView(view) {
+    currentView = view;
+    if (view === 'summary') {
+        document.getElementById('requests-summary').style.display = 'block';
+        document.getElementById('requests-list').style.display = 'none';
+        document.getElementById('status-filter').style.display = 'none';
+        document.getElementById('summary-view-btn').className = 'btn btn-sm btn-primary';
+        document.getElementById('list-view-btn').className = 'btn btn-sm btn-secondary';
+        loadRequestSummary();
+    } else {
+        document.getElementById('requests-summary').style.display = 'none';
+        document.getElementById('requests-list').style.display = 'block';
+        document.getElementById('status-filter').style.display = 'inline-block';
+        document.getElementById('summary-view-btn').className = 'btn btn-sm btn-secondary';
+        document.getElementById('list-view-btn').className = 'btn btn-sm btn-primary';
+        loadRequests();
+    }
+}
+
+// Open modal with filtered requests
+async function openFilteredRequests(continuation, status) {
+    // Show the requests-detail-modal with filtered requests
+    document.getElementById('requests-detail-modal').classList.add('active');
+    document.getElementById('requests-detail-title').textContent = `${continuation} - ${status}`;
+    document.getElementById('requests-detail-content').innerHTML = 'Loading...';
+
+    try {
+        const response = await fetch(`/api/runs/${runId}/requests?continuation=${encodeURIComponent(continuation)}&status=${status}&limit=100`);
+        if (!response.ok) {
+            document.getElementById('requests-detail-content').innerHTML = '<p class="error">Failed to load requests</p>';
+            return;
+        }
+        const data = await response.json();
+
+        if (data.items.length === 0) {
+            document.getElementById('requests-detail-content').innerHTML = '<p class="empty-state">No requests</p>';
+            return;
+        }
+
+        const html = data.items.map(req => `
+            <div class="request-item-expanded">
+                <div class="request-header">
+                    <span class="status status-${req.status}">${req.status}</span>
+                    <span class="method">${req.method}</span>
+                    ${req.retry_count > 0 ? `<span class="retries">Retries: ${req.retry_count}</span>` : ''}
+                    <button class="btn-requeue" onclick="requeueRequest(${req.id}, event)" title="Requeue this request">ReQ</button>
+                </div>
+                <div class="request-url-full">${escapeHtml(req.url)}</div>
+                ${req.last_error ? `<div class="request-error">${escapeHtml(req.last_error)}</div>` : ''}
+            </div>
+        `).join('');
+
+        document.getElementById('requests-detail-content').innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load filtered requests:', error);
+        document.getElementById('requests-detail-content').innerHTML = '<p class="error">Failed to load requests</p>';
+    }
+}
+
+function closeRequestsDetailModal() {
+    document.getElementById('requests-detail-modal').classList.remove('active');
 }
 
 // Load request queue
@@ -474,6 +631,148 @@ async function loadCompressionStats() {
     }
 }
 
+// Load compression details by continuation
+async function loadCompressionDetails() {
+    try {
+        const response = await fetch(`/api/runs/${runId}/compression/stats-by-continuation`);
+        if (!response.ok) {
+            document.getElementById('compression-details').innerHTML = '<p class="error">Failed to load (run may not be loaded)</p>';
+            return;
+        }
+        const data = await response.json();
+
+        if (data.items.length === 0) {
+            document.getElementById('compression-details').innerHTML = '<p class="empty-state">No responses yet</p>';
+            return;
+        }
+
+        // Format bytes to human-readable
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        let html = `
+            <table class="summary-table compression-table">
+                <thead>
+                    <tr>
+                        <th>Continuation</th>
+                        <th>Dict</th>
+                        <th>Responses</th>
+                        <th>Original</th>
+                        <th>Compressed</th>
+                        <th>Ratio</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        for (const item of data.items) {
+            const dictInfo = item.dict_id ? `v${item.dict_version || '?'}` : '<span class="no-dict">none</span>';
+            html += `
+                <tr>
+                    <td class="continuation-name">${escapeHtml(item.continuation)}</td>
+                    <td class="dict-cell">${dictInfo}</td>
+                    <td class="count-cell">${item.response_count}</td>
+                    <td class="size-cell">${formatBytes(item.total_original_bytes)}</td>
+                    <td class="size-cell">${formatBytes(item.total_compressed_bytes)}</td>
+                    <td class="ratio-cell ${item.compression_ratio > 5 ? 'good-ratio' : ''}">${item.compression_ratio}x</td>
+                    <td class="actions-cell">
+                        <button class="btn btn-sm btn-info" onclick="trainDict('${escapeHtml(item.continuation)}')" title="Train a new compression dictionary">Train</button>
+                        <button class="btn btn-sm btn-secondary" onclick="recompress('${escapeHtml(item.continuation)}')" title="Recompress with latest dictionary" ${!item.has_trained_dict ? 'disabled' : ''}>Recompress</button>
+                    </td>
+                </tr>
+            `;
+        }
+
+        html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td><strong>Total</strong></td>
+                        <td></td>
+                        <td><strong>${data.grand_total_responses}</strong></td>
+                        <td><strong>${formatBytes(data.grand_total_original)}</strong></td>
+                        <td><strong>${formatBytes(data.grand_total_compressed)}</strong></td>
+                        <td><strong>${data.overall_ratio}x</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+
+        document.getElementById('compression-details').innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load compression details:', error);
+    }
+}
+
+// Train compression dictionary
+async function trainDict(continuation) {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = 'Training...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`/api/runs/${runId}/compression/train-dict`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ continuation: continuation })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            addEvent('compression', `Trained dict ${result.dict_id} for ${continuation} (${result.sample_count} samples)`);
+            loadCompressionDetails();
+            loadCompressionStats();
+        } else {
+            const data = await response.json();
+            alert('Failed to train dictionary: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to train dictionary: ' + error.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+// Recompress responses
+async function recompress(continuation) {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = 'Working...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`/api/runs/${runId}/compression/recompress`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ continuation: continuation })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            addEvent('compression', `Recompressed ${result.count} responses for ${continuation} (${result.compression_ratio}x)`);
+            loadCompressionDetails();
+            loadCompressionStats();
+        } else {
+            const data = await response.json();
+            alert('Failed to recompress: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to recompress: ' + error.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
 // WebSocket connection
 function connectWebSocket() {
     if (ws) {
@@ -568,6 +867,8 @@ document.getElementById('start-btn').addEventListener('click', startRun);
 document.getElementById('stop-btn').addEventListener('click', stopRun);
 document.getElementById('connect-ws').addEventListener('click', connectWebSocket);
 document.getElementById('status-filter').addEventListener('change', loadRequests);
+document.getElementById('summary-view-btn').addEventListener('click', () => switchView('summary'));
+document.getElementById('list-view-btn').addEventListener('click', () => switchView('list'));
 
 // Close error modal on outside click
 document.getElementById('error-modal').addEventListener('click', (e) => {
@@ -576,17 +877,32 @@ document.getElementById('error-modal').addEventListener('click', (e) => {
     }
 });
 
+// Close requests detail modal on outside click
+document.getElementById('requests-detail-modal').addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal')) {
+        closeRequestsDetailModal();
+    }
+});
+
 // Initial load
 loadRunDetails();
-loadRequests();
+loadRequestSummary();  // Start with summary view
 loadErrors();
 loadCompressionStats();
+loadCompressionDetails();
 
 // Auto-refresh every 5 seconds
 setInterval(() => {
     loadRunDetails();
-    loadRequests();
+    // Refresh whichever view is currently active
+    if (currentView === 'summary') {
+        loadRequestSummary();
+    } else {
+        loadRequests();
+    }
     loadErrors();
+    loadCompressionStats();
+    loadCompressionDetails();
 }, 5000);
 </script>
 {% endblock %}

@@ -796,7 +796,11 @@ class LocalDevDriver(
     async def _store_response(
         self, request_id: int, response: Response, continuation: str
     ) -> int:
-        """Store an HTTP response in the database with compression.
+        """Store an HTTP response in the database.
+
+        For regular responses, content is compressed and stored in the responses table.
+        For ArchiveResponse, content is NOT stored (it's already on disk); instead,
+        file metadata is stored in the archived_files table.
 
         Args:
             request_id: The database ID of the associated request.
@@ -809,6 +813,10 @@ class LocalDevDriver(
         assert self._db is not None
         import uuid
 
+        from juriscraper.scraper_driver.data_types import (
+            ArchiveRequest,
+            ArchiveResponse,
+        )
         from juriscraper.scraper_driver.driver.dev_driver.compression import (
             compress_response,
         )
@@ -818,19 +826,32 @@ class LocalDevDriver(
             json.dumps(response.headers) if response.headers else None
         )
 
-        # Compress content using zstd (with dictionary if available)
-        content = response.content or b""
-        content_size_original = len(content)
+        # Check if this is an ArchiveResponse - file is already on disk
+        is_archive = isinstance(response, ArchiveResponse)
 
-        if content_size_original > 0:
-            compressed, dict_id = await compress_response(
-                self._db, content, continuation
+        if is_archive:
+            # For archived files, don't store content in database (it's on disk)
+            # Store NULL for content to save space
+            compressed = None
+            content_size_original = (
+                len(response.content) if response.content else 0
             )
-            content_size_compressed = len(compressed)
-        else:
-            compressed = b""
-            dict_id = None
             content_size_compressed = 0
+            dict_id = None
+        else:
+            # Regular response - compress and store content
+            content = response.content or b""
+            content_size_original = len(content)
+
+            if content_size_original > 0:
+                compressed, dict_id = await compress_response(
+                    self._db, content, continuation
+                )
+                content_size_compressed = len(compressed)
+            else:
+                compressed = b""
+                dict_id = None
+                content_size_compressed = 0
 
         # Generate WARC record ID for later export
         warc_record_id = str(uuid.uuid4())
@@ -852,8 +873,66 @@ class LocalDevDriver(
         )
         await self._db.commit()
 
-        response_id = cursor.lastrowid
-        return response_id if response_id else 0
+        response_id = cursor.lastrowid or 0
+
+        # For ArchiveResponse, also store file metadata in archived_files
+        if isinstance(response, ArchiveResponse) and response.file_url:
+            # Get expected_type from the request if it's an ArchiveRequest
+            expected_type: str | None = None
+            if isinstance(response.request, ArchiveRequest):
+                expected_type = response.request.expected_type
+
+            await self._store_archived_file(
+                request_id=request_id,
+                file_path=response.file_url,
+                original_url=response.url,
+                expected_type=expected_type,
+                content=response.content,
+            )
+
+        return response_id
+
+    async def _store_archived_file(
+        self,
+        request_id: int,
+        file_path: str,
+        original_url: str,
+        expected_type: str | None,
+        content: bytes | None,
+    ) -> int:
+        """Store archived file metadata in the database.
+
+        Args:
+            request_id: The database ID of the associated request.
+            file_path: Local file system path where the file is stored.
+            original_url: The URL the file was downloaded from.
+            expected_type: Expected file type (pdf, audio, etc.).
+            content: File content for computing hash and size.
+
+        Returns:
+            The database ID of the archived file record.
+        """
+        assert self._db is not None
+        import hashlib
+
+        # Compute file size and content hash
+        file_size = len(content) if content else 0
+        content_hash = hashlib.sha256(content).hexdigest() if content else None
+
+        cursor = await self._db.execute(
+            SQL.INSERT_ARCHIVED_FILE,
+            (
+                request_id,
+                file_path,
+                original_url,
+                expected_type,
+                file_size,
+                content_hash,
+            ),
+        )
+        await self._db.commit()
+
+        return cursor.lastrowid or 0
 
     async def _store_result(
         self,

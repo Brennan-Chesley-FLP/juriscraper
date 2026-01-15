@@ -29,6 +29,10 @@
                 <div id="compression-stats">Loading...</div>
             </div>
             <div class="stat-card">
+                <h3>Data</h3>
+                <div id="data-stats">Loading...</div>
+            </div>
+            <div class="stat-card">
                 <h3>Errors</h3>
                 <div id="error-stats">Loading...</div>
             </div>
@@ -108,6 +112,23 @@
         </div>
         <div class="form-actions">
             <button type="button" class="btn btn-secondary" onclick="closeRequestsDetailModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Results Detail Modal -->
+<div id="results-modal" class="modal">
+    <div class="modal-content" style="max-width: 1000px;">
+        <div class="modal-header">
+            <h2 id="results-modal-title">Results</h2>
+            <button class="close-btn" onclick="closeResultsModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem; max-height: 70vh; overflow-y: auto;">
+            <div id="results-modal-content">Loading...</div>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeResultsModal()">Close</button>
+            <a id="results-export-btn" class="btn btn-primary" href="#" download>Download JSONL</a>
         </div>
     </div>
 </div>
@@ -773,6 +794,212 @@ async function recompress(continuation) {
     }
 }
 
+// Data/Results Stats
+let currentResultsFilter = {};
+let currentResultsOffset = 0;
+const RESULTS_PAGE_SIZE = 20;
+
+async function loadDataStats() {
+    try {
+        const response = await fetch(`/api/runs/${runId}/results/summary`);
+        if (!response.ok) {
+            document.getElementById('data-stats').innerHTML = '<p class="error">Failed to load</p>';
+            return;
+        }
+        const stats = await response.json();
+
+        if (stats.total === 0) {
+            document.getElementById('data-stats').innerHTML = '<p class="empty-state">No results yet</p>';
+            return;
+        }
+
+        let html = `
+            <p>Total: <a href="#" onclick="openResultsModal(); return false;">${stats.total}</a></p>
+            <p>Valid: <a href="#" onclick="openResultsModal({is_valid: true}); return false;" class="valid-link">${stats.total_valid}</a></p>
+            <p>Invalid: <a href="#" onclick="openResultsModal({is_valid: false}); return false;" class="invalid-link">${stats.total_invalid}</a></p>
+        `;
+
+        if (stats.by_type.length > 0) {
+            html += '<div class="type-breakdown">';
+            for (const item of stats.by_type) {
+                html += `<span class="type-item" onclick="openResultsModal({result_type: '${escapeHtml(item.result_type)}'})">
+                    ${escapeHtml(item.result_type)}: ${item.total_count}
+                </span>`;
+            }
+            html += '</div>';
+        }
+
+        document.getElementById('data-stats').innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load data stats:', error);
+    }
+}
+
+function openResultsModal(filters = {}) {
+    currentResultsFilter = filters;
+    currentResultsOffset = 0;
+
+    // Update modal title
+    let title = 'Results';
+    if (filters.result_type) {
+        title += ` - ${filters.result_type}`;
+    }
+    if (filters.is_valid === true) {
+        title += ' (Valid)';
+    } else if (filters.is_valid === false) {
+        title += ' (Invalid)';
+    }
+    document.getElementById('results-modal-title').textContent = title;
+
+    // Update export button
+    let exportUrl = `/api/runs/${runId}/results/export.jsonl`;
+    const params = new URLSearchParams();
+    if (filters.result_type) params.append('result_type', filters.result_type);
+    if (filters.is_valid !== undefined) params.append('is_valid', filters.is_valid);
+    if (params.toString()) exportUrl += '?' + params.toString();
+    document.getElementById('results-export-btn').href = exportUrl;
+
+    loadResultsPage();
+    document.getElementById('results-modal').style.display = 'flex';
+}
+
+function closeResultsModal() {
+    document.getElementById('results-modal').style.display = 'none';
+}
+
+async function loadResultsPage() {
+    const content = document.getElementById('results-modal-content');
+    content.innerHTML = '<p>Loading...</p>';
+
+    try {
+        let url = `/api/runs/${runId}/results?offset=${currentResultsOffset}&limit=${RESULTS_PAGE_SIZE}`;
+        if (currentResultsFilter.result_type) {
+            url += `&result_type=${encodeURIComponent(currentResultsFilter.result_type)}`;
+        }
+        if (currentResultsFilter.is_valid !== undefined) {
+            url += `&is_valid=${currentResultsFilter.is_valid}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            content.innerHTML = '<p class="error">Failed to load results</p>';
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.items.length === 0) {
+            content.innerHTML = '<p class="empty-state">No results found</p>';
+            return;
+        }
+
+        let html = `
+            <p class="results-count">Showing ${currentResultsOffset + 1}-${currentResultsOffset + data.items.length} of ${data.total}</p>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Request ID</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        for (const item of data.items) {
+            const statusClass = item.is_valid ? 'valid' : 'invalid';
+            const statusText = item.is_valid ? 'Valid' : 'Invalid';
+            html += `
+                <tr class="${statusClass}-row">
+                    <td>${item.id}</td>
+                    <td>${escapeHtml(item.result_type)}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td>${item.request_id || '-'}</td>
+                    <td>${item.created_at ? new Date(item.created_at).toLocaleString() : '-'}</td>
+                    <td><button class="btn btn-sm btn-info" onclick="viewResultDetail(${item.id})">View</button></td>
+                </tr>
+            `;
+        }
+
+        html += '</tbody></table>';
+
+        // Pagination
+        html += '<div class="pagination">';
+        if (currentResultsOffset > 0) {
+            html += `<button class="btn btn-sm btn-secondary" onclick="prevResultsPage()">Previous</button>`;
+        }
+        if (data.has_more) {
+            html += `<button class="btn btn-sm btn-secondary" onclick="nextResultsPage()">Next</button>`;
+        }
+        html += '</div>';
+
+        content.innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load results:', error);
+        content.innerHTML = '<p class="error">Failed to load results</p>';
+    }
+}
+
+function prevResultsPage() {
+    currentResultsOffset = Math.max(0, currentResultsOffset - RESULTS_PAGE_SIZE);
+    loadResultsPage();
+}
+
+function nextResultsPage() {
+    currentResultsOffset += RESULTS_PAGE_SIZE;
+    loadResultsPage();
+}
+
+async function viewResultDetail(resultId) {
+    const content = document.getElementById('results-modal-content');
+    content.innerHTML = '<p>Loading...</p>';
+
+    try {
+        const response = await fetch(`/api/runs/${runId}/results/${resultId}`);
+        if (!response.ok) {
+            content.innerHTML = '<p class="error">Failed to load result</p>';
+            return;
+        }
+
+        const result = await response.json();
+
+        let html = `
+            <p><a href="#" onclick="loadResultsPage(); return false;">&larr; Back to list</a></p>
+            <h4>Result #${result.id} - ${escapeHtml(result.result_type)}</h4>
+            <p><strong>Status:</strong> <span class="status-badge ${result.is_valid ? 'valid' : 'invalid'}">${result.is_valid ? 'Valid' : 'Invalid'}</span></p>
+            <p><strong>Request ID:</strong> ${result.request_id || '-'}</p>
+            <p><strong>Created:</strong> ${result.created_at ? new Date(result.created_at).toLocaleString() : '-'}</p>
+        `;
+
+        if (!result.is_valid && result.validation_errors && result.validation_errors.length > 0) {
+            html += `
+                <div class="validation-errors">
+                    <h5>Validation Errors</h5>
+                    <ul>
+            `;
+            for (const error of result.validation_errors) {
+                html += `<li><strong>${escapeHtml(error.field || 'Unknown field')}:</strong> ${escapeHtml(error.message || JSON.stringify(error))}</li>`;
+            }
+            html += '</ul></div>';
+        }
+
+        html += `
+            <div class="result-data">
+                <h5>Data</h5>
+                <pre>${escapeHtml(JSON.stringify(result.data, null, 2))}</pre>
+            </div>
+        `;
+
+        content.innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load result detail:', error);
+        content.innerHTML = '<p class="error">Failed to load result</p>';
+    }
+}
+
 // WebSocket connection
 function connectWebSocket() {
     if (ws) {
@@ -884,12 +1111,20 @@ document.getElementById('requests-detail-modal').addEventListener('click', (e) =
     }
 });
 
+// Close results modal on outside click
+document.getElementById('results-modal').addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal')) {
+        closeResultsModal();
+    }
+});
+
 // Initial load
 loadRunDetails();
 loadRequestSummary();  // Start with summary view
 loadErrors();
 loadCompressionStats();
 loadCompressionDetails();
+loadDataStats();
 
 // Auto-refresh every 5 seconds
 setInterval(() => {
@@ -903,6 +1138,7 @@ setInterval(() => {
     loadErrors();
     loadCompressionStats();
     loadCompressionDetails();
+    loadDataStats();
 }, 5000);
 </script>
 {% endblock %}

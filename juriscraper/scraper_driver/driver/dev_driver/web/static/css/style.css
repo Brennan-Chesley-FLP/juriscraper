@@ -956,6 +956,132 @@ main {
     padding: 1.5rem;
 }
 
+/* Results/Data Stats */
+.type-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.type-item {
+    background: #ecf0f1;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.type-item:hover {
+    background: #bdc3c7;
+}
+
+.valid-link {
+    color: #27ae60;
+}
+
+.invalid-link {
+    color: #e74c3c;
+}
+
+/* Results Table */
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.results-table th,
+.results-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.results-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+}
+
+.results-table .invalid-row {
+    background: #fdf2f2;
+}
+
+.status-badge {
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-badge.valid {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.invalid {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.results-count {
+    color: #666;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.pagination {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+/* Validation Errors */
+.validation-errors {
+    background: #fdf2f2;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.validation-errors h5 {
+    color: #721c24;
+    margin-bottom: 0.5rem;
+}
+
+.validation-errors ul {
+    margin-left: 1.5rem;
+    color: #721c24;
+}
+
+.validation-errors li {
+    margin-bottom: 0.25rem;
+}
+
+/* Result Data */
+.result-data {
+    margin-top: 1rem;
+}
+
+.result-data h5 {
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.result-data pre {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .run-grid {

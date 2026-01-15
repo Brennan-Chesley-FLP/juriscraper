@@ -206,12 +206,14 @@ class TestRequestTypeRoundTrip:
         )
 
         # Create a NonNavigatingRequest with all fields populated
+        # Note: Use non-JSON bytes to test raw binary preservation.
+        # JSON-like bytes get decoded to dicts by design (for form data).
         original = NonNavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.POST,
                 url="https://api.example.com/data",
-                headers={"Content-Type": "application/json"},
-                data=b'{"query": "test"}',
+                headers={"Content-Type": "application/octet-stream"},
+                data=b"\x00\x01\x02\x03binary data\xff\xfe",
             ),
             continuation="process_api_response",
             current_location="https://example.com/main",

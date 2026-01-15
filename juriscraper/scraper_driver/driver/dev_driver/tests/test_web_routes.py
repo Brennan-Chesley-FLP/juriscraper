@@ -4,10 +4,13 @@ Tests cover:
 - Request summary endpoint grouping
 - Request summary with empty database
 - Compression stats by continuation endpoint
+- Results summary with valid/invalid counts by type
+- Results JSONL export format
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -19,6 +22,10 @@ from juriscraper.scraper_driver.driver.dev_driver.web.routes.compression import 
 from juriscraper.scraper_driver.driver.dev_driver.web.routes.requests import (
     RequestSummaryItem,
     RequestSummaryResponse,
+)
+from juriscraper.scraper_driver.driver.dev_driver.web.routes.results import (
+    ResultsSummaryResponse,
+    ResultTypeSummaryItem,
 )
 
 
@@ -420,3 +427,276 @@ class TestCompressionStatsByContinuation:
         assert list_item.total_compressed_bytes == 2000
         assert list_item.compression_ratio == 5.0
         assert list_item.dict_id is None
+
+
+class TestResultsSummary:
+    """Tests for the results summary endpoint."""
+
+    async def test_results_summary_empty_db(self, initialized_db) -> None:
+        """Returns zeros for no results."""
+        from juriscraper.scraper_driver.driver.dev_driver.sql_queries import (
+            SQL,
+        )
+
+        cursor = await initialized_db.execute(
+            SQL.SELECT_RESULTS_SUMMARY_FOR_WEB
+        )
+        rows = await cursor.fetchall()
+
+        by_type: list[ResultTypeSummaryItem] = []
+        total_valid = 0
+        total_invalid = 0
+
+        for result_type, valid_count, invalid_count, total_count in rows:
+            by_type.append(
+                ResultTypeSummaryItem(
+                    result_type=result_type,
+                    valid_count=valid_count,
+                    invalid_count=invalid_count,
+                    total_count=total_count,
+                )
+            )
+            total_valid += valid_count
+            total_invalid += invalid_count
+
+        result = ResultsSummaryResponse(
+            total_valid=total_valid,
+            total_invalid=total_invalid,
+            total=total_valid + total_invalid,
+            by_type=by_type,
+        )
+
+        assert result.total == 0
+        assert result.total_valid == 0
+        assert result.total_invalid == 0
+        assert result.by_type == []
+
+    async def test_results_summary_counts_by_type(
+        self, initialized_db
+    ) -> None:
+        """Correctly counts valid/invalid by result type."""
+        from juriscraper.scraper_driver.driver.dev_driver.sql_queries import (
+            SQL,
+        )
+
+        # Insert test results with different types and validity
+        results_data = [
+            # TennOpinion: 3 valid, 1 invalid
+            ("TennOpinion", '{"case_number": "1"}', 1, None),
+            ("TennOpinion", '{"case_number": "2"}', 1, None),
+            ("TennOpinion", '{"case_number": "3"}', 1, None),
+            (
+                "TennOpinion",
+                '{"case_number": "4"}',
+                0,
+                '[{"field": "date", "message": "required"}]',
+            ),
+            # TennJudge: 2 valid, 2 invalid
+            ("TennJudge", '{"name": "John"}', 1, None),
+            ("TennJudge", '{"name": "Jane"}', 1, None),
+            (
+                "TennJudge",
+                '{"name": ""}',
+                0,
+                '[{"field": "name", "message": "empty"}]',
+            ),
+            (
+                "TennJudge",
+                "{}",
+                0,
+                '[{"field": "name", "message": "required"}]',
+            ),
+        ]
+
+        for result_type, data_json, is_valid, errors_json in results_data:
+            await initialized_db.execute(
+                """
+                INSERT INTO results (result_type, data_json, is_valid, validation_errors_json)
+                VALUES (?, ?, ?, ?)
+                """,
+                (result_type, data_json, is_valid, errors_json),
+            )
+        await initialized_db.commit()
+
+        cursor = await initialized_db.execute(
+            SQL.SELECT_RESULTS_SUMMARY_FOR_WEB
+        )
+        rows = await cursor.fetchall()
+
+        by_type: list[ResultTypeSummaryItem] = []
+        total_valid = 0
+        total_invalid = 0
+
+        for result_type, valid_count, invalid_count, total_count in rows:
+            by_type.append(
+                ResultTypeSummaryItem(
+                    result_type=result_type,
+                    valid_count=valid_count,
+                    invalid_count=invalid_count,
+                    total_count=total_count,
+                )
+            )
+            total_valid += valid_count
+            total_invalid += invalid_count
+
+        result = ResultsSummaryResponse(
+            total_valid=total_valid,
+            total_invalid=total_invalid,
+            total=total_valid + total_invalid,
+            by_type=by_type,
+        )
+
+        # Verify totals
+        assert result.total == 8
+        assert result.total_valid == 5  # 3 + 2
+        assert result.total_invalid == 3  # 1 + 2
+
+        # Verify by type
+        assert len(result.by_type) == 2
+        types_by_name = {item.result_type: item for item in result.by_type}
+
+        opinion = types_by_name["TennOpinion"]
+        assert opinion.valid_count == 3
+        assert opinion.invalid_count == 1
+        assert opinion.total_count == 4
+
+        judge = types_by_name["TennJudge"]
+        assert judge.valid_count == 2
+        assert judge.invalid_count == 2
+        assert judge.total_count == 4
+
+
+class TestResultsJsonlExport:
+    """Tests for the JSONL export functionality."""
+
+    async def test_jsonl_export_format(self, initialized_db) -> None:
+        """Each line in JSONL export is valid JSON with correct fields."""
+        from juriscraper.scraper_driver.driver.dev_driver.sql_queries import (
+            SQL,
+        )
+
+        # Insert test data
+        await initialized_db.execute(
+            """
+            INSERT INTO results (result_type, data_json, is_valid, validation_errors_json)
+            VALUES ('TestType', '{"foo": "bar"}', 1, NULL),
+                   ('TestType', '{"baz": 123}', 0, '[{"field": "qux", "message": "error"}]')
+            """
+        )
+        await initialized_db.commit()
+
+        # Query using same SQL as export endpoint
+        cursor = await initialized_db.execute(
+            SQL.SELECT_RESULTS_FOR_EXPORT.format(where_clause="")
+        )
+        rows = await cursor.fetchall()
+
+        jsonl_lines = []
+        for row in rows:
+            (
+                result_id,
+                request_id,
+                rtype,
+                data_json,
+                valid,
+                errors_json,
+                created_at,
+            ) = row
+
+            try:
+                data = json.loads(data_json) if data_json else {}
+            except json.JSONDecodeError:
+                data = {}
+
+            validation_errors = None
+            if errors_json:
+                try:
+                    validation_errors = json.loads(errors_json)
+                except json.JSONDecodeError:
+                    pass
+
+            record = {
+                "id": result_id,
+                "request_id": request_id,
+                "result_type": rtype,
+                "is_valid": bool(valid),
+                "data": data,
+                "validation_errors": validation_errors,
+                "created_at": created_at,
+            }
+            jsonl_lines.append(json.dumps(record))
+
+        # Verify we have 2 lines
+        assert len(jsonl_lines) == 2
+
+        # Verify each line is valid JSON and has expected fields
+        for line in jsonl_lines:
+            record = json.loads(line)
+            assert "id" in record
+            assert "result_type" in record
+            assert "is_valid" in record
+            assert "data" in record
+            assert "validation_errors" in record
+            assert "created_at" in record
+
+        # Verify first record (valid)
+        first = json.loads(jsonl_lines[0])
+        assert first["result_type"] == "TestType"
+        assert first["is_valid"] is True
+        assert first["data"] == {"foo": "bar"}
+        assert first["validation_errors"] is None
+
+        # Verify second record (invalid with errors)
+        second = json.loads(jsonl_lines[1])
+        assert second["is_valid"] is False
+        assert second["validation_errors"] == [
+            {"field": "qux", "message": "error"}
+        ]
+
+    async def test_jsonl_export_with_filter(self, initialized_db) -> None:
+        """JSONL export respects result_type and is_valid filters."""
+        from juriscraper.scraper_driver.driver.dev_driver.sql_queries import (
+            SQL,
+        )
+
+        # Insert mixed test data
+        await initialized_db.execute(
+            """
+            INSERT INTO results (result_type, data_json, is_valid)
+            VALUES ('TypeA', '{}', 1),
+                   ('TypeA', '{}', 0),
+                   ('TypeB', '{}', 1),
+                   ('TypeB', '{}', 0)
+            """
+        )
+        await initialized_db.commit()
+
+        # Test filtering by result_type
+        cursor = await initialized_db.execute(
+            SQL.SELECT_RESULTS_FOR_EXPORT.format(
+                where_clause="WHERE result_type = ?"
+            ),
+            ("TypeA",),
+        )
+        rows = await cursor.fetchall()
+        assert len(rows) == 2
+
+        # Test filtering by is_valid
+        cursor = await initialized_db.execute(
+            SQL.SELECT_RESULTS_FOR_EXPORT.format(
+                where_clause="WHERE is_valid = ?"
+            ),
+            (1,),
+        )
+        rows = await cursor.fetchall()
+        assert len(rows) == 2
+
+        # Test combined filter
+        cursor = await initialized_db.execute(
+            SQL.SELECT_RESULTS_FOR_EXPORT.format(
+                where_clause="WHERE result_type = ? AND is_valid = ?"
+            ),
+            ("TypeA", 0),
+        )
+        rows = await cursor.fetchall()
+        assert len(rows) == 1

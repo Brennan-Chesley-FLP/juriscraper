@@ -43,7 +43,7 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: uv run pytest tests/local -x -q
+        entry: uv run pytest -x -q
         language: system
         pass_filenames: false
         always_run: true

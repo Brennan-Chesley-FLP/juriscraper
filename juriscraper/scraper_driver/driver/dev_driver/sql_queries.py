@@ -713,6 +713,25 @@ class SQL:
         ORDER BY count DESC
     """
 
+    SELECT_RESULTS_SUMMARY_FOR_WEB = """
+        SELECT
+            result_type,
+            SUM(CASE WHEN is_valid = 1 THEN 1 ELSE 0 END) as valid_count,
+            SUM(CASE WHEN is_valid = 0 THEN 1 ELSE 0 END) as invalid_count,
+            COUNT(*) as total_count
+        FROM results
+        GROUP BY result_type
+        ORDER BY total_count DESC
+    """
+
+    SELECT_RESULTS_FOR_EXPORT = """
+        SELECT id, request_id, result_type, data_json, is_valid,
+               validation_errors_json, created_at
+        FROM results
+        {where_clause}
+        ORDER BY created_at ASC
+    """
+
     # responses routes
     SELECT_RESPONSES_LIST_FOR_WEB = """
         SELECT id, request_id, status_code, url, content_size_original,

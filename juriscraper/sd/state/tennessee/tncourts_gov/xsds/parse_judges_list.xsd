@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Tennessee Courts Judges List Page
+
+  URLs:
+  - Supreme Court: https://www.tncourts.gov/courts/supreme-court/judges
+  - Court of Appeals: https://www.tncourts.gov/courts/court-of-appeals/judges
+  - Court of Criminal Appeals: https://www.tncourts.gov/courts/court-of-criminal-appeals/judges
+
+  This schema describes the expected structure of the judges list pages
+  that display judges/justices for each Tennessee appellate court.
+
+  Step: parse_judges_list
+  XPath used: //a[contains(@href, '/judges/') and not(contains(@href, '/judges?'))]
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Judges List Page Structure
+      ==========================
+
+      Each court has a judges listing page with links to individual judge profiles.
+      The page layout is a Drupal-based CMS with judge cards containing photos and links.
+
+      Page Variations:
+
+      1. Supreme Court (supreme-court/judges):
+         - Title: "Justices"
+         - Shows 5 justices (including Chief Justice)
+         - Link pattern: /courts/supreme-court/judges/{slug}
+
+      2. Court of Appeals (court-of-appeals/judges):
+         - Title: "Judges"
+         - Shows 12 judges (including Presiding Judge)
+         - Link pattern: /courts/court-of-appeals/judges/{slug}
+
+      3. Court of Criminal Appeals (court-of-criminal-appeals/judges):
+         - Title: "Judges"
+         - Shows 12 judges (including Presiding Judge)
+         - Link pattern: /courts/court-of-criminal-appeals/judges/{slug}
+
+      Common Structure:
+      - Judge cards with photo and name
+      - Links contain /judges/ in the path
+      - Final segment of URL is the judge's slug (e.g., "jeffrey-s-bivins")
+
+      XPath Assertions:
+      1. //a[contains(@href, '/judges/')] - Must return at least 1 judge link
+      2. Judge links should have href ending with slug (alphanumeric-with-hyphens)
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the judges list page -->
+  <xs:element name="judges-list-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Page title ("Justices" or "Judges") -->
+        <xs:element name="title" type="xs:string"/>
+
+        <!-- Judge links -->
+        <xs:element name="judge-links">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="judge-link" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <!-- Judge name (from link text or image alt) -->
+                    <xs:element name="name" type="xs:string" minOccurs="0"/>
+                    <!-- Optional photo thumbnail -->
+                    <xs:element name="photo" minOccurs="0">
+                      <xs:complexType>
+                        <xs:attribute name="src" type="xs:anyURI"/>
+                        <xs:attribute name="alt" type="xs:string"/>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                  <xs:attribute name="href" use="required">
+                    <xs:simpleType>
+                      <xs:restriction base="xs:string">
+                        <!-- URL pattern: /courts/{court}/judges/{slug} -->
+                        <xs:pattern value="/courts/[a-z-]+/judges/[a-z0-9-]+"/>
+                      </xs:restriction>
+                    </xs:simpleType>
+                  </xs:attribute>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Scraper XPath Assertions -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. JUDGE_LINKS: //a[contains(@href, '/judges/') and not(contains(@href, '/judges?'))]
+         - Description: "judge links"
+         - min_count: 1
+         - Expected: Links to individual judge profile pages
+         - Note: Excludes pagination/filter links (/judges?)
+
+      Validation Rules:
+      - Each link must have href attribute
+      - href must end with a slug (alphanumeric with hyphens)
+      - Slug extracted as final path segment after /judges/
+
+      Known Judge Counts (as of capture):
+      - Supreme Court: 5 justices
+      - Court of Appeals: 12 judges
+      - Court of Criminal Appeals: 12 judges
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

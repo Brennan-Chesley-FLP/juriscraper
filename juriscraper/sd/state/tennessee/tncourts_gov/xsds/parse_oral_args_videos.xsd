@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Tennessee Courts Oral Arguments Videos Page
+
+  URL Pattern: https://www.tncourts.gov/courts/{court}/oral-arguments/videos/{year}
+  Where {court} is one of: supreme-court, court-of-appeals, court-of-criminal-appeals
+  And {year} is a 4-digit year (e.g., 2024)
+
+  This schema describes the expected structure of the oral argument video pages
+  that contain YouTube video links for a specific year.
+
+  Step: parse_oral_args_videos
+  XPath used: //a[contains(@href, 'youtube.com') or contains(@href, 'youtu.be')]
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Oral Arguments Videos Page Structure
+      =====================================
+
+      This page displays YouTube video links for oral arguments from a specific year.
+      Each video typically corresponds to one case's oral argument session.
+
+      Page Layout:
+      - Year heading (e.g., "2024 Oral Argument Videos")
+      - List of video entries with case info and YouTube links
+
+      Video Entry Structure:
+      - Case information (case number, case name, date)
+      - YouTube link to the video
+      - May be organized by date or case number
+
+      YouTube URL Patterns:
+      - Full URL: https://www.youtube.com/watch?v={video_id}
+      - With playlist: https://www.youtube.com/watch?v={video_id}&amp;list={playlist_id}
+      - Short URL: https://youtu.be/{video_id}
+
+      Video ID:
+      - Alphanumeric string with hyphens and underscores
+      - 11 characters typically
+      - Example: dQw4w9WgXcQ
+
+      Note: Videos are NOT downloaded, only URLs are captured.
+      YouTube metadata (title, description) is not extracted.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element -->
+  <xs:element name="oral-args-videos-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Page title / year heading -->
+        <xs:element name="title" type="xs:string"/>
+
+        <!-- Year (extracted from URL) -->
+        <xs:element name="year">
+          <xs:simpleType>
+            <xs:restriction base="xs:positiveInteger">
+              <xs:minInclusive value="2000"/>
+              <xs:maxInclusive value="2100"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+
+        <!-- Video entries -->
+        <xs:element name="videos">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="video" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="case-number" type="xs:string" minOccurs="0"/>
+                    <xs:element name="case-name" type="xs:string" minOccurs="0"/>
+                    <xs:element name="date-argued" type="dateType" minOccurs="0"/>
+                    <xs:element name="youtube-url" type="xs:anyURI"/>
+                    <xs:element name="video-id" minOccurs="0">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:string">
+                          <!-- YouTube video ID pattern -->
+                          <xs:pattern value="[a-zA-Z0-9_-]{11}"/>
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:element>
+                    <xs:element name="playlist-id" type="xs:string" minOccurs="0"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Date type -->
+  <xs:simpleType name="dateType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{1,2}/\d{1,2}/\d{4}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Scraper XPath Assertions -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. YouTube links:
+         //a[contains(@href, 'youtube.com') or contains(@href, 'youtu.be')]
+         - Description: "YouTube video links"
+         - min_count: 0 (may be empty page)
+         - Expected: Links to YouTube videos
+
+      Extraction Rules:
+      - Video ID: regex capture from URL (?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)
+      - Playlist ID: regex capture from URL list=([a-zA-Z0-9_-]+)
+      - Case info: extracted from link text or parent element text
+      - Date: regex capture of MM/DD/YYYY pattern from context
+
+      Case Number Extraction:
+      - Pattern: [MEWC]\d{4}-\d{4,5}(-[A-Z]{2,3})?(-[A-Z]\d+)?(-[A-Z]{2,3})?
+      - Example: M2023-01234-SC-R11-CV
+
+      Context Text:
+      - Parent element text often contains case number and name
+      - Format varies: "{case_number} - {case_name}" or "{case_name} ({case_number})"
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

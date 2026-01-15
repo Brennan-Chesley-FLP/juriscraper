@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Tennessee Courts Judge Detail Page
+
+  URL Pattern: https://tncourts.gov/courts/{court}/judges/{slug}
+  Where {court} is one of: supreme-court, court-of-appeals, court-of-criminal-appeals
+  And {slug} is the judge's URL-friendly name (e.g., "jeffrey-s-bivins")
+
+  This schema describes the expected structure of individual judge profile pages.
+
+  Step: parse_judge_detail
+  XPaths used:
+    - Title: //h1[@class='page-title'] | //h1
+    - Photo: //div[contains(@class, 'field-name-field-image')]//img/@src
+    - Biography: //div[contains(@class, 'field-name-body')]
+    - Various field divs via field-name-field-* pattern
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Judge Detail Page Structure
+      ===========================
+
+      This page displays comprehensive profile information for an individual judge/justice.
+      The page is Drupal-based with fields organized in field-name-* div containers.
+
+      Page Sections:
+
+      1. Header
+         - Title: "Chief Justice Jeffrey S. Bivins" (title + name)
+         - Photo: Judge's official portrait
+
+      2. Biography (body field)
+         - Full biography text
+
+      3. Career Information Fields:
+         - Year Elected/Appointed: Year the judge took office
+         - Prior Judicial Experience: Previous judicial positions
+         - Previous Employment: Employment before becoming judge
+
+      4. Education
+         - May contain multiple entries
+         - Each entry is a school/degree combination
+
+      5. Professional Information:
+         - Memberships: Professional organization memberships
+         - Community Involvement: Community activities
+
+      6. Contact Information:
+         - Contact Info: Phone/email
+         - Address: Physical office address
+
+      Title Patterns:
+      - "Chief Justice {name}" - Chief Justice of Supreme Court
+      - "Justice {name}" - Justice of Supreme Court
+      - "Presiding Judge {name}" - Presiding Judge of appellate courts
+      - "Judge {name}" - Judge of appellate courts
+
+      Photo:
+      - Usually in field-name-field-image div
+      - JPEG format, varies in size
+      - Must be archived via ArchiveRequest
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element -->
+  <xs:element name="judge-detail-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Header with title (includes title + name) -->
+        <xs:element name="title" type="xs:string"/>
+
+        <!-- Photo -->
+        <xs:element name="photo" minOccurs="0">
+          <xs:complexType>
+            <xs:attribute name="src" type="xs:anyURI" use="required"/>
+            <xs:attribute name="alt" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Biography -->
+        <xs:element name="biography" type="xs:string" minOccurs="0"/>
+
+        <!-- Year Elected/Appointed -->
+        <xs:element name="year-elected" minOccurs="0">
+          <xs:simpleType>
+            <xs:restriction base="xs:positiveInteger">
+              <xs:minInclusive value="1900"/>
+              <xs:maxInclusive value="2100"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+
+        <!-- Prior Judicial Experience -->
+        <xs:element name="prior-judicial-experience" type="xs:string" minOccurs="0"/>
+
+        <!-- Previous Employment -->
+        <xs:element name="previous-employment" type="xs:string" minOccurs="0"/>
+
+        <!-- Education (may have multiple entries) -->
+        <xs:element name="education" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="entry" type="xs:string" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Memberships -->
+        <xs:element name="memberships" type="xs:string" minOccurs="0"/>
+
+        <!-- Community Involvement -->
+        <xs:element name="community-involvement" type="xs:string" minOccurs="0"/>
+
+        <!-- Contact Info -->
+        <xs:element name="contact-info" type="xs:string" minOccurs="0"/>
+
+        <!-- Address -->
+        <xs:element name="address" type="xs:string" minOccurs="0"/>
+
+      </xs:sequence>
+      <xs:attribute name="slug" type="xs:string" use="required"/>
+      <xs:attribute name="court-id" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Scraper XPath Assertions -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. Title:
+         //h1[@class='page-title'] | //h1 | //div[contains(@class, 'field-name-field-title')]//div[@class='field-item']
+         - Description: "judge title and name"
+         - min_count: 1
+         - Expected: "Chief Justice Jeffrey S. Bivins" or similar
+
+      2. Photo:
+         //div[contains(@class, 'field-name-field-image')]//img/@src
+         - Description: "judge photo URL"
+         - min_count: 0 (may be missing)
+         - Expected: URL to JPEG image
+
+      3. Biography (body):
+         //div[contains(@class, 'field-name-body')]//div[@class='field-item']
+         - Description: "biography text"
+         - min_count: 0
+         - Expected: Free text biography
+
+      4. Year Elected:
+         //div[contains(@class, 'field-name-field-year-elected')]//div[@class='field-item']
+         - Description: "year elected or appointed"
+         - min_count: 0
+         - Expected: 4-digit year
+
+      5. Other Fields follow pattern:
+         //div[contains(@class, 'field-name-field-{field-name}')]//div[@class='field-item']
+
+      Field Name Mappings:
+      - field-prior-judicial-experience -> prior_judicial_experience
+      - field-previous-employment -> previous_employment
+      - field-education -> education (multiple items)
+      - field-memberships -> memberships
+      - field-community-involvement -> community_involvement
+      - field-contact-info -> contact_info
+      - field-address -> address
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

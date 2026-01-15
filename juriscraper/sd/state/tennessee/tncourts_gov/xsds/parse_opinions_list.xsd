@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Tennessee Courts Opinions List Page
+
+  URLs:
+  - Supreme Court: https://www.tncourts.gov/courts/supreme-court/opinions
+  - Court of Appeals: https://www.tncourts.gov/courts/court-of-appeals/opinions
+  - Court of Criminal Appeals: https://www.tncourts.gov/courts/court-of-criminal-appeals/opinions
+
+  This schema describes the expected structure of the opinions listing pages
+  that display recent court opinions with links to PDFs.
+
+  Step: parse_opinions_list
+  XPaths used:
+    - Opinion rows: //table//tr[.//a[contains(@href, '.pdf')]]
+    - PDF links: .//a[contains(@href, '.pdf')]
+    - Pagination: //a[contains(@class, 'pager-next')]
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Opinions List Page Structure
+      ============================
+
+      Each court has an opinions listing page with a searchable/filterable table
+      of recent opinions. The page supports filters for county, authoring judge,
+      date range, case number, case name, and keyword search.
+
+      Page Layout:
+      - Search form at top with filters
+      - Results table with opinion metadata
+      - Pagination at bottom
+
+      Table Columns (typical):
+      1. Case Number - e.g., "M2023-01234-SC-R11-CV"
+      2. Case Name - e.g., "State v. Smith"
+      3. Date - Opinion date (MM/DD/YYYY)
+      4. Authoring Judge - Name of authoring judge
+      5. Trial Court Judge - Name of trial court judge
+      6. County - County of origin
+      7. PDF Link - Link to opinion PDF
+
+      Case Number Format:
+      - First letter: Geographic region (M=Middle, E=East, W=West, C=?)
+      - Year: 4 digits
+      - Sequence: 4-5 digit case number
+      - Court code: SC (Supreme), COA/CA (Court of Appeals), CCA (Criminal Appeals)
+      - Proceeding type: R11, R3, etc.
+      - Case type: CV (Civil), CR (Criminal), etc.
+      - Example: M2023-01234-SC-R11-CV
+
+      Pagination:
+      - Drupal pager with "next" link
+      - URL parameter: ?page=N
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element -->
+  <xs:element name="opinions-list-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Search form (optional, may not parse) -->
+        <xs:element name="search-form" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="county-filter" type="xs:string" minOccurs="0"/>
+              <xs:element name="author-filter" type="xs:string" minOccurs="0"/>
+              <xs:element name="date-from" type="dateType" minOccurs="0"/>
+              <xs:element name="date-to" type="dateType" minOccurs="0"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Results table -->
+        <xs:element name="opinions">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="opinion" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="case-number">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:string">
+                          <!-- Case number pattern -->
+                          <xs:pattern value="[MEWC]\d{4}-\d{4,5}(-[A-Z]{2,3})?(-[A-Z]\d+)?(-[A-Z]{2,3})?"/>
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:element>
+                    <xs:element name="case-name" type="xs:string"/>
+                    <xs:element name="date-filed" type="dateType" minOccurs="0"/>
+                    <xs:element name="authoring-judge" type="xs:string" minOccurs="0"/>
+                    <xs:element name="trial-court-judge" type="xs:string" minOccurs="0"/>
+                    <xs:element name="county" type="xs:string" minOccurs="0"/>
+                    <xs:element name="pdf-url" type="xs:anyURI"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Pagination -->
+        <xs:element name="pagination" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="current-page" type="xs:nonNegativeInteger"/>
+              <xs:element name="next-page-url" type="xs:anyURI" minOccurs="0"/>
+              <xs:element name="total-pages" type="xs:positiveInteger" minOccurs="0"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Date type (MM/DD/YYYY format) -->
+  <xs:simpleType name="dateType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{1,2}/\d{1,2}/\d{4}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Scraper XPath Assertions -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. Opinion rows:
+         //table//tr[.//a[contains(@href, '.pdf')]] | //div[contains(@class, 'view-content')]//div[contains(@class, 'views-row')]
+         - Description: "opinion rows"
+         - min_count: 0 (may be empty if no results)
+         - Expected: Table rows containing opinion data
+
+      2. PDF links:
+         .//a[contains(@href, '.pdf')]
+         - Description: "PDF link"
+         - min_count: 1 per row
+         - Expected: Link to opinion PDF file
+
+      3. Next page:
+         //a[contains(@class, 'pager-next')] | //li[contains(@class, 'pager-next')]/a
+         - Description: "next page link"
+         - min_count: 0 (may be last page)
+         - Expected: Link to next page of results
+
+      Table Cell Mappings (by position):
+      - td[1] or .case-number: Case number
+      - td[2] or .case-name: Case name
+      - td[3] or .date: Date filed
+      - td[4] or .author: Authoring judge
+      - td[5] or .trial-judge: Trial court judge
+      - td with .county class: County
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

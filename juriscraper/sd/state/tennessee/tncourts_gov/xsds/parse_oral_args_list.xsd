@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Tennessee Courts Oral Arguments Index Page
+
+  URLs:
+  - Supreme Court: https://www.tncourts.gov/courts/supreme-court/oral-arguments?c=27
+  - Court of Appeals: https://www.tncourts.gov/courts/court-of-appeals/oral-arguments?c=28
+  - Court of Criminal Appeals: https://www.tncourts.gov/courts/court-of-criminal-appeals/oral-arguments?c=29
+
+  This schema describes the expected structure of the oral arguments index pages
+  that list upcoming and past oral argument sessions.
+
+  Step: parse_oral_args_index
+  XPath used: //a[contains(@href, '/oral-arguments/') and contains(@href, 'videos')]
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Oral Arguments Index Page Structure
+      ====================================
+
+      Each court has an oral arguments page that lists:
+      - Upcoming oral argument sessions (dates, cases)
+      - Links to past oral argument video archives by year
+
+      The ?c= parameter selects the court:
+      - c=27: Supreme Court
+      - c=28: Court of Appeals
+      - c=29: Court of Criminal Appeals
+
+      Page Sections:
+
+      1. Upcoming Arguments
+         - Table of scheduled oral arguments
+         - Columns: Date, Case Number, Court, County, Section
+         - Links to case details
+
+      2. Video Archives (Year Links)
+         - Links to pages with YouTube video archives
+         - URL pattern: /courts/{court}/oral-arguments/videos/{year}
+         - Years typically from 2018 to current
+
+      Year Link Patterns:
+      - /oral-arguments/videos/2025
+      - /oral-arguments/videos/2024
+      - etc.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element -->
+  <xs:element name="oral-args-index-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Page title -->
+        <xs:element name="title" type="xs:string"/>
+
+        <!-- Upcoming arguments (optional) -->
+        <xs:element name="upcoming-arguments" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="argument" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="date" type="dateType"/>
+                    <xs:element name="case-number" type="xs:string"/>
+                    <xs:element name="court" type="xs:string"/>
+                    <xs:element name="county" type="xs:string" minOccurs="0"/>
+                    <xs:element name="section" type="xs:string" minOccurs="0"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Year links to video archives -->
+        <xs:element name="year-links">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="year-link" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="year">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:positiveInteger">
+                          <xs:minInclusive value="2000"/>
+                          <xs:maxInclusive value="2100"/>
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:element>
+                  </xs:sequence>
+                  <xs:attribute name="href" use="required">
+                    <xs:simpleType>
+                      <xs:restriction base="xs:string">
+                        <!-- URL pattern includes year -->
+                        <xs:pattern value=".*/videos/\d{4}.*"/>
+                      </xs:restriction>
+                    </xs:simpleType>
+                  </xs:attribute>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Date type -->
+  <xs:simpleType name="dateType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{1,2}/\d{1,2}/\d{4}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Scraper XPath Assertions -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. Year links:
+         //a[contains(@href, '/oral-arguments/') and contains(@href, 'videos')] | //a[contains(@href, '/videos/')]
+         - Description: "year video archive links"
+         - min_count: 0 (may have no archived videos)
+         - Expected: Links to year-specific video pages
+
+      Validation Rules:
+      - Year extracted via regex from href
+      - Year must be 4 digits, 2000 or later
+      - Duplicates filtered by year value
+
+      Known Year Range (as of capture):
+      - 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

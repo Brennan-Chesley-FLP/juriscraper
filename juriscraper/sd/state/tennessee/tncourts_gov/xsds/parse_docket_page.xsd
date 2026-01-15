@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Tennessee Courts PCH Docket (Case Details) Page
+
+  URL Pattern: https://pch.tncourts.gov/CaseDetails.aspx?id={N}
+  Where {N} is a monotonically increasing internal case ID.
+
+  This schema describes the expected structure of the Case Details page
+  from the Tennessee Public Case History (PCH) system.
+
+  Step: parse_docket_page
+  XPaths used:
+    - Case Number: //*[contains(text(), 'Inter. Case No.')]/following-sibling::*
+    - Style (Case Name): //*[contains(text(), 'Style')]/following-sibling::*
+    - Various milestone/info fields
+    - Parties table
+    - Document history table
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      PCH Case Details Page Structure
+      ================================
+
+      This page displays comprehensive docket information for an appellate case
+      in the Tennessee Public Case History system.
+
+      URL: https://pch.tncourts.gov/CaseDetails.aspx?id={N}
+
+      The id parameter is an auto-incrementing integer used for speculative scraping.
+
+      Page Sections:
+
+      1. Case Overview
+         - Inter. Case No.: Intermediate case number (e.g., "M2023-01234-SC-R11-CV")
+         - Style: Case name (e.g., "State of Tennessee v. John Doe")
+         - Trial Court: Name of trial court
+         - Trial Court Judge: Judge name
+         - Trial Court No.: Trial court case number
+
+      2. Case Milestones
+         - Application Filed: Date application was filed
+         - Disposition: Disposition result and date
+         - Record Filed: Date record was filed
+         - Briefing: Date briefing completed
+         - Oral Argument: Date of oral argument
+         - Decision: Date of decision
+
+      3. Parties
+         - Party names
+         - Role (Appellant, Appellee, etc.)
+         - Counsel information
+
+      4. Document History
+         - Date
+         - Event type
+         - Filer
+         - PDF links (if available)
+
+      Case Number Patterns:
+      - M2023-01234-SC-R11-CV: Middle TN, Supreme Court
+      - E2023-01234-COA-R3-CV: East TN, Court of Appeals
+      - W2023-01234-CCA-R3-CD: West TN, Court of Criminal Appeals
+
+      Court Code Mapping:
+      - SC: Tennessee Supreme Court (tenn)
+      - COA, CA: Court of Appeals (tennctapp)
+      - CCA: Court of Criminal Appeals (tenncrimapp)
+
+      PCH ID:
+      - Monotonically increasing integer
+      - Used for speculative scraping via SpeculativeRequest
+      - ID 89587 is a known valid case (used in testing)
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element -->
+  <xs:element name="pch-case-details-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Case Overview Section -->
+        <xs:element name="case-overview">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="case-number">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <!-- Tennessee case number pattern -->
+                    <xs:pattern value="[MEWC]\d{4}-\d{4,5}(-[A-Z]{2,3})?(-[A-Z]\d+)?(-[A-Z]{2,3})?"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="style" type="xs:string"/>
+              <xs:element name="trial-court" type="xs:string" minOccurs="0"/>
+              <xs:element name="trial-court-judge" type="xs:string" minOccurs="0"/>
+              <xs:element name="trial-court-number" type="xs:string" minOccurs="0"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Case Milestones Section -->
+        <xs:element name="milestones">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="application-filed" type="dateType" minOccurs="0"/>
+              <xs:element name="disposition" type="xs:string" minOccurs="0"/>
+              <xs:element name="disposition-date" type="dateType" minOccurs="0"/>
+              <xs:element name="record-filed" type="dateType" minOccurs="0"/>
+              <xs:element name="briefing-complete" type="dateType" minOccurs="0"/>
+              <xs:element name="oral-argument" type="dateType" minOccurs="0"/>
+              <xs:element name="decision" type="dateType" minOccurs="0"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Parties Section -->
+        <xs:element name="parties">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="party" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="name" type="xs:string"/>
+                    <xs:element name="role" type="xs:string" minOccurs="0"/>
+                    <xs:element name="counsel" type="xs:string" minOccurs="0"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Document History Section -->
+        <xs:element name="document-history">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="entry" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="date" type="dateType" minOccurs="0"/>
+                    <xs:element name="event" type="xs:string"/>
+                    <xs:element name="filer" type="xs:string" minOccurs="0"/>
+                    <xs:element name="document-url" type="xs:anyURI" minOccurs="0"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+      <xs:attribute name="pch-id" type="xs:positiveInteger" use="required"/>
+      <xs:attribute name="court-id" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Date type (MM/DD/YYYY format) -->
+  <xs:simpleType name="dateType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{1,2}/\d{1,2}/\d{4}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Scraper XPath Assertions -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. Case Number:
+         //*[contains(text(), 'Inter. Case No.')]/following-sibling::* | //span[contains(@id, 'CaseNumber')]
+         - Description: "case number"
+         - min_count: 1 (for valid case pages)
+         - Expected: Tennessee case number pattern
+
+      2. Style (Case Name):
+         //*[contains(text(), 'Style')]/following-sibling::* | //span[contains(@id, 'Style')]
+         - Description: "case style/name"
+         - min_count: 1
+         - Expected: Party names "v." party names
+
+      3. Milestone fields:
+         //*[contains(text(), '{Label}')]/following-sibling::*
+         - Labels: Application Filed, Disposition, Record Filed, Briefing, Oral Argument, Decision
+         - min_count: 0 (may be missing)
+         - Expected: MM/DD/YYYY date format
+
+      4. Parties table:
+         //table[.//th[contains(text(), 'Name') or contains(text(), 'Party')]]//tr
+         - Description: "party rows"
+         - min_count: 0
+         - Expected: Party name, role, counsel
+
+      5. Document history table:
+         //table[.//th[contains(text(), 'Date') or contains(text(), 'Event')]]//tr
+         - Description: "document history rows"
+         - min_count: 0
+         - Expected: Date, event, filer, PDF link
+
+      Error Detection:
+      - If page contains "No case found" or error indicators, ID doesn't exist
+      - If case number not found, treat as invalid page
+
+      Court ID Determination:
+      - Extract from case number pattern
+      - SC -> tenn
+      - COA, CA -> tennctapp
+      - CCA -> tenncrimapp
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

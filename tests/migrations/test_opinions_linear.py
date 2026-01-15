@@ -298,11 +298,267 @@ class ConnScraperConfig(ScraperPairConfig):
 
 
 # =============================================================================
+# Tennessee Supreme Court Configuration
+# =============================================================================
+
+
+@dataclass
+class TennScraperConfig(ScraperPairConfig):
+    """Configuration for Tennessee Supreme Court scraper pair."""
+
+    name: str = "tenn"
+    old_scraper_path: str = "juriscraper.opinions.united_states.state.tenn"
+    new_scraper_path: str = "juriscraper.sd.state.tennessee.tncourts_gov"
+
+    def get_params(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[dict[str, Any], Any]:
+        """Get params for Tennessee Supreme Court scrapers.
+
+        The old scraper uses date-range based backscraping with
+        field_opinions_date_filed query parameters.
+        """
+        from juriscraper.sd.state.tennessee.tncourts_gov import TennScraper
+
+        # Old scraper uses date-based iteration (7-day intervals)
+        # Expects string format YYYY/MM/DD
+        old_kwargs = {
+            "backscrape_start": start_date.strftime("%Y/%m/%d"),
+            "backscrape_end": end_date.strftime("%Y/%m/%d"),
+        }
+
+        # New scraper uses date range on TennOpinionCluster
+        new_params = TennScraper.params()
+        # Disable other data types - only test opinions
+        new_params.TennJudge = None
+        new_params.TennOralArgument = None
+        new_params.TennDocket = None
+        # Set date range filter
+        new_params.TennOpinionCluster.date_filed.gte = start_date
+        new_params.TennOpinionCluster.date_filed.lte = end_date
+        # Only test Supreme Court (tenn) to match old scraper
+        new_params.TennOpinionCluster.court_id.values = {"tenn"}
+
+        return old_kwargs, new_params
+
+    def transform_new_to_old(
+        self,
+        new_results: list[Any],
+    ) -> list[OldScraperResult]:
+        """Transform TennOpinionCluster results to old format.
+
+        The old scraper yields clustered opinions with sub_opinions for
+        cases that have multiple opinions (dissents, concurrences).
+        We need to flatten these to match.
+
+        Format differences handled:
+        - Old docket: Case number like "M2023-01234-SC-R11-CV"
+        - Old name: Case name without opinion type for majority, with type for others
+        - Old URL: PDF URL
+        """
+        from juriscraper.sd.state.tennessee.tncourts_gov import (
+            TennOpinionCluster,
+        )
+
+        old_results = []
+
+        for cluster in new_results:
+            if not isinstance(cluster, TennOpinionCluster):
+                continue
+
+            # Each opinion in the cluster becomes a separate old-style result
+            for opinion in cluster.opinions:
+                name = cluster.case_name
+
+                # Old format only adds type annotation for non-majority opinions
+                # and uses specific format like "- Concurrence" or "(Concurrence)"
+                if opinion.type and opinion.type.lower() not in (
+                    "majority",
+                    "lead",
+                ):
+                    # Capitalize first letter to match old format
+                    op_type = opinion.type.capitalize()
+                    name = f"{name} - {op_type}"
+
+                url = opinion.download_url or ""
+
+                old_results.append(
+                    OldScraperResult(
+                        name=name,
+                        url=url,
+                        date_filed=cluster.date_filed,
+                        docket=cluster.case_number,
+                        status="Unknown",  # TN uses "Unknown" status
+                        judge=opinion.authoring_judge,
+                    )
+                )
+
+        return old_results
+
+
+@dataclass
+class TennCtAppScraperConfig(ScraperPairConfig):
+    """Configuration for Tennessee Court of Appeals scraper pair."""
+
+    name: str = "tennctapp"
+    old_scraper_path: str = (
+        "juriscraper.opinions.united_states.state.tennctapp"
+    )
+    new_scraper_path: str = "juriscraper.sd.state.tennessee.tncourts_gov"
+
+    def get_params(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[dict[str, Any], Any]:
+        """Get params for Tennessee Court of Appeals scrapers."""
+        from juriscraper.sd.state.tennessee.tncourts_gov import TennScraper
+
+        # Old scraper expects string format YYYY/MM/DD
+        old_kwargs = {
+            "backscrape_start": start_date.strftime("%Y/%m/%d"),
+            "backscrape_end": end_date.strftime("%Y/%m/%d"),
+        }
+
+        new_params = TennScraper.params()
+        new_params.TennJudge = None
+        new_params.TennOralArgument = None
+        new_params.TennDocket = None
+        new_params.TennOpinionCluster.date_filed.gte = start_date
+        new_params.TennOpinionCluster.date_filed.lte = end_date
+        # Only test Court of Appeals (tennctapp)
+        new_params.TennOpinionCluster.court_id.values = {"tennctapp"}
+
+        return old_kwargs, new_params
+
+    def transform_new_to_old(
+        self,
+        new_results: list[Any],
+    ) -> list[OldScraperResult]:
+        """Transform TennOpinionCluster results to old format."""
+        from juriscraper.sd.state.tennessee.tncourts_gov import (
+            TennOpinionCluster,
+        )
+
+        old_results = []
+
+        for cluster in new_results:
+            if not isinstance(cluster, TennOpinionCluster):
+                continue
+
+            for opinion in cluster.opinions:
+                name = cluster.case_name
+
+                if opinion.type and opinion.type.lower() not in (
+                    "majority",
+                    "lead",
+                ):
+                    op_type = opinion.type.capitalize()
+                    name = f"{name} - {op_type}"
+
+                url = opinion.download_url or ""
+
+                old_results.append(
+                    OldScraperResult(
+                        name=name,
+                        url=url,
+                        date_filed=cluster.date_filed,
+                        docket=cluster.case_number,
+                        status="Unknown",
+                        judge=opinion.authoring_judge,
+                    )
+                )
+
+        return old_results
+
+
+@dataclass
+class TennCrimAppScraperConfig(ScraperPairConfig):
+    """Configuration for Tennessee Court of Criminal Appeals scraper pair."""
+
+    name: str = "tenncrimapp"
+    old_scraper_path: str = (
+        "juriscraper.opinions.united_states.state.tenncrimapp"
+    )
+    new_scraper_path: str = "juriscraper.sd.state.tennessee.tncourts_gov"
+
+    def get_params(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[dict[str, Any], Any]:
+        """Get params for Tennessee Court of Criminal Appeals scrapers."""
+        from juriscraper.sd.state.tennessee.tncourts_gov import TennScraper
+
+        # Old scraper expects string format YYYY/MM/DD
+        old_kwargs = {
+            "backscrape_start": start_date.strftime("%Y/%m/%d"),
+            "backscrape_end": end_date.strftime("%Y/%m/%d"),
+        }
+
+        new_params = TennScraper.params()
+        new_params.TennJudge = None
+        new_params.TennOralArgument = None
+        new_params.TennDocket = None
+        new_params.TennOpinionCluster.date_filed.gte = start_date
+        new_params.TennOpinionCluster.date_filed.lte = end_date
+        # Only test Court of Criminal Appeals (tenncrimapp)
+        new_params.TennOpinionCluster.court_id.values = {"tenncrimapp"}
+
+        return old_kwargs, new_params
+
+    def transform_new_to_old(
+        self,
+        new_results: list[Any],
+    ) -> list[OldScraperResult]:
+        """Transform TennOpinionCluster results to old format."""
+        from juriscraper.sd.state.tennessee.tncourts_gov import (
+            TennOpinionCluster,
+        )
+
+        old_results = []
+
+        for cluster in new_results:
+            if not isinstance(cluster, TennOpinionCluster):
+                continue
+
+            for opinion in cluster.opinions:
+                name = cluster.case_name
+
+                if opinion.type and opinion.type.lower() not in (
+                    "majority",
+                    "lead",
+                ):
+                    op_type = opinion.type.capitalize()
+                    name = f"{name} - {op_type}"
+
+                url = opinion.download_url or ""
+
+                old_results.append(
+                    OldScraperResult(
+                        name=name,
+                        url=url,
+                        date_filed=cluster.date_filed,
+                        docket=cluster.case_number,
+                        status="Unknown",
+                        judge=opinion.authoring_judge,
+                    )
+                )
+
+        return old_results
+
+
+# =============================================================================
 # Registry of Scraper Pairs
 # =============================================================================
 
 SCRAPER_PAIRS: list[ScraperPairConfig] = [
     ConnScraperConfig(),
+    TennScraperConfig(),
+    TennCtAppScraperConfig(),
+    TennCrimAppScraperConfig(),
 ]
 
 # Build pytest parametrize IDs
@@ -431,14 +687,15 @@ class TestOpinionsMigration:
     DEFAULT_END = date(2023, 12, 31)
 
     @pytest.mark.asyncio
-    async def test_results_match(self, config: ScraperPairConfig) -> None:
+    async def test_scraper_migration(self, config: ScraperPairConfig) -> None:
         """Verify that old and new scrapers produce equivalent results.
 
         This test:
         1. Gets appropriate params for both scrapers
         2. Runs both scrapers against the same date range
         3. Transforms new results to old format
-        4. Compares the results for equivalence
+        4. Verifies both return reasonable result counts
+        5. Compares the results for equivalence
         """
         # Get params for both scrapers
         old_kwargs, new_params = config.get_params(
@@ -455,6 +712,10 @@ class TestOpinionsMigration:
 
         # Transform new results to old format
         new_results = config.transform_new_to_old(new_raw_results)
+
+        # Sanity check: both scrapers should return results
+        assert len(old_results) > 0, "Old scraper returned no results"
+        assert len(new_results) > 0, "New scraper returned no results"
 
         # Compare results
         old_set = set(old_results)
@@ -479,44 +740,17 @@ class TestOpinionsMigration:
             ):
                 print(f"  - {r.docket}: {r.name[:50]}... ({r.date_filed})")
 
+        # Assert result counts match
+        ratio = len(new_results) / len(old_results) if old_results else 0
+        assert len(new_results) == len(old_results), (
+            f"Result counts differ: "
+            f"old={len(old_results)}, new={len(new_results)} (ratio={ratio:.2f})"
+        )
+
         # Assert equivalence
         assert len(only_in_old) == 0, (
             f"Old scraper has {len(only_in_old)} extra results"
         )
         assert len(only_in_new) == 0, (
             f"New scraper has {len(only_in_new)} extra results"
-        )
-
-    @pytest.mark.asyncio
-    async def test_result_counts_reasonable(
-        self, config: ScraperPairConfig
-    ) -> None:
-        """Verify that both scrapers return a reasonable number of results.
-
-        This is a sanity check to ensure the scrapers are actually working
-        and not just returning empty results.
-        """
-        # Get params for both scrapers
-        old_kwargs, new_params = config.get_params(
-            self.DEFAULT_START, self.DEFAULT_END
-        )
-
-        # Load and run old scraper
-        old_scraper = load_old_scraper(config, old_kwargs)
-        old_results = run_old_scraper(old_scraper)
-
-        # Load and run new scraper
-        new_scraper = load_new_scraper(config, new_params)
-        new_raw_results = await run_new_scraper(new_scraper)
-        new_results = config.transform_new_to_old(new_raw_results)
-
-        # Both should return at least some results
-        assert len(old_results) > 0, "Old scraper returned no results"
-        assert len(new_results) > 0, "New scraper returned no results"
-
-        # Results should be within 20% of each other
-        ratio = len(new_results) / len(old_results) if old_results else 0
-        assert len(new_results) == len(old_results), (
-            f"Result counts differ significantly: "
-            f"old={len(old_results)}, new={len(new_results)} (ratio={ratio:.2f})"
         )

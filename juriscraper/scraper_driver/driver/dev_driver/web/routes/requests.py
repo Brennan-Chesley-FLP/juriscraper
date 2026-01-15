@@ -59,6 +59,14 @@ class CancelResponse(BaseModel):
     message: str
 
 
+class RequeueResponse(BaseModel):
+    """Response model for requeue operations."""
+
+    requeued_count: int
+    new_request_id: int
+    message: str
+
+
 class CancelByContinuationRequest(BaseModel):
     """Request model for batch cancellation."""
 
@@ -261,6 +269,80 @@ async def cancel_request(
     return CancelResponse(
         cancelled_count=1,
         message=f"Request {request_id} cancelled",
+    )
+
+
+@router.post("/{request_id}/requeue", response_model=RequeueResponse)
+async def requeue_request(
+    run_id: str,
+    request_id: int,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> RequeueResponse:
+    """Requeue a failed or completed request.
+
+    Creates a new pending request with the same parameters as the
+    original request.
+
+    Args:
+        run_id: The run identifier.
+        request_id: The request ID to requeue.
+
+    Returns:
+        Requeue result with new request ID.
+
+    Raises:
+        HTTPException: 404 if request not found.
+    """
+    from juriscraper.scraper_driver.driver.dev_driver.schema import (
+        get_next_queue_counter,
+    )
+
+    db = await _get_db_for_run(run_id, manager)
+
+    # Get request data
+    cursor = await db.execute(
+        SQL.SELECT_REQUEST_FOR_WEB_REQUEUE, (request_id,)
+    )
+    row = await cursor.fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Request {request_id} not found",
+        )
+
+    # Create new request
+    queue_counter = await get_next_queue_counter(db)
+
+    await db.execute(
+        SQL.INSERT_REQUEUE_REQUEST,
+        (
+            row[4],  # priority
+            queue_counter,
+            row[1],  # method
+            row[2],  # url
+            row[5],  # headers_json
+            row[6],  # cookies_json
+            row[7],  # body
+            row[3],  # continuation
+            row[8],  # current_location
+            row[9],  # accumulated_data_json
+            row[10],  # aux_data_json
+            row[11],  # permanent_json
+            row[0],  # parent_request_id (original request)
+        ),
+    )
+
+    cursor = await db.execute(SQL.SELECT_LAST_INSERT_ROWID)
+    new_id_row = await cursor.fetchone()
+    new_request_id = new_id_row[0]
+
+    await db.commit()
+
+    return RequeueResponse(
+        requeued_count=1,
+        new_request_id=new_request_id,
+        message=f"Requeued request {request_id} as request {new_request_id}",
     )
 
 

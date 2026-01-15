@@ -174,6 +174,47 @@ def _row_to_error(row) -> ErrorResponse:
     )
 
 
+@router.get("/summary")
+async def get_error_summary(
+    run_id: str,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> dict[str, Any]:
+    """Get a summary of error counts by type and resolution status.
+
+    Args:
+        run_id: The run identifier.
+
+    Returns:
+        Summary with counts by type and resolution status.
+    """
+    db = await _get_db_for_run(run_id, manager)
+
+    # Get counts by type
+    cursor = await db.execute(SQL.SELECT_ERROR_SUMMARY_FOR_WEB)
+    rows = await cursor.fetchall()
+
+    by_type: dict[str, dict[str, int]] = {}
+    total_resolved = 0
+    total_unresolved = 0
+
+    for error_type, is_resolved, count in rows:
+        if error_type not in by_type:
+            by_type[error_type] = {"resolved": 0, "unresolved": 0}
+        key = "resolved" if is_resolved else "unresolved"
+        by_type[error_type][key] = count
+        if is_resolved:
+            total_resolved += count
+        else:
+            total_unresolved += count
+
+    return {
+        "total": total_resolved + total_unresolved,
+        "resolved": total_resolved,
+        "unresolved": total_unresolved,
+        "by_type": by_type,
+    }
+
+
 @router.get("", response_model=ErrorListResponse)
 async def list_errors(
     run_id: str,
@@ -505,44 +546,3 @@ async def batch_requeue(
         new_request_ids=new_request_ids,
         message=f"Batch requeued {len(new_request_ids)} errors",
     )
-
-
-@router.get("/summary")
-async def get_error_summary(
-    run_id: str,
-    manager: Annotated[RunManager, Depends(get_run_manager)],
-) -> dict[str, Any]:
-    """Get a summary of error counts by type and resolution status.
-
-    Args:
-        run_id: The run identifier.
-
-    Returns:
-        Summary with counts by type and resolution status.
-    """
-    db = await _get_db_for_run(run_id, manager)
-
-    # Get counts by type
-    cursor = await db.execute(SQL.SELECT_ERROR_SUMMARY_FOR_WEB)
-    rows = await cursor.fetchall()
-
-    by_type: dict[str, dict[str, int]] = {}
-    total_resolved = 0
-    total_unresolved = 0
-
-    for error_type, is_resolved, count in rows:
-        if error_type not in by_type:
-            by_type[error_type] = {"resolved": 0, "unresolved": 0}
-        key = "resolved" if is_resolved else "unresolved"
-        by_type[error_type][key] = count
-        if is_resolved:
-            total_resolved += count
-        else:
-            total_unresolved += count
-
-    return {
-        "total": total_resolved + total_unresolved,
-        "resolved": total_resolved,
-        "unresolved": total_unresolved,
-        "by_type": by_type,
-    }

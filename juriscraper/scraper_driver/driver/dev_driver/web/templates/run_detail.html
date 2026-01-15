@@ -135,12 +135,16 @@ async function loadRequests() {
         }
 
         const html = data.items.map(req => `
-            <div class="request-item">
-                <span class="status status-${req.status}">${req.status}</span>
-                <span class="method">${req.method}</span>
-                <span class="url" title="${req.url}">${truncate(req.url, 60)}</span>
-                <span class="continuation">${req.continuation}</span>
-                ${req.retry_count > 0 ? `<span class="retries">Retries: ${req.retry_count}</span>` : ''}
+            <div class="request-item-expanded">
+                <div class="request-header">
+                    <span class="status status-${req.status}">${req.status}</span>
+                    <span class="method">${req.method}</span>
+                    <span class="continuation">${req.continuation}</span>
+                    ${req.retry_count > 0 ? `<span class="retries">Retries: ${req.retry_count}</span>` : ''}
+                    <button class="btn-requeue" onclick="requeueRequest(${req.id}, event)" title="Requeue this request">ReQ</button>
+                </div>
+                <div class="request-url-full">${escapeHtml(req.url)}</div>
+                ${req.last_error ? `<div class="request-error">${escapeHtml(req.last_error)}</div>` : ''}
             </div>
         `).join('');
 
@@ -153,7 +157,7 @@ async function loadRequests() {
 // Load errors
 async function loadErrors() {
     try {
-        const response = await fetch(`/api/runs/${runId}/errors?limit=10&unresolved_only=false`);
+        const response = await fetch(`/api/runs/${runId}/errors?limit=10&unresolved_only=true`);
         if (!response.ok) {
             document.getElementById('errors-list').innerHTML = '<p class="error">Failed to load (run may not be loaded)</p>';
             return;
@@ -165,14 +169,28 @@ async function loadErrors() {
             return;
         }
 
-        const html = data.items.map(err => `
-            <div class="error-item ${err.is_resolved ? 'resolved' : ''}" onclick="showErrorDetail(${err.id})" style="cursor: pointer;">
-                <span class="error-type">${err.error_type}</span>
-                <span class="error-message">${truncate(err.message, 80)}</span>
-                <span class="error-url" title="${err.request_url}">${truncate(err.request_url, 40)}</span>
-                ${err.is_resolved ? '<span class="badge resolved">Resolved</span>' : ''}
-            </div>
-        `).join('');
+        const html = data.items.map(err => {
+            // Build error badge based on type
+            let typeBadge = err.error_type;
+            if (err.status_code) {
+                typeBadge = `HTTP ${err.status_code}`;
+            } else if (err.timeout_seconds) {
+                typeBadge = `timeout (${err.timeout_seconds}s)`;
+            }
+
+            return `
+                <div class="error-item-expanded ${err.is_resolved ? 'resolved' : ''}" onclick="showErrorDetail(${err.id})" style="cursor: pointer;">
+                    <div class="error-header">
+                        <span class="error-type">${typeBadge}</span>
+                        <span class="error-class">${err.error_class}</span>
+                        ${err.is_resolved ? '<span class="badge resolved">Resolved</span>' : ''}
+                        ${err.request_id && !err.is_resolved ? `<button class="btn-requeue" onclick="requeueError(${err.id}, event)" title="Requeue this error's request">ReQ</button>` : ''}
+                    </div>
+                    <div class="error-message-full">${escapeHtml(err.message)}</div>
+                    <div class="error-url-full">${escapeHtml(err.request_url)}</div>
+                </div>
+            `;
+        }).join('');
 
         document.getElementById('errors-list').innerHTML = html;
 
@@ -384,6 +402,43 @@ async function resolveCurrentError() {
         }
     } catch (error) {
         alert('Failed to resolve: ' + error.message);
+    }
+}
+
+// Requeue a request from the list
+async function requeueRequest(requestId, event) {
+    event.stopPropagation(); // Don't trigger parent click handlers
+    try {
+        const response = await fetch(`/api/runs/${runId}/requests/${requestId}/requeue`, { method: 'POST' });
+        if (response.ok) {
+            const data = await response.json();
+            addEvent('requeue', `Request ${requestId} requeued as ${data.new_request_id}`);
+            loadRequests();
+        } else {
+            const data = await response.json();
+            alert('Failed to requeue: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to requeue: ' + error.message);
+    }
+}
+
+// Requeue an error's request from the list
+async function requeueError(errorId, event) {
+    event.stopPropagation(); // Don't trigger parent click handlers (showErrorDetail)
+    try {
+        const response = await fetch(`/api/runs/${runId}/errors/${errorId}/requeue`, { method: 'POST' });
+        if (response.ok) {
+            const data = await response.json();
+            addEvent('requeue', `Error ${errorId} requeued as request ${data.new_request_ids[0]}`);
+            loadErrors();
+            loadRequests();
+        } else {
+            const data = await response.json();
+            alert('Failed to requeue: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to requeue: ' + error.message);
     }
 }
 

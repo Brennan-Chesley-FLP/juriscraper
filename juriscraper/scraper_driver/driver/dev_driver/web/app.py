@@ -154,6 +154,10 @@ class RunManager:
         from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
             LocalDevDriver,
         )
+        from juriscraper.scraper_driver.driver.dev_driver.web.archive import (
+            get_storage_dir_for_run,
+            uuid_archive_callback,
+        )
 
         async with self._lock:
             if run_id in self.runs:
@@ -161,12 +165,18 @@ class RunManager:
 
             db_path = self.runs_dir / f"{run_id}.db"
 
-            # Create driver (this initializes the database)
+            # Set up storage directory for archived files
+            storage_dir = get_storage_dir_for_run(self.runs_dir, run_id)
+
+            # Create driver with custom archive handler
             driver = LocalDevDriver(
                 scraper=scraper,
                 db_path=db_path,
+                storage_dir=storage_dir,
                 **driver_kwargs,
             )
+            # Set the custom archive callback
+            driver.on_archive = uuid_archive_callback
             await driver._init_db()
 
             run_info = RunInfo(
@@ -199,6 +209,10 @@ class RunManager:
         from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
             LocalDevDriver,
         )
+        from juriscraper.scraper_driver.driver.dev_driver.web.archive import (
+            get_storage_dir_for_run,
+            uuid_archive_callback,
+        )
 
         async with self._lock:
             if run_id not in self.runs:
@@ -208,13 +222,19 @@ class RunManager:
             if run_info.driver is not None:
                 raise ValueError(f"Run '{run_id}' is already loaded")
 
-            # Load driver with resume=True
+            # Set up storage directory for archived files
+            storage_dir = get_storage_dir_for_run(self.runs_dir, run_id)
+
+            # Load driver with resume=True and custom archive handler
             driver = LocalDevDriver(
                 scraper=scraper,
                 db_path=run_info.db_path,
+                storage_dir=storage_dir,
                 resume=True,
                 **driver_kwargs,
             )
+            # Set the custom archive callback
+            driver.on_archive = uuid_archive_callback
             await driver._init_db()
 
             run_info.driver = driver

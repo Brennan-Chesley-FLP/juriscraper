@@ -764,6 +764,15 @@ class SQL:
 
     SELECT_REQUEST_STATUS = "SELECT status FROM requests WHERE id = ?"
 
+    SELECT_REQUEST_FOR_WEB_REQUEUE = """
+        SELECT id, method, url, continuation, priority,
+               headers_json, cookies_json, body,
+               current_location, accumulated_data_json, aux_data_json,
+               permanent_json
+        FROM requests
+        WHERE id = ?
+    """
+
     UPDATE_CANCEL_BY_CONTINUATION_FOR_WEB = """
         UPDATE requests
         SET status = 'failed', completed_at = CURRENT_TIMESTAMP,

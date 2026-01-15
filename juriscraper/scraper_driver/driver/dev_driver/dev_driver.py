@@ -575,13 +575,27 @@ class LocalDevDriver(
         aux_data = json.loads(aux_data_json) if aux_data_json else {}
         permanent = json.loads(permanent_json) if permanent_json else {}
 
+        # Decode body - if it's bytes that look like JSON, decode to dict
+        # This handles form data that was serialized as JSON
+        decoded_body: dict[str, Any] | bytes | None = None
+        if body:
+            if isinstance(body, bytes):
+                try:
+                    # Try to decode as JSON (form data case)
+                    decoded_body = json.loads(body.decode("utf-8"))
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    # Keep as bytes (raw body case)
+                    decoded_body = body
+            else:
+                decoded_body = body
+
         # Create HTTP request params
         http_params = HTTPRequestParams(
             method=HttpMethod(method),
             url=url,
             headers=headers,
             cookies=cookies,
-            data=body,
+            data=decoded_body,
         )
 
         # Create the appropriate request type
@@ -827,8 +841,8 @@ class LocalDevDriver(
 
         # Serialize the data
         if hasattr(data, "model_dump"):
-            # Pydantic model
-            data_json = json.dumps(data.model_dump())
+            # Pydantic model - use mode='json' to serialize dates to ISO8601
+            data_json = json.dumps(data.model_dump(mode="json"))
         elif hasattr(data, "dict"):
             # Older Pydantic
             data_json = json.dumps(data.dict())
@@ -1177,11 +1191,23 @@ class LocalDevDriver(
             continuation_name: Name of the continuation method.
         """
         # Process the request using parent class methods
+        # For ArchiveRequest, resolve_archive_request returns ArchiveResponse
+        # which is a subclass of Response with a file_url field
+        from juriscraper.scraper_driver.data_types import ArchiveResponse
+
         response: Response = (
             await self.resolve_archive_request(request)
             if isinstance(request, ArchiveRequest)
             else await self.resolve_request(request)
         )
+
+        # Verify ArchiveResponse for ArchiveRequest
+        if isinstance(request, ArchiveRequest) and not isinstance(
+            response, ArchiveResponse
+        ):
+            logger.error(
+                f"Expected ArchiveResponse for ArchiveRequest, got {type(response)}"
+            )
 
         # Store the response in the database
         await self._store_response(request_id, response, continuation_name)

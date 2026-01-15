@@ -135,10 +135,12 @@ function createRunCard(run) {
                 ${run.started_at ? `<p>Started: ${new Date(run.started_at).toLocaleString()}</p>` : ''}
             </div>
             <div class="run-actions">
-                ${run.status === 'unloaded' || run.status === 'stopped' ? `<button onclick="loadRun('${run.run_id}')" class="btn btn-sm btn-primary">Load</button>` : ''}
+                ${run.status === 'unloaded' ? `<button onclick="loadRun('${run.run_id}')" class="btn btn-sm btn-primary">Load</button>` : ''}
                 ${run.status === 'loaded' ? `<button onclick="startRun('${run.run_id}')" class="btn btn-sm btn-primary">Start</button>` : ''}
+                ${run.status === 'loaded' ? `<button onclick="unloadRun('${run.run_id}')" class="btn btn-sm btn-secondary">Unload</button>` : ''}
                 ${run.status === 'running' ? `<button onclick="stopRun('${run.run_id}')" class="btn btn-sm btn-danger">Stop</button>` : ''}
-                ${run.status === 'unloaded' || run.status === 'stopped' ? `<button onclick="deleteRun('${run.run_id}')" class="btn btn-sm btn-danger">Delete</button>` : ''}
+                ${run.status === 'stopped' ? `<button onclick="unloadRun('${run.run_id}')" class="btn btn-sm btn-secondary">Unload</button>` : ''}
+                ${run.status === 'unloaded' ? `<button onclick="deleteRun('${run.run_id}')" class="btn btn-sm btn-danger">Delete</button>` : ''}
             </div>
         </div>
     `;
@@ -433,6 +435,20 @@ async function stopRun(runId) {
         loadRuns();
     } catch (error) {
         alert('Failed to stop: ' + error.message);
+    }
+}
+
+async function unloadRun(runId) {
+    try {
+        const response = await fetch(`/api/runs/${runId}/unload`, { method: 'POST' });
+        if (response.ok) {
+            loadRuns();
+        } else {
+            const data = await response.json();
+            alert('Failed to unload run: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to unload: ' + error.message);
     }
 }
 

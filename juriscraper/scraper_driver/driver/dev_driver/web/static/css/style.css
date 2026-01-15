@@ -340,6 +340,51 @@ main {
     font-size: 0.75rem;
 }
 
+/* Expanded request list */
+.request-item-expanded {
+    padding: 0.75rem;
+    border-bottom: 1px solid #eee;
+    font-size: 0.875rem;
+}
+
+.request-item-expanded .request-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.request-item-expanded .method {
+    font-weight: bold;
+    color: #3498db;
+}
+
+.request-item-expanded .continuation {
+    color: #9b59b6;
+}
+
+.request-item-expanded .retries {
+    color: #e74c3c;
+    font-size: 0.75rem;
+}
+
+.request-item-expanded .request-url-full {
+    color: #666;
+    word-break: break-all;
+    font-family: monospace;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.request-item-expanded .request-error {
+    color: #e74c3c;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: #fdf2f2;
+    border-radius: 4px;
+}
+
 /* Error list */
 .error-item {
     display: flex;
@@ -367,6 +412,68 @@ main {
 .error-item .error-url {
     color: #999;
     font-size: 0.75rem;
+}
+
+/* Expanded error list */
+.error-item-expanded {
+    padding: 0.75rem;
+    border-bottom: 1px solid #eee;
+    font-size: 0.875rem;
+}
+
+.error-item-expanded.resolved {
+    opacity: 0.6;
+}
+
+.error-item-expanded .error-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.error-item-expanded .error-type {
+    font-weight: bold;
+    color: #e74c3c;
+    background: #fdf2f2;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+}
+
+.error-item-expanded .error-class {
+    color: #666;
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+
+.error-item-expanded .error-message-full {
+    color: #333;
+    margin-top: 0.25rem;
+}
+
+.error-item-expanded .error-url-full {
+    color: #999;
+    word-break: break-all;
+    font-family: monospace;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+/* ReQ button */
+.btn-requeue {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: bold;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-left: auto;
+}
+
+.btn-requeue:hover {
+    background: #2980b9;
 }
 
 /* Filters */

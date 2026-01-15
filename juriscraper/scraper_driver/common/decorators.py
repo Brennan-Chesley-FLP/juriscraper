@@ -97,9 +97,13 @@ def _parse_html(
 ) -> CheckedHtmlElement:
     """Parse HTML from response content.
 
+    Passes raw bytes to lxml so it can auto-detect encoding from the HTML
+    meta charset tag (e.g., <meta charset="windows-1252">). This handles
+    pages that declare non-UTF-8 encodings correctly.
+
     Args:
         response: The HTTP response.
-        encoding: Character encoding for decoding.
+        encoding: Fallback encoding if lxml can't detect one (default utf-8).
 
     Returns:
         CheckedHtmlElement parsed from response content.
@@ -108,28 +112,14 @@ def _parse_html(
         ScraperAssumptionException: If HTML parsing fails.
     """
     try:
-        content = response.content.decode(encoding)
-        return CheckedHtmlElement(lxml_html.fromstring(content), response.url)
-    except ValueError as e:
-        # If decoding fails (e.g., XML with encoding declaration),
-        # try passing bytes directly to lxml
-        if "encoding declaration" in str(e):
-            try:
-                return CheckedHtmlElement(
-                    lxml_html.fromstring(response.content), response.url
-                )
-            except Exception as e2:
-                raise ScraperAssumptionException(
-                    f"Failed to parse HTML/XML: {e2}",
-                    request_url=response.url,
-                    context={"encoding": encoding, "error": str(e2)},
-                ) from e2
-        else:
-            raise ScraperAssumptionException(
-                f"Failed to parse HTML: {e}",
-                request_url=response.url,
-                context={"encoding": encoding, "error": str(e)},
-            ) from e
+        # Pass raw bytes to lxml - it will detect encoding from:
+        # 1. BOM
+        # 2. XML declaration
+        # 3. <meta charset="..."> or <meta http-equiv="Content-Type" content="...">
+        # 4. Falls back to default if nothing found
+        return CheckedHtmlElement(
+            lxml_html.fromstring(response.content), response.url
+        )
     except Exception as e:
         raise ScraperAssumptionException(
             f"Failed to parse HTML: {e}",

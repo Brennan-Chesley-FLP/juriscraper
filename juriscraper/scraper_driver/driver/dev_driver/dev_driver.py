@@ -79,6 +79,45 @@ class ProgressEvent:
         )
 
 
+@dataclass
+class DiagnoseResult:
+    """Result of running diagnose() on a response.
+
+    Contains the yields produced by re-running a continuation,
+    XPath observation data, and any errors that occurred.
+
+    Attributes:
+        response_id: The database ID of the response that was diagnosed.
+        continuation: The continuation method name that was run.
+        yields: List of yielded items with type and key attributes.
+        simple_tree: Human-readable XPath observation tree.
+        observer_json: JSON for UI highlighting.
+        error: Error message if continuation raised an exception.
+    """
+
+    response_id: int
+    continuation: str
+    yields: list[dict[str, Any]]
+    simple_tree: str
+    observer_json: list[dict[str, Any]]
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "response_id": self.response_id,
+            "continuation": self.continuation,
+            "yields": self.yields,
+            "simple_tree": self.simple_tree,
+            "observer_json": self.observer_json,
+            "error": self.error,
+        }
+
+    def to_json(self) -> str:
+        """Serialize to JSON for API transport."""
+        return json.dumps(self.to_dict())
+
+
 class LocalDevDriver(
     AsyncDriver[ScraperReturnDatatype], Generic[ScraperReturnDatatype]
 ):
@@ -1969,6 +2008,214 @@ class LocalDevDriver(
             )
         else:
             return await export_warc(self._db, output_path, compress)
+
+    # --- Debugging / Diagnosis ---
+
+    async def diagnose(
+        self,
+        response_id: int,
+        speculation_cap: int = 3,
+    ) -> DiagnoseResult:
+        """Re-run a continuation against a stored response with XPath observation.
+
+        This method retrieves a stored response, decompresses it, reconstructs
+        the Response object, and re-runs the continuation method with an
+        XPathObserver active to capture all XPath/CSS queries.
+
+        Useful for debugging "zero results" issues where the HTML structure
+        may have changed or XPath queries are incorrect.
+
+        Args:
+            response_id: The database ID of the response to diagnose.
+            speculation_cap: Maximum number of SpeculativeRequests to follow
+                (prevents infinite loops). Default 3.
+
+        Returns:
+            DiagnoseResult with yields, observation tree, and any errors.
+
+        Raises:
+            ValueError: If response_id not found.
+        """
+        assert self._db is not None
+
+        from juriscraper.scraper_driver.common.xpath_observer import (
+            XPathObserver,
+        )
+
+        # Get response and request data
+        cursor = await self._db.execute(
+            """
+            SELECT
+                r.status_code,
+                r.url,
+                r.headers_json,
+                r.continuation,
+                req.method,
+                req.url as request_url,
+                req.accumulated_data_json,
+                req.aux_data_json,
+                req.permanent_json
+            FROM responses r
+            JOIN requests req ON r.request_id = req.id
+            WHERE r.id = ?
+            """,
+            (response_id,),
+        )
+        row = await cursor.fetchone()
+
+        if row is None:
+            raise ValueError(f"Response {response_id} not found")
+
+        (
+            status_code,
+            url,
+            headers_json,
+            continuation_name,
+            method,
+            request_url,
+            accumulated_data_json,
+            aux_data_json,
+            permanent_json,
+        ) = row
+
+        # Decompress content
+        content = await self.get_response_content(response_id)
+        if content is None:
+            content = b""
+
+        # Reconstruct Response object
+        headers = json.loads(headers_json) if headers_json else {}
+        accumulated_data = (
+            json.loads(accumulated_data_json) if accumulated_data_json else {}
+        )
+        aux_data = json.loads(aux_data_json) if aux_data_json else {}
+        permanent = json.loads(permanent_json) if permanent_json else {}
+
+        http_params = HTTPRequestParams(
+            method=HttpMethod(method),
+            url=request_url,
+        )
+        # Create a NavigatingRequest to serve as the request context
+        reconstructed_request = NavigatingRequest(
+            request=http_params,
+            continuation=continuation_name,
+            current_location=request_url,
+            accumulated_data=accumulated_data,
+            aux_data=aux_data,
+            permanent=permanent,
+        )
+
+        # Decode content to text for the Response
+        try:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError:
+            text = content.decode("utf-8", errors="replace")
+
+        response = Response(
+            status_code=status_code,
+            url=url,
+            content=content,
+            text=text,
+            headers=headers,
+            request=reconstructed_request,
+        )
+
+        # Run continuation with observer
+        yields: list[dict[str, Any]] = []
+        error: str | None = None
+
+        with XPathObserver() as observer:
+            try:
+                continuation_method = self.scraper.get_continuation(
+                    continuation_name
+                )
+                gen = continuation_method(response)
+
+                speculation_count = 0
+                for item in gen:
+                    yield_info = self._describe_yield(item)
+                    yields.append(yield_info)
+
+                    # Track speculation count
+                    if isinstance(item, SpeculativeRequest):
+                        speculation_count += 1
+                        if speculation_count >= speculation_cap:
+                            yields.append(
+                                {
+                                    "type": "_speculation_cap_reached",
+                                    "message": f"Stopped after {speculation_cap} SpeculativeRequests",
+                                }
+                            )
+                            break
+
+            except Exception as e:
+                import traceback
+
+                error = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+
+        return DiagnoseResult(
+            response_id=response_id,
+            continuation=continuation_name,
+            yields=yields,
+            simple_tree=observer.simple_tree(),
+            observer_json=observer.json(),
+            error=error,
+        )
+
+    def _describe_yield(self, item: Any) -> dict[str, Any]:
+        """Create a description of a yielded item for diagnose results."""
+        from juriscraper.scraper_driver.data_types import ParsedData
+
+        if isinstance(item, ParsedData):
+            data = item.unwrap()
+            data_str = str(data)
+            return {
+                "type": "ParsedData",
+                "data_type": type(data).__name__,
+                "preview": (
+                    data_str[:200] + "..." if len(data_str) > 200 else data_str
+                ),
+            }
+        elif isinstance(item, NavigatingRequest):
+            return {
+                "type": "NavigatingRequest",
+                "url": item.request.url,
+                "method": item.request.method.value,
+                "continuation": (
+                    item.continuation
+                    if isinstance(item.continuation, str)
+                    else item.continuation.__name__
+                ),
+            }
+        elif isinstance(item, SpeculativeRequest):
+            return {
+                "type": "SpeculativeRequest",
+                "url": item.request.url,
+                "method": item.request.method.value,
+                "continuation": (
+                    item.continuation
+                    if isinstance(item.continuation, str)
+                    else item.continuation.__name__
+                ),
+            }
+        elif isinstance(item, NonNavigatingRequest):
+            return {
+                "type": "NonNavigatingRequest",
+                "url": item.request.url,
+            }
+        elif isinstance(item, ArchiveRequest):
+            return {
+                "type": "ArchiveRequest",
+                "url": item.request.url,
+                "expected_type": item.expected_type,
+            }
+        elif item is None:
+            return {"type": "None"}
+        else:
+            return {
+                "type": type(item).__name__,
+                "repr": repr(item)[:200],
+            }
 
     # --- Web Interface Listing Methods ---
 

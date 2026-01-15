@@ -16,6 +16,9 @@ from lxml.html import HtmlElement
 from juriscraper.scraper_driver.common.exceptions import (
     HTMLStructuralAssumptionException,
 )
+from juriscraper.scraper_driver.common.xpath_observer import (
+    get_active_observer,
+)
 
 
 class CheckedHtmlElement:
@@ -95,6 +98,19 @@ class CheckedHtmlElement:
             hrefs = tree.checked_xpath("//a/@href", "links", type=str)
         """
         results = self._element.xpath(xpath)
+
+        # Report to active observer if present
+        observer = get_active_observer()
+        if observer is not None:
+            observer.record_query(
+                selector=xpath,
+                selector_type="xpath",
+                description=description,
+                results=results,
+                expected_min=min_count,
+                expected_max=max_count,
+                parent_element=self._element,
+            )
 
         if type is str:
             # Return only string results
@@ -181,6 +197,19 @@ class CheckedHtmlElement:
                 actual_count=0,
                 request_url=self._request_url,
             ) from e
+
+        # Report to active observer if present
+        observer = get_active_observer()
+        if observer is not None:
+            observer.record_query(
+                selector=selector,
+                selector_type="css",
+                description=description,
+                results=list(results),  # Convert to list for consistency
+                expected_min=min_count,
+                expected_max=max_count,
+                parent_element=self._element,
+            )
 
         # Validate count
         actual_count = len(results)

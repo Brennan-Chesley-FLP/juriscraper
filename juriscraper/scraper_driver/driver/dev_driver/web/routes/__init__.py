@@ -9,11 +9,15 @@ This package contains all API route modules:
 - errors: Error tracking and requeue endpoints
 - compression: Dictionary training and recompression
 - export: WARC export endpoints
+- debug: Response diagnosis with XPath observation
 - websocket: Real-time progress events via WebSocket
 """
 
 from juriscraper.scraper_driver.driver.dev_driver.web.routes.compression import (
     router as compression_router,
+)
+from juriscraper.scraper_driver.driver.dev_driver.web.routes.debug import (
+    router as debug_router,
 )
 from juriscraper.scraper_driver.driver.dev_driver.web.routes.errors import (
     router as errors_router,
@@ -45,6 +49,7 @@ from juriscraper.scraper_driver.driver.dev_driver.web.websocket import (
 
 __all__ = [
     "compression_router",
+    "debug_router",
     "errors_router",
     "export_router",
     "requests_router",

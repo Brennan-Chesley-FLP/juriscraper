@@ -9,15 +9,16 @@ The AsyncDriver closely mirrors SyncDriver with three key differences:
 3. Takes num_workers argument to control concurrency
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Generator
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Any, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, TypeVar
 from urllib.parse import urlparse
 
-import httpx
 from typing_extensions import assert_never
 
 from juriscraper.scraper_driver.common.deferred_validation import (
@@ -25,12 +26,14 @@ from juriscraper.scraper_driver.common.deferred_validation import (
 )
 from juriscraper.scraper_driver.common.exceptions import (
     DataFormatAssumptionException,
-    HTMLResponseAssumptionException,
     HTMLStructuralAssumptionException,
-    RequestTimeoutException,
+    RequestFailedHalt,
+    RequestFailedSkip,
     TransientException,
 )
-from juriscraper.scraper_driver.common.interceptors import AsyncInterceptor
+from juriscraper.scraper_driver.common.request_manager import (
+    AsyncRequestManager,
+)
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -47,6 +50,9 @@ from juriscraper.scraper_driver.data_types import (
     SpeculationContext,
     SpeculativeRequest,
 )
+
+if TYPE_CHECKING:
+    from juriscraper.scraper_driver.common.interceptors import AsyncInterceptor
 
 logger = logging.getLogger(__name__)
 
@@ -143,21 +149,20 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
         self,
         scraper: BaseScraper[ScraperReturnDatatype],
         storage_dir: Path | None = None,
-        interceptors: list["AsyncInterceptor"] | None = None,
+        request_manager: AsyncRequestManager | None = None,
+        interceptors: list[AsyncInterceptor] | None = None,
         on_data: Callable[
             [ScraperReturnDatatype],
             Awaitable[None],
         ]
         | None = None,
         on_structural_error: Callable[
-            ["HTMLStructuralAssumptionException"], Awaitable[bool]
+            [HTMLStructuralAssumptionException], Awaitable[bool]
         ]
         | None = None,
         on_invalid_data: Callable[[DeferredValidation], Awaitable[None]]
         | None = None,
-        on_transient_exception: Callable[
-            ["TransientException"], Awaitable[bool]
-        ]
+        on_transient_exception: Callable[[TransientException], Awaitable[bool]]
         | None = None,
         on_archive: Callable[[bytes, str, str | None, Path], Awaitable[str]]
         | None = None,
@@ -176,9 +181,12 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
         Args:
             scraper: Scraper instance with continuation methods.
             storage_dir: Directory for storing downloaded files. If None, uses system temp directory.
-            interceptors: List of async interceptors to apply to requests and responses. Interceptors
-                are applied in order for requests, and in reverse order for responses.
-                Order matters - for example, cache should come before rate limiter.
+            request_manager: AsyncRequestManager for handling HTTP requests. If provided,
+                interceptors parameter is ignored. If None, a default manager is created
+                using the interceptors parameter.
+            interceptors: List of async interceptors to apply to requests and responses.
+                Only used if request_manager is None. Interceptors are applied in order
+                for requests, and in reverse order for responses.
             on_data: Optional async callback invoked when ParsedData is yielded and validated. Useful
                 for persistence, logging, or other side effects. The callback receives the
                 unwrapped data from ParsedData.
@@ -224,7 +232,19 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
             storage_dir or Path(gettempdir()) / "juriscraper_files"
         )
         self.storage_dir.mkdir(parents=True, exist_ok=True)
-        self.interceptors = interceptors or []
+
+        # Set up request manager - either use provided one or create default
+        if request_manager is not None:
+            self.request_manager = request_manager
+            self._owns_request_manager = False
+        else:
+            # Create default request manager with interceptors
+            self.request_manager = AsyncRequestManager(
+                interceptors=interceptors,
+                ssl_context=scraper.get_ssl_context(),
+            )
+            self._owns_request_manager = True
+
         self.on_data = on_data
         self.on_structural_error = on_structural_error
         self.on_invalid_data = on_invalid_data
@@ -236,14 +256,6 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
         self.stop_event = stop_event
         self.num_workers = num_workers
         self.on_speculation_response = on_speculation_response
-
-        # Initialize httpx async client for reuse across requests
-        # Use scraper's SSL context if provided (for servers requiring specific ciphers)
-        ssl_context = scraper.get_ssl_context()
-        if ssl_context:
-            self._client = httpx.AsyncClient(verify=ssl_context)
-        else:
-            self._client = httpx.AsyncClient()
 
     async def run(self) -> None:
         """Run the scraper starting from the scraper's entry point.
@@ -324,6 +336,10 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
             error = e
             raise
         finally:
+            # Close request manager if we own it
+            if self._owns_request_manager:
+                await self.request_manager.close()
+
             # Fire on_run_complete callback
             if self.on_run_complete:
                 await self.on_run_complete(
@@ -386,6 +402,11 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
                                 continue
                             else:
                                 raise
+                        except RequestFailedHalt:
+                            raise
+                        except RequestFailedSkip:
+                            # Skip this request silently and continue to next
+                            continue
 
                         # Handle Callable continuations (convert to string)
                         continuation_name = (
@@ -469,8 +490,7 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
     async def resolve_request(self, request: BaseRequest) -> Response:
         """Fetch a BaseRequest and return the Response.
 
-        The request's URL should already be absolute (resolved by
-        enqueue_request or provided as an absolute URL in get_entry).
+        Delegates to the request manager for HTTP handling.
 
         Args:
             request: The BaseRequest to fetch.
@@ -480,82 +500,11 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
 
         Raises:
             HTMLResponseAssumptionException: If server returns 5xx status code.
-            RequestTimeoutException: If request times out.
+            httpx.TimeoutException: If request times out (for retry handling).
         """
-
-        # Apply modify_request interceptor chain
-        modified_request = request
-        for interceptor in self.interceptors:
-            result = await interceptor.modify_request(modified_request)
-            if isinstance(result, Response):
-                # Short-circuit! Skip HTTP and remaining request interceptors
-                response = result
-                # Still apply modify_response chain to short-circuited response
-                for resp_interceptor in reversed(self.interceptors):
-                    response = await resp_interceptor.modify_response(
-                        response, request
-                    )
-                return response
-            modified_request = result
-
-        # Use the modified request for HTTP
-        # Note: Permanent headers/cookies are already merged into request.headers
-        # and request.cookies by BaseRequest.__post_init__
-        http_params = modified_request.request
-
-        # Prepare content and data parameters for httpx
-        # httpx uses 'content' for raw bytes and 'data' for form data (dict)
-        request_data = http_params.data
-        content_param: bytes | None = (
-            request_data if isinstance(request_data, bytes) else None
-        )
-        data_param: dict[str, Any] | None = (
-            cast(dict[str, Any], request_data)
-            if isinstance(request_data, dict)
-            else None
-        )
-
-        # Catch httpx timeout exceptions and convert to RequestTimeoutException
-        try:
-            http_response = await self._client.request(
-                method=http_params.method.value,
-                url=http_params.url,
-                headers=http_params.headers,
-                cookies=http_params.cookies,
-                content=content_param,
-                data=data_param,
-            )
-        except httpx.TimeoutException as e:
-            # Convert httpx timeout to our RequestTimeoutException
-            # Extract timeout value from exception or use default
-            timeout_seconds = 30.0  # Default timeout
-            raise RequestTimeoutException(
-                url=http_params.url,
-                timeout_seconds=timeout_seconds,
-            ) from e
-
-        # Check for server errors (5xx status codes)
-        # 429 (Too Many Requests) is handled by rate limiter interceptor
-        if http_response.status_code >= 500:
-            raise HTMLResponseAssumptionException(
-                status_code=http_response.status_code,
-                expected_codes=[200],
-                url=http_params.url,
-            )
-
-        response = Response(
-            status_code=http_response.status_code,
-            headers=dict(http_response.headers),
-            content=http_response.content,
-            text=http_response.text,
-            url=http_params.url,
-            request=modified_request,
-        )
-
-        # Apply modify_response interceptor chain (in reverse order)
-        for interceptor in reversed(self.interceptors):
-            response = await interceptor.modify_response(response, request)
-
+        # Simply delegate to request manager - exception handling is done
+        # by the driver's worker (LocalDevDriver._db_worker handles retries)
+        response = await self.request_manager.resolve_request(request)
         return response
 
     async def resolve_archive_request(

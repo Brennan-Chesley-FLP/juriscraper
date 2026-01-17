@@ -63,6 +63,28 @@ class SQL:
 
     COUNT_ACTIVE_REQUESTS = "SELECT COUNT(*) FROM requests WHERE status IN ('pending', 'in_progress')"
 
+    # --- Scheduled Retries ---
+
+    # Get the minimum time until a scheduled retry becomes available
+    # Returns seconds until next retry, or NULL if no scheduled retries
+    SELECT_NEXT_SCHEDULED_RETRY_DELAY = """
+        SELECT MIN(
+            CASE
+                WHEN started_at > datetime('now') THEN
+                    (julianday(started_at) - julianday('now')) * 86400.0
+                ELSE NULL
+            END
+        ) as seconds_until_ready
+        FROM requests
+        WHERE status = 'pending' AND started_at > datetime('now')
+    """
+
+    # Count pending requests that are scheduled for later (not immediately available)
+    COUNT_SCHEDULED_RETRIES = """
+        SELECT COUNT(*) FROM requests
+        WHERE status = 'pending' AND started_at > datetime('now')
+    """
+
     # --- Deduplication ---
 
     SELECT_REQUEST_BY_DEDUP_KEY = (
@@ -178,8 +200,8 @@ class SQL:
         INSERT INTO responses (
             request_id, status_code, headers_json, url,
             content_compressed, content_size_original, content_size_compressed,
-            compression_dict_id, continuation, warc_record_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            compression_dict_id, continuation, warc_record_id, speculation_outcome
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     # --- Result Storage ---
@@ -253,7 +275,7 @@ class SQL:
     SELECT_RESPONSES_PAGE = """
         SELECT id, request_id, status_code, url, content_size_original,
                content_size_compressed, continuation, created_at,
-               compression_dict_id
+               compression_dict_id, speculation_outcome
         FROM responses
         {where_clause}
         ORDER BY id DESC
@@ -284,7 +306,7 @@ class SQL:
     SELECT_RESPONSE_BY_ID = """
         SELECT id, request_id, status_code, url, content_size_original,
                content_size_compressed, continuation, created_at,
-               compression_dict_id
+               compression_dict_id, speculation_outcome
         FROM responses
         WHERE id = ?
     """
@@ -735,7 +757,8 @@ class SQL:
     # responses routes
     SELECT_RESPONSES_LIST_FOR_WEB = """
         SELECT id, request_id, status_code, url, content_size_original,
-               content_size_compressed, continuation, created_at, compression_dict_id
+               content_size_compressed, continuation, created_at, compression_dict_id,
+               speculation_outcome
         FROM responses
         {where_clause}
         ORDER BY created_at DESC
@@ -744,9 +767,16 @@ class SQL:
 
     SELECT_RESPONSE_BY_ID_FOR_WEB = """
         SELECT id, request_id, status_code, url, content_size_original,
-               content_size_compressed, continuation, created_at, compression_dict_id
+               content_size_compressed, continuation, created_at, compression_dict_id,
+               speculation_outcome
         FROM responses
         WHERE id = ?
+    """
+
+    SELECT_SPECULATION_SUMMARY_FOR_WEB = """
+        SELECT speculation_outcome, COUNT(*) as count
+        FROM responses
+        GROUP BY speculation_outcome
     """
 
     SELECT_RESPONSE_CONTENT_FOR_WEB = """
@@ -842,4 +872,22 @@ class SQL:
             COUNT(*) as total_files,
             COALESCE(SUM(file_size), 0) as total_size
         FROM archived_files
+    """
+
+    # --- Speculative Progress Tracking ---
+
+    UPSERT_SPECULATIVE_PROGRESS = """
+        INSERT INTO speculative_progress (step_name, latest_speculative_id, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(step_name) DO UPDATE SET
+            latest_speculative_id = MAX(latest_speculative_id, excluded.latest_speculative_id),
+            updated_at = CURRENT_TIMESTAMP
+    """
+
+    SELECT_SPECULATIVE_PROGRESS = """
+        SELECT latest_speculative_id FROM speculative_progress WHERE step_name = ?
+    """
+
+    SELECT_ALL_SPECULATIVE_PROGRESS = """
+        SELECT step_name, latest_speculative_id, updated_at FROM speculative_progress
     """

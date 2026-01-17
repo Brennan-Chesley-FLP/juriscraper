@@ -43,12 +43,16 @@ from __future__ import annotations
 
 import re
 import ssl
+from asyncio.log import logger
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.exceptions import (
+    HTMLStructuralAssumptionException,
+)
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -1295,11 +1299,12 @@ class ConnScraper(
             continuation=self.start_docket_scraping,
         )
 
-    @step
+    @step(speculative=True)
     def start_docket_scraping(
         self,
         lxml_tree: CheckedHtmlElement,  # noqa: ARG002
         response: Response,  # noqa: ARG002
+        speculative_id: int,
     ) -> Generator[
         ScraperYield[ConnOpinionCluster | ConnOralArgument | ConnDocket],
         bool | None,
@@ -1316,30 +1321,31 @@ class ConnScraper(
         if it doesn't (404/redirect to error page). We continue until we
         get False.
         """
-        crn_gt, crn_eq, court_ids = self._get_docket_search_params()
+        _, crn_eq, court_ids = self._get_docket_search_params()
 
         # If .eq is set, just fetch that single docket
         if crn_eq is not None:
             url = f"{DOCKET_CONFIG['case_detail_url']}?CRN={crn_eq}"
-            yield SpeculativeRequest(
+            yield NavigatingRequest(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
                     url=url,
                 ),
                 continuation=self.parse_docket_page,
                 accumulated_data={
-                    "speculative_id": {"ConnDocket": {"docket_id": crn_eq}},
-                    "crn": crn_eq,
+                    "crn": speculative_id,
                     "court_ids": list(court_ids) if court_ids else None,
                 },
             )
             # Single docket mode - don't continue regardless of result
         else:
             # Start from crn_gt + 1 or 1 if not set
-            current_crn = (crn_gt or 0) + 1
+            speculative_id = speculative_id or 1
 
             while True:
-                url = f"{DOCKET_CONFIG['case_detail_url']}?CRN={current_crn}"
+                url = (
+                    f"{DOCKET_CONFIG['case_detail_url']}?CRN={speculative_id}"
+                )
                 should_continue = yield SpeculativeRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
@@ -1347,18 +1353,26 @@ class ConnScraper(
                     ),
                     continuation=self.parse_docket_page,
                     accumulated_data={
-                        "speculative_id": {
-                            "ConnDocket": {"docket_id": crn_eq}
-                        },
-                        "crn": current_crn,
+                        "crn": speculative_id,
                         "court_ids": list(court_ids) if court_ids else None,
                     },
+                    speculative_id=speculative_id,
                 )
 
                 if not should_continue:
+                    logger.warning(
+                        "Speculation ended on id %s", speculative_id
+                    )
                     break  # Page doesn't exist or was already processed
 
-                current_crn += 1
+                speculative_id += 1
+
+    # XPath patterns for docket page elements
+    # Note: The appellate case number (SC/AC format) is in lblAppealNo,
+    # NOT in lblDocketNum (which contains trial court docket numbers)
+    XPATH_DOCKET_NUMBER = "//span[@id='lblAppealNo']"
+    XPATH_CASE_NAME = "//span[@id='lblCaseName']"
+    XPATH_STATUS = "//span[@id='lblCaseStatus']"
 
     @step(xsd="xsds/parse_docket_page.xsd")
     def parse_docket_page(
@@ -1385,17 +1399,18 @@ class ConnScraper(
 
         # Check if we were redirected to an error page
         if DOCKET_CONFIG["error_url"] in response.url:
-            return  # No docket at this CRN
+            return  # No docket at this CRN - this is expected for speculative scraping
 
-        # Extract docket number from page
-        docket_elem = lxml_tree.xpath(
-            "//span[@id='ContentPlaceHolder1_lblDocketNum'] | "
-            "//span[contains(@id, 'DocketNum')]"
+        # Extract docket number from page - this is required
+        docket_elems = lxml_tree.checked_xpath(
+            self.XPATH_DOCKET_NUMBER,
+            "docket number",
+            min_count=1,
+            max_count=1,
         )
-        if not docket_elem:
-            return  # Couldn't find docket number
+        docket_text = docket_elems[0].text_content().strip()
 
-        docket_text = docket_elem[0].text_content().strip()
+        # Parse the docket number format (SC or AC prefix + number)
         docket_match = self.DOCKET_NUMBER_PATTERN.match(
             docket_text.replace(" ", "")
         )
@@ -1403,43 +1418,48 @@ class ConnScraper(
             # Try with spaces
             docket_match = re.match(r"^(SC|AC)\s*(\d+)$", docket_text)
             if not docket_match:
-                return  # Invalid docket format
+                raise HTMLStructuralAssumptionException(
+                    selector=self.XPATH_DOCKET_NUMBER,
+                    selector_type="xpath",
+                    description="docket number with valid SC/AC format",
+                    expected_min=1,
+                    expected_max=1,
+                    actual_count=1,  # Found element but invalid format
+                    request_url=response.url,
+                )
 
         prefix = docket_match.group(1)
         docket_num = docket_match.group(2)
         docket_id = f"{prefix} {docket_num}"
         court_id = DOCKET_PREFIX_TO_COURT.get(prefix)
 
-        if not court_id:
-            return  # Unknown court prefix
-
         # Filter by court_id if specified
         if court_ids_filter and court_id not in court_ids_filter:
             return  # Skip this docket - not in requested courts
 
-        # Extract case name
-        case_name_elem = lxml_tree.xpath(
-            "//span[@id='ContentPlaceHolder1_lblCaseName'] | "
-            "//span[contains(@id, 'CaseName')]"
+        # Extract case name - required
+        case_name_elems = lxml_tree.checked_xpath(
+            self.XPATH_CASE_NAME,
+            "case name",
+            min_count=1,
+            max_count=1,
         )
-        case_name = (
-            case_name_elem[0].text_content().strip()
-            if case_name_elem
-            else "Unknown"
-        )
+        case_name = case_name_elems[0].text_content().strip() or "Unknown"
 
-        # Extract status
-        status_elem = lxml_tree.xpath(
-            "//span[@id='ContentPlaceHolder1_lblStatus'] | "
-            "//span[contains(@id, 'Status')]"
+        # Extract status - required
+        status_elems = lxml_tree.checked_xpath(
+            self.XPATH_STATUS,
+            "case status",
+            min_count=1,
+            max_count=1,
         )
-        status = (
-            status_elem[0].text_content().strip() if status_elem else "Unknown"
-        )
+        status = status_elems[0].text_content().strip() or "Unknown"
 
-        # Helper to extract date from element
-        def extract_date(xpath_expr: str) -> date | None:
-            elems = lxml_tree.xpath(xpath_expr)
+        # Helper to extract date from element (optional fields - min_count=0)
+        def extract_date(xpath_expr: str, description: str) -> date | None:
+            elems = lxml_tree.checked_xpath(
+                xpath_expr, description, min_count=0
+            )
             if elems:
                 date_text = elems[0].text_content().strip()
                 match = self.DOCKET_DATE_PATTERN.search(date_text)
@@ -1452,9 +1472,11 @@ class ConnScraper(
                         pass
             return None
 
-        # Helper to extract text from element
-        def extract_text(xpath_expr: str) -> str | None:
-            elems = lxml_tree.xpath(xpath_expr)
+        # Helper to extract text from element (optional fields - min_count=0)
+        def extract_text(xpath_expr: str, description: str) -> str | None:
+            elems = lxml_tree.checked_xpath(
+                xpath_expr, description, min_count=0
+            )
             if elems:
                 text = elems[0].text_content().strip()
                 return text if text else None
@@ -1463,49 +1485,61 @@ class ConnScraper(
         # === Appeal Case Information ===
         date_filed = extract_date(
             "//span[@id='ContentPlaceHolder1_lblDateFiled'] | "
-            "//span[contains(@id, 'DateFiled')]"
+            "//span[contains(@id, 'DateFiled')]",
+            "date filed",
         )
         appeal_by = extract_text(
             "//span[@id='ContentPlaceHolder1_lblAppealBy'] | "
-            "//span[contains(@id, 'AppealBy')]"
+            "//span[contains(@id, 'AppealBy')]",
+            "appeal by",
         )
         disposition_method = extract_text(
             "//span[@id='ContentPlaceHolder1_lblDispMethod'] | "
-            "//span[contains(@id, 'DispMethod')]"
+            "//span[contains(@id, 'DispMethod')]",
+            "disposition method",
         )
         argued_date = extract_date(
             "//span[@id='ContentPlaceHolder1_lblArguedDate'] | "
-            "//span[contains(@id, 'ArguedDate')]"
+            "//span[contains(@id, 'ArguedDate')]",
+            "argued date",
         )
         disposition_date = extract_date(
             "//span[@id='ContentPlaceHolder1_lblDispDate'] | "
-            "//span[contains(@id, 'DispDate')]"
+            "//span[contains(@id, 'DispDate')]",
+            "disposition date",
         )
         submitted_on_briefs_date = extract_date(
             "//span[@id='ContentPlaceHolder1_lblSOBDate'] | "
-            "//span[contains(@id, 'SOBDate')]"
+            "//span[contains(@id, 'SOBDate')]",
+            "submitted on briefs date",
         )
         cite = extract_text(
             "//span[@id='ContentPlaceHolder1_lblCite'] | "
-            "//span[contains(@id, 'Cite')]"
+            "//span[contains(@id, 'Cite')]",
+            "citation",
         )
         panel = extract_text(
             "//span[@id='ContentPlaceHolder1_lblPanel'] | "
-            "//span[contains(@id, 'Panel')]"
+            "//span[contains(@id, 'Panel')]",
+            "panel",
         )
         response_due_date = extract_date(
             "//span[@id='ContentPlaceHolder1_lblRespDue'] | "
-            "//span[contains(@id, 'RespDue')]"
+            "//span[contains(@id, 'RespDue')]",
+            "response due date",
         )
 
         # === Trial Court Information ===
         trial_court_docket_number = extract_text(
             "//span[@id='ContentPlaceHolder1_lblTrialCourtDktNum'] | "
-            "//span[contains(@id, 'TrialCourtDktNum')]"
+            "//span[contains(@id, 'TrialCourtDktNum')]",
+            "trial court docket number",
         )
-        # Trial court docket might be a link
-        trial_docket_link = lxml_tree.xpath(
-            "//a[contains(@id, 'TrialCourtDktNum')]"
+        # Trial court docket might be a link (optional - min_count=0)
+        trial_docket_link = lxml_tree.checked_xpath(
+            "//a[contains(@id, 'TrialCourtDktNum')]",
+            "trial court docket link",
+            min_count=0,
         )
         trial_court_docket_url = None
         if trial_docket_link:
@@ -1517,28 +1551,35 @@ class ConnScraper(
 
         judgment_for = extract_text(
             "//span[@id='ContentPlaceHolder1_lblJudgmentFor'] | "
-            "//span[contains(@id, 'JudgmentFor')]"
+            "//span[contains(@id, 'JudgmentFor')]",
+            "judgment for",
         )
         trial_court = extract_text(
             "//span[@id='ContentPlaceHolder1_lblTrialCourt'] | "
-            "//span[contains(@id, 'TrialCourt')]"
+            "//span[contains(@id, 'TrialCourt')]",
+            "trial court",
         )
         trial_judge = extract_text(
             "//span[@id='ContentPlaceHolder1_lblTrialJudge'] | "
-            "//span[contains(@id, 'TrialJudge')]"
+            "//span[contains(@id, 'TrialJudge')]",
+            "trial judge",
         )
         judgment_date = extract_date(
             "//span[@id='ContentPlaceHolder1_lblJudgmentDate'] | "
-            "//span[contains(@id, 'JudgmentDate')]"
+            "//span[contains(@id, 'JudgmentDate')]",
+            "judgment date",
         )
         case_type = extract_text(
             "//span[@id='ContentPlaceHolder1_lblCaseType'] | "
-            "//span[contains(@id, 'CaseType')]"
+            "//span[contains(@id, 'CaseType')]",
+            "case type",
         )
 
-        # Check for e-filed indicator
-        is_efiled_elem = lxml_tree.xpath(
-            "//span[contains(@id, 'EFiled')] | //img[contains(@alt, 'eFiled')]"
+        # Check for e-filed indicator (optional - min_count=0)
+        is_efiled_elem = lxml_tree.checked_xpath(
+            "//span[contains(@id, 'EFiled')] | //img[contains(@alt, 'eFiled')]",
+            "e-filed indicator",
+            min_count=0,
         )
         is_efiled = bool(is_efiled_elem)
 
@@ -1586,11 +1627,13 @@ class ConnScraper(
         """
         parties = []
 
-        # Party rows are typically in a table or grid structure
-        party_rows = lxml_tree.xpath(
+        # Party rows are typically in a table or grid structure (optional - min_count=0)
+        party_rows = lxml_tree.checked_xpath(
             "//table[contains(@id, 'Party')]//tr | "
             "//div[contains(@id, 'Party')]//div[@class='row'] | "
-            "//div[contains(@class, 'party')]"
+            "//div[contains(@class, 'party')]",
+            "party rows",
+            min_count=0,
         )
 
         for row in party_rows:
@@ -1633,17 +1676,19 @@ class ConnScraper(
         """
         entries: list[ConnDocketEntry] = []
 
-        # Docket entries are typically in a table with Case Activity
-        activity_table = lxml_tree.xpath(
+        # Docket entries are typically in a table with Case Activity (optional - min_count=0)
+        activity_tables = lxml_tree.checked_xpath(
             "//table[contains(@id, 'Activity')] | "
             "//table[.//th[contains(text(), 'Activity')]] | "
-            "//div[contains(@id, 'Activity')]//table"
+            "//div[contains(@id, 'Activity')]//table",
+            "case activity table",
+            min_count=0,
         )
 
-        if not activity_table:
+        if not activity_tables:
             return entries
 
-        rows = activity_table[0].xpath(".//tr")
+        rows = activity_tables[0].xpath(".//tr")
 
         for row in rows:
             # Skip header rows

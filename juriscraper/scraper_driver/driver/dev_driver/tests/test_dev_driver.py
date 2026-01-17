@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from juriscraper.scraper_driver.common.searchable import ScraperParams
+
 if TYPE_CHECKING:
     import aiosqlite
 
@@ -1874,6 +1876,58 @@ class TestAioSQLiteBucket:
         assert wait == 0
 
 
+class TestRateLimiterIntegration:
+    """Tests for rate limiter integration with LocalDevDriver."""
+
+    async def test_rate_limiter_interceptor_added_on_init(
+        self, db_path: Path
+    ) -> None:
+        """Test that JitterRateLimitInterceptor is added to interceptors on _init_db."""
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.rate_limiter import (
+            JitterRateLimitInterceptor,
+        )
+
+        class MinimalScraper(BaseScraper[str]):
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url="https://example.com",
+                    ),
+                    continuation="parse",
+                    current_location="",
+                )
+
+            def parse(self, response: Any) -> list:
+                return []
+
+        scraper = MinimalScraper()
+
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=5.0, jitter=1.0
+        ) as driver:
+            # Verify interceptor was added to request_manager
+            assert len(driver.request_manager.interceptors) == 1
+            assert isinstance(
+                driver.request_manager.interceptors[0],
+                JitterRateLimitInterceptor,
+            )
+
+            # Verify parameters were passed correctly
+            rate_limiter = driver.request_manager.interceptors[0]
+            assert rate_limiter.base_delay_seconds == 5.0
+            assert rate_limiter.jitter_seconds == 1.0
+
+
 class TestRunManager:
     """Tests for RunManager class."""
 
@@ -2771,16 +2825,16 @@ class TestGracefulShutdownAndResume:
 
         # Open with resume=True (default)
         async with LocalDevDriver.open(
-            mock_scraper, db_path, resume=True
+            mock_scraper, db_path, resume=True, base_delay=0.0, jitter=0.0
         ) as driver:
             # Check that in_progress was reset to pending on open
-            assert driver._db is not None
-            cursor = await driver._db.execute(
+            assert driver.db.db is not None
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE status = 'in_progress'"
             )
             in_progress_count = (await cursor.fetchone())[0]
 
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE status = 'pending'"
             )
             pending_count = (await cursor.fetchone())[0]
@@ -2799,11 +2853,13 @@ class TestGracefulShutdownAndResume:
         )
 
         # First run: Open driver, add requests, then close
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Manually add some requests in different states
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
                 VALUES
@@ -2813,10 +2869,10 @@ class TestGracefulShutdownAndResume:
                     ('completed', 5, 13, 'GET', 'https://example.com/page4', 'parse', 'https://example.com')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Verify initial state
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT status, COUNT(*) FROM requests GROUP BY status ORDER BY status"
             )
             counts_before = dict(await cursor.fetchall())
@@ -2827,12 +2883,12 @@ class TestGracefulShutdownAndResume:
 
         # Second run: Resume and verify state
         async with LocalDevDriver.open(
-            mock_scraper, db_path, resume=True
+            mock_scraper, db_path, resume=True, base_delay=0.0, jitter=0.0
         ) as driver:
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Check counts after resume
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT status, COUNT(*) FROM requests GROUP BY status ORDER BY status"
             )
             counts_after = dict(await cursor.fetchall())
@@ -2858,7 +2914,9 @@ class TestGracefulShutdownAndResume:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             # stop_event should be created
             assert driver.stop_event is not None
             assert not driver.stop_event.is_set()
@@ -2881,9 +2939,11 @@ class TestGracefulShutdownAndResume:
         )
 
         # First open creates metadata with 'created' status
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
-            cursor = await driver._db.execute(
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
+            cursor = await driver.db.db.execute(
                 "SELECT status FROM run_metadata WHERE id = 1"
             )
             row = await cursor.fetchone()
@@ -2916,28 +2976,32 @@ class TestGracefulShutdownAndResume:
         # Create a run with multiple requests
         request_urls = [f"https://example.com/page{i}" for i in range(10)]
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Add requests
             for i, url in enumerate(request_urls):
-                await driver._db.execute(
+                await driver.db.db.execute(
                     """
                     INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
                     VALUES ('pending', 5, ?, 'GET', ?, 'parse', 'https://example.com')
                     """,
                     (i + 10, url),
                 )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Mark some as in_progress (simulating work being done)
-            await driver._db.execute(
+            await driver.db.db.execute(
                 "UPDATE requests SET status = 'in_progress' WHERE url LIKE '%page5%' OR url LIKE '%page6%'"
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Count total before shutdown
-            cursor = await driver._db.execute("SELECT COUNT(*) FROM requests")
+            cursor = await driver.db.db.execute(
+                "SELECT COUNT(*) FROM requests"
+            )
             total_before = (await cursor.fetchone())[0]
 
         # After shutdown, verify no loss
@@ -2967,13 +3031,17 @@ class TestGracefulShutdownAndResume:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Initially, no requests (entry point not added yet if no run())
             # But the entry point request is added by run(), so status depends on
             # whether any requests exist
-            cursor = await driver._db.execute("SELECT COUNT(*) FROM requests")
+            cursor = await driver.db.db.execute(
+                "SELECT COUNT(*) FROM requests"
+            )
             count = (await cursor.fetchone())[0]
 
             if count == 0:
@@ -2981,22 +3049,22 @@ class TestGracefulShutdownAndResume:
                 assert status == "unstarted"
 
             # Add pending requests
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
                 VALUES ('pending', 5, 1, 'GET', 'https://example.com/page1', 'parse', 'https://example.com')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             status = await driver.status()
             assert status == "in_progress"
 
             # Mark all as completed
-            await driver._db.execute(
+            await driver.db.db.execute(
                 "UPDATE requests SET status = 'completed'"
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             status = await driver.status()
             assert status == "done"
@@ -3009,11 +3077,13 @@ class TestGracefulShutdownAndResume:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Add requests in different states
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
                 VALUES
@@ -3023,7 +3093,7 @@ class TestGracefulShutdownAndResume:
                     ('pending', 5, 4, 'GET', 'https://example.com/pending', 'parse', 'https://example.com')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Get next request - should only return pending
             result = await driver._get_next_request()
@@ -3039,7 +3109,7 @@ class TestGracefulShutdownAndResume:
             assert request.request.url == "https://example.com/pending"
 
             # The pending request should now be marked in_progress
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT status FROM requests WHERE id = ?", (request_id,)
             )
             row = await cursor.fetchone()
@@ -3054,11 +3124,13 @@ class TestGracefulShutdownAndResume:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Add only held requests
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
                 VALUES
@@ -3066,7 +3138,7 @@ class TestGracefulShutdownAndResume:
                     ('held', 5, 2, 'GET', 'https://example.com/held2', 'parse', 'https://example.com')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Get next request - should return None
             result = await driver._get_next_request()
@@ -3080,11 +3152,13 @@ class TestGracefulShutdownAndResume:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Add requests with different continuations
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
                 VALUES
@@ -3093,7 +3167,7 @@ class TestGracefulShutdownAndResume:
                     ('pending', 5, 3, 'GET', 'https://example.com/page3', 'parse_detail', 'https://example.com')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Pause 'parse_list' continuation
             held_count = await driver.pause_step("parse_list")
@@ -3160,8 +3234,10 @@ class TestDeduplication:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create a fake response to use as context for queueing
             parent_request = NavigatingRequest(
@@ -3218,7 +3294,7 @@ class TestDeduplication:
             await driver.enqueue_request(request3, response)
 
             # Only ONE request should be in the queue due to deduplication
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE url = 'https://example.com/detail/123'"
             )
             count = (await cursor.fetchone())[0]
@@ -3242,8 +3318,10 @@ class TestDeduplication:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             parent_request = NavigatingRequest(
                 request=HTTPRequestParams(
@@ -3281,7 +3359,7 @@ class TestDeduplication:
                 await driver.enqueue_request(request, response)
 
             # All three should be in the queue
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE url LIKE 'https://example.com/detail/%'"
             )
             count = (await cursor.fetchone())[0]
@@ -3313,8 +3391,10 @@ class TestDeduplication:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             url_a = "https://example.com/page-a"
             url_b = "https://example.com/page-b"
@@ -3341,7 +3421,7 @@ class TestDeduplication:
             await driver.enqueue_request(request_a, response_a)
 
             # Verify page A is queued
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE url = ?", (url_a,)
             )
             assert (await cursor.fetchone())[0] == 1
@@ -3358,7 +3438,7 @@ class TestDeduplication:
             await driver.enqueue_request(request_b, response_a)
 
             # Verify page B is queued
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE url = ?", (url_b,)
             )
             assert (await cursor.fetchone())[0] == 1
@@ -3384,7 +3464,7 @@ class TestDeduplication:
             await driver.enqueue_request(request_a_again, response_b)
 
             # Page A should STILL have only 1 request due to deduplication
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE url = ?", (url_a,)
             )
             count_a = (await cursor.fetchone())[0]
@@ -3395,7 +3475,9 @@ class TestDeduplication:
             )
 
             # Total requests should be exactly 2 (A and B)
-            cursor = await driver._db.execute("SELECT COUNT(*) FROM requests")
+            cursor = await driver.db.db.execute(
+                "SELECT COUNT(*) FROM requests"
+            )
             total = (await cursor.fetchone())[0]
 
             assert total == 2, (
@@ -3422,8 +3504,10 @@ class TestDeduplication:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             parent_request = NavigatingRequest(
                 request=HTTPRequestParams(
@@ -3469,7 +3553,7 @@ class TestDeduplication:
             await driver.enqueue_request(request2, response)
 
             # Only ONE request should be queued due to same custom dedup key
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE url LIKE 'https://example.com/item/123%'"
             )
             count = (await cursor.fetchone())[0]
@@ -3498,8 +3582,10 @@ class TestDeduplication:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             parent_request = NavigatingRequest(
                 request=HTTPRequestParams(
@@ -3532,7 +3618,7 @@ class TestDeduplication:
                 await driver.enqueue_request(request, response)
 
             # All THREE requests should be in the queue
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE url = 'https://example.com/status/check'"
             )
             count = (await cursor.fetchone())[0]
@@ -3560,8 +3646,10 @@ class TestDeduplication:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             parent_request = NavigatingRequest(
                 request=HTTPRequestParams(
@@ -3608,7 +3696,7 @@ class TestDeduplication:
             await driver.enqueue_request(request2, response)
 
             # Both should be queued - different body means different dedup key
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE url = 'https://example.com/submit'"
             )
             count = (await cursor.fetchone())[0]
@@ -3632,8 +3720,10 @@ class TestDeduplication:
             LocalDevDriver,
         )
 
-        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             parent_request = NavigatingRequest(
                 request=HTTPRequestParams(
@@ -3666,7 +3756,7 @@ class TestDeduplication:
                 await driver.enqueue_request(request, response)
 
             # Only ONE should be queued - same URL + same body = same dedup key
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE url = 'https://example.com/submit'"
             )
             count = (await cursor.fetchone())[0]
@@ -3750,18 +3840,20 @@ class TestRequestLineageTracking:
             )
 
         scraper = MultiStepScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             # Add interceptor
-            driver.interceptors.append(interceptor)
+            driver.request_manager.interceptors.append(interceptor)
 
             # Run the scraper
             await driver.run()
 
             # Verify parent-child relationships
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Get the listing request ID
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT id FROM requests WHERE url = 'https://example.com/listing'"
             )
             listing_row = await cursor.fetchone()
@@ -3769,7 +3861,7 @@ class TestRequestLineageTracking:
             listing_id = listing_row[0]
 
             # Check that all detail requests have listing as parent
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 """
                 SELECT url, parent_request_id FROM requests
                 WHERE url LIKE 'https://example.com/detail/%'
@@ -3831,12 +3923,14 @@ class TestRequestStatusMarking:
         )
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
-            assert driver._db is not None
-            cursor = await driver._db.execute(
+            assert driver.db.db is not None
+            cursor = await driver.db.db.execute(
                 "SELECT status, completed_at FROM requests WHERE url = 'https://example.com/page'"
             )
             row = await cursor.fetchone()
@@ -3899,12 +3993,14 @@ class TestRequestStatusMarking:
         )
 
         scraper = FailingScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
-            assert driver._db is not None
-            cursor = await driver._db.execute(
+            assert driver.db.db is not None
+            cursor = await driver.db.db.execute(
                 "SELECT status, last_error FROM requests WHERE url = 'https://example.com/fail'"
             )
             row = await cursor.fetchone()
@@ -3986,15 +4082,15 @@ class TestExponentialBackoff:
         scraper = RetryScraper()
         # Use low max_backoff_time so the test is fast
         async with LocalDevDriver.open(
-            scraper, db_path, max_backoff_time=60.0, base_delay=0.1
+            scraper, db_path, max_backoff_time=60.0, base_delay=0.1, jitter=0.0
         ) as driver:
-            driver.interceptors.append(interceptor)
+            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Check that retry_count was incremented
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT retry_count, status FROM requests WHERE url = 'https://example.com/flaky'"
             )
             row = await cursor.fetchone()
@@ -4056,15 +4152,15 @@ class TestExponentialBackoff:
         scraper = AlwaysFailScraper()
         # Very low max_backoff_time to trigger failure quickly
         async with LocalDevDriver.open(
-            scraper, db_path, max_backoff_time=0.5, base_delay=0.1
+            scraper, db_path, max_backoff_time=0.5, base_delay=0.1, jitter=0.0
         ) as driver:
-            driver.interceptors.append(interceptor)
+            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Request should eventually be marked as failed
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT status, cumulative_backoff FROM requests WHERE url = 'https://example.com/always-fail'"
             )
             row = await cursor.fetchone()
@@ -4125,14 +4221,16 @@ class TestCompressionRoundTrip:
         )
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Get the response ID
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT id, content_size_original, content_size_compressed FROM responses LIMIT 1"
             )
             row = await cursor.fetchone()
@@ -4215,14 +4313,16 @@ class TestDataStorage:
         )
 
         scraper = DataScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Check results were stored
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT result_type, data_json, is_valid FROM results ORDER BY id"
             )
             rows = await cursor.fetchall()
@@ -4300,16 +4400,18 @@ class TestRequeueErroredRequests:
         )
 
         scraper = FailThenSucceedScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
 
             # First run - will fail
             await driver.run()
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Check error was stored
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT id, is_resolved FROM errors LIMIT 1"
             )
             error_row = await cursor.fetchone()
@@ -4323,7 +4425,7 @@ class TestRequeueErroredRequests:
             assert new_request_id is not None, "Should return new request ID"
 
             # Check new request was created
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT status, parent_request_id FROM requests WHERE id = ?",
                 (new_request_id,),
             )
@@ -4337,7 +4439,7 @@ class TestRequeueErroredRequests:
             await driver.run()
 
             # Check the new request completed
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT status FROM requests WHERE id = ?",
                 (new_request_id,),
             )
@@ -4376,11 +4478,13 @@ class TestListRequestsFiltering:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create requests with various statuses
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
                 VALUES
@@ -4394,7 +4498,7 @@ class TestListRequestsFiltering:
                     ('held', 5, 8, 'GET', 'https://example.com/held', 'parse', '')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Test filtering by 'pending' status
             pending_page = await driver.list_requests(status="pending")
@@ -4452,11 +4556,13 @@ class TestListRequestsFiltering:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create requests with different continuations
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
                 VALUES
@@ -4467,7 +4573,7 @@ class TestListRequestsFiltering:
                     ('pending', 5, 5, 'GET', 'https://example.com/5', 'parse_detail', '')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Filter by parse_listing
             listing_page = await driver.list_requests(
@@ -4514,19 +4620,21 @@ class TestListRequestsFiltering:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create 10 requests
             for i in range(10):
-                await driver._db.execute(
+                await driver.db.db.execute(
                     """
                     INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
                     VALUES ('pending', 5, ?, 'GET', ?, 'parse', '')
                     """,
                     (i, f"https://example.com/page{i}"),
                 )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Get first page (limit=3)
             page1 = await driver.list_requests(limit=3, offset=0)
@@ -4554,160 +4662,6 @@ class TestListRequestsFiltering:
             assert len(page4.items) == 1
             # No more items after this page
             assert page4.offset + len(page4.items) == page4.total
-
-
-class TestWarcExportByContinuation:
-    """Tests for WARC export filtering by continuation."""
-
-    async def test_export_warc_for_continuation(
-        self, db_path: Path, tmp_path: Path
-    ) -> None:
-        """Test exporting WARC for a specific continuation only."""
-        import uuid
-
-        from juriscraper.scraper_driver.data_types import (
-            BaseScraper,
-            HttpMethod,
-            HTTPRequestParams,
-            NavigatingRequest,
-        )
-        from juriscraper.scraper_driver.driver.dev_driver.compression import (
-            compress,
-        )
-        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
-            LocalDevDriver,
-        )
-
-        class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
-                yield NavigatingRequest(
-                    request=HTTPRequestParams(
-                        method=HttpMethod.GET,
-                        url="https://example.com",
-                    ),
-                    continuation="parse",
-                    current_location="",
-                )
-
-            def parse(self, response):
-                return []
-
-        scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
-
-            # Insert requests for different continuations
-            await driver._db.execute(
-                """
-                INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
-                VALUES
-                    ('completed', 5, 1, 'GET', 'https://example.com/listing1', 'parse_listing', ''),
-                    ('completed', 5, 2, 'GET', 'https://example.com/listing2', 'parse_listing', ''),
-                    ('completed', 5, 3, 'GET', 'https://example.com/detail1', 'parse_detail', ''),
-                    ('completed', 5, 4, 'GET', 'https://example.com/detail2', 'parse_detail', ''),
-                    ('completed', 5, 5, 'GET', 'https://example.com/detail3', 'parse_detail', '')
-                """
-            )
-            await driver._db.commit()
-
-            # Insert responses for each request
-            for req_id, cont, url in [
-                (1, "parse_listing", "https://example.com/listing1"),
-                (2, "parse_listing", "https://example.com/listing2"),
-                (3, "parse_detail", "https://example.com/detail1"),
-                (4, "parse_detail", "https://example.com/detail2"),
-                (5, "parse_detail", "https://example.com/detail3"),
-            ]:
-                content = f"<html>Content for {url}</html>".encode()
-                compressed = compress(content)
-                warc_id = str(uuid.uuid4())
-
-                await driver._db.execute(
-                    """
-                    INSERT INTO responses (request_id, status_code, headers_json, url,
-                                          content_compressed, content_size_original,
-                                          content_size_compressed, continuation, warc_record_id)
-                    VALUES (?, 200, '{"Content-Type": "text/html"}', ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        req_id,
-                        url,
-                        compressed,
-                        len(content),
-                        len(compressed),
-                        cont,
-                        warc_id,
-                    ),
-                )
-            await driver._db.commit()
-
-            # Export WARC for parse_listing continuation only
-            output_path = tmp_path / "listing.warc.gz"
-            count = await driver.export_warc(
-                output_path, continuation="parse_listing"
-            )
-
-            assert count == 2, (
-                f"Expected 2 responses for parse_listing, got {count}"
-            )
-            assert output_path.exists(), "WARC file should exist"
-
-            # Export WARC for parse_detail continuation only
-            output_path2 = tmp_path / "detail.warc.gz"
-            count2 = await driver.export_warc(
-                output_path2, continuation="parse_detail"
-            )
-
-            assert count2 == 3, (
-                f"Expected 3 responses for parse_detail, got {count2}"
-            )
-            assert output_path2.exists(), "WARC file should exist"
-
-            # Export all (no continuation filter)
-            output_path_all = tmp_path / "all.warc.gz"
-            count_all = await driver.export_warc(output_path_all)
-
-            assert count_all == 5, (
-                f"Expected 5 total responses, got {count_all}"
-            )
-
-    async def test_export_warc_empty_continuation(
-        self, db_path: Path, tmp_path: Path
-    ) -> None:
-        """Test exporting WARC for a continuation with no responses."""
-        from juriscraper.scraper_driver.data_types import (
-            BaseScraper,
-            HttpMethod,
-            HTTPRequestParams,
-            NavigatingRequest,
-        )
-        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
-            LocalDevDriver,
-        )
-
-        class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
-                yield NavigatingRequest(
-                    request=HTTPRequestParams(
-                        method=HttpMethod.GET,
-                        url="https://example.com",
-                    ),
-                    continuation="parse",
-                    current_location="",
-                )
-
-            def parse(self, response):
-                return []
-
-        scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            # Export WARC for nonexistent continuation
-            output_path = tmp_path / "empty.warc"
-            count = await driver.export_warc(
-                output_path, continuation="nonexistent"
-            )
-
-            assert count == 0, f"Expected 0 responses, got {count}"
 
 
 class TestHeadersOnlyResponse:
@@ -4762,14 +4716,16 @@ class TestHeadersOnlyResponse:
             ),
         )
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Check the response was stored
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 """
                 SELECT status_code, headers_json, content_size_original, content_size_compressed
                 FROM responses
@@ -4796,7 +4752,7 @@ class TestHeadersOnlyResponse:
             assert headers["Last-Modified"] == "Wed, 21 Oct 2025 07:28:00 GMT"
 
             # Verify we can retrieve the (empty) content
-            cursor2 = await driver._db.execute(
+            cursor2 = await driver.db.db.execute(
                 "SELECT id FROM responses WHERE url = 'https://example.com/resource'"
             )
             resp_row = await cursor2.fetchone()
@@ -4807,68 +4763,6 @@ class TestHeadersOnlyResponse:
             assert content == b"", (
                 "Headers-only response should have empty content"
             )
-
-    async def test_headers_only_response_warc_export(
-        self, db_path: Path, tmp_path: Path
-    ) -> None:
-        """Test that headers-only responses can be exported to WARC."""
-        import uuid
-
-        from juriscraper.scraper_driver.data_types import (
-            BaseScraper,
-            HttpMethod,
-            HTTPRequestParams,
-            NavigatingRequest,
-        )
-        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
-            LocalDevDriver,
-        )
-
-        class SimpleScraper(BaseScraper[str]):
-            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
-                yield NavigatingRequest(
-                    request=HTTPRequestParams(
-                        method=HttpMethod.GET,
-                        url="https://example.com",
-                    ),
-                    continuation="parse",
-                    current_location="",
-                )
-
-            def parse(self, response):
-                return []
-
-        scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
-
-            # Insert a request and response with empty content
-            await driver._db.execute(
-                """
-                INSERT INTO requests (status, priority, queue_counter, method, url, continuation, current_location)
-                VALUES ('completed', 5, 1, 'HEAD', 'https://example.com/resource', 'parse', '')
-                """
-            )
-
-            warc_id = str(uuid.uuid4())
-            await driver._db.execute(
-                """
-                INSERT INTO responses (request_id, status_code, headers_json, url,
-                                      content_compressed, content_size_original,
-                                      content_size_compressed, continuation, warc_record_id)
-                VALUES (1, 200, '{"Content-Type": "application/pdf", "Content-Length": "5000"}',
-                        'https://example.com/resource', NULL, 0, 0, 'parse', ?)
-                """,
-                (warc_id,),
-            )
-            await driver._db.commit()
-
-            # Export to WARC
-            output_path = tmp_path / "headers_only.warc.gz"
-            count = await driver.export_warc(output_path)
-
-            assert count == 1, f"Expected 1 response exported, got {count}"
-            assert output_path.exists(), "WARC file should exist"
 
 
 class TestGracefulShutdownSigterm:
@@ -4940,8 +4834,10 @@ class TestGracefulShutdownSigterm:
                 ),
             )
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
 
             # Start the driver and stop it after a short delay
             async def stop_after_delay():
@@ -4954,7 +4850,7 @@ class TestGracefulShutdownSigterm:
                 stop_after_delay(),
             )
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Verify some but not all requests were processed
             assert processed_count > 0, (
@@ -4965,7 +4861,7 @@ class TestGracefulShutdownSigterm:
             )
 
             # Verify run metadata shows interrupted status
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT status FROM run_metadata WHERE id = 1"
             )
             row = await cursor.fetchone()
@@ -4975,7 +4871,7 @@ class TestGracefulShutdownSigterm:
             )
 
             # Verify any in_progress requests were reset to pending for resume
-            cursor2 = await driver._db.execute(
+            cursor2 = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE status = 'in_progress'"
             )
             in_progress_row = await cursor2.fetchone()
@@ -5024,8 +4920,10 @@ class TestGracefulShutdownSigterm:
             MockResponse(content=b"<html></html>", status_code=200),
         )
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
 
             # Verify _setup_signal_handlers and _restore_signal_handlers work
             # Set known handlers first
@@ -5115,8 +5013,10 @@ class TestGracefulShutdownSigterm:
             )
 
         # First run - interrupt early
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
 
             async def stop_early():
                 await asyncio.sleep(0.05)
@@ -5153,15 +5053,15 @@ class TestGracefulShutdownSigterm:
             )
 
         async with LocalDevDriver.open(
-            scraper2, db_path, resume=True
+            scraper2, db_path, resume=True, base_delay=0.0, jitter=0.0
         ) as driver2:
-            driver2.interceptors.append(interceptor2)
+            driver2.request_manager.interceptors.append(interceptor2)
             await driver2.run(setup_signal_handlers=False)
 
-            assert driver2._db is not None
+            assert driver2.db.db is not None
 
             # Verify all requests are now completed
-            cursor = await driver2._db.execute(
+            cursor = await driver2.db.db.execute(
                 "SELECT COUNT(*) FROM requests WHERE status = 'completed'"
             )
             row = await cursor.fetchone()
@@ -5261,7 +5161,7 @@ class TestDevDriverVsOtherDrivers:
             async_driver_results.append(data)
 
         async_driver = AsyncDriver(scraper=scraper1)
-        async_driver.interceptors.append(create_interceptor())
+        async_driver.request_manager.interceptors.append(create_interceptor())
         async_driver.on_data = collect_async_result
         await async_driver.run()
 
@@ -5271,8 +5171,12 @@ class TestDevDriverVsOtherDrivers:
         async def collect_dev_result(data: dict) -> None:
             dev_driver_results.append(data)
 
-        async with LocalDevDriver.open(scraper2, db_path) as dev_driver:
-            dev_driver.interceptors.append(create_interceptor())
+        async with LocalDevDriver.open(
+            scraper2, db_path, base_delay=0.0, jitter=0.0
+        ) as dev_driver:
+            dev_driver.request_manager.interceptors.append(
+                create_interceptor()
+            )
             dev_driver.on_data = collect_dev_result
             await dev_driver.run()
 
@@ -5331,14 +5235,16 @@ class TestDevDriverVsOtherDrivers:
             MockResponse(content=b"<html>Data</html>", status_code=200),
         )
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Check results are persisted in database
-            cursor = await driver._db.execute("SELECT COUNT(*) FROM results")
+            cursor = await driver.db.db.execute("SELECT COUNT(*) FROM results")
             row = await cursor.fetchone()
             result_count = row[0] if row else 0
 
@@ -5347,7 +5253,7 @@ class TestDevDriverVsOtherDrivers:
             )
 
             # Verify result content
-            cursor2 = await driver._db.execute(
+            cursor2 = await driver.db.db.execute(
                 "SELECT data_json FROM results ORDER BY id"
             )
             rows = await cursor2.fetchall()
@@ -5358,12 +5264,14 @@ class TestDevDriverVsOtherDrivers:
                 assert data["value"] == f"item_{i}"
 
             # Verify requests are also tracked
-            cursor3 = await driver._db.execute("SELECT COUNT(*) FROM requests")
+            cursor3 = await driver.db.db.execute(
+                "SELECT COUNT(*) FROM requests"
+            )
             req_row = await cursor3.fetchone()
             assert req_row[0] >= 1, "Should have at least 1 request tracked"
 
             # Verify responses are stored
-            cursor4 = await driver._db.execute(
+            cursor4 = await driver.db.db.execute(
                 "SELECT COUNT(*) FROM responses"
             )
             resp_row = await cursor4.fetchone()
@@ -5442,12 +5350,14 @@ class TestDeferredValidationHandling:
             ),
         )
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
             driver.on_data = collect_result
             await driver.run()
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Verify on_data was called with validated data
             assert len(received_data) == 1
@@ -5456,7 +5366,7 @@ class TestDeferredValidationHandling:
             assert received_data[0].docket_number == "2024-CV-001"
 
             # Verify result stored as valid in database
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT is_valid, data_json FROM results"
             )
             row = await cursor.fetchone()
@@ -5542,18 +5452,20 @@ class TestDeferredValidationHandling:
             ),
         )
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
             driver.on_invalid_data = collect_invalid
             await driver.run()
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Verify on_invalid_data was called
             assert len(invalid_data_received) == 1
 
             # Verify result stored as invalid in database
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT is_valid, validation_errors_json, data_json FROM results"
             )
             row = await cursor.fetchone()
@@ -5649,12 +5561,14 @@ class TestNonNavigatingRequestHandling:
             ),
         )
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
             driver.on_data = collect_result
             await driver.run()
 
-            assert driver._db is not None
+            assert driver.db.db is not None
 
             # Verify data was collected
             assert len(collected_data) == 1
@@ -5662,7 +5576,7 @@ class TestNonNavigatingRequestHandling:
             assert collected_data[0]["aux_source"] == "main_page"
 
             # Verify both requests are tracked in the database
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT url, request_type FROM requests ORDER BY id"
             )
             rows = await cursor.fetchall()
@@ -5748,8 +5662,10 @@ class TestNonNavigatingRequestHandling:
             MockResponse(content=b"<html>Detail</html>", status_code=200),
         )
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            driver.request_manager.interceptors.append(interceptor)
             driver.on_data = collect_result
             await driver.run()
 
@@ -5791,11 +5707,13 @@ class TestRequeueErrorsByType:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create requests that will be associated with errors
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url,
                                      continuation, current_location)
@@ -5808,7 +5726,7 @@ class TestRequeueErrorsByType:
             )
 
             # Create errors of different types
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO errors (request_id, error_type, error_class, message, request_url)
                 VALUES
@@ -5818,7 +5736,7 @@ class TestRequeueErrorsByType:
                     (4, 'validation', 'DataFormatAssumptionException', 'invalid data', 'https://example.com/validation1')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Requeue only structural errors
             new_ids = await driver.requeue_errors_by_type(
@@ -5830,7 +5748,7 @@ class TestRequeueErrorsByType:
             )
 
             # Verify the requeued requests
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT url FROM requests WHERE id IN (?, ?)",
                 tuple(new_ids),
             )
@@ -5839,7 +5757,7 @@ class TestRequeueErrorsByType:
             assert "https://example.com/structural2" in urls
 
             # Verify structural errors are marked resolved
-            cursor2 = await driver._db.execute(
+            cursor2 = await driver.db.db.execute(
                 "SELECT is_resolved FROM errors WHERE error_type = 'structural'"
             )
             resolved_statuses = [row[0] for row in await cursor2.fetchall()]
@@ -5848,7 +5766,7 @@ class TestRequeueErrorsByType:
             )
 
             # Verify transient error is NOT resolved
-            cursor3 = await driver._db.execute(
+            cursor3 = await driver.db.db.execute(
                 "SELECT is_resolved FROM errors WHERE error_type = 'transient'"
             )
             row = await cursor3.fetchone()
@@ -5881,11 +5799,13 @@ class TestRequeueErrorsByType:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create requests with different continuations
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url,
                                      continuation, current_location)
@@ -5897,7 +5817,7 @@ class TestRequeueErrorsByType:
             )
 
             # Create errors for all
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO errors (request_id, error_type, error_class, message, request_url)
                 VALUES
@@ -5906,7 +5826,7 @@ class TestRequeueErrorsByType:
                     (3, 'structural', 'HTMLStructuralAssumptionException', 'error', 'https://example.com/3')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Requeue only parse_listing continuation errors
             new_ids = await driver.requeue_errors_by_type(
@@ -5918,7 +5838,7 @@ class TestRequeueErrorsByType:
             )
 
             # Verify parse_detail error is NOT resolved
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 """
                 SELECT e.is_resolved FROM errors e
                 JOIN requests r ON e.request_id = r.id
@@ -5957,7 +5877,9 @@ class TestRequeueErrorsByType:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             # Try to requeue with no errors in DB
             new_ids = await driver.requeue_errors_by_type(
                 error_type="structural"
@@ -6001,11 +5923,13 @@ class TestResponsesAndResultsListing:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create requests
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url,
                                      continuation, current_location)
@@ -6024,7 +5948,7 @@ class TestResponsesAndResultsListing:
             ]:
                 content = f"Content {req_id}".encode()
                 compressed = compress(content)
-                await driver._db.execute(
+                await driver.db.db.execute(
                     """
                     INSERT INTO responses (request_id, status_code, headers_json, url,
                                           content_compressed, content_size_original,
@@ -6041,7 +5965,7 @@ class TestResponsesAndResultsListing:
                         str(uuid.uuid4()),
                     ),
                 )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Test filtering by continuation
             listing_page = await driver.list_responses(
@@ -6094,12 +6018,14 @@ class TestResponsesAndResultsListing:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create 10 requests and responses
             for i in range(10):
-                await driver._db.execute(
+                await driver.db.db.execute(
                     """
                     INSERT INTO requests (status, priority, queue_counter, method, url,
                                          continuation, current_location)
@@ -6109,7 +6035,7 @@ class TestResponsesAndResultsListing:
                 )
                 content = f"Content {i}".encode()
                 compressed = compress(content)
-                await driver._db.execute(
+                await driver.db.db.execute(
                     """
                     INSERT INTO responses (request_id, status_code, headers_json, url,
                                           content_compressed, content_size_original,
@@ -6125,7 +6051,7 @@ class TestResponsesAndResultsListing:
                         str(uuid.uuid4()),
                     ),
                 )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Test pagination
             page1 = await driver.list_responses(limit=3, offset=0)
@@ -6163,11 +6089,13 @@ class TestResponsesAndResultsListing:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create results of different types and validity
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO results (result_type, data_json, is_valid, validation_errors_json)
                 VALUES
@@ -6177,7 +6105,7 @@ class TestResponsesAndResultsListing:
                     ('DocumentData', '{"id": 4}', 1, NULL)
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Filter by result_type
             case_results = await driver.list_results(result_type="CaseData")
@@ -6230,11 +6158,13 @@ class TestGetterMethods:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create request and response
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url,
                                      continuation, current_location)
@@ -6244,7 +6174,7 @@ class TestGetterMethods:
             content = b"Test content"
             compressed = compress(content)
             warc_id = str(uuid.uuid4())
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO responses (request_id, status_code, headers_json, url,
                                       content_compressed, content_size_original,
@@ -6254,7 +6184,7 @@ class TestGetterMethods:
                 """,
                 (compressed, len(content), len(compressed), warc_id),
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Get response by ID
             response = await driver.get_response(1)
@@ -6292,7 +6222,9 @@ class TestGetterMethods:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             response = await driver.get_response(999)
             assert response is None
 
@@ -6323,17 +6255,19 @@ class TestGetterMethods:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create a result
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO results (result_type, data_json, is_valid)
                 VALUES ('CaseData', '{"case_name": "Smith v. Jones", "id": 123}', 1)
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Get result by ID
             result = await driver.get_result(1)
@@ -6373,7 +6307,9 @@ class TestGetterMethods:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             result = await driver.get_result(999)
             assert result is None
 
@@ -6408,18 +6344,20 @@ class TestCancellationMethods:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create a pending request
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url,
                                      continuation, current_location)
                 VALUES ('pending', 5, 1, 'GET', 'https://example.com/test', 'parse', '')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Cancel the request
             cancelled = await driver.cancel_request(1)
@@ -6427,7 +6365,7 @@ class TestCancellationMethods:
             assert cancelled is True
 
             # Verify status changed
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT status, last_error FROM requests WHERE id = 1"
             )
             row = await cursor.fetchone()
@@ -6461,18 +6399,20 @@ class TestCancellationMethods:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create a held request
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url,
                                      continuation, current_location)
                 VALUES ('held', 5, 1, 'GET', 'https://example.com/test', 'parse', '')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Cancel the request
             cancelled = await driver.cancel_request(1)
@@ -6480,7 +6420,7 @@ class TestCancellationMethods:
             assert cancelled is True
 
             # Verify status changed
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT status FROM requests WHERE id = 1"
             )
             row = await cursor.fetchone()
@@ -6515,18 +6455,20 @@ class TestCancellationMethods:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create an in_progress request
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url,
                                      continuation, current_location)
                 VALUES ('in_progress', 5, 1, 'GET', 'https://example.com/test', 'parse', '')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Try to cancel - should fail
             cancelled = await driver.cancel_request(1)
@@ -6534,7 +6476,7 @@ class TestCancellationMethods:
             assert cancelled is False
 
             # Verify status unchanged
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 "SELECT status FROM requests WHERE id = 1"
             )
             row = await cursor.fetchone()
@@ -6567,7 +6509,9 @@ class TestCancellationMethods:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             cancelled = await driver.cancel_request(999)
             assert cancelled is False
 
@@ -6600,11 +6544,13 @@ class TestCancellationMethods:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
-            assert driver._db is not None
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            assert driver.db.db is not None
 
             # Create requests with different continuations and statuses
-            await driver._db.execute(
+            await driver.db.db.execute(
                 """
                 INSERT INTO requests (status, priority, queue_counter, method, url,
                                      continuation, current_location)
@@ -6616,7 +6562,7 @@ class TestCancellationMethods:
                     ('pending', 5, 5, 'GET', 'https://example.com/5', 'parse_listing', '')
                 """
             )
-            await driver._db.commit()
+            await driver.db.db.commit()
 
             # Cancel all parse_detail requests
             count = await driver.cancel_requests_by_continuation(
@@ -6627,7 +6573,7 @@ class TestCancellationMethods:
             assert count == 3
 
             # Verify statuses
-            cursor = await driver._db.execute(
+            cursor = await driver.db.db.execute(
                 """
                 SELECT id, status FROM requests WHERE continuation = 'parse_detail'
                 ORDER BY id
@@ -6643,7 +6589,7 @@ class TestCancellationMethods:
             assert rows[3][1] == "in_progress"
 
             # parse_listing should be unchanged
-            cursor2 = await driver._db.execute(
+            cursor2 = await driver.db.db.execute(
                 "SELECT status FROM requests WHERE continuation = 'parse_listing'"
             )
             row = await cursor2.fetchone()
@@ -6678,7 +6624,9 @@ class TestCancellationMethods:
                 return []
 
         scraper = SimpleScraper()
-        async with LocalDevDriver.open(scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             count = await driver.cancel_requests_by_continuation("nonexistent")
             assert count == 0
 
@@ -6711,6 +6659,7 @@ class TestSpeculativeRequestHandling:
             def __init__(self) -> None:
                 self.speculative_results: list[bool] = []
                 self.pages_processed: list[int] = []
+                self._params = ScraperParams()
 
             def get_entry(self) -> Generator[NavigatingRequest, None, None]:
                 yield NavigatingRequest(
@@ -6720,9 +6669,9 @@ class TestSpeculativeRequestHandling:
                     continuation="parse_start",
                 )
 
-            @step
+            @step(speculative=True)
             def parse_start(
-                self, response: Response
+                self, response: Response, speculative_id: int = 1
             ) -> Generator[ScraperYield, bool | None, None]:
                 for page in range(1, 4):
                     should_continue = yield SpeculativeRequest(
@@ -6731,6 +6680,7 @@ class TestSpeculativeRequestHandling:
                             url=f"https://example.com/page/{page}",
                         ),
                         continuation="parse_page",
+                        speculative_id=page,
                     )
                     self.speculative_results.append(
                         should_continue
@@ -6755,7 +6705,9 @@ class TestSpeculativeRequestHandling:
         async def on_data(data: dict) -> None:
             collected_data.append(data)
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             driver.on_data = on_data
             # Mock the HTTP request method
             mock_response = MagicMock()
@@ -6763,8 +6715,10 @@ class TestSpeculativeRequestHandling:
             mock_response.headers = {}
             mock_response.content = b""
             mock_response.text = ""
-            driver._client = MagicMock()
-            driver._client.request = AsyncMock(return_value=mock_response)
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request = AsyncMock(
+                return_value=mock_response
+            )
 
             await driver.run()
 
@@ -6799,6 +6753,7 @@ class TestSpeculativeRequestHandling:
         class SpeculativeScraper(BaseScraper[dict]):
             def __init__(self) -> None:
                 self.speculative_results: list[bool] = []
+                self._params = ScraperParams()
 
             def get_entry(self) -> Generator[NavigatingRequest, None, None]:
                 yield NavigatingRequest(
@@ -6808,9 +6763,9 @@ class TestSpeculativeRequestHandling:
                     continuation="parse_start",
                 )
 
-            @step
+            @step(speculative=True)
             def parse_start(
-                self, response: Response
+                self, response: Response, speculative_id=1
             ) -> Generator[ScraperYield, bool | None, None]:
                 for page in range(1, 4):
                     should_continue = yield SpeculativeRequest(
@@ -6819,6 +6774,7 @@ class TestSpeculativeRequestHandling:
                             url=f"https://example.com/page/{page}",
                         ),
                         continuation="parse_page",
+                        speculative_id=page,
                     )
                     self.speculative_results.append(
                         should_continue
@@ -6837,7 +6793,9 @@ class TestSpeculativeRequestHandling:
         db_path = tmp_path / "test_speculative_404.db"
         scraper = SpeculativeScraper()
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             # First returns 200, second returns 404
             call_count = 0
 
@@ -6855,8 +6813,10 @@ class TestSpeculativeRequestHandling:
                 mock.text = ""
                 return mock
 
-            driver._client = MagicMock()
-            driver._client.request = AsyncMock(side_effect=make_response)
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request = AsyncMock(
+                side_effect=make_response
+            )
 
             await driver.run()
 
@@ -6887,6 +6847,7 @@ class TestSpeculativeRequestHandling:
         class SpeculativeScraper(BaseScraper[dict]):
             def __init__(self) -> None:
                 self.speculative_results: list[bool] = []
+                self._params = ScraperParams()
 
             def get_entry(self) -> Generator[NavigatingRequest, None, None]:
                 yield NavigatingRequest(
@@ -6896,9 +6857,9 @@ class TestSpeculativeRequestHandling:
                     continuation="parse_start",
                 )
 
-            @step
+            @step(speculative=True)
             def parse_start(
-                self, response: Response
+                self, response: Response, speculative_id: int = 1
             ) -> Generator[ScraperYield, bool | None, None]:
                 for page in range(1, 4):
                     should_continue = yield SpeculativeRequest(
@@ -6907,6 +6868,7 @@ class TestSpeculativeRequestHandling:
                             url=f"https://example.com/page/{page}",
                         ),
                         continuation="parse_page",
+                        speculative_id=page,
                     )
                     self.speculative_results.append(
                         should_continue
@@ -6933,7 +6895,11 @@ class TestSpeculativeRequestHandling:
             return True  # Always continue
 
         async with LocalDevDriver.open(
-            scraper, db_path, on_speculation_response=speculation_callback
+            scraper,
+            db_path,
+            on_speculation_response=speculation_callback,
+            base_delay=0.0,
+            jitter=0.0,
         ) as driver:
             call_count = 0
 
@@ -6951,8 +6917,10 @@ class TestSpeculativeRequestHandling:
                 mock.text = ""
                 return mock
 
-            driver._client = MagicMock()
-            driver._client.request = AsyncMock(side_effect=make_response)
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request = AsyncMock(
+                side_effect=make_response
+            )
 
             await driver.run()
 
@@ -6993,7 +6961,9 @@ class TestSpeculativeRequestHandling:
         db_path = tmp_path / "test_spec_roundtrip.db"
         scraper = SimpleScraper()
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             # Create a speculative request
             spec_request = SpeculativeRequest(
                 request=HTTPRequestParams(
@@ -7007,6 +6977,7 @@ class TestSpeculativeRequestHandling:
                 aux_data={"aux": "data"},
                 permanent={"perm": "data"},
                 priority=5,
+                speculative_id=1,
             )
 
             # Serialize with speculation_id
@@ -7041,6 +7012,7 @@ class TestSpeculativeRequestHandling:
         class DuplicateScraper(BaseScraper[dict]):
             def __init__(self) -> None:
                 self.results: list[bool] = []
+                self._params = ScraperParams()
 
             def get_entry(self) -> Generator[NavigatingRequest, None, None]:
                 yield NavigatingRequest(
@@ -7050,9 +7022,9 @@ class TestSpeculativeRequestHandling:
                     continuation="parse_start",
                 )
 
-            @step
+            @step(speculative=True)
             def parse_start(
-                self, response: Response
+                self, response: Response, speculative_id: int = 1
             ) -> Generator[ScraperYield, bool | None, None]:
                 # First speculative request
                 result1 = yield SpeculativeRequest(
@@ -7060,6 +7032,7 @@ class TestSpeculativeRequestHandling:
                         method=HttpMethod.GET, url="https://example.com/page"
                     ),
                     continuation="parse_page",
+                    speculative_id=1,
                 )
                 self.results.append(result1 if result1 is not None else False)
 
@@ -7069,6 +7042,7 @@ class TestSpeculativeRequestHandling:
                         method=HttpMethod.GET, url="https://example.com/page"
                     ),
                     continuation="parse_page",
+                    speculative_id=2,
                 )
                 self.results.append(result2 if result2 is not None else False)
 
@@ -7081,16 +7055,539 @@ class TestSpeculativeRequestHandling:
         db_path = tmp_path / "test_spec_dedup.db"
         scraper = DuplicateScraper()
 
-        async with LocalDevDriver.open(scraper, db_path) as driver:
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.headers = {}
             mock_response.content = b""
             mock_response.text = ""
-            driver._client = MagicMock()
-            driver._client.request = AsyncMock(return_value=mock_response)
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request = AsyncMock(
+                return_value=mock_response
+            )
 
             await driver.run()
 
         # First should succeed (True), second should be deduplicated (False)
         assert scraper.results == [True, False]
+
+
+class TestSpeculativeRequestRestart:
+    """Tests for SpeculativeRequest restart/resume functionality.
+
+    These tests verify that the LocalDevDriver can:
+    1. Track speculative progress in the database
+    2. Resume speculative generators from where they left off
+    3. Recover from lost generator context after restart
+    """
+
+    async def test_speculative_progress_tracked_in_db(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that speculative progress is tracked in the database."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+            ParsedData,
+            Response,
+            ScraperYield,
+            SpeculativeRequest,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+
+        class SpeculativeScraper(BaseScraper[dict]):
+            """Scraper that yields speculative requests with explicit IDs."""
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.pages_processed: list[int] = []
+                self._params = ScraperParams()
+
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/start"
+                    ),
+                    continuation="parse_start",
+                )
+
+            @step(speculative=True)
+            def parse_start(
+                self, response: Response, speculative_id: int = 1
+            ) -> Generator[ScraperYield, bool | None, None]:
+                """Yield speculative requests starting from speculative_id."""
+                current_id = speculative_id
+                max_pages = 5
+                while current_id <= max_pages:
+                    should_continue = yield SpeculativeRequest(
+                        request=HTTPRequestParams(
+                            method=HttpMethod.GET,
+                            url=f"https://example.com/page/{current_id}",
+                        ),
+                        continuation="parse_page",
+                        speculative_id=current_id,
+                    )
+                    if not should_continue:
+                        break
+                    current_id += 1
+
+            @step
+            def parse_page(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                page_num = int(response.url.split("/")[-1])
+                self.pages_processed.append(page_num)
+                yield ParsedData({"page": page_num})
+
+        db_path = tmp_path / "test_spec_progress.db"
+        scraper = SpeculativeScraper()
+
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            # Mock HTTP responses - all return 200 except page 4 which returns 404
+            def mock_request(**kwargs: Any) -> MagicMock:
+                response = MagicMock()
+                url = kwargs.get("url", "")
+                if "/page/4" in url:
+                    response.status_code = 404
+                else:
+                    response.status_code = 200
+                response.headers = {}
+                response.content = b""
+                response.text = ""
+                return response
+
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request = AsyncMock(
+                side_effect=mock_request
+            )
+
+            await driver.run()
+
+            # Check that progress was tracked
+            progress = await driver.get_speculative_progress("parse_start")
+            # Progress tracks the last speculative_id that was ATTEMPTED (not just successful)
+            # This ensures restart resumes from the correct point
+            # Page 4 was attempted (404 response) so progress = 4
+            assert progress is not None
+            assert progress == 4  # Last attempted speculative_id
+
+        # Verify pages 1, 2, 3 were processed (not 4 which was 404)
+        assert scraper.pages_processed == [1, 2, 3]
+
+    async def test_speculative_progress_monotonic(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that speculative progress only tracks forward progress (MAX)."""
+        from juriscraper.scraper_driver.driver.dev_driver.schema import (
+            init_database,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.sql_queries import (
+            SQL,
+        )
+
+        db_path = tmp_path / "test_monotonic.db"
+        db = await init_database(db_path)
+
+        try:
+            # Insert initial progress
+            await db.execute(
+                SQL.UPSERT_SPECULATIVE_PROGRESS, ("test_step", 10)
+            )
+            await db.commit()
+
+            # Try to insert lower value - should be ignored due to MAX
+            await db.execute(SQL.UPSERT_SPECULATIVE_PROGRESS, ("test_step", 5))
+            await db.commit()
+
+            # Verify value is still 10 (not 5)
+            cursor = await db.execute(
+                SQL.SELECT_SPECULATIVE_PROGRESS, ("test_step",)
+            )
+            row = await cursor.fetchone()
+            assert row[0] == 10
+
+            # Insert higher value - should update
+            await db.execute(
+                SQL.UPSERT_SPECULATIVE_PROGRESS, ("test_step", 15)
+            )
+            await db.commit()
+
+            cursor = await db.execute(
+                SQL.SELECT_SPECULATIVE_PROGRESS, ("test_step",)
+            )
+            row = await cursor.fetchone()
+            assert row[0] == 15
+        finally:
+            await db.close()
+
+    async def test_speculative_restart_from_progress(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that speculative scraping can restart from a configured starting ID.
+
+        This test verifies:
+        1. First run with default starting ID (1) processes from the beginning
+        2. Second run with configured starting ID (5) starts from that point
+
+        Note: This tests the params.speculative configuration mechanism that
+        would be used during recovery after a crash or restart.
+        """
+        from unittest.mock import AsyncMock, MagicMock
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+            ParsedData,
+            Response,
+            ScraperYield,
+            SpeculativeRequest,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+
+        class RestartableScraper(BaseScraper[dict]):
+            """Scraper that tracks which pages it processes."""
+
+            def __init__(self, params: Any = None) -> None:
+                super().__init__(params=params)
+                self.pages_processed: list[int] = []
+                self.starting_id_received: int | None = None
+
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/start"
+                    ),
+                    continuation="parse_start",
+                )
+
+            @step(speculative=True)
+            def parse_start(
+                self, response: Response, speculative_id: int = 1
+            ) -> Generator[ScraperYield, bool | None, None]:
+                self.starting_id_received = speculative_id
+                current_id = speculative_id
+                max_pages = speculative_id + 2  # Process 3 pages
+                while current_id <= max_pages:
+                    should_continue = yield SpeculativeRequest(
+                        request=HTTPRequestParams(
+                            method=HttpMethod.GET,
+                            url=f"https://example.com/page/{current_id}",
+                        ),
+                        continuation="parse_page",
+                        speculative_id=current_id,
+                    )
+                    if not should_continue:
+                        break
+                    current_id += 1
+
+            @step
+            def parse_page(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                page_num = int(response.url.split("/")[-1])
+                self.pages_processed.append(page_num)
+                yield ParsedData({"page": page_num})
+
+        # First run: Default starting ID (1), process pages 1, 2, 3
+        db_path1 = tmp_path / "test_spec_restart_1.db"
+        scraper1 = RestartableScraper()
+
+        async with LocalDevDriver.open(
+            scraper1, db_path1, base_delay=0.0, jitter=0.0
+        ) as driver:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.headers = {}
+            mock_response.content = b""
+            mock_response.text = ""
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request = AsyncMock(
+                return_value=mock_response
+            )
+
+            await driver.run()
+
+            # Verify first run started from default (1) and processed pages 1-3
+            assert scraper1.starting_id_received == 1
+            assert scraper1.pages_processed == [1, 2, 3]
+
+            # Verify progress was tracked
+            saved_progress = await driver.get_speculative_progress(
+                "parse_start"
+            )
+            assert saved_progress == 3
+
+        # Second run: Configured starting ID (5), process pages 5, 6, 7
+        # This simulates what would happen after recovery
+        db_path2 = tmp_path / "test_spec_restart_2.db"
+        params = RestartableScraper.params()
+        params.speculative.parse_start = 5  # Start from page 5
+        scraper2 = RestartableScraper(params=params)
+
+        async with LocalDevDriver.open(
+            scraper2, db_path2, base_delay=0.0, jitter=0.0
+        ) as driver:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.headers = {}
+            mock_response.content = b""
+            mock_response.text = ""
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request = AsyncMock(
+                return_value=mock_response
+            )
+
+            await driver.run()
+
+            # Verify second run started from configured ID (5)
+            assert scraper2.starting_id_received == 5
+            assert scraper2.pages_processed == [5, 6, 7]
+
+            # Progress should be 7
+            final_progress = await driver.get_speculative_progress(
+                "parse_start"
+            )
+            assert final_progress == 7
+
+    async def test_speculative_metadata_stored_in_permanent(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that speculative request metadata is stored in permanent_json.
+
+        This ensures recovery is possible after restart by verifying the
+        _speculative_step and _speculative_id fields are persisted.
+        """
+        from unittest.mock import AsyncMock, MagicMock
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+            ParsedData,
+            Response,
+            ScraperYield,
+            SpeculativeRequest,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+
+        class MetadataScraper(BaseScraper[dict]):
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/start"
+                    ),
+                    continuation="parse_start",
+                )
+
+            @step(speculative=True)
+            def parse_start(
+                self, response: Response, speculative_id: int = 1
+            ) -> Generator[ScraperYield, bool | None, None]:
+                # Just yield one speculative request
+                yield SpeculativeRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url="https://example.com/speculative",
+                    ),
+                    continuation="parse_result",
+                    speculative_id=42,  # Specific ID to verify
+                )
+
+            @step
+            def parse_result(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                yield ParsedData({"done": True})
+
+        db_path = tmp_path / "test_metadata.db"
+        scraper = MetadataScraper()
+
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.headers = {}
+            mock_response.content = b""
+            mock_response.text = ""
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request = AsyncMock(
+                return_value=mock_response
+            )
+
+            # Run the scraper - this will process all requests
+            await driver.run()
+
+            # Check that the speculative request had metadata stored
+            # Even though it's completed, we can check the permanent_json was stored
+            cursor = await driver.db.db.execute(
+                """
+                SELECT permanent_json FROM requests
+                WHERE url = 'https://example.com/speculative'
+                """
+            )
+            row = await cursor.fetchone()
+            assert row is not None
+
+            permanent_data = json.loads(row[0])
+            assert permanent_data.get("_speculative_step") == "parse_start"
+            assert permanent_data.get("_speculative_id") == 42
+
+    async def test_multiple_speculative_steps_tracked_separately(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that multiple speculative steps track progress independently."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from juriscraper.scraper_driver.common.decorators import step
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+            ParsedData,
+            Response,
+            ScraperYield,
+            SpeculativeRequest,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+
+        class MultiStepScraper(BaseScraper[dict]):
+            """Scraper with two independent speculative steps."""
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.step_a_ids: list[int] = []
+                self.step_b_ids: list[int] = []
+                self._params = ScraperParams()
+
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/start"
+                    ),
+                    continuation="speculative_step_a",
+                )
+
+            @step(speculative=True)
+            def speculative_step_a(
+                self, response: Response, speculative_id: int
+            ) -> Generator[ScraperYield, bool | None, None]:
+                """First speculative step - processes IDs 1-3."""
+                current_id = speculative_id
+                while current_id <= 3:
+                    self.step_a_ids.append(current_id)
+                    should_continue = yield SpeculativeRequest(
+                        request=HTTPRequestParams(
+                            method=HttpMethod.GET,
+                            url=f"https://example.com/a/{current_id}",
+                        ),
+                        continuation="parse_a",
+                        speculative_id=current_id,
+                    )
+                    if not should_continue:
+                        break
+                    current_id += 1
+
+                # After step A, trigger step B
+                yield NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url="https://example.com/start_b",
+                    ),
+                    continuation="speculative_step_b",
+                )
+
+            @step(speculative=True)
+            def speculative_step_b(
+                self, response: Response, speculative_id: int
+            ) -> Generator[ScraperYield, bool | None, None]:
+                """Second speculative step - processes IDs 1-5."""
+                current_id = speculative_id
+                while current_id <= 5:
+                    self.step_b_ids.append(current_id)
+                    should_continue = yield SpeculativeRequest(
+                        request=HTTPRequestParams(
+                            method=HttpMethod.GET,
+                            url=f"https://example.com/b/{current_id}",
+                        ),
+                        continuation="parse_b",
+                        speculative_id=current_id,
+                    )
+                    if not should_continue:
+                        break
+                    current_id += 1
+
+            @step
+            def parse_a(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                yield ParsedData({"type": "a"})
+
+            @step
+            def parse_b(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                yield ParsedData({"type": "b"})
+
+        db_path = tmp_path / "test_multi_step.db"
+        scraper = MultiStepScraper()
+
+        async with LocalDevDriver.open(
+            scraper, db_path, base_delay=0.0, jitter=0.0
+        ) as driver:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.headers = {}
+            mock_response.content = b""
+            mock_response.text = ""
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request = AsyncMock(
+                return_value=mock_response
+            )
+
+            await driver.run()
+
+            # Verify both steps were processed
+            assert scraper.step_a_ids == [1, 2, 3]
+            assert scraper.step_b_ids == [1, 2, 3, 4, 5]
+
+            # Verify progress is tracked separately
+            progress_a = await driver.get_speculative_progress(
+                "speculative_step_a"
+            )
+            progress_b = await driver.get_speculative_progress(
+                "speculative_step_b"
+            )
+
+            assert progress_a == 3
+            assert progress_b == 5
+
+            # Verify get_all_speculative_progress returns both
+            all_progress = await driver.get_all_speculative_progress()
+            assert "speculative_step_a" in all_progress
+            assert "speculative_step_b" in all_progress
+            assert all_progress["speculative_step_a"] == 3
+            assert all_progress["speculative_step_b"] == 5

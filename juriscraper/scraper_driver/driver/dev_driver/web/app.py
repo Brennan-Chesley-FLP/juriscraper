@@ -24,6 +24,9 @@ if TYPE_CHECKING:
     from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
         LocalDevDriver,
     )
+    from juriscraper.scraper_driver.driver.dev_driver.sql_manager import (
+        SQLManager,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -151,8 +154,20 @@ class RunManager:
         Raises:
             ValueError: If run_id already exists.
         """
+        from juriscraper.scraper_driver.common.request_manager import (
+            AsyncRequestManager,
+        )
         from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
             LocalDevDriver,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.rate_limiter import (
+            JitterRateLimitInterceptor,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.schema import (
+            init_database,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.sql_manager import (
+            SQLManager,
         )
         from juriscraper.scraper_driver.driver.dev_driver.web.archive import (
             get_storage_dir_for_run,
@@ -168,16 +183,49 @@ class RunManager:
             # Set up storage directory for archived files
             storage_dir = get_storage_dir_for_run(self.runs_dir, run_id)
 
-            # Create driver with custom archive handler
+            # Extract config from driver_kwargs
+            base_delay = driver_kwargs.get("base_delay", 10.0)
+            jitter = driver_kwargs.get("jitter", 2.0)
+            num_workers = driver_kwargs.get("num_workers", 1)
+            max_backoff_time = driver_kwargs.get("max_backoff_time", 3600.0)
+
+            # Initialize database and SQLManager
+            aiosqlite_db = await init_database(db_path)
+            sql_manager = SQLManager(aiosqlite_db)
+
+            # Initialize run metadata
+            scraper_name = scraper.__class__.__name__
+            scraper_version = getattr(scraper, "__version__", None)
+            await sql_manager.init_run_metadata(
+                scraper_name=scraper_name,
+                scraper_version=scraper_version,
+                base_delay=base_delay,
+                jitter=jitter,
+                num_workers=num_workers,
+                max_backoff_time=max_backoff_time,
+            )
+
+            # Set up rate limiter interceptor and request manager
+            rate_limiter = JitterRateLimitInterceptor(
+                base_delay_seconds=base_delay,
+                jitter_seconds=jitter,
+            )
+            request_manager = AsyncRequestManager(
+                interceptors=[rate_limiter],
+                ssl_context=scraper.get_ssl_context(),
+            )
+
+            # Create driver with SQLManager and request manager
             driver = LocalDevDriver(
                 scraper=scraper,
-                db_path=db_path,
+                db=sql_manager,
                 storage_dir=storage_dir,
+                request_manager=request_manager,
                 **driver_kwargs,
             )
+
             # Set the custom archive callback
             driver.on_archive = uuid_archive_callback
-            await driver._init_db()
 
             run_info = RunInfo(
                 run_id=run_id,
@@ -206,8 +254,20 @@ class RunManager:
         Raises:
             ValueError: If run_id not found or already loaded.
         """
+        from juriscraper.scraper_driver.common.request_manager import (
+            AsyncRequestManager,
+        )
         from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
             LocalDevDriver,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.rate_limiter import (
+            JitterRateLimitInterceptor,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.schema import (
+            init_database,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.sql_manager import (
+            SQLManager,
         )
         from juriscraper.scraper_driver.driver.dev_driver.web.archive import (
             get_storage_dir_for_run,
@@ -225,17 +285,57 @@ class RunManager:
             # Set up storage directory for archived files
             storage_dir = get_storage_dir_for_run(self.runs_dir, run_id)
 
+            # Extract config from driver_kwargs
+            base_delay = driver_kwargs.get("base_delay", 10.0)
+            jitter = driver_kwargs.get("jitter", 2.0)
+            num_workers = driver_kwargs.get("num_workers", 1)
+            max_backoff_time = driver_kwargs.get("max_backoff_time", 3600.0)
+
+            # Initialize database and SQLManager
+            aiosqlite_db = await init_database(run_info.db_path)
+            sql_manager = SQLManager(aiosqlite_db)
+
+            # Initialize run metadata (for existing runs, this updates status)
+            scraper_name = scraper.__class__.__name__
+            scraper_version = getattr(scraper, "__version__", None)
+            await sql_manager.init_run_metadata(
+                scraper_name=scraper_name,
+                scraper_version=scraper_version,
+                base_delay=base_delay,
+                jitter=jitter,
+                num_workers=num_workers,
+                max_backoff_time=max_backoff_time,
+            )
+
+            # Restore queue since we're resuming
+            pending_count = await sql_manager.restore_queue()
+            if pending_count > 0:
+                logger.info(
+                    f"Restored {pending_count} pending requests from database"
+                )
+
+            # Set up rate limiter interceptor and request manager
+            rate_limiter = JitterRateLimitInterceptor(
+                base_delay_seconds=base_delay,
+                jitter_seconds=jitter,
+            )
+            request_manager = AsyncRequestManager(
+                interceptors=[rate_limiter],
+                ssl_context=scraper.get_ssl_context(),
+            )
+
             # Load driver with resume=True and custom archive handler
             driver = LocalDevDriver(
                 scraper=scraper,
-                db_path=run_info.db_path,
+                db=sql_manager,
                 storage_dir=storage_dir,
                 resume=True,
+                request_manager=request_manager,
                 **driver_kwargs,
             )
+
             # Set the custom archive callback
             driver.on_archive = uuid_archive_callback
-            await driver._init_db()
 
             run_info.driver = driver
             run_info.status = "loaded"
@@ -444,6 +544,42 @@ def get_run_manager() -> RunManager:
     if _run_manager is None:
         raise RuntimeError("Run manager not initialized")
     return _run_manager
+
+
+async def get_sql_manager_for_run(
+    run_id: str, manager: RunManager
+) -> SQLManager:
+    """Get SQLManager for a run, opening DB if not already loaded.
+
+    This function provides database access for runs without requiring
+    the full driver to be loaded. For loaded runs, it wraps the driver's
+    existing database connection. For unloaded runs, it opens the database
+    directly.
+
+    Args:
+        run_id: The run identifier.
+        manager: The run manager.
+
+    Returns:
+        SQLManager instance for the run.
+
+    Raises:
+        ValueError: If run not found.
+    """
+    run_info = await manager.get_run(run_id)
+    if run_info is None:
+        raise ValueError(f"Run '{run_id}' not found")
+
+    # If driver is loaded, use its SQLManager
+    if run_info.driver is not None:
+        return run_info.driver.db
+
+    # Otherwise, open the database directly
+    # Note: For now, we require the driver to be loaded
+    # to avoid managing multiple connections to the same database
+    raise ValueError(
+        f"Run '{run_id}' is not loaded. Load it first with POST /api/runs/{run_id}/load"
+    )
 
 
 @asynccontextmanager

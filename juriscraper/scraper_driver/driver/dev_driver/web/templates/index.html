@@ -91,6 +91,14 @@
                 </div>
             </div>
 
+            <div class="form-section" id="speculative-section" style="display: none;">
+                <h3>Speculative Scraping</h3>
+                <small class="section-help">Configure starting IDs for speculative request steps</small>
+                <div id="speculative-container">
+                    <!-- Dynamic speculative step fields will be inserted here -->
+                </div>
+            </div>
+
             <div class="form-section" id="params-section" style="display: none;">
                 <h3>Scraper Parameters</h3>
                 <div id="params-container">
@@ -202,10 +210,49 @@ async function loadScrapers() {
     }
 }
 
+// Build speculative steps form for selected scraper
+function buildSpeculativeForm(scraper) {
+    const container = document.getElementById('speculative-container');
+    const section = document.getElementById('speculative-section');
+
+    if (!scraper.speculative_steps || scraper.speculative_steps.length === 0) {
+        section.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    section.style.display = 'block';
+    container.innerHTML = '';
+
+    const formRow = document.createElement('div');
+    formRow.className = 'form-row';
+
+    for (const step of scraper.speculative_steps) {
+        const fieldDiv = document.createElement('div');
+        fieldDiv.className = 'form-group';
+        fieldDiv.innerHTML = `
+            <label for="speculative-${step.name}">${step.name}</label>
+            <input type="number"
+                   id="speculative-${step.name}"
+                   name="speculative.${step.name}"
+                   value="${step.default_starting_id}"
+                   min="1"
+                   placeholder="Starting ID">
+            <small>Starting ID for speculative requests</small>
+        `;
+        formRow.appendChild(fieldDiv);
+    }
+
+    container.appendChild(formRow);
+}
+
 // Build parameter form for selected scraper
 function buildParamsForm(scraper) {
     const container = document.getElementById('params-container');
     const section = document.getElementById('params-section');
+
+    // Also build speculative form
+    buildSpeculativeForm(scraper);
 
     if (!scraper.models || scraper.models.length === 0) {
         section.style.display = 'none';
@@ -292,6 +339,8 @@ function openModal() {
     document.getElementById('new-run-form').reset();
     document.getElementById('params-section').style.display = 'none';
     document.getElementById('params-container').innerHTML = '';
+    document.getElementById('speculative-section').style.display = 'none';
+    document.getElementById('speculative-container').innerHTML = '';
 }
 
 function closeModal() {
@@ -307,6 +356,8 @@ document.getElementById('scraper-select').addEventListener('change', (e) => {
     } else {
         document.getElementById('params-section').style.display = 'none';
         document.getElementById('params-container').innerHTML = '';
+        document.getElementById('speculative-section').style.display = 'none';
+        document.getElementById('speculative-container').innerHTML = '';
     }
 });
 
@@ -323,12 +374,19 @@ document.getElementById('new-run-form').addEventListener('submit', async (e) => 
         base_delay: parseFloat(formData.get('base_delay')),
         jitter: parseFloat(formData.get('jitter')),
         num_workers: parseInt(formData.get('num_workers')),
-        params: { models: {} }
+        params: { models: {}, speculative: {} }
     };
 
     // Process params from form
     for (const [key, value] of formData.entries()) {
-        if (key.startsWith('models.')) {
+        // Handle speculative step starting IDs
+        if (key.startsWith('speculative.')) {
+            const stepName = key.split('.')[1];
+            if (value) {
+                body.params.speculative[stepName] = parseInt(value);
+            }
+        }
+        else if (key.startsWith('models.')) {
             const parts = key.split('.');
             // models.<ModelName>.enabled or models.<ModelName>.fields.<fieldName>.<prop>
             const modelName = parts[1];

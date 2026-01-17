@@ -15,12 +15,14 @@ Supported parameter names:
 - lxml_tree: Response content parsed as CheckedHtmlElement
 - text: Response content as string
 - local_filepath: Local file path from ArchiveResponse (None if not archive)
+- speculative_id: Starting ID for speculative steps (from params.speculative.{step_name})
 
 The decorator also handles:
 - Attaching priority metadata to functions
 - Attaching encoding and xsd metadata for drivers to optionally use
 - Auto-resolving Callable continuations to string names
 - Automatic yielding from wrapped generators
+- Validating that speculative=True steps have a speculative_id parameter
 """
 
 import inspect
@@ -40,6 +42,7 @@ from juriscraper.scraper_driver.data_types import (
     BaseRequest,
     Response,
     ScraperYield,
+    SpeculativeRequest,
 )
 
 T = TypeVar("T")
@@ -228,10 +231,18 @@ def step(
             ...
 
         @step(speculative=True)
-        def parse_case(self, lxml_tree: CheckedHtmlElement):
+        def parse_case(self, lxml_tree: CheckedHtmlElement, speculative_id: int):
             # Marks this step as handling speculative requests.
-            # Consumers can configure max speculative ID via params.
-            ...
+            # speculative_id is injected from params.speculative.parse_case
+            # Consumers configure starting ID via: params.speculative.parse_case = 100
+            for case_id in range(speculative_id, speculative_id + 1000):
+                should_continue = yield SpeculativeRequest(
+                    url=f"/case/{case_id}",
+                    continuation=self.parse_case_detail,
+                    speculative_id=case_id,
+                )
+                if not should_continue:
+                    break
 
     Args:
         func: The scraper step method to decorate (when used without parens).
@@ -256,6 +267,14 @@ def step(
         # Inspect the function signature to determine what to inject
         sig = inspect.signature(fn)
         param_names = [p.name for p in sig.parameters.values()]
+
+        # Validate: speculative=True requires speculative_id parameter
+        if speculative and "speculative_id" not in param_names:
+            raise TypeError(
+                f"Step '{fn.__name__}' is marked speculative=True but does not "
+                f"accept a 'speculative_id' parameter. Add 'speculative_id: int' "
+                f"to the function signature."
+            )
 
         # Create metadata
         metadata = StepMetadata(
@@ -314,6 +333,38 @@ def step(
                 else:
                     injected_kwargs["local_filepath"] = None
 
+            # Inject speculative_id with precedence:
+            # 1. Value from params.speculative.{step_name} (if configured)
+            # 2. Function's default parameter value (if specified)
+            # 3. Fall back to 1
+            if "speculative_id" in param_names:
+                speculative_id_value: int | None = None
+
+                # Try to get from params first
+                params = scraper_self.get_params()
+                if params is not None:
+                    try:
+                        speculative_id_value = getattr(
+                            params.speculative, fn.__name__
+                        )
+                    except AttributeError:
+                        pass
+
+                # If not in params, try function's default
+                if speculative_id_value is None:
+                    param = sig.parameters.get("speculative_id")
+                    if (
+                        param is not None
+                        and param.default is not inspect.Parameter.empty
+                    ):
+                        speculative_id_value = param.default
+
+                # Fall back to 1
+                if speculative_id_value is None:
+                    speculative_id_value = 1
+
+                injected_kwargs["speculative_id"] = speculative_id_value
+
             # Call the original function with injected kwargs
             gen = fn(scraper_self, *args, **injected_kwargs, **kwargs)
 
@@ -325,6 +376,18 @@ def step(
             while True:
                 try:
                     yielded = gen.send(send_value)
+
+                    # Validate: non-speculative steps cannot yield SpeculativeRequest
+                    is_speculative_request = isinstance(
+                        yielded, SpeculativeRequest
+                    )
+                    if not speculative and is_speculative_request:
+                        raise TypeError(
+                            f"Step '{fn.__name__}' yielded SpeculativeRequest "
+                            f"but is not marked speculative=True. Add "
+                            f"@step(speculative=True) to the decorator."
+                        )
+
                     processed = _process_yielded_request(yielded)
                     # Capture value sent to us and pass through on next iteration
                     send_value = yield processed

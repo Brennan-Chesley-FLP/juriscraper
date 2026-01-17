@@ -14,10 +14,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
 from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
     get_run_manager,
+    get_sql_manager_for_run,
 )
 
 router = APIRouter(prefix="/api/runs/{run_id}/requests", tags=["requests"])
@@ -93,31 +95,31 @@ class RequestSummaryResponse(BaseModel):
     grand_total: int
 
 
-async def _get_db_for_run(run_id: str, manager: RunManager):
-    """Get database connection for a loaded run.
+async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
+    """Get SQLManager for a loaded run.
 
     Args:
         run_id: The run identifier.
         manager: The run manager.
 
     Returns:
-        Database connection.
+        SQLManager instance.
 
     Raises:
         HTTPException: 404 if run not found, 400 if not loaded.
     """
-    run_info = await manager.get_run(run_id)
-    if run_info is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Run '{run_id}' not found",
-        )
-    if run_info.driver is None:
+    try:
+        return await get_sql_manager_for_run(run_id, manager)
+    except ValueError as e:
+        if "not found" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e),
+            ) from e
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Run '{run_id}' is not loaded. Load it first with POST /api/runs/{run_id}/load",
-        )
-    return run_info.driver._db
+            detail=str(e),
+        ) from e
 
 
 @router.get("", response_model=RequestListResponse)
@@ -145,59 +147,42 @@ async def list_requests(
     Returns:
         Paginated list of requests.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
 
-    # Build query
-    conditions = []
-    params: list = []
-
-    if status_filter:
-        conditions.append("status = ?")
-        params.append(status_filter)
-    if continuation:
-        conditions.append("continuation = ?")
-        params.append(continuation)
-
-    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-
-    # Get total count
-    cursor = await db.execute(
-        f"SELECT COUNT(*) FROM requests {where_clause}", params
+    # Use SQLManager's list_requests method
+    page = await sql_manager.list_requests(
+        status=status_filter,
+        continuation=continuation,
+        offset=offset,
+        limit=limit,
     )
-    row = await cursor.fetchone()
-    total = row[0] if row else 0
-
-    # Get paginated results
-    query = SQL.SELECT_REQUESTS_LIST_FOR_WEB.format(where_clause=where_clause)
-    cursor = await db.execute(query, params + [limit, offset])
-    rows = await cursor.fetchall()
 
     items = [
         RequestResponse(
-            id=r[0],
-            status=r[1],
-            priority=r[2],
-            queue_counter=r[3],
-            method=r[4],
-            url=r[5],
-            continuation=r[6],
-            current_location=r[7],
-            created_at=r[8],
-            started_at=r[9],
-            completed_at=r[10],
-            retry_count=r[11],
-            cumulative_backoff=r[12],
-            last_error=r[13],
+            id=r.id,
+            status=r.status,
+            priority=r.priority,
+            queue_counter=r.queue_counter,
+            method=r.method,
+            url=r.url,
+            continuation=r.continuation,
+            current_location=r.current_location,
+            created_at=r.created_at,
+            started_at=r.started_at,
+            completed_at=r.completed_at,
+            retry_count=r.retry_count,
+            cumulative_backoff=r.cumulative_backoff or 0.0,
+            last_error=r.last_error,
         )
-        for r in rows
+        for r in page.items
     ]
 
     return RequestListResponse(
         items=items,
-        total=total,
-        offset=offset,
-        limit=limit,
-        has_more=offset + len(items) < total,
+        total=page.total,
+        offset=page.offset,
+        limit=page.limit,
+        has_more=page.has_more,
     )
 
 
@@ -217,7 +202,8 @@ async def get_request_summary(
     Returns:
         Summary of request counts by continuation and status.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
+    db = sql_manager.db
 
     # Query counts grouped by continuation and status
     query = """
@@ -281,32 +267,31 @@ async def get_request(
     Raises:
         HTTPException: 404 if request not found.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
 
-    cursor = await db.execute(SQL.SELECT_REQUEST_BY_ID_FOR_WEB, (request_id,))
-    row = await cursor.fetchone()
+    record = await sql_manager.get_request(request_id)
 
-    if row is None:
+    if record is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Request {request_id} not found in run '{run_id}'",
         )
 
     return RequestResponse(
-        id=row[0],
-        status=row[1],
-        priority=row[2],
-        queue_counter=row[3],
-        method=row[4],
-        url=row[5],
-        continuation=row[6],
-        current_location=row[7],
-        created_at=row[8],
-        started_at=row[9],
-        completed_at=row[10],
-        retry_count=row[11],
-        cumulative_backoff=row[12],
-        last_error=row[13],
+        id=record.id,
+        status=record.status,
+        priority=record.priority,
+        queue_counter=record.queue_counter,
+        method=record.method,
+        url=record.url,
+        continuation=record.continuation,
+        current_location=record.current_location,
+        created_at=record.created_at,
+        started_at=record.started_at,
+        completed_at=record.completed_at,
+        retry_count=record.retry_count,
+        cumulative_backoff=record.cumulative_backoff or 0.0,
+        last_error=record.last_error,
     )
 
 
@@ -329,23 +314,21 @@ async def cancel_request(
         HTTPException: 404 if request not found.
         HTTPException: 400 if request cannot be cancelled.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
 
-    cursor = await db.execute(SQL.UPDATE_CANCEL_REQUEST_FOR_WEB, (request_id,))
-    await db.commit()
+    cancelled = await sql_manager.cancel_request(request_id)
 
-    if cursor.rowcount == 0:
+    if not cancelled:
         # Check if request exists
-        cursor = await db.execute(SQL.SELECT_REQUEST_STATUS, (request_id,))
-        row = await cursor.fetchone()
-        if row is None:
+        record = await sql_manager.get_request(request_id)
+        if record is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Request {request_id} not found",
             )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Request {request_id} cannot be cancelled (status: {row[0]})",
+            detail=f"Request {request_id} cannot be cancelled (status: {record.status})",
         )
 
     return CancelResponse(
@@ -375,11 +358,8 @@ async def requeue_request(
     Raises:
         HTTPException: 404 if request not found.
     """
-    from juriscraper.scraper_driver.driver.dev_driver.schema import (
-        get_next_queue_counter,
-    )
-
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
+    db = sql_manager.db
 
     # Get request data
     cursor = await db.execute(
@@ -393,33 +373,21 @@ async def requeue_request(
             detail=f"Request {request_id} not found",
         )
 
-    # Create new request
-    queue_counter = await get_next_queue_counter(db)
-
-    await db.execute(
-        SQL.INSERT_REQUEUE_REQUEST,
-        (
-            row[4],  # priority
-            queue_counter,
-            row[1],  # method
-            row[2],  # url
-            row[5],  # headers_json
-            row[6],  # cookies_json
-            row[7],  # body
-            row[3],  # continuation
-            row[8],  # current_location
-            row[9],  # accumulated_data_json
-            row[10],  # aux_data_json
-            row[11],  # permanent_json
-            row[0],  # parent_request_id (original request)
-        ),
+    # Create new request using SQLManager
+    new_request_id = await sql_manager.insert_requeue_request(
+        priority=row[4],
+        method=row[1],
+        url=row[2],
+        headers_json=row[5],
+        cookies_json=row[6],
+        body=row[7],
+        continuation=row[3],
+        current_location=row[8],
+        accumulated_data_json=row[9],
+        aux_data_json=row[10],
+        permanent_json=row[11],
+        original_request_id=row[0],
     )
-
-    cursor = await db.execute(SQL.SELECT_LAST_INSERT_ROWID)
-    new_id_row = await cursor.fetchone()
-    new_request_id = new_id_row[0]
-
-    await db.commit()
 
     return RequeueResponse(
         requeued_count=1,
@@ -443,14 +411,13 @@ async def cancel_by_continuation(
     Returns:
         Number of requests cancelled.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
 
-    cursor = await db.execute(
-        SQL.UPDATE_CANCEL_BY_CONTINUATION_FOR_WEB, (request.continuation,)
+    cancelled_count = await sql_manager.cancel_requests_by_continuation(
+        request.continuation
     )
-    await db.commit()
 
     return CancelResponse(
-        cancelled_count=cursor.rowcount,
-        message=f"Cancelled {cursor.rowcount} requests with continuation '{request.continuation}'",
+        cancelled_count=cancelled_count,
+        message=f"Cancelled {cancelled_count} requests with continuation '{request.continuation}'",
     )

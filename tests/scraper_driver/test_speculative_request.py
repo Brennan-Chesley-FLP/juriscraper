@@ -20,6 +20,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.searchable import ScraperParams
 from juriscraper.scraper_driver.data_types import (
     BaseScraper,
     HttpMethod,
@@ -43,6 +44,7 @@ class SimpleSpeculativeScraper(BaseScraper[dict]):
     def __init__(self) -> None:
         self.speculative_results: list[bool] = []
         self.pages_processed: list[int] = []
+        self._params = ScraperParams()
 
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         yield NavigatingRequest(
@@ -52,9 +54,9 @@ class SimpleSpeculativeScraper(BaseScraper[dict]):
             continuation="parse_start",
         )
 
-    @step
+    @step(speculative=True)
     def parse_start(
-        self, response: Response
+        self, response: Response, speculative_id: int = 1
     ) -> Generator[ScraperYield, bool | None, None]:
         """Initial page - yield a speculative request."""
         page = 1
@@ -65,6 +67,7 @@ class SimpleSpeculativeScraper(BaseScraper[dict]):
                     url=f"https://example.com/page/{page}",
                 ),
                 continuation="parse_page",
+                speculative_id=page,
             )
             self.speculative_results.append(
                 should_continue if should_continue is not None else False
@@ -89,6 +92,7 @@ class MultipleSpeculativeScraper(BaseScraper[dict]):
 
     def __init__(self) -> None:
         self.results: list[tuple[str, bool]] = []
+        self._params = ScraperParams()
 
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         yield NavigatingRequest(
@@ -98,17 +102,18 @@ class MultipleSpeculativeScraper(BaseScraper[dict]):
             continuation="parse_main",
         )
 
-    @step
+    @step(speculative=True)
     def parse_main(
-        self, response: Response
+        self, response: Response, speculative_id: int = 1
     ) -> Generator[ScraperYield, bool | None, None]:
-        for resource in ["users", "posts", "comments"]:
+        for i, resource in enumerate(["users", "posts", "comments"]):
             result = yield SpeculativeRequest(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
                     url=f"https://example.com/{resource}",
                 ),
                 continuation="parse_resource",
+                speculative_id=i,
             )
             self.results.append(
                 (resource, result if result is not None else False)
@@ -172,9 +177,11 @@ class TestSpeculativeRequestBasics:
         }
 
         driver = SyncDriver(scraper, on_data=collect)
-        driver._client = MagicMock()
-        driver._client.request.side_effect = lambda **kwargs: responses.get(
-            kwargs["url"], create_mock_response(404)
+        driver.request_manager._client = MagicMock()
+        driver.request_manager._client.request.side_effect = (
+            lambda **kwargs: responses.get(
+                kwargs["url"], create_mock_response(404)
+            )
         )
 
         driver.run()
@@ -202,9 +209,11 @@ class TestSpeculativeRequestBasics:
         }
 
         driver = SyncDriver(scraper, on_data=collect)
-        driver._client = MagicMock()
-        driver._client.request.side_effect = lambda **kwargs: responses.get(
-            kwargs["url"], create_mock_response(404)
+        driver.request_manager._client = MagicMock()
+        driver.request_manager._client.request.side_effect = (
+            lambda **kwargs: responses.get(
+                kwargs["url"], create_mock_response(404)
+            )
         )
 
         driver.run()
@@ -246,9 +255,11 @@ class TestSpeculativeRequestBasics:
             on_data=collect,
             on_speculation_response=speculation_callback,
         )
-        driver._client = MagicMock()
-        driver._client.request.side_effect = lambda **kwargs: responses.get(
-            kwargs["url"], create_mock_response(404)
+        driver.request_manager._client = MagicMock()
+        driver.request_manager._client.request.side_effect = (
+            lambda **kwargs: responses.get(
+                kwargs["url"], create_mock_response(404)
+            )
         )
 
         driver.run()
@@ -283,9 +294,11 @@ class TestSpeculativeRequestBasics:
             scraper,
             on_speculation_response=speculation_callback,
         )
-        driver._client = MagicMock()
-        driver._client.request.side_effect = lambda **kwargs: responses.get(
-            kwargs["url"], create_mock_response(404)
+        driver.request_manager._client = MagicMock()
+        driver.request_manager._client.request.side_effect = (
+            lambda **kwargs: responses.get(
+                kwargs["url"], create_mock_response(404)
+            )
         )
 
         driver.run()
@@ -306,8 +319,8 @@ class TestSpeculativeRequestBasics:
             }
 
             driver = SyncDriver(scraper)
-            driver._client = MagicMock()
-            driver._client.request.side_effect = (
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request.side_effect = (
                 lambda responses=responses, **kwargs: responses.get(
                     kwargs["url"], create_mock_response(404)
                 )
@@ -330,8 +343,8 @@ class TestSpeculativeRequestBasics:
             }
 
             driver = SyncDriver(scraper)
-            driver._client = MagicMock()
-            driver._client.request.side_effect = (
+            driver.request_manager._client = MagicMock()
+            driver.request_manager._client.request.side_effect = (
                 lambda responses=responses, **kwargs: responses.get(
                     kwargs["url"], create_mock_response(404)
                 )
@@ -367,6 +380,7 @@ class TestSpeculativeRequestDeduplication:
         class DuplicateScraper(BaseScraper[dict]):
             def __init__(self) -> None:
                 self.results: list[bool] = []
+                self._params = ScraperParams()
 
             def get_entry(self) -> Generator[NavigatingRequest, None, None]:
                 yield NavigatingRequest(
@@ -376,9 +390,9 @@ class TestSpeculativeRequestDeduplication:
                     continuation="parse_start",
                 )
 
-            @step
+            @step(speculative=True)
             def parse_start(
-                self, response: Response
+                self, response: Response, speculative_id: int = 1
             ) -> Generator[ScraperYield, bool | None, None]:
                 # First request
                 result1 = yield SpeculativeRequest(
@@ -386,6 +400,7 @@ class TestSpeculativeRequestDeduplication:
                         method=HttpMethod.GET, url="https://example.com/page/1"
                     ),
                     continuation="parse_page",
+                    speculative_id=1,
                 )
                 self.results.append(result1 if result1 is not None else False)
 
@@ -395,6 +410,7 @@ class TestSpeculativeRequestDeduplication:
                         method=HttpMethod.GET, url="https://example.com/page/1"
                     ),
                     continuation="parse_page",
+                    speculative_id=2,
                 )
                 self.results.append(result2 if result2 is not None else False)
 
@@ -406,9 +422,11 @@ class TestSpeculativeRequestDeduplication:
 
         dup_scraper = DuplicateScraper()
         driver = SyncDriver(dup_scraper, duplicate_check=duplicate_check)
-        driver._client = MagicMock()
-        driver._client.request.side_effect = lambda **kwargs: responses.get(
-            kwargs["url"], create_mock_response(404)
+        driver.request_manager._client = MagicMock()
+        driver.request_manager._client.request.side_effect = (
+            lambda **kwargs: responses.get(
+                kwargs["url"], create_mock_response(404)
+            )
         )
 
         driver.run()
@@ -445,9 +463,11 @@ class TestMultipleSpeculativeYields:
             scraper,
             on_speculation_response=speculation_callback,
         )
-        driver._client = MagicMock()
-        driver._client.request.side_effect = lambda **kwargs: responses.get(
-            kwargs["url"], create_mock_response(404)
+        driver.request_manager._client = MagicMock()
+        driver.request_manager._client.request.side_effect = (
+            lambda **kwargs: responses.get(
+                kwargs["url"], create_mock_response(404)
+            )
         )
 
         driver.run()

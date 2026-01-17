@@ -690,7 +690,7 @@ class TestSpeculativeStepsProxy:
         class TestScraper(BaseScraper[CaseData]):
             @step(speculative=True)
             def parse_case(
-                self, response: Any
+                self, response: Any, speculative_id: int
             ) -> Generator[ScraperYield[CaseData], Any, None]:
                 yield None
 
@@ -713,7 +713,7 @@ class TestSpeculativeStepsProxy:
         class TestScraper(BaseScraper[CaseData]):
             @step(speculative=True)
             def parse_case(
-                self, response: Any
+                self, response: Any, speculative_id: int
             ) -> Generator[ScraperYield[CaseData], Any, None]:
                 yield None
 
@@ -735,7 +735,7 @@ class TestSpeculativeStepsProxy:
         class TestScraper(BaseScraper[CaseData]):
             @step(speculative=True)
             def parse_case(
-                self, response: Any
+                self, response: Any, speculative_id: int
             ) -> Generator[ScraperYield[CaseData], Any, None]:
                 yield None
 
@@ -758,7 +758,7 @@ class TestSpeculativeStepsProxy:
         class TestScraper(BaseScraper[CaseData]):
             @step(speculative=True)
             def parse_case(
-                self, response: Any
+                self, response: Any, speculative_id: int
             ) -> Generator[ScraperYield[CaseData], Any, None]:
                 yield None
 
@@ -781,7 +781,7 @@ class TestSpeculativeStepsProxy:
         class TestScraper(BaseScraper[CaseData]):
             @step(speculative=True)
             def parse_case(
-                self, response: Any
+                self, response: Any, speculative_id: int
             ) -> Generator[ScraperYield[CaseData], Any, None]:
                 yield None
 
@@ -804,7 +804,7 @@ class TestSpeculativeStepsProxy:
         class TestScraper(BaseScraper[CaseData]):
             @step(speculative=True)
             def parse_case(
-                self, response: Any
+                self, response: Any, speculative_id: int
             ) -> Generator[ScraperYield[CaseData], Any, None]:
                 yield None
 
@@ -827,13 +827,13 @@ class TestSpeculativeStepsProxy:
         class TestScraper(BaseScraper[CaseData]):
             @step(speculative=True)
             def parse_case(
-                self, response: Any
+                self, response: Any, speculative_id: int
             ) -> Generator[ScraperYield[CaseData], Any, None]:
                 yield None
 
             @step(speculative=True)
             def parse_detail(
-                self, response: Any
+                self, response: Any, speculative_id: int
             ) -> Generator[ScraperYield[CaseData], Any, None]:
                 yield None
 
@@ -859,13 +859,13 @@ class TestSpeculativeStepsProxy:
         class TestScraper(BaseScraper[CaseData]):
             @step(speculative=True)
             def parse_case(
-                self, response: Any
+                self, response: Any, speculative_id: int
             ) -> Generator[ScraperYield[CaseData], Any, None]:
                 yield None
 
             @step(speculative=True)
             def parse_detail(
-                self, response: Any
+                self, response: Any, speculative_id: int
             ) -> Generator[ScraperYield[CaseData], Any, None]:
                 yield None
 

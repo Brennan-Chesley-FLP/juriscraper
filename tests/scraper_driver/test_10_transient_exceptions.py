@@ -322,7 +322,7 @@ class TestSyncDriverRaisesHTTPResponseException:
         mock_response.text = "Service Unavailable"
 
         # Patch the driver's client directly since it's created during __init__
-        driver._client.request = Mock(
+        driver.request_manager._client.request = Mock(
             return_value=mock_response
         )  # ty: ignore[invalid-assignment]
 
@@ -618,7 +618,9 @@ class TestTransientExceptionCallback:
         mock_request = Mock(
             side_effect=httpx.TimeoutException("Request timed out")
         )
-        driver._client.request = mock_request  # ty: ignore[invalid-assignment]
+        driver.request_manager._client.request = (
+            mock_request  # ty: ignore[invalid-assignment]
+        )
 
         # Should not raise exception (callback handles it)
         driver.run()

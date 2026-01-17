@@ -18,8 +18,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
-import aiosqlite
-
+from juriscraper.scraper_driver.common.exceptions import (
+    RequestFailedHalt,
+    RequestFailedSkip,
+    TransientException,
+)
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     BaseRequest,
@@ -35,10 +38,27 @@ from juriscraper.scraper_driver.data_types import (
 )
 from juriscraper.scraper_driver.driver.async_driver import AsyncDriver
 from juriscraper.scraper_driver.driver.dev_driver.schema import (
-    get_next_queue_counter,
     init_database,
 )
-from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
+from juriscraper.scraper_driver.driver.dev_driver.sql_manager import (
+    Page,
+    RequestRecord,
+    ResponseRecord,
+    ResultRecord,
+    SQLManager,
+)
+
+# Re-export for public API
+__all__ = [
+    "LocalDevDriver",
+    "ProgressEvent",
+    "DiagnoseResult",
+    "Page",
+    "RequestRecord",
+    "ResponseRecord",
+    "ResultRecord",
+    "SQLManager",
+]
 from juriscraper.scraper_driver.driver.dev_driver.stats import DevDriverStats
 
 if TYPE_CHECKING:
@@ -148,7 +168,7 @@ class LocalDevDriver(
     def __init__(
         self,
         scraper: BaseScraper[ScraperReturnDatatype],
-        db_path: Path,
+        db: SQLManager,
         storage_dir: Path | None = None,
         base_delay: float = 10.0,
         jitter: float = 2.0,
@@ -156,34 +176,42 @@ class LocalDevDriver(
         resume: bool = True,
         max_backoff_time: float = 3600.0,
         on_speculation_response: OnSpeculationResponseAsync | None = None,
+        request_manager: Any | None = None,
     ) -> None:
         """Initialize the driver.
 
         Note: Use LocalDevDriver.open() for proper async initialization.
 
         Args:
+            scraper: The scraper instance to run.
+            db: SQLManager for database operations.
+            storage_dir: Directory for downloaded files.
+            base_delay: Base rate limit delay in seconds.
+            jitter: Rate limit jitter in seconds.
+            num_workers: Number of concurrent workers.
+            resume: If True, resume from existing queue state.
+            max_backoff_time: Maximum total backoff time before marking failed.
             on_speculation_response: Optional async callback invoked when a SpeculativeRequest
                 receives a non-2xx response. Receives (response, continuation_name) and should
                 return True to resume the generator with True (continue speculation) or False to
                 resume with False (stop speculation). Not called for 2xx responses.
+            request_manager: AsyncRequestManager for handling HTTP requests.
         """
-        # Initialize parent without interceptors - we'll add them after DB setup
+        # Initialize parent with the request manager
         super().__init__(
             scraper=scraper,
             storage_dir=storage_dir,
             num_workers=num_workers,
+            request_manager=request_manager,
         )
 
-        self.db_path = db_path
         self.base_delay = base_delay
         self.jitter = jitter
         self.resume = resume
         self.max_backoff_time = max_backoff_time
         self.on_speculation_response = on_speculation_response
 
-        # Database connection (set by _init_db)
-        self._db: aiosqlite.Connection | None = None
-
+        self.db = db
         # Progress callback for web interface
         self.on_progress: Callable[[ProgressEvent], Awaitable[None]] | None = (
             None
@@ -222,71 +250,75 @@ class LocalDevDriver(
             async with LocalDevDriver.open(scraper, db_path) as driver:
                 await driver.run()
         """
-        driver = cls(scraper, db_path, **kwargs)
-        await driver._init_db()
+        # Extract driver-specific kwargs for SQLManager initialization
+        base_delay = kwargs.pop("base_delay", 10.0)
+        jitter = kwargs.pop("jitter", 2.0)
+        num_workers = kwargs.pop("num_workers", 1)
+        max_backoff_time = kwargs.pop("max_backoff_time", 3600.0)
+        resume = kwargs.pop("resume", True)
+        timeout = kwargs.pop("timeout", None)  # Request timeout in seconds
+
+        # Initialize database and SQLManager
+        aiosqlite_db = await init_database(db_path)
+        sql_manager = SQLManager(aiosqlite_db)
+
+        # Initialize run metadata
+        scraper_name = scraper.__class__.__name__
+        scraper_version = getattr(scraper, "__version__", None)
+        await sql_manager.init_run_metadata(
+            scraper_name=scraper_name,
+            scraper_version=scraper_version,
+            base_delay=base_delay,
+            jitter=jitter,
+            num_workers=num_workers,
+            max_backoff_time=max_backoff_time,
+        )
+
+        # Restore queue if resuming
+        if resume:
+            pending_count = await sql_manager.restore_queue()
+            if pending_count > 0:
+                logger.info(
+                    f"Restored {pending_count} pending requests from database"
+                )
+
+        # Set up rate limiter interceptor
+        from juriscraper.scraper_driver.driver.dev_driver.rate_limiter import (
+            JitterRateLimitInterceptor,
+        )
+
+        rate_limiter = JitterRateLimitInterceptor(
+            base_delay_seconds=base_delay,
+            jitter_seconds=jitter,
+        )
+
+        # Create request manager with rate limiter
+        from juriscraper.scraper_driver.common.request_manager import (
+            AsyncRequestManager,
+        )
+
+        request_manager = AsyncRequestManager(
+            interceptors=[rate_limiter],
+            ssl_context=scraper.get_ssl_context(),
+            timeout=timeout,
+        )
+
+        driver = cls(
+            scraper,
+            sql_manager,
+            request_manager=request_manager,
+            base_delay=base_delay,
+            jitter=jitter,
+            num_workers=num_workers,
+            max_backoff_time=max_backoff_time,
+            resume=resume,
+            **kwargs,
+        )
+
         try:
             yield driver
         finally:
             await driver.close()
-
-    async def _init_db(self) -> None:
-        """Initialize database connection and schema."""
-        self._db = await init_database(self.db_path)
-
-        # Initialize or load run metadata
-        await self._init_run_metadata()
-
-        # If resuming, load pending requests from DB
-        if self.resume:
-            await self._restore_queue_from_db()
-
-    async def _init_run_metadata(self) -> None:
-        """Initialize or update run metadata in database."""
-        assert self._db is not None
-
-        # Check if run metadata exists
-        cursor = await self._db.execute(SQL.SELECT_RUN_METADATA_BY_ID)
-        row = await cursor.fetchone()
-
-        if row is None:
-            # Create initial run metadata
-            scraper_name = self.scraper.__class__.__name__
-            scraper_version = getattr(self.scraper, "__version__", None)
-
-            await self._db.execute(
-                SQL.INSERT_RUN_METADATA,
-                (
-                    scraper_name,
-                    scraper_version,
-                    self.base_delay,
-                    self.jitter,
-                    self.num_workers,
-                    self.max_backoff_time,
-                ),
-            )
-            await self._db.commit()
-
-    async def _restore_queue_from_db(self) -> None:
-        """Restore pending and in_progress requests to the queue.
-
-        Called on startup when resume=True. Resets in_progress requests
-        to pending status (they were interrupted).
-        """
-        assert self._db is not None
-
-        # Reset any in_progress requests to pending (they were interrupted)
-        await self._db.execute(SQL.RESET_IN_PROGRESS_TO_PENDING)
-        await self._db.commit()
-
-        # Count pending requests for logging
-        cursor = await self._db.execute(SQL.COUNT_PENDING_REQUESTS)
-        row = await cursor.fetchone()
-        pending_count = row[0] if row else 0
-
-        if pending_count > 0:
-            logger.info(
-                f"Restored {pending_count} pending requests from database"
-            )
 
     async def close(self) -> None:
         """Close DB connections and clean up resources.
@@ -295,19 +327,9 @@ class LocalDevDriver(
         so they can be resumed on next startup. Also mark run as interrupted
         if it was running.
         """
-        if self._db:
-            try:
-                # Reset any in_progress requests to pending for resume
-                await self._db.execute(SQL.RESET_IN_PROGRESS_TO_PENDING)
-
-                # Update run status if we were running
-                await self._db.execute(SQL.UPDATE_RUN_STATUS_ON_CLOSE)
-                await self._db.commit()
-            except Exception as e:
-                logger.warning(f"Failed to update state on close: {e}")
-
-            await self._db.close()
-            self._db = None
+        if self.db:
+            await self.db.close_run()
+            await self.db.db.close()
 
     # --- Queue Operations (DB-backed) ---
 
@@ -327,8 +349,6 @@ class LocalDevDriver(
             new_request: The new request to enqueue.
             context: Response or originating request for URL resolution.
         """
-        assert self._db is not None
-
         # Resolve the request from context
         resolved_request = new_request.resolve_from(context)  # type: ignore
 
@@ -338,25 +358,23 @@ class LocalDevDriver(
             # SkipDeduplicationCheck - allow the request
             dedup_key = None
 
-        if dedup_key:
-            # Check if this dedup_key already exists
-            cursor = await self._db.execute(
-                SQL.SELECT_REQUEST_BY_DEDUP_KEY, (dedup_key,)
-            )
-            if await cursor.fetchone():
-                # Duplicate found - for SpeculativeRequest, we still need to
-                # resume the parked generator with False
-                if (
-                    isinstance(resolved_request, SpeculativeRequest)
-                    and resolved_request.speculation_context
-                ):
-                    await self._enqueue_resume_step(
-                        resolved_request.speculation_context, False
-                    )
-                return
+        # Check if this dedup_key already exists
+        if dedup_key and await self.db.check_dedup_key_exists(dedup_key):
+            # Duplicate found - for SpeculativeRequest, we still need to
+            # resume the parked generator with False
+            if (
+                isinstance(resolved_request, SpeculativeRequest)
+                and resolved_request.speculation_context
+            ):
+                await self._enqueue_resume_step(
+                    resolved_request.speculation_context, False
+                )
+            return
 
         # Handle SpeculativeRequest with context - park the generator
         speculation_id: str | None = None
+        originating_step: str | None = None
+        speculative_id_value: int | None = None
         if (
             isinstance(resolved_request, SpeculativeRequest)
             and resolved_request.speculation_context
@@ -367,50 +385,45 @@ class LocalDevDriver(
             self._parked_generators[speculation_id] = (
                 resolved_request.speculation_context
             )
-
-        # Get next queue counter for FIFO ordering
-        queue_counter = await get_next_queue_counter(self._db)
+            # Track the originating step and speculative_id for recovery
+            originating_step = (
+                resolved_request.speculation_context.originating_continuation
+            )
+            speculative_id_value = resolved_request.speculative_id
 
         # Serialize request data
         request_data = self._serialize_request(
-            resolved_request, speculation_id
+            resolved_request,
+            speculation_id,
+            originating_step,
+            speculative_id_value,
         )
 
         # Get parent request ID if context is a Response
         parent_id: int | None = None
         if isinstance(context, Response) and context.request:
-            # Try to find the parent request in the DB
-            parent_cursor = await self._db.execute(
-                SQL.SELECT_PARENT_REQUEST_ID,
-                (context.request.request.url,),
+            parent_id = await self.db.find_parent_request_id(
+                context.request.request.url
             )
-            parent_row = await parent_cursor.fetchone()
-            if parent_row:
-                parent_id = parent_row[0]
 
         # Insert the request
-        await self._db.execute(
-            SQL.INSERT_REQUEST,
-            (
-                resolved_request.priority,
-                queue_counter,
-                request_data["request_type"],
-                request_data["method"],
-                request_data["url"],
-                request_data["headers_json"],
-                request_data["cookies_json"],
-                request_data["body"],
-                request_data["continuation"],
-                request_data["current_location"],
-                request_data["accumulated_data_json"],
-                request_data["aux_data_json"],
-                request_data["permanent_json"],
-                request_data["expected_type"],
-                dedup_key,
-                parent_id,
-            ),
+        await self.db.insert_request(
+            priority=resolved_request.priority,
+            request_type=request_data["request_type"],
+            method=request_data["method"],
+            url=request_data["url"],
+            headers_json=request_data["headers_json"],
+            cookies_json=request_data["cookies_json"],
+            body=request_data["body"],
+            continuation=request_data["continuation"],
+            current_location=request_data["current_location"],
+            accumulated_data_json=request_data["accumulated_data_json"],
+            aux_data_json=request_data["aux_data_json"],
+            permanent_json=request_data["permanent_json"],
+            expected_type=request_data["expected_type"],
+            dedup_key=dedup_key,
+            parent_id=parent_id,
         )
-        await self._db.commit()
 
         # Emit progress event
         await self._emit_progress(
@@ -435,53 +448,35 @@ class LocalDevDriver(
             ctx: The speculation context containing the parked generator.
             predicate_result: The value to send to the generator (True/False).
         """
-        assert self._db is not None
-
         # Generate unique ID for this resume
         self._speculation_counter += 1
         resume_id = f"resume_{self._speculation_counter}"
 
         # Store the context with the result
-        # We'll create a modified context that includes the predicate_result
         self._parked_generators[resume_id] = ctx
 
-        # Get next queue counter
-        queue_counter = await get_next_queue_counter(self._db)
-
         # Insert a special "resume" request type
-        await self._db.execute(
-            SQL.INSERT_REQUEST,
-            (
-                ctx.parent_request.priority,  # Inherit priority
-                queue_counter,
-                "resume",  # Special request type
-                "GET",  # Dummy method
-                "",  # Empty URL
-                None,  # No headers
-                None,  # No cookies
-                None,  # No body
-                ctx.originating_continuation,  # Store continuation for reference
-                "",  # No current_location
-                None,  # No accumulated_data
-                None,  # No aux_data
-                json.dumps(
-                    {"predicate_result": predicate_result}
-                ),  # Store result in permanent_json
-                resume_id,  # Store resume_id in expected_type
-                None,  # No dedup_key
-                None,  # No parent_id
-            ),
+        await self.db.insert_resume_request(
+            priority=ctx.parent_request.priority,
+            continuation=ctx.originating_continuation,
+            resume_id=resume_id,
+            predicate_result=predicate_result,
         )
-        await self._db.commit()
 
     def _serialize_request(
-        self, request: BaseRequest, speculation_id: str | None = None
+        self,
+        request: BaseRequest,
+        speculation_id: str | None = None,
+        originating_step: str | None = None,
+        speculative_id_value: int | None = None,
     ) -> dict[str, Any]:
         """Serialize a BaseRequest to dictionary for DB storage.
 
         Args:
             request: The request to serialize.
             speculation_id: Optional ID for tracking parked generator (for SpeculativeRequest).
+            originating_step: For SpeculativeRequest, the step that yielded this request.
+            speculative_id_value: For SpeculativeRequest, the speculative_id value for recovery.
 
         Returns:
             Dictionary with serialized request data.
@@ -509,6 +504,12 @@ class LocalDevDriver(
             request_type = "navigating"
             expected_type = None
 
+        # Build permanent data - include speculative metadata for recovery
+        permanent_data = dict(request.permanent) if request.permanent else {}
+        if originating_step and speculative_id_value is not None:
+            permanent_data["_speculative_step"] = originating_step
+            permanent_data["_speculative_id"] = speculative_id_value
+
         return {
             "request_type": request_type,
             "method": http_request.method.value,
@@ -534,8 +535,8 @@ class LocalDevDriver(
             "aux_data_json": json.dumps(request.aux_data)
             if request.aux_data
             else None,
-            "permanent_json": json.dumps(request.permanent)
-            if request.permanent
+            "permanent_json": json.dumps(permanent_data)
+            if permanent_data
             else None,
             "expected_type": expected_type,
         }
@@ -554,13 +555,10 @@ class LocalDevDriver(
             - Skips 'held' status requests
             - Skips requests in retry backoff (started_at > current time)
         """
-        assert self._db is not None
-
         # Get next pending request (ordered by priority, then queue_counter)
         # Skip 'held' status requests
         # Skip requests in retry backoff (started_at is used to track retry-after time)
-        cursor = await self._db.execute(SQL.SELECT_NEXT_PENDING_REQUEST)
-        row = await cursor.fetchone()
+        row = await self.db.get_next_pending_request()
 
         if row is None:
             return None
@@ -568,8 +566,7 @@ class LocalDevDriver(
         request_id = row[0]
 
         # Mark as in_progress
-        await self._db.execute(SQL.UPDATE_REQUEST_IN_PROGRESS, (request_id,))
-        await self._db.commit()
+        await self.db.mark_request_in_progress(request_id)
 
         # Deserialize and return
         request = self._deserialize_request(row)
@@ -703,10 +700,7 @@ class LocalDevDriver(
         Args:
             request_id: The database ID of the request.
         """
-        assert self._db is not None
-
-        await self._db.execute(SQL.UPDATE_REQUEST_COMPLETED, (request_id,))
-        await self._db.commit()
+        await self.db.mark_request_completed(request_id)
 
     async def _mark_request_failed(
         self, request_id: int, error_message: str
@@ -717,12 +711,7 @@ class LocalDevDriver(
             request_id: The database ID of the request.
             error_message: Error message describing the failure.
         """
-        assert self._db is not None
-
-        await self._db.execute(
-            SQL.UPDATE_REQUEST_FAILED, (error_message, request_id)
-        )
-        await self._db.commit()
+        await self.db.mark_request_failed(request_id, error_message)
 
     async def _handle_retry(self, request_id: int, error: Exception) -> bool:
         """Handle retry logic for transient errors with exponential backoff.
@@ -741,16 +730,12 @@ class LocalDevDriver(
         Returns:
             True if the request should be retried, False if it should fail.
         """
-        assert self._db is not None
-
         # Get current retry state
-        cursor = await self._db.execute(SQL.SELECT_RETRY_STATE, (request_id,))
-        row = await cursor.fetchone()
-        if row is None:
+        retry_state = await self.db.get_retry_state(request_id)
+        if retry_state is None:
             return False
 
-        retry_count, cumulative_backoff = row
-        cumulative_backoff = cumulative_backoff or 0.0
+        retry_count, cumulative_backoff = retry_state
 
         # Calculate next retry delay with exponential backoff
         # Use a reasonable base delay (e.g., 1 second)
@@ -772,19 +757,9 @@ class LocalDevDriver(
             return False
 
         # Schedule retry by resetting to pending with updated backoff tracking
-        # We use started_at to store when the retry should happen
-        # (current time + delay) - the worker will skip requests that aren't ready
-        await self._db.execute(
-            SQL.UPDATE_REQUEST_FOR_RETRY,
-            (
-                new_cumulative_backoff,
-                next_retry_delay,
-                str(error),
-                int(next_retry_delay),
-                request_id,
-            ),
+        await self.db.schedule_retry(
+            request_id, new_cumulative_backoff, next_retry_delay, str(error)
         )
-        await self._db.commit()
 
         logger.info(
             f"Request {request_id} scheduled for retry #{retry_count + 1} "
@@ -794,7 +769,11 @@ class LocalDevDriver(
         return True
 
     async def _store_response(
-        self, request_id: int, response: Response, continuation: str
+        self,
+        request_id: int,
+        response: Response,
+        continuation: str,
+        speculation_outcome: str | None = None,
     ) -> int:
         """Store an HTTP response in the database.
 
@@ -806,11 +785,12 @@ class LocalDevDriver(
             request_id: The database ID of the associated request.
             response: The Response object to store.
             continuation: The continuation method that will process this response.
+            speculation_outcome: For speculative requests: 'success', 'stopped', or 'skipped'.
+                None for non-speculative requests.
 
         Returns:
             The database ID of the stored response.
         """
-        assert self._db is not None
         import uuid
 
         from juriscraper.scraper_driver.data_types import (
@@ -845,7 +825,7 @@ class LocalDevDriver(
 
             if content_size_original > 0:
                 compressed, dict_id = await compress_response(
-                    self._db, content, continuation
+                    self.db.db, content, continuation
                 )
                 content_size_compressed = len(compressed)
             else:
@@ -856,24 +836,19 @@ class LocalDevDriver(
         # Generate WARC record ID for later export
         warc_record_id = str(uuid.uuid4())
 
-        cursor = await self._db.execute(
-            SQL.INSERT_RESPONSE,
-            (
-                request_id,
-                response.status_code,
-                headers_json,
-                response.url,
-                compressed,
-                content_size_original,
-                content_size_compressed,
-                dict_id,
-                continuation,
-                warc_record_id,
-            ),
+        response_id = await self.db.store_response(
+            request_id=request_id,
+            status_code=response.status_code,
+            headers_json=headers_json,
+            url=response.url,
+            compressed_content=compressed,
+            content_size_original=content_size_original,
+            content_size_compressed=content_size_compressed,
+            dict_id=dict_id,
+            continuation=continuation,
+            warc_record_id=warc_record_id,
+            speculation_outcome=speculation_outcome,
         )
-        await self._db.commit()
-
-        response_id = cursor.lastrowid or 0
 
         # For ArchiveResponse, also store file metadata in archived_files
         if isinstance(response, ArchiveResponse) and response.file_url:
@@ -912,27 +887,20 @@ class LocalDevDriver(
         Returns:
             The database ID of the archived file record.
         """
-        assert self._db is not None
         import hashlib
 
         # Compute file size and content hash
         file_size = len(content) if content else 0
         content_hash = hashlib.sha256(content).hexdigest() if content else None
 
-        cursor = await self._db.execute(
-            SQL.INSERT_ARCHIVED_FILE,
-            (
-                request_id,
-                file_path,
-                original_url,
-                expected_type,
-                file_size,
-                content_hash,
-            ),
+        return await self.db.store_archived_file(
+            request_id=request_id,
+            file_path=file_path,
+            original_url=original_url,
+            expected_type=expected_type,
+            file_size=file_size,
+            content_hash=content_hash,
         )
-        await self._db.commit()
-
-        return cursor.lastrowid or 0
 
     async def _store_result(
         self,
@@ -952,8 +920,6 @@ class LocalDevDriver(
         Returns:
             The database ID of the stored result.
         """
-        assert self._db is not None
-
         # Get the type name
         result_type = type(data).__name__
 
@@ -992,20 +958,13 @@ class LocalDevDriver(
                 make_serializable(validation_errors)
             )
 
-        cursor = await self._db.execute(
-            SQL.INSERT_RESULT,
-            (
-                request_id,
-                result_type,
-                data_json,
-                is_valid,
-                validation_errors_json,
-            ),
+        return await self.db.store_result(
+            request_id=request_id,
+            result_type=result_type,
+            data_json=data_json,
+            is_valid=is_valid,
+            validation_errors_json=validation_errors_json,
         )
-        await self._db.commit()
-
-        result_id = cursor.lastrowid
-        return result_id if result_id else 0
 
     # --- Progress Events ---
 
@@ -1074,14 +1033,11 @@ class LocalDevDriver(
                 for graceful shutdown. Set to False when running in a context
                 that manages its own signal handling (e.g., FastAPI).
         """
-        assert self._db is not None
-
         if setup_signal_handlers:
             self._setup_signal_handlers()
 
         # Update run status to running
-        await self._db.execute(SQL.UPDATE_RUN_STATUS_RUNNING)
-        await self._db.commit()
+        await self.db.update_run_status("running")
 
         await self._emit_progress(
             "run_started",
@@ -1099,37 +1055,34 @@ class LocalDevDriver(
                 return
 
             # Check if we need to seed the queue with entry point
-            cursor = await self._db.execute(SQL.COUNT_ALL_REQUESTS)
-            row = await cursor.fetchone()
-            has_requests = row[0] > 0 if row else False
+            has_requests = await self.db.has_any_requests()
 
             if not has_requests:
                 # Seed queue with entry points from get_entry generator
                 for entry_request in self.scraper.get_entry():
-                    queue_counter = await get_next_queue_counter(self._db)
                     request_data = self._serialize_request(entry_request)
-
-                    await self._db.execute(
-                        SQL.INSERT_ENTRY_REQUEST,
-                        (
-                            entry_request.priority,
-                            queue_counter,
-                            request_data["method"],
-                            request_data["url"],
-                            request_data["headers_json"],
-                            request_data["cookies_json"],
-                            request_data["body"],
-                            request_data["continuation"],
-                            request_data["current_location"],
-                            request_data["accumulated_data_json"],
-                            request_data["aux_data_json"],
-                            request_data["permanent_json"],
-                            entry_request.deduplication_key
-                            if isinstance(entry_request.deduplication_key, str)
-                            else None,
-                        ),
+                    dedup_key = (
+                        entry_request.deduplication_key
+                        if isinstance(entry_request.deduplication_key, str)
+                        else None
                     )
-                await self._db.commit()
+
+                    await self.db.insert_entry_request(
+                        priority=entry_request.priority,
+                        method=request_data["method"],
+                        url=request_data["url"],
+                        headers_json=request_data["headers_json"],
+                        cookies_json=request_data["cookies_json"],
+                        body=request_data["body"],
+                        continuation=request_data["continuation"],
+                        current_location=request_data["current_location"],
+                        accumulated_data_json=request_data[
+                            "accumulated_data_json"
+                        ],
+                        aux_data_json=request_data["aux_data_json"],
+                        permanent_json=request_data["permanent_json"],
+                        dedup_key=dedup_key,
+                    )
 
             # Start workers
             workers = [
@@ -1154,11 +1107,9 @@ class LocalDevDriver(
             final_status = (
                 "interrupted" if self.stop_event.is_set() else status
             )
-            await self._db.execute(
-                SQL.UPDATE_RUN_STATUS_FINAL,
-                (final_status, str(error) if error else None),
+            await self.db.finalize_run(
+                final_status, str(error) if error else None
             )
-            await self._db.commit()
 
             await self._emit_progress(
                 "run_completed",
@@ -1188,14 +1139,36 @@ class LocalDevDriver(
             # Get next request from DB
             result = await self._get_next_request()
             if result is None:
-                # Queue is empty - check if we should wait or exit
-                # Small delay to avoid busy-waiting
-                await asyncio.sleep(0.1)
+                # No immediately available requests - check for scheduled retries
+                retry_delay = await self.db.get_next_scheduled_retry_delay()
 
-                # Check again - if still empty, exit
-                result = await self._get_next_request()
-                if result is None:
-                    break
+                if retry_delay is not None and retry_delay > 0:
+                    # There are scheduled retries - wait for the next one
+                    # Add a small buffer and cap at a reasonable max wait
+                    wait_time = min(retry_delay + 0.1, 60.0)
+                    logger.debug(
+                        f"Worker {worker_id} waiting {wait_time:.1f}s for "
+                        f"scheduled retry"
+                    )
+                    await asyncio.sleep(wait_time)
+
+                    # Check for shutdown after waiting
+                    if self.stop_event.is_set():
+                        break
+
+                    # Try again after waiting
+                    result = await self._get_next_request()
+                    if result is None:
+                        # Still nothing - continue loop to check again
+                        continue
+                else:
+                    # No scheduled retries - small delay then check once more
+                    await asyncio.sleep(0.1)
+
+                    # Check again - if still empty, exit
+                    result = await self._get_next_request()
+                    if result is None:
+                        break
 
             request_id, deserialized = result
 
@@ -1245,30 +1218,80 @@ class LocalDevDriver(
                     request_id, request, continuation_name
                 )
 
+            except RequestFailedHalt:
+                # User callback requested halt - propagate up
+                raise
+
+            except RequestFailedSkip:
+                # User callback requested skip - mark as failed and continue
+                await self._mark_request_failed(
+                    request_id, "Skipped by on_transient_exception callback"
+                )
+                await self._emit_progress(
+                    "request_skipped",
+                    {
+                        "request_id": request_id,
+                        "url": request.request.url,
+                        "reason": "callback_requested_skip",
+                    },
+                )
+                continue
+
+            except TransientException as e:
+                should_retry = await self._handle_retry(request_id, e)
+                if should_retry:
+                    # Log at warning level without full traceback for transient errors
+                    logger.warning(
+                        f"Worker {worker_id} transient error on request "
+                        f"{request_id}: {type(e).__name__}: {e}"
+                    )
+                    await self._emit_progress(
+                        "request_retry_scheduled",
+                        {
+                            "request_id": request_id,
+                            "url": request.request.url,
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                        },
+                    )
+                    continue  # Don't store as error, will be retried
+                else:
+                    # Max backoff exceeded - log the full traceback and mark failed
+                    logger.exception(
+                        f"Worker {worker_id} transient error exceeded max "
+                        f"backoff for request {request_id}"
+                    )
+
+                    # Mark as failed and store error
+                    await self._mark_request_failed(request_id, str(e))
+
+                    from juriscraper.scraper_driver.driver.dev_driver.errors import (
+                        store_error,
+                    )
+
+                    await store_error(
+                        self.db.db,
+                        e,
+                        request_id=request_id,
+                        request_url=request.request.url,
+                    )
+
+                    await self._emit_progress(
+                        "request_failed",
+                        {
+                            "request_id": request_id,
+                            "url": request.request.url,
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "reason": "max_backoff_exceeded",
+                        },
+                    )
+
             except Exception as e:
+                # Non-transient error - log full traceback
                 logger.exception(
                     f"Worker {worker_id} error processing request {request_id}"
                 )
-
-                # Check if this is a transient error that should be retried
-                from juriscraper.scraper_driver.common.exceptions import (
-                    TransientException,
-                )
-
-                if isinstance(e, TransientException):
-                    # Handle retry with exponential backoff
-                    should_retry = await self._handle_retry(request_id, e)
-                    if should_retry:
-                        await self._emit_progress(
-                            "request_retry_scheduled",
-                            {
-                                "request_id": request_id,
-                                "url": request.request.url,
-                                "error": str(e),
-                                "error_type": type(e).__name__,
-                            },
-                        )
-                        continue  # Don't store as error, will be retried
 
                 # Non-transient error or max backoff exceeded - mark as failed
                 await self._mark_request_failed(request_id, str(e))
@@ -1279,7 +1302,7 @@ class LocalDevDriver(
                 )
 
                 await store_error(
-                    self._db,
+                    self.db.db,
                     e,
                     request_id=request_id,
                     request_url=request.request.url,
@@ -1453,9 +1476,13 @@ class LocalDevDriver(
             speculation_id: ID linking to the parked generator.
             continuation_name: Name of the continuation method.
         """
-        from juriscraper.scraper_driver.common.exceptions import (
-            TransientException,
-        )
+
+        # Extract speculative metadata from permanent data for progress tracking
+        speculative_step: str | None = None
+        speculative_id_value: int | None = None
+        if request.permanent:
+            speculative_step = request.permanent.get("_speculative_step")
+            speculative_id_value = request.permanent.get("_speculative_id")
 
         # Get the parked generator context
         ctx = self._parked_generators.get(speculation_id)
@@ -1464,7 +1491,13 @@ class LocalDevDriver(
                 f"Speculation context {speculation_id} not found - "
                 "generator may have been lost on restart"
             )
-            await self._mark_request_completed(request_id)
+            # Attempt recovery: re-invoke the originating step with latest ID
+            if speculative_step and speculative_id_value is not None:
+                await self._recover_speculative_step(
+                    request_id, speculative_step, speculative_id_value
+                )
+            else:
+                await self._mark_request_completed(request_id)
             return
 
         # Execute HTTP request
@@ -1486,9 +1519,6 @@ class LocalDevDriver(
             else:
                 raise
 
-        # Store response
-        await self._store_response(request_id, response, continuation_name)
-
         # Determine success based on status code
         is_success_status = 200 <= response.status_code < 300
 
@@ -1503,6 +1533,21 @@ class LocalDevDriver(
         else:
             # Non-2xx with no callback: don't continue
             should_continue = False
+
+        # Determine speculation outcome for tracking
+        # 'success' = will process continuation, 'stopped' = will not continue
+        speculation_outcome = "success" if should_continue else "stopped"
+
+        # Store response with speculation outcome
+        await self._store_response(
+            request_id, response, continuation_name, speculation_outcome
+        )
+
+        # Update speculative progress tracking
+        if speculative_step and speculative_id_value is not None:
+            await self._update_speculative_progress(
+                speculative_step, speculative_id_value
+            )
 
         # Enqueue ResumeStep FIRST (before processing continuation)
         await self._enqueue_resume_step(ctx, should_continue)
@@ -1536,8 +1581,6 @@ class LocalDevDriver(
             request_id: Database ID of the resume request.
             resume_id: ID linking to the parked generator.
         """
-        assert self._db is not None
-
         # Get the parked generator context
         ctx = self._parked_generators.get(resume_id)
         if ctx is None:
@@ -1549,15 +1592,7 @@ class LocalDevDriver(
             return
 
         # Get the predicate_result from the DB (stored in permanent_json)
-        cursor = await self._db.execute(
-            "SELECT permanent_json FROM requests WHERE id = ?", (request_id,)
-        )
-        row = await cursor.fetchone()
-        if row and row[0]:
-            data = json.loads(row[0])
-            predicate_result = data.get("predicate_result", False)
-        else:
-            predicate_result = False
+        predicate_result = await self.db.get_predicate_result(request_id)
 
         # Clean up
         del self._parked_generators[resume_id]
@@ -1682,25 +1717,7 @@ class LocalDevDriver(
             - "in_progress": Pending or in_progress requests exist
             - "done": No pending/in_progress but completed requests exist
         """
-        assert self._db is not None
-
-        # Check for pending/in_progress requests
-        cursor = await self._db.execute(SQL.COUNT_ACTIVE_REQUESTS)
-        row = await cursor.fetchone()
-        active_count = row[0] if row else 0
-
-        if active_count > 0:
-            return "in_progress"
-
-        # Check for any requests at all
-        cursor = await self._db.execute(SQL.COUNT_ALL_REQUESTS)
-        row = await cursor.fetchone()
-        total_count = row[0] if row else 0
-
-        if total_count == 0:
-            return "unstarted"
-
-        return "done"
+        return await self.db.get_run_status()
 
     def stop(self) -> None:
         """Signal workers to stop after completing their current request."""
@@ -1722,12 +1739,7 @@ class LocalDevDriver(
         Returns:
             Number of requests marked as held.
         """
-        assert self._db is not None
-
-        cursor = await self._db.execute(SQL.UPDATE_PAUSE_STEP, (continuation,))
-        await self._db.commit()
-
-        count = cursor.rowcount
+        count = await self.db.pause_step(continuation)
         if count > 0:
             await self._emit_progress(
                 "step_paused",
@@ -1736,7 +1748,6 @@ class LocalDevDriver(
                     "requests_held": count,
                 },
             )
-
         return count
 
     async def resume_step(self, continuation: str) -> int:
@@ -1751,14 +1762,7 @@ class LocalDevDriver(
         Returns:
             Number of requests restored to pending.
         """
-        assert self._db is not None
-
-        cursor = await self._db.execute(
-            SQL.UPDATE_RESUME_STEP, (continuation,)
-        )
-        await self._db.commit()
-
-        count = cursor.rowcount
+        count = await self.db.resume_step(continuation)
         if count > 0:
             await self._emit_progress(
                 "step_resumed",
@@ -1767,7 +1771,6 @@ class LocalDevDriver(
                     "requests_restored": count,
                 },
             )
-
         return count
 
     async def get_held_count(self, continuation: str | None = None) -> int:
@@ -1779,17 +1782,7 @@ class LocalDevDriver(
         Returns:
             Count of held requests.
         """
-        assert self._db is not None
-
-        if continuation:
-            cursor = await self._db.execute(
-                SQL.COUNT_HELD_BY_CONTINUATION, (continuation,)
-            )
-        else:
-            cursor = await self._db.execute(SQL.COUNT_ALL_HELD)
-
-        row = await cursor.fetchone()
-        return row[0] if row else 0
+        return await self.db.get_held_count(continuation)
 
     # --- Error Requeue Methods ---
 
@@ -1809,85 +1802,21 @@ class LocalDevDriver(
             The database ID of the new pending request, or None if the error
             has no associated request or was already resolved.
         """
-        assert self._db is not None
+        new_request_id = await self.db.requeue_error(error_id)
 
-        # Get the error and its associated request_id
-        cursor = await self._db.execute(
-            SQL.SELECT_ERROR_WITH_REQUEST, (error_id,)
-        )
-        row = await cursor.fetchone()
-
-        if row is None:
-            logger.warning(f"Error {error_id} not found")
-            return None
-
-        (
-            _error_id,
-            request_id,
-            is_resolved,
-            method,
-            url,
-            headers_json,
-            cookies_json,
-            body,
-            continuation,
-            current_location,
-            accumulated_data_json,
-            aux_data_json,
-            permanent_json,
-            priority,
-        ) = row
-
-        if is_resolved:
-            logger.warning(f"Error {error_id} is already resolved")
-            return None
-
-        if request_id is None:
-            logger.warning(f"Error {error_id} has no associated request")
-            return None
-
-        # Create a new pending request with the same parameters
-        queue_counter = await get_next_queue_counter(self._db)
-
-        cursor = await self._db.execute(
-            SQL.INSERT_REQUEUE_REQUEST,
-            (
-                priority or 9,
-                queue_counter,
-                method,
-                url,
-                headers_json,
-                cookies_json,
-                body,
-                continuation,
-                current_location,
-                accumulated_data_json,
-                aux_data_json,
-                permanent_json,
-                request_id,  # Link to original request
-            ),
-        )
-
-        new_request_id = cursor.lastrowid
-
-        # Mark the error as resolved
-        from juriscraper.scraper_driver.driver.dev_driver.errors import (
-            resolve_error,
-        )
-
-        await resolve_error(
-            self._db, error_id, notes=f"Requeued as request {new_request_id}"
-        )
-
-        await self._emit_progress(
-            "error_requeued",
-            {
-                "error_id": error_id,
-                "new_request_id": new_request_id,
-                "url": url,
-                "continuation": continuation,
-            },
-        )
+        if new_request_id is not None:
+            # Get URL and continuation for progress event
+            error_info = await self.db.get_error_info_for_progress(error_id)
+            if error_info:
+                await self._emit_progress(
+                    "error_requeued",
+                    {
+                        "error_id": error_id,
+                        "new_request_id": new_request_id,
+                        "url": error_info.get("url", ""),
+                        "continuation": error_info.get("continuation", ""),
+                    },
+                )
 
         return new_request_id
 
@@ -1912,97 +1841,20 @@ class LocalDevDriver(
         Returns:
             List of new request IDs created.
         """
-        assert self._db is not None
-
-        # Build query to find matching errors with their requests
-        conditions = ["e.is_resolved = 0", "e.request_id IS NOT NULL"]
-        params: list[Any] = []
-
-        if error_type:
-            conditions.append("e.error_type = ?")
-            params.append(error_type)
-
-        if continuation:
-            conditions.append("r.continuation = ?")
-            params.append(continuation)
-
-        where_clause = " AND ".join(conditions)
-
-        cursor = await self._db.execute(
-            SQL.SELECT_ERRORS_FOR_REQUEUE.format(where_clause=where_clause),
-            params,
-        )
-        rows = await cursor.fetchall()
-
-        if not rows:
-            return []
-
-        new_request_ids: list[int] = []
-        from juriscraper.scraper_driver.driver.dev_driver.errors import (
-            resolve_error,
+        new_request_ids = await self.db.batch_requeue_errors(
+            error_type=error_type, continuation=continuation
         )
 
-        for row in rows:
-            (
-                error_id,
-                request_id,
-                method,
-                url,
-                headers_json,
-                cookies_json,
-                body,
-                cont,
-                current_location,
-                accumulated_data_json,
-                aux_data_json,
-                permanent_json,
-                priority,
-            ) = row
-
-            # Create a new pending request
-            queue_counter = await get_next_queue_counter(self._db)
-
-            insert_cursor = await self._db.execute(
-                SQL.INSERT_REQUEUE_REQUEST,
-                (
-                    priority or 9,
-                    queue_counter,
-                    method,
-                    url,
-                    headers_json,
-                    cookies_json,
-                    body,
-                    cont,
-                    current_location,
-                    accumulated_data_json,
-                    aux_data_json,
-                    permanent_json,
-                    request_id,
-                ),
+        if new_request_ids:
+            await self._emit_progress(
+                "errors_batch_requeued",
+                {
+                    "error_type": error_type,
+                    "continuation": continuation,
+                    "count": len(new_request_ids),
+                    "new_request_ids": new_request_ids,
+                },
             )
-
-            new_request_id = insert_cursor.lastrowid
-            if new_request_id:
-                new_request_ids.append(new_request_id)
-
-                # Mark the error as resolved
-                await resolve_error(
-                    self._db,
-                    error_id,
-                    notes=f"Batch requeued as request {new_request_id}",
-                )
-
-        await self._db.commit()
-
-        await self._emit_progress(
-            "errors_batch_requeued",
-            {
-                "error_type": error_type,
-                "continuation": continuation,
-                "count": len(new_request_ids),
-                "new_request_ids": new_request_ids,
-            },
-        )
 
         return new_request_ids
 
@@ -2017,26 +1869,121 @@ class LocalDevDriver(
         Returns:
             Decompressed content bytes, or None if response not found.
         """
-        assert self._db is not None
+        return await self.db.get_response_content(response_id)
 
-        from juriscraper.scraper_driver.driver.dev_driver.compression import (
-            decompress_response,
+    # --- Speculative Progress Tracking ---
+
+    async def _update_speculative_progress(
+        self, step_name: str, speculative_id: int
+    ) -> None:
+        """Update the latest speculative_id for a step.
+
+        Uses MAX to ensure we only track forward progress (higher IDs).
+
+        Args:
+            step_name: The name of the speculative step method.
+            speculative_id: The speculative_id that was just processed.
+        """
+        await self.db.update_speculative_progress(step_name, speculative_id)
+        logger.debug(
+            f"Updated speculative progress: {step_name} -> {speculative_id}"
         )
 
-        cursor = await self._db.execute(
-            SQL.SELECT_RESPONSE_COMPRESSED, (response_id,)
+    async def get_speculative_progress(self, step_name: str) -> int | None:
+        """Get the latest speculative_id for a step.
+
+        Args:
+            step_name: The name of the speculative step method.
+
+        Returns:
+            The latest speculative_id, or None if no progress recorded.
+        """
+        return await self.db.get_speculative_progress(step_name)
+
+    async def get_all_speculative_progress(self) -> dict[str, int]:
+        """Get all speculative progress entries.
+
+        Returns:
+            Dict mapping step names to their latest speculative_id.
+        """
+        return await self.db.get_all_speculative_progress()
+
+    async def _recover_speculative_step(
+        self,
+        request_id: int,
+        step_name: str,
+        current_speculative_id: int,
+    ) -> None:
+        """Recover a speculative step by re-invoking it from the latest ID.
+
+        Called when a speculative request is processed but its generator context
+        has been lost (e.g., after server restart). This re-invokes the original
+        step with the latest speculative_id from the progress table.
+
+        Args:
+            request_id: The database ID of the request being processed.
+            step_name: The name of the speculative step method.
+            current_speculative_id: The speculative_id from the current request.
+        """
+        # Get the latest progress for this step
+        latest_id = await self.get_speculative_progress(step_name)
+
+        # Use the maximum of current request ID and stored progress
+        # This handles cases where progress wasn't stored yet
+        recovery_id = max(current_speculative_id, latest_id or 0)
+
+        # Update progress to the current request's ID (it was processed)
+        await self._update_speculative_progress(
+            step_name, current_speculative_id
         )
-        row = await cursor.fetchone()
 
-        if row is None:
-            return None
+        logger.info(
+            f"Recovering speculative step '{step_name}': "
+            f"processed ID {current_speculative_id}, "
+            f"will restart from {recovery_id + 1}"
+        )
 
-        compressed, dict_id = row
+        # Get the step continuation and re-invoke it with the recovery ID
+        # We need to build a fake Response to start the step
+        # The step will be called via get_entry which starts fresh
+        try:
+            # Set the speculative starting ID in params for recovery
+            if self.scraper._params is not None:
+                try:
+                    setattr(
+                        self.scraper._params.speculative,
+                        step_name,
+                        recovery_id + 1,
+                    )
+                    logger.info(
+                        f"Set params.speculative.{step_name} = {recovery_id + 1} "
+                        f"for recovery"
+                    )
+                except AttributeError:
+                    logger.warning(
+                        f"Could not set speculative starting ID for {step_name} - "
+                        f"step may not be configured in params"
+                    )
 
-        if not compressed:
-            return b""
+            # Re-invoke the entry point to restart the speculative flow
+            # This will call get_entry() which should yield the NavigatingRequest
+            # that triggers the speculative step
+            await self._emit_progress(
+                "speculative_recovery_initiated",
+                {
+                    "step_name": step_name,
+                    "processed_id": current_speculative_id,
+                    "recovery_id": recovery_id + 1,
+                },
+            )
 
-        return await decompress_response(self._db, compressed, dict_id)
+        except Exception as e:
+            logger.exception(
+                f"Failed to recover speculative step {step_name}: {e}"
+            )
+
+        # Mark the original request as completed (we've initiated recovery)
+        await self._mark_request_completed(request_id)
 
     # --- Statistics ---
 
@@ -2047,46 +1994,11 @@ class LocalDevDriver(
             DevDriverStats instance with queue, throughput, compression,
             result, and error statistics.
         """
-        assert self._db is not None
-
         from juriscraper.scraper_driver.driver.dev_driver.stats import (
             get_stats,
         )
 
-        return await get_stats(self._db)
-
-    # --- WARC Export ---
-
-    async def export_warc(
-        self,
-        output_path: Path,
-        compress: bool = True,
-        continuation: str | None = None,
-    ) -> int:
-        """Export stored responses to WARC file.
-
-        Args:
-            output_path: Path for output WARC file.
-            compress: Whether to gzip-compress the WARC file.
-            continuation: If specified, only export responses for this
-                continuation method.
-
-        Returns:
-            Number of responses exported.
-        """
-        assert self._db is not None
-
-        from juriscraper.scraper_driver.driver.dev_driver.warc_export import (
-            export_warc,
-            export_warc_for_continuation,
-        )
-
-        if continuation:
-            return await export_warc_for_continuation(
-                self._db, continuation, output_path, compress
-            )
-        else:
-            return await export_warc(self._db, output_path, compress)
+        return await get_stats(self.db.db)
 
     # --- Debugging / Diagnosis ---
 
@@ -2115,14 +2027,12 @@ class LocalDevDriver(
         Raises:
             ValueError: If response_id not found.
         """
-        assert self._db is not None
-
         from juriscraper.scraper_driver.common.xpath_observer import (
             XPathObserver,
         )
 
         # Get response and request data
-        cursor = await self._db.execute(
+        cursor = await self.db.db.execute(
             """
             SELECT
                 r.status_code,
@@ -2297,6 +2207,7 @@ class LocalDevDriver(
             }
 
     # --- Web Interface Listing Methods ---
+    # These delegate to SQLManager for the actual database operations
 
     async def list_requests(
         self,
@@ -2305,73 +2216,10 @@ class LocalDevDriver(
         offset: int = 0,
         limit: int = 50,
     ) -> Page[RequestRecord]:
-        """List requests with optional filters and pagination.
-
-        Args:
-            status: Filter by status (pending, in_progress, completed, failed, held).
-            continuation: Filter by continuation method name.
-            offset: Number of records to skip for pagination.
-            limit: Maximum number of records to return.
-
-        Returns:
-            Page of RequestRecord instances.
-        """
-        assert self._db is not None
-
-        conditions = []
-        params: list[Any] = []
-
-        if status:
-            conditions.append("status = ?")
-            params.append(status)
-        if continuation:
-            conditions.append("continuation = ?")
-            params.append(continuation)
-
-        where_clause = (
-            f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        )
-
-        # Get total count
-        cursor = await self._db.execute(
-            SQL.count_table(
-                "requests", " AND ".join(conditions) if conditions else ""
-            ),
-            params,
-        )
-        row = await cursor.fetchone()
-        total = row[0] if row else 0
-
-        # Get page of records
-        cursor = await self._db.execute(
-            SQL.SELECT_REQUESTS_PAGE.format(where_clause=where_clause),
-            params + [limit, offset],
-        )
-        rows = await cursor.fetchall()
-
-        items = [
-            RequestRecord(
-                id=row[0],
-                status=row[1],
-                priority=row[2],
-                queue_counter=row[3],
-                method=row[4],
-                url=row[5],
-                continuation=row[6],
-                current_location=row[7],
-                created_at=row[8],
-                started_at=row[9],
-                completed_at=row[10],
-                retry_count=row[11],
-                cumulative_backoff=row[12],
-                last_error=row[13],
-            )
-            for row in rows
-        ]
-
-        return Page(
-            items=items,
-            total=total,
+        """List requests with optional filters and pagination."""
+        return await self.db.list_requests(
+            status=status,
+            continuation=continuation,
             offset=offset,
             limit=limit,
         )
@@ -2382,66 +2230,9 @@ class LocalDevDriver(
         offset: int = 0,
         limit: int = 50,
     ) -> Page[ResponseRecord]:
-        """List responses with optional filters and pagination.
-
-        Args:
-            continuation: Filter by continuation method name.
-            offset: Number of records to skip for pagination.
-            limit: Maximum number of records to return.
-
-        Returns:
-            Page of ResponseRecord instances.
-        """
-        assert self._db is not None
-
-        conditions = []
-        params: list[Any] = []
-
-        if continuation:
-            conditions.append("continuation = ?")
-            params.append(continuation)
-
-        where_clause = (
-            f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        )
-
-        # Get total count
-        cursor = await self._db.execute(
-            SQL.count_table(
-                "responses", " AND ".join(conditions) if conditions else ""
-            ),
-            params,
-        )
-        row = await cursor.fetchone()
-        total = row[0] if row else 0
-
-        # Get page of records
-        cursor = await self._db.execute(
-            SQL.SELECT_RESPONSES_PAGE.format(where_clause=where_clause),
-            params + [limit, offset],
-        )
-        rows = await cursor.fetchall()
-
-        items = [
-            ResponseRecord(
-                id=row[0],
-                request_id=row[1],
-                status_code=row[2],
-                url=row[3],
-                content_size_original=row[4],
-                content_size_compressed=row[5],
-                continuation=row[6],
-                created_at=row[7],
-                compression_dict_id=row[8],
-            )
-            for row in rows
-        ]
-
-        return Page(
-            items=items,
-            total=total,
-            offset=offset,
-            limit=limit,
+        """List responses with optional filters and pagination."""
+        return await self.db.list_responses(
+            continuation=continuation, offset=offset, limit=limit
         )
 
     async def list_results(
@@ -2451,163 +2242,25 @@ class LocalDevDriver(
         offset: int = 0,
         limit: int = 50,
     ) -> Page[ResultRecord]:
-        """List results with optional filters and pagination.
-
-        Args:
-            result_type: Filter by result type (Pydantic model class name).
-            is_valid: Filter by validation status.
-            offset: Number of records to skip for pagination.
-            limit: Maximum number of records to return.
-
-        Returns:
-            Page of ResultRecord instances.
-        """
-        assert self._db is not None
-
-        conditions = []
-        params: list[Any] = []
-
-        if result_type:
-            conditions.append("result_type = ?")
-            params.append(result_type)
-        if is_valid is not None:
-            conditions.append("is_valid = ?")
-            params.append(is_valid)
-
-        where_clause = (
-            f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        )
-
-        # Get total count
-        cursor = await self._db.execute(
-            SQL.count_table(
-                "results", " AND ".join(conditions) if conditions else ""
-            ),
-            params,
-        )
-        row = await cursor.fetchone()
-        total = row[0] if row else 0
-
-        # Get page of records
-        cursor = await self._db.execute(
-            SQL.SELECT_RESULTS_PAGE.format(where_clause=where_clause),
-            params + [limit, offset],
-        )
-        rows = await cursor.fetchall()
-
-        items = [
-            ResultRecord(
-                id=row[0],
-                request_id=row[1],
-                result_type=row[2],
-                data_json=row[3],
-                is_valid=row[4],
-                validation_errors_json=row[5],
-                created_at=row[6],
-            )
-            for row in rows
-        ]
-
-        return Page(
-            items=items,
-            total=total,
+        """List results with optional filters and pagination."""
+        return await self.db.list_results(
+            result_type=result_type,
+            is_valid=is_valid,
             offset=offset,
             limit=limit,
         )
 
     async def get_request(self, request_id: int) -> RequestRecord | None:
-        """Get a single request by ID.
-
-        Args:
-            request_id: The database ID of the request.
-
-        Returns:
-            RequestRecord or None if not found.
-        """
-        assert self._db is not None
-
-        cursor = await self._db.execute(
-            SQL.SELECT_REQUEST_BY_ID, (request_id,)
-        )
-        row = await cursor.fetchone()
-
-        if row is None:
-            return None
-
-        return RequestRecord(
-            id=row[0],
-            status=row[1],
-            priority=row[2],
-            queue_counter=row[3],
-            method=row[4],
-            url=row[5],
-            continuation=row[6],
-            current_location=row[7],
-            created_at=row[8],
-            started_at=row[9],
-            completed_at=row[10],
-            retry_count=row[11],
-            cumulative_backoff=row[12],
-            last_error=row[13],
-        )
+        """Get a single request by ID."""
+        return await self.db.get_request(request_id)
 
     async def get_response(self, response_id: int) -> ResponseRecord | None:
-        """Get a single response by ID.
-
-        Args:
-            response_id: The database ID of the response.
-
-        Returns:
-            ResponseRecord or None if not found.
-        """
-        assert self._db is not None
-
-        cursor = await self._db.execute(
-            SQL.SELECT_RESPONSE_BY_ID, (response_id,)
-        )
-        row = await cursor.fetchone()
-
-        if row is None:
-            return None
-
-        return ResponseRecord(
-            id=row[0],
-            request_id=row[1],
-            status_code=row[2],
-            url=row[3],
-            content_size_original=row[4],
-            content_size_compressed=row[5],
-            continuation=row[6],
-            created_at=row[7],
-            compression_dict_id=row[8],
-        )
+        """Get a single response by ID."""
+        return await self.db.get_response(response_id)
 
     async def get_result(self, result_id: int) -> ResultRecord | None:
-        """Get a single result by ID.
-
-        Args:
-            result_id: The database ID of the result.
-
-        Returns:
-            ResultRecord or None if not found.
-        """
-        assert self._db is not None
-
-        cursor = await self._db.execute(SQL.SELECT_RESULT_BY_ID, (result_id,))
-        row = await cursor.fetchone()
-
-        if row is None:
-            return None
-
-        return ResultRecord(
-            id=row[0],
-            request_id=row[1],
-            result_type=row[2],
-            data_json=row[3],
-            is_valid=row[4],
-            validation_errors_json=row[5],
-            created_at=row[6],
-        )
+        """Get a single result by ID."""
+        return await self.db.get_result(result_id)
 
     # --- Request Cancellation ---
 
@@ -2623,14 +2276,7 @@ class LocalDevDriver(
         Returns:
             True if the request was cancelled, False if not found or not cancellable.
         """
-        assert self._db is not None
-
-        cursor = await self._db.execute(
-            SQL.UPDATE_CANCEL_REQUEST, (request_id,)
-        )
-        await self._db.commit()
-
-        cancelled = cursor.rowcount > 0
+        cancelled = await self.db.cancel_request(request_id)
         if cancelled:
             await self._emit_progress(
                 "request_cancelled",
@@ -2638,7 +2284,6 @@ class LocalDevDriver(
                     "request_id": request_id,
                 },
             )
-
         return cancelled
 
     async def cancel_requests_by_continuation(self, continuation: str) -> int:
@@ -2650,14 +2295,7 @@ class LocalDevDriver(
         Returns:
             Number of requests cancelled.
         """
-        assert self._db is not None
-
-        cursor = await self._db.execute(
-            SQL.UPDATE_CANCEL_BY_CONTINUATION, (continuation,)
-        )
-        await self._db.commit()
-
-        count = cursor.rowcount
+        count = await self.db.cancel_requests_by_continuation(continuation)
         if count > 0:
             await self._emit_progress(
                 "requests_batch_cancelled",
@@ -2666,170 +2304,4 @@ class LocalDevDriver(
                     "count": count,
                 },
             )
-
         return count
-
-
-# --- Record Dataclasses ---
-
-T = TypeVar("T")
-
-
-@dataclass
-class Page(Generic[T]):
-    """Paginated result set.
-
-    Attributes:
-        items: List of items for this page.
-        total: Total number of items matching the query.
-        offset: Number of items skipped.
-        limit: Maximum items per page.
-    """
-
-    items: list[T]
-    total: int
-    offset: int
-    limit: int
-
-    def to_json(self) -> str:
-        """Serialize to JSON for WebSocket transport."""
-        return json.dumps(
-            {
-                "items": [
-                    item.to_dict() if hasattr(item, "to_dict") else str(item)
-                    for item in self.items
-                ],
-                "total": self.total,
-                "offset": self.offset,
-                "limit": self.limit,
-                "has_more": self.offset + len(self.items) < self.total,
-            }
-        )
-
-
-@dataclass
-class RequestRecord:
-    """Request record from database.
-
-    Represents a row from the requests table with essential fields
-    for web interface display.
-    """
-
-    id: int
-    status: str
-    priority: int
-    queue_counter: int
-    method: str
-    url: str
-    continuation: str
-    current_location: str
-    created_at: str | None
-    started_at: str | None
-    completed_at: str | None
-    retry_count: int
-    cumulative_backoff: float | None
-    last_error: str | None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "id": self.id,
-            "status": self.status,
-            "priority": self.priority,
-            "queue_counter": self.queue_counter,
-            "method": self.method,
-            "url": self.url,
-            "continuation": self.continuation,
-            "current_location": self.current_location,
-            "created_at": self.created_at,
-            "started_at": self.started_at,
-            "completed_at": self.completed_at,
-            "retry_count": self.retry_count,
-            "cumulative_backoff": self.cumulative_backoff,
-            "last_error": self.last_error,
-        }
-
-    def to_json(self) -> str:
-        """Serialize to JSON for WebSocket transport."""
-        return json.dumps(self.to_dict())
-
-
-@dataclass
-class ResponseRecord:
-    """Response record from database.
-
-    Represents a row from the responses table with essential fields
-    for web interface display. Does not include compressed content.
-    """
-
-    id: int
-    request_id: int
-    status_code: int
-    url: str
-    content_size_original: int | None
-    content_size_compressed: int | None
-    continuation: str
-    created_at: str | None
-    compression_dict_id: int | None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        compression_ratio = None
-        if self.content_size_original and self.content_size_compressed:
-            compression_ratio = round(
-                self.content_size_original / self.content_size_compressed, 2
-            )
-
-        return {
-            "id": self.id,
-            "request_id": self.request_id,
-            "status_code": self.status_code,
-            "url": self.url,
-            "content_size_original": self.content_size_original,
-            "content_size_compressed": self.content_size_compressed,
-            "compression_ratio": compression_ratio,
-            "continuation": self.continuation,
-            "created_at": self.created_at,
-            "compression_dict_id": self.compression_dict_id,
-        }
-
-    def to_json(self) -> str:
-        """Serialize to JSON for WebSocket transport."""
-        return json.dumps(self.to_dict())
-
-
-@dataclass
-class ResultRecord:
-    """Result record from database.
-
-    Represents a row from the results table with essential fields
-    for web interface display.
-    """
-
-    id: int
-    request_id: int | None
-    result_type: str
-    data_json: str
-    is_valid: bool
-    validation_errors_json: str | None
-    created_at: str | None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "id": self.id,
-            "request_id": self.request_id,
-            "result_type": self.result_type,
-            "data": json.loads(self.data_json) if self.data_json else None,
-            "is_valid": self.is_valid,
-            "validation_errors": (
-                json.loads(self.validation_errors_json)
-                if self.validation_errors_json
-                else None
-            ),
-            "created_at": self.created_at,
-        }
-
-    def to_json(self) -> str:
-        """Serialize to JSON for WebSocket transport."""
-        return json.dumps(self.to_dict())

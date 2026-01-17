@@ -645,9 +645,9 @@ class TestSpeculativeParameter:
         class SpeculativeScraper(BaseScraper[dict]):
             @step(speculative=True)
             def parse(
-                self, response: Response
+                self, response: Response, speculative_id: int
             ) -> Generator[ScraperYield, None, None]:
-                yield ParsedData(data={})
+                yield ParsedData(data={"speculative_id": speculative_id})
 
         scraper = SpeculativeScraper()
         metadata = get_step_metadata(scraper.parse)
@@ -666,9 +666,9 @@ class TestSpeculativeParameter:
                 speculative=True,
             )
             def parse(
-                self, response: Response
+                self, response: Response, speculative_id: int
             ) -> Generator[ScraperYield, None, None]:
-                yield ParsedData(data={})
+                yield ParsedData(data={"speculative_id": speculative_id})
 
         scraper = CombinedScraper()
         metadata = get_step_metadata(scraper.parse)
@@ -678,6 +678,19 @@ class TestSpeculativeParameter:
         assert metadata.encoding == "latin-1"
         assert metadata.xsd == "schemas/special.xsd"
         assert metadata.speculative is True
+
+    def test_speculative_requires_speculative_id_parameter(self):
+        """The @step decorator shall raise TypeError if speculative=True but no speculative_id param."""
+        import pytest
+
+        with pytest.raises(TypeError, match="speculative_id"):
+
+            class BadScraper(BaseScraper[dict]):
+                @step(speculative=True)
+                def parse(
+                    self, response: Response
+                ) -> Generator[ScraperYield, None, None]:
+                    yield ParsedData(data={})
 
 
 class TestMultipleParameterInjection:

@@ -37,6 +37,13 @@ class ModelSchemaResponse(BaseModel):
     fields: list[FieldSchemaResponse]
 
 
+class SpeculativeStepResponse(BaseModel):
+    """Response model for a speculative step."""
+
+    name: str
+    default_starting_id: int
+
+
 class ScraperResponse(BaseModel):
     """Response model for scraper information."""
 
@@ -51,6 +58,7 @@ class ScraperResponse(BaseModel):
     requires_auth: bool
     rate_limit_ms: int | None
     models: list[ModelSchemaResponse]
+    speculative_steps: list[SpeculativeStepResponse]
 
 
 class ScraperListResponse(BaseModel):
@@ -93,6 +101,13 @@ def _scraper_info_to_response(info: ScraperInfo) -> ScraperResponse:
                 ],
             )
             for m in info.models
+        ],
+        speculative_steps=[
+            SpeculativeStepResponse(
+                name=s.name,
+                default_starting_id=s.default_starting_id,
+            )
+            for s in info.speculative_steps
         ],
     )
 

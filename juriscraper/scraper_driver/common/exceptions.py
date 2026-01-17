@@ -243,3 +243,11 @@ class RequestTimeoutException(TransientException):
         self.timeout_seconds = timeout_seconds
         self.message = f"Request to {url} timed out after {timeout_seconds}s"
         super().__init__(self.message)
+
+
+class RequestFailedHalt(Exception):
+    pass
+
+
+class RequestFailedSkip(Exception):
+    pass

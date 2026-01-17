@@ -13,10 +13,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 
+from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
 from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
     get_run_manager,
+    get_sql_manager_for_run,
 )
 
 router = APIRouter(prefix="/api/runs/{run_id}/responses", tags=["responses"])
@@ -35,6 +37,9 @@ class ResponseResponse(BaseModel):
     continuation: str
     created_at: str | None
     compression_dict_id: int | None
+    speculation_outcome: str | None = (
+        None  # 'success', 'stopped', 'skipped', or None
+    )
 
 
 class ResponseListResponse(BaseModel):
@@ -47,40 +52,75 @@ class ResponseListResponse(BaseModel):
     has_more: bool
 
 
-async def _get_db_for_run(run_id: str, manager: RunManager):
-    """Get database connection for a loaded run.
+async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
+    """Get SQLManager for a loaded run.
 
     Args:
         run_id: The run identifier.
         manager: The run manager.
 
     Returns:
-        Database connection.
+        SQLManager instance.
 
     Raises:
         HTTPException: 404 if run not found, 400 if not loaded.
     """
-    run_info = await manager.get_run(run_id)
-    if run_info is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Run '{run_id}' not found",
-        )
-    if run_info.driver is None:
+    try:
+        return await get_sql_manager_for_run(run_id, manager)
+    except ValueError as e:
+        if "not found" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e),
+            ) from e
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Run '{run_id}' is not loaded. Load it first.",
-        )
-    return run_info.driver._db
+            detail=str(e),
+        ) from e
 
 
-def _calculate_ratio(
-    original: int | None, compressed: int | None
-) -> float | None:
-    """Calculate compression ratio."""
-    if original and compressed and compressed > 0:
-        return round(original / compressed, 2)
-    return None
+class SpeculationSummaryResponse(BaseModel):
+    """Response model for speculation outcome summary."""
+
+    success: int = 0
+    stopped: int = 0
+    skipped: int = 0
+    non_speculative: int = 0
+    total: int = 0
+
+
+@router.get("/speculation-summary", response_model=SpeculationSummaryResponse)
+async def get_speculation_summary(
+    run_id: str,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> SpeculationSummaryResponse:
+    """Get summary of speculation outcomes for a run.
+
+    Returns counts of:
+    - success: Speculative requests that continued (2xx or callback approved)
+    - stopped: Speculative requests that stopped (non-2xx, not approved)
+    - skipped: Deduplicated speculative requests
+    - non_speculative: Regular (non-speculative) requests
+    """
+    sql_manager = await _get_sql_manager(run_id, manager)
+    db = sql_manager.db
+
+    cursor = await db.execute(SQL.SELECT_SPECULATION_SUMMARY_FOR_WEB)
+    rows = await cursor.fetchall()
+
+    summary = SpeculationSummaryResponse()
+    for outcome, count in rows:
+        if outcome == "success":
+            summary.success = count
+        elif outcome == "stopped":
+            summary.stopped = count
+        elif outcome == "skipped":
+            summary.skipped = count
+        elif outcome is None:
+            summary.non_speculative = count
+        summary.total += count
+
+    return summary
 
 
 @router.get("", response_model=ResponseListResponse)
@@ -91,6 +131,10 @@ async def list_responses(
         None, description="Filter by continuation"
     ),
     request_id: int | None = Query(None, description="Filter by request ID"),
+    speculation_outcome: str | None = Query(
+        None,
+        description="Filter by speculation outcome: 'success', 'stopped', 'skipped'",
+    ),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=500, description="Pagination limit"),
 ) -> ResponseListResponse:
@@ -100,66 +144,46 @@ async def list_responses(
         run_id: The run identifier.
         continuation: Optional continuation name filter.
         request_id: Optional request ID filter.
+        speculation_outcome: Optional speculation outcome filter.
         offset: Pagination offset.
         limit: Maximum number of results.
 
     Returns:
         Paginated list of responses.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
 
-    # Build query
-    conditions = []
-    params: list = []
-
-    if continuation:
-        conditions.append("continuation = ?")
-        params.append(continuation)
-    if request_id:
-        conditions.append("request_id = ?")
-        params.append(request_id)
-
-    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-
-    # Get total count
-    cursor = await db.execute(
-        SQL.count_table(
-            "responses", " AND ".join(conditions) if conditions else ""
-        ),
-        params,
+    page = await sql_manager.list_responses(
+        continuation=continuation,
+        request_id=request_id,
+        speculation_outcome=speculation_outcome,
+        offset=offset,
+        limit=limit,
     )
-    row = await cursor.fetchone()
-    total = row[0] if row else 0
-
-    # Get paginated results
-    cursor = await db.execute(
-        SQL.SELECT_RESPONSES_LIST_FOR_WEB.format(where_clause=where_clause),
-        params + [limit, offset],
-    )
-    rows = await cursor.fetchall()
 
     items = [
         ResponseResponse(
-            id=r[0],
-            request_id=r[1],
-            status_code=r[2],
-            url=r[3],
-            content_size_original=r[4],
-            content_size_compressed=r[5],
-            compression_ratio=_calculate_ratio(r[4], r[5]),
-            continuation=r[6],
-            created_at=r[7],
-            compression_dict_id=r[8],
+            id=r.id,
+            request_id=r.request_id,
+            status_code=r.status_code,
+            url=r.url,
+            content_size_original=r.content_size_original,
+            content_size_compressed=r.content_size_compressed,
+            compression_ratio=r.compression_ratio,
+            continuation=r.continuation,
+            created_at=r.created_at,
+            compression_dict_id=r.compression_dict_id,
+            speculation_outcome=r.speculation_outcome,
         )
-        for r in rows
+        for r in page.items
     ]
 
     return ResponseListResponse(
         items=items,
-        total=total,
-        offset=offset,
-        limit=limit,
-        has_more=offset + len(items) < total,
+        total=page.total,
+        offset=page.offset,
+        limit=page.limit,
+        has_more=page.has_more,
     )
 
 
@@ -181,30 +205,28 @@ async def get_response(
     Raises:
         HTTPException: 404 if response not found.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
 
-    cursor = await db.execute(
-        SQL.SELECT_RESPONSE_BY_ID_FOR_WEB, (response_id,)
-    )
-    row = await cursor.fetchone()
+    record = await sql_manager.get_response(response_id)
 
-    if row is None:
+    if record is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Response {response_id} not found in run '{run_id}'",
         )
 
     return ResponseResponse(
-        id=row[0],
-        request_id=row[1],
-        status_code=row[2],
-        url=row[3],
-        content_size_original=row[4],
-        content_size_compressed=row[5],
-        compression_ratio=_calculate_ratio(row[4], row[5]),
-        continuation=row[6],
-        created_at=row[7],
-        compression_dict_id=row[8],
+        id=record.id,
+        request_id=record.request_id,
+        status_code=record.status_code,
+        url=record.url,
+        content_size_original=record.content_size_original,
+        content_size_compressed=record.content_size_compressed,
+        compression_ratio=record.compression_ratio,
+        continuation=record.continuation,
+        created_at=record.created_at,
+        compression_dict_id=record.compression_dict_id,
+        speculation_outcome=record.speculation_outcome,
     )
 
 
@@ -227,44 +249,37 @@ async def get_response_content(
         HTTPException: 404 if response not found.
         HTTPException: 500 if decompression fails.
     """
-    from juriscraper.scraper_driver.driver.dev_driver.compression import (
-        decompress_response,
-    )
+    import json
 
-    db = await _get_db_for_run(run_id, manager)
-
-    cursor = await db.execute(
-        SQL.SELECT_RESPONSE_CONTENT_FOR_WEB, (response_id,)
-    )
-    row = await cursor.fetchone()
-
-    if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Response {response_id} not found in run '{run_id}'",
-        )
-
-    compressed_content, dict_id, headers_json = row
-
-    if compressed_content is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Response {response_id} has no content",
-        )
+    sql_manager = await _get_sql_manager(run_id, manager)
 
     try:
-        content = await decompress_response(db, compressed_content, dict_id)
+        result = await sql_manager.get_response_content_with_headers(
+            response_id
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to decompress content: {e}",
         ) from e
 
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Response {response_id} not found in run '{run_id}'",
+        )
+
+    content, headers_json = result
+
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Response {response_id} has no content",
+        )
+
     # Try to get content-type from headers
     content_type = "application/octet-stream"
     if headers_json:
-        import json
-
         try:
             headers = json.loads(headers_json)
             if isinstance(headers, dict):

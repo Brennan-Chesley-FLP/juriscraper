@@ -56,7 +56,7 @@ async def _get_db_for_run(run_id: str, manager: RunManager):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Run '{run_id}' is not loaded. Load it first.",
         )
-    return run_info.driver._db
+    return run_info.driver.db.db
 
 
 @router.post("/warc", response_class=FileResponse)

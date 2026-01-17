@@ -60,6 +60,21 @@ class ModelSchema:
 
 
 @dataclass
+class SpeculativeStepSchema:
+    """Schema for a speculative step."""
+
+    name: str
+    default_starting_id: int = 1
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "name": self.name,
+            "default_starting_id": self.default_starting_id,
+        }
+
+
+@dataclass
 class ScraperInfo:
     """Information about a discovered scraper."""
 
@@ -78,6 +93,9 @@ class ScraperInfo:
 
     # Parameter schema
     models: list[ModelSchema] = field(default_factory=list)
+    speculative_steps: list[SpeculativeStepSchema] = field(
+        default_factory=list
+    )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -93,6 +111,7 @@ class ScraperInfo:
             "requires_auth": self.requires_auth,
             "rate_limit_ms": self.rate_limit_ms,
             "models": [m.to_dict() for m in self.models],
+            "speculative_steps": [s.to_dict() for s in self.speculative_steps],
         }
 
 
@@ -205,8 +224,9 @@ class ScraperRegistry:
             scraper_class, "msec_per_request_rate_limit", None
         )
 
-        # Extract parameter schema
+        # Extract parameter schema and speculative steps
         models = self._extract_params_schema(scraper_class)
+        speculative_steps = self._extract_speculative_steps(scraper_class)
 
         return ScraperInfo(
             module_path=module_path,
@@ -220,6 +240,7 @@ class ScraperRegistry:
             requires_auth=requires_auth,
             rate_limit_ms=rate_limit_ms,
             models=models,
+            speculative_steps=speculative_steps,
         )
 
     def _extract_params_schema(
@@ -285,6 +306,40 @@ class ScraperRegistry:
             models.append(ModelSchema(name=model_name, fields=fields))
 
         return models
+
+    def _extract_speculative_steps(
+        self, scraper_class: type[BaseScraper[Any]]
+    ) -> list[SpeculativeStepSchema]:
+        """Extract speculative steps from scraper class.
+
+        Args:
+            scraper_class: The scraper class.
+
+        Returns:
+            List of SpeculativeStepSchema objects.
+        """
+        from juriscraper.scraper_driver.common.searchable import (
+            _find_speculative_steps,
+        )
+
+        speculative_steps: list[SpeculativeStepSchema] = []
+
+        try:
+            step_names = _find_speculative_steps(scraper_class)
+            for step_name in sorted(step_names):
+                speculative_steps.append(
+                    SpeculativeStepSchema(
+                        name=step_name,
+                        default_starting_id=1,
+                    )
+                )
+        except Exception as e:
+            logger.warning(
+                f"Could not extract speculative steps for "
+                f"{scraper_class.__name__}: {e}"
+            )
+
+        return speculative_steps
 
     def list_scrapers(self) -> list[ScraperInfo]:
         """List all discovered scrapers.
@@ -374,6 +429,10 @@ class ScraperRegistry:
                         }
                     }
                 }
+            },
+            "speculative": {
+                "parse_case": 100,
+                "parse_detail": 500
             }
         }
         """
@@ -402,6 +461,19 @@ class ScraperRegistry:
                     continue
 
                 self._set_field_value(field_proxy, field_data)
+
+        # Set speculative step starting IDs
+        speculative_data = params_data.get("speculative", {})
+        for step_name, starting_id in speculative_data.items():
+            try:
+                if starting_id is not None:
+                    setattr(params.speculative, step_name, int(starting_id))
+            except AttributeError:
+                logger.warning(f"Unknown speculative step: {step_name}")
+            except (TypeError, ValueError) as e:
+                logger.warning(
+                    f"Invalid starting ID for {step_name}: {starting_id} ({e})"
+                )
 
         return params
 

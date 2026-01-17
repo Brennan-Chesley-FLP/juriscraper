@@ -4,7 +4,7 @@ This module defines the database schema for the LocalDevDriver, which provides
 persistent storage for request queuing, response archival, compression
 dictionaries, results, and error tracking.
 
-The schema consists of 8 tables:
+The schema consists of 9 tables:
 - requests: HTTP request queue with status tracking and retry logic
 - responses: Compressed HTTP responses with dictionary references
 - compression_dicts: Versioned zstd dictionaries per-continuation
@@ -13,6 +13,7 @@ The schema consists of 8 tables:
 - run_metadata: Single-row configuration and state
 - errors: Detailed error tracking with type-specific fields
 - rate_bucket: Token bucket state for pyrate_limiter
+- speculative_progress: Tracks latest speculative_id per step for recovery
 """
 
 from pathlib import Path
@@ -20,7 +21,7 @@ from pathlib import Path
 import aiosqlite
 
 # Schema version for migrations
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # SQL statements for creating tables
 _CREATE_REQUESTS = """
@@ -101,7 +102,10 @@ CREATE TABLE IF NOT EXISTS responses (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     -- WARC export metadata
-    warc_record_id TEXT                      -- UUID for WARC record linking
+    warc_record_id TEXT,                     -- UUID for WARC record linking
+
+    -- Speculative request outcome tracking
+    speculation_outcome TEXT                 -- NULL=not speculative, 'success', 'stopped', 'skipped'
 )
 """
 
@@ -267,6 +271,19 @@ _CREATE_RATE_ITEMS_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_rate_items_timestamp ON rate_items(timestamp)",
 ]
 
+_CREATE_SPECULATIVE_PROGRESS = """
+CREATE TABLE IF NOT EXISTS speculative_progress (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    step_name TEXT NOT NULL UNIQUE,          -- Name of the speculative step method
+    latest_speculative_id INTEGER NOT NULL,  -- Last speculative_id processed
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+"""
+
+_CREATE_SPECULATIVE_PROGRESS_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_speculative_progress_step ON speculative_progress(step_name)",
+]
+
 # Schema metadata table for versioning
 _CREATE_SCHEMA_INFO = """
 CREATE TABLE IF NOT EXISTS schema_info (
@@ -307,6 +324,7 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     await db.execute(_CREATE_ERRORS)
     await db.execute(_CREATE_RATE_BUCKET)
     await db.execute(_CREATE_RATE_ITEMS)
+    await db.execute(_CREATE_SPECULATIVE_PROGRESS)
 
     # Create all indexes
     for index_sql in _CREATE_REQUESTS_INDEXES:
@@ -322,6 +340,8 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     for index_sql in _CREATE_ERRORS_INDEXES:
         await db.execute(index_sql)
     for index_sql in _CREATE_RATE_ITEMS_INDEXES:
+        await db.execute(index_sql)
+    for index_sql in _CREATE_SPECULATIVE_PROGRESS_INDEXES:
         await db.execute(index_sql)
 
     # Run migrations
@@ -351,6 +371,23 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT INTO schema_info (version) VALUES (?)",
             (2,),
+        )
+        current_version = 2
+
+    # Migration 2 -> 3: Add speculation_outcome column to responses table
+    if current_version < 3:
+        # Check if column exists
+        cursor = await db.execute("PRAGMA table_info(responses)")
+        columns = [row[1] for row in await cursor.fetchall()]
+        if "speculation_outcome" not in columns:
+            await db.execute(
+                "ALTER TABLE responses ADD COLUMN speculation_outcome TEXT"
+            )
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (3,),
         )
 
     # Record initial schema version if not present

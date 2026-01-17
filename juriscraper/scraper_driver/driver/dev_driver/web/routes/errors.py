@@ -15,10 +15,12 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
 from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
     get_run_manager,
+    get_sql_manager_for_run,
 )
 
 router = APIRouter(prefix="/api/runs/{run_id}/errors", tags=["errors"])
@@ -86,31 +88,31 @@ class BatchRequeueRequest(BaseModel):
     )
 
 
-async def _get_db_for_run(run_id: str, manager: RunManager):
-    """Get database connection for a loaded run.
+async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
+    """Get SQLManager for a loaded run.
 
     Args:
         run_id: The run identifier.
         manager: The run manager.
 
     Returns:
-        Database connection.
+        SQLManager instance.
 
     Raises:
         HTTPException: 404 if run not found, 400 if not loaded.
     """
-    run_info = await manager.get_run(run_id)
-    if run_info is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Run '{run_id}' not found",
-        )
-    if run_info.driver is None:
+    try:
+        return await get_sql_manager_for_run(run_id, manager)
+    except ValueError as e:
+        if "not found" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e),
+            ) from e
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Run '{run_id}' is not loaded. Load it first.",
-        )
-    return run_info.driver._db
+            detail=str(e),
+        ) from e
 
 
 def _row_to_error(row) -> ErrorResponse:
@@ -187,7 +189,8 @@ async def get_error_summary(
     Returns:
         Summary with counts by type and resolution status.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
+    db = sql_manager.db
 
     # Get counts by type
     cursor = await db.execute(SQL.SELECT_ERROR_SUMMARY_FOR_WEB)
@@ -238,7 +241,8 @@ async def list_errors(
     Returns:
         Paginated list of errors.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
+    db = sql_manager.db
 
     # Build query
     conditions = []
@@ -293,7 +297,8 @@ async def get_error(
     Raises:
         HTTPException: 404 if error not found.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
+    db = sql_manager.db
 
     cursor = await db.execute(SQL.SELECT_ERROR_BY_ID_FOR_WEB, (error_id,))
     row = await cursor.fetchone()
@@ -327,7 +332,8 @@ async def resolve_error(
     Raises:
         HTTPException: 404 if error not found.
     """
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
+    db = sql_manager.db
 
     cursor = await db.execute(
         SQL.UPDATE_RESOLVE_ERROR_FOR_WEB, (request.notes, error_id)
@@ -369,7 +375,8 @@ async def requeue_error(
         get_next_queue_counter,
     )
 
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
+    db = sql_manager.db
 
     # Get error and linked request
     cursor = await db.execute(SQL.SELECT_ERROR_FOR_WEB_REQUEUE, (error_id,))
@@ -456,7 +463,8 @@ async def batch_requeue(
         get_next_queue_counter,
     )
 
-    db = await _get_db_for_run(run_id, manager)
+    sql_manager = await _get_sql_manager(run_id, manager)
+    db = sql_manager.db
 
     # Build conditions for finding errors
     conditions = ["is_resolved = FALSE", "request_id IS NOT NULL"]

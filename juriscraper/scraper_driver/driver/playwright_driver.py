@@ -880,8 +880,10 @@ class PlaywrightDriver(Generic[ScraperReturnDatatype]):
         if is_success:
             should_continue = True
         elif self.on_speculation_response:
+            # Use originating_continuation (the @step(speculative=True) method) not continuation_name
+            # This matches the config keys which are named after the speculative step method
             should_continue = await self.on_speculation_response(
-                response, continuation_name
+                response, ctx.originating_continuation
             )
         else:
             should_continue = False

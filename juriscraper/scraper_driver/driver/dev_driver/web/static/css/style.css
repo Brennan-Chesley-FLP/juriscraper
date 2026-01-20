@@ -867,6 +867,51 @@ main {
     font-size: 0.875rem;
 }
 
+/* Speculative step form */
+.speculative-step {
+    background: #f9f9f9;
+    border-radius: 4px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.speculative-step h4 {
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    color: #9b59b6;
+    font-family: monospace;
+}
+
+.section-help {
+    display: block;
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+/* Speculative progress section */
+.speculative-section {
+    margin-bottom: 2rem;
+}
+
+.speculative-table {
+    width: 100%;
+}
+
+.speculative-table .continuation-name {
+    font-family: monospace;
+    color: #9b59b6;
+}
+
+.step-name-display {
+    font-family: monospace;
+    color: #9b59b6;
+    font-size: 1.1rem;
+    font-weight: bold;
+    padding: 0.5rem;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
 /* Error detail modal styles */
 .error-detail {
     font-size: 0.875rem;

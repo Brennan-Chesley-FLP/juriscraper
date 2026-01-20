@@ -25,8 +25,17 @@ class SQL:
     INSERT_RUN_METADATA = """
         INSERT INTO run_metadata (
             id, scraper_name, scraper_version, status,
-            base_delay, jitter, num_workers, max_backoff_time
-        ) VALUES (1, ?, ?, 'created', ?, ?, ?, ?)
+            base_delay, jitter, num_workers, max_backoff_time,
+            speculation_config_json
+        ) VALUES (1, ?, ?, 'created', ?, ?, ?, ?, ?)
+    """
+
+    UPDATE_SPECULATION_CONFIG = """
+        UPDATE run_metadata SET speculation_config_json = ? WHERE id = 1
+    """
+
+    SELECT_SPECULATION_CONFIG = """
+        SELECT speculation_config_json FROM run_metadata WHERE id = 1
     """
 
     UPDATE_RUN_STATUS_RUNNING = """
@@ -105,13 +114,15 @@ class SQL:
             method, url, headers_json, cookies_json, body,
             continuation, current_location,
             accumulated_data_json, aux_data_json, permanent_json,
-            expected_type, deduplication_key, parent_request_id
+            expected_type, deduplication_key, parent_request_id,
+            created_at_ns
         ) VALUES (
             'pending', ?, ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?,
             ?, ?, ?,
-            ?, ?, ?
+            ?, ?, ?,
+            ?
         )
     """
 
@@ -121,13 +132,13 @@ class SQL:
             method, url, headers_json, cookies_json, body,
             continuation, current_location,
             accumulated_data_json, aux_data_json, permanent_json,
-            deduplication_key
+            deduplication_key, created_at_ns
         ) VALUES (
             'pending', ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?,
             ?, ?, ?,
-            ?
+            ?, ?
         )
     """
 
@@ -137,13 +148,13 @@ class SQL:
             method, url, headers_json, cookies_json, body,
             continuation, current_location,
             accumulated_data_json, aux_data_json, permanent_json,
-            parent_request_id
+            parent_request_id, created_at_ns
         ) VALUES (
             'pending', ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?,
             ?, ?, ?,
-            ?
+            ?, ?
         )
     """
 
@@ -162,18 +173,18 @@ class SQL:
     """
 
     UPDATE_REQUEST_IN_PROGRESS = """
-        UPDATE requests SET status = 'in_progress', started_at = CURRENT_TIMESTAMP WHERE id = ?
+        UPDATE requests SET status = 'in_progress', started_at = CURRENT_TIMESTAMP, started_at_ns = ? WHERE id = ?
     """
 
     # --- Request Status Updates ---
 
     UPDATE_REQUEST_COMPLETED = """
-        UPDATE requests SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?
+        UPDATE requests SET status = 'completed', completed_at = CURRENT_TIMESTAMP, completed_at_ns = ? WHERE id = ?
     """
 
     UPDATE_REQUEST_FAILED = """
         UPDATE requests
-        SET status = 'failed', completed_at = CURRENT_TIMESTAMP, last_error = ?
+        SET status = 'failed', completed_at = CURRENT_TIMESTAMP, completed_at_ns = ?, last_error = ?
         WHERE id = ?
     """
 
@@ -263,7 +274,8 @@ class SQL:
     SELECT_REQUESTS_PAGE = """
         SELECT id, status, priority, queue_counter, method, url,
                continuation, current_location, created_at, started_at,
-               completed_at, retry_count, cumulative_backoff, last_error
+               completed_at, retry_count, cumulative_backoff, last_error,
+               created_at_ns, started_at_ns, completed_at_ns
         FROM requests
         {where_clause}
         ORDER BY priority ASC, queue_counter ASC
@@ -298,7 +310,8 @@ class SQL:
     SELECT_REQUEST_BY_ID = """
         SELECT id, status, priority, queue_counter, method, url,
                continuation, current_location, created_at, started_at,
-               completed_at, retry_count, cumulative_backoff, last_error
+               completed_at, retry_count, cumulative_backoff, last_error,
+               created_at_ns, started_at_ns, completed_at_ns
         FROM requests
         WHERE id = ?
     """
@@ -322,14 +335,14 @@ class SQL:
 
     UPDATE_CANCEL_REQUEST = """
         UPDATE requests
-        SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
+        SET status = 'failed', completed_at = CURRENT_TIMESTAMP, completed_at_ns = ?,
             last_error = 'Cancelled by user'
         WHERE id = ? AND status IN ('pending', 'held')
     """
 
     UPDATE_CANCEL_BY_CONTINUATION = """
         UPDATE requests
-        SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
+        SET status = 'failed', completed_at = CURRENT_TIMESTAMP, completed_at_ns = ?,
             last_error = 'Cancelled by user (batch)'
         WHERE continuation = ? AND status IN ('pending', 'held')
     """
@@ -789,7 +802,8 @@ class SQL:
     SELECT_REQUESTS_LIST_FOR_WEB = """
         SELECT id, status, priority, queue_counter, method, url,
                continuation, current_location, created_at, started_at,
-               completed_at, retry_count, cumulative_backoff, last_error
+               completed_at, retry_count, cumulative_backoff, last_error,
+               created_at_ns, started_at_ns, completed_at_ns
         FROM requests
         {where_clause}
         ORDER BY priority ASC, queue_counter ASC
@@ -799,14 +813,15 @@ class SQL:
     SELECT_REQUEST_BY_ID_FOR_WEB = """
         SELECT id, status, priority, queue_counter, method, url,
                continuation, current_location, created_at, started_at,
-               completed_at, retry_count, cumulative_backoff, last_error
+               completed_at, retry_count, cumulative_backoff, last_error,
+               created_at_ns, started_at_ns, completed_at_ns
         FROM requests
         WHERE id = ?
     """
 
     UPDATE_CANCEL_REQUEST_FOR_WEB = """
         UPDATE requests
-        SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
+        SET status = 'failed', completed_at = CURRENT_TIMESTAMP, completed_at_ns = ?,
             last_error = 'Cancelled by user'
         WHERE id = ? AND status IN ('pending', 'held')
     """
@@ -824,7 +839,7 @@ class SQL:
 
     UPDATE_CANCEL_BY_CONTINUATION_FOR_WEB = """
         UPDATE requests
-        SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
+        SET status = 'failed', completed_at = CURRENT_TIMESTAMP, completed_at_ns = ?,
             last_error = 'Cancelled by user (batch)'
         WHERE continuation = ? AND status IN ('pending', 'held')
     """
@@ -890,4 +905,26 @@ class SQL:
 
     SELECT_ALL_SPECULATIVE_PROGRESS = """
         SELECT step_name, latest_speculative_id, updated_at FROM speculative_progress
+    """
+
+    # --- Speculative Start IDs (for restart-speculative feature) ---
+
+    UPSERT_SPECULATIVE_START_ID = """
+        INSERT INTO speculative_start_ids (step_name, starting_id, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(step_name) DO UPDATE SET
+            starting_id = excluded.starting_id,
+            updated_at = CURRENT_TIMESTAMP
+    """
+
+    SELECT_SPECULATIVE_START_IDS = """
+        SELECT step_name, starting_id FROM speculative_start_ids
+    """
+
+    DELETE_SPECULATIVE_START_ID = """
+        DELETE FROM speculative_start_ids WHERE step_name = ?
+    """
+
+    DELETE_ALL_SPECULATIVE_START_IDS = """
+        DELETE FROM speculative_start_ids
     """

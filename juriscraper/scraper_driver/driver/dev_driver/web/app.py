@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -188,6 +189,7 @@ class RunManager:
             jitter = driver_kwargs.get("jitter", 2.0)
             num_workers = driver_kwargs.get("num_workers", 1)
             max_backoff_time = driver_kwargs.get("max_backoff_time", 3600.0)
+            speculation_config = driver_kwargs.pop("speculation_config", None)
 
             # Initialize database and SQLManager
             aiosqlite_db = await init_database(db_path)
@@ -203,6 +205,7 @@ class RunManager:
                 jitter=jitter,
                 num_workers=num_workers,
                 max_backoff_time=max_backoff_time,
+                speculation_config=speculation_config,
             )
 
             # Set up rate limiter interceptor and request manager
@@ -215,12 +218,24 @@ class RunManager:
                 ssl_context=scraper.get_ssl_context(),
             )
 
+            # Create speculation handler if config provided
+            on_speculation_response = None
+            if speculation_config:
+                from juriscraper.scraper_driver.driver.dev_driver.speculation import (
+                    create_speculation_handler,
+                )
+
+                on_speculation_response = create_speculation_handler(
+                    speculation_config
+                )
+
             # Create driver with SQLManager and request manager
             driver = LocalDevDriver(
                 scraper=scraper,
                 db=sql_manager,
                 storage_dir=storage_dir,
                 request_manager=request_manager,
+                on_speculation_response=on_speculation_response,
                 **driver_kwargs,
             )
 
@@ -274,6 +289,9 @@ class RunManager:
             uuid_archive_callback,
         )
 
+        # Close any read-only connection before loading (driver will take over)
+        await close_readonly_connection(run_id)
+
         async with self._lock:
             if run_id not in self.runs:
                 raise ValueError(f"Run '{run_id}' not found")
@@ -290,6 +308,7 @@ class RunManager:
             jitter = driver_kwargs.get("jitter", 2.0)
             num_workers = driver_kwargs.get("num_workers", 1)
             max_backoff_time = driver_kwargs.get("max_backoff_time", 3600.0)
+            speculation_config = driver_kwargs.pop("speculation_config", None)
 
             # Initialize database and SQLManager
             aiosqlite_db = await init_database(run_info.db_path)
@@ -306,6 +325,10 @@ class RunManager:
                 num_workers=num_workers,
                 max_backoff_time=max_backoff_time,
             )
+
+            # Get speculation config - prefer provided, fall back to stored
+            if speculation_config is None:
+                speculation_config = await sql_manager.get_speculation_config()
 
             # Restore queue since we're resuming
             pending_count = await sql_manager.restore_queue()
@@ -324,6 +347,17 @@ class RunManager:
                 ssl_context=scraper.get_ssl_context(),
             )
 
+            # Create speculation handler if config available
+            on_speculation_response = None
+            if speculation_config:
+                from juriscraper.scraper_driver.driver.dev_driver.speculation import (
+                    create_speculation_handler,
+                )
+
+                on_speculation_response = create_speculation_handler(
+                    speculation_config
+                )
+
             # Load driver with resume=True and custom archive handler
             driver = LocalDevDriver(
                 scraper=scraper,
@@ -331,6 +365,7 @@ class RunManager:
                 storage_dir=storage_dir,
                 resume=True,
                 request_manager=request_manager,
+                on_speculation_response=on_speculation_response,
                 **driver_kwargs,
             )
 
@@ -385,6 +420,40 @@ class RunManager:
 
             logger.info(f"Started run '{run_id}'")
             return run_info
+
+    async def resume_run(
+        self, run_id: str, scraper: Any, **driver_kwargs: Any
+    ) -> RunInfo:
+        """Load and immediately start a run (combined operation).
+
+        This is the preferred way to start an existing run. It combines
+        load_run and start_run into a single atomic operation.
+
+        Args:
+            run_id: The run identifier.
+            scraper: The scraper instance to use.
+            **driver_kwargs: Additional arguments for LocalDevDriver.
+
+        Returns:
+            RunInfo with status="running".
+
+        Raises:
+            ValueError: If run not found.
+        """
+        # Check if already running
+        run_info = await self.get_run(run_id)
+        if run_info is not None:
+            if run_info.task is not None and not run_info.task.done():
+                # Already running, return current state
+                return run_info
+
+            if run_info.driver is not None:
+                # Already loaded but not running, just start it
+                return await self.start_run(run_id)
+
+        # Load and then start
+        await self.load_run(run_id, scraper, **driver_kwargs)
+        return await self.start_run(run_id)
 
     async def stop_run(self, run_id: str, timeout: float = 30.0) -> RunInfo:
         """Stop a running driver gracefully.
@@ -532,6 +601,137 @@ class RunManager:
 _run_manager: RunManager | None = None
 
 
+# --- Read-only connection cache for unloaded runs ---
+
+
+@dataclass
+class CachedConnection:
+    """A cached read-only SQLManager connection.
+
+    Attributes:
+        manager: The SQLManager instance.
+        last_used: Unix timestamp of last access.
+    """
+
+    manager: SQLManager
+    last_used: float
+
+
+# Cache for read-only SQLManager connections
+_readonly_connections: dict[str, CachedConnection] = {}
+_readonly_lock = asyncio.Lock()
+_cleanup_task: asyncio.Task[None] | None = None
+READONLY_TIMEOUT = 30.0  # seconds
+
+
+async def _cleanup_stale_connections() -> None:
+    """Background task to close idle read-only connections."""
+    while True:
+        await asyncio.sleep(10)  # Check every 10s
+        async with _readonly_lock:
+            now = time.time()
+            stale = [
+                run_id
+                for run_id, cached in _readonly_connections.items()
+                if now - cached.last_used > READONLY_TIMEOUT
+            ]
+            for run_id in stale:
+                try:
+                    await _readonly_connections[run_id].manager.db.close()
+                    logger.debug(
+                        f"Closed stale read-only connection for '{run_id}'"
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Error closing read-only connection for '{run_id}': {e}"
+                    )
+                del _readonly_connections[run_id]
+
+
+async def get_readonly_sql_manager(run_id: str, db_path: Path) -> SQLManager:
+    """Get or create a read-only SQLManager for a run.
+
+    These connections are cached and automatically closed after 30s of
+    inactivity to avoid resource leaks while still providing efficient
+    repeated access.
+
+    Args:
+        run_id: The run identifier.
+        db_path: Path to the database file.
+
+    Returns:
+        SQLManager instance for read-only access.
+    """
+    from juriscraper.scraper_driver.driver.dev_driver.schema import (
+        init_database,
+    )
+    from juriscraper.scraper_driver.driver.dev_driver.sql_manager import (
+        SQLManager,
+    )
+
+    global _cleanup_task
+    async with _readonly_lock:
+        # Start cleanup task if not running
+        if _cleanup_task is None or _cleanup_task.done():
+            _cleanup_task = asyncio.create_task(_cleanup_stale_connections())
+
+        # Return cached connection if available
+        if run_id in _readonly_connections:
+            _readonly_connections[run_id].last_used = time.time()
+            return _readonly_connections[run_id].manager
+
+        # Create new connection
+        db = await init_database(db_path)
+        manager = SQLManager(db)
+        _readonly_connections[run_id] = CachedConnection(
+            manager=manager, last_used=time.time()
+        )
+        logger.debug(f"Opened read-only connection for '{run_id}'")
+        return manager
+
+
+async def close_readonly_connection(run_id: str) -> None:
+    """Close a read-only connection if it exists.
+
+    Called when a run is loaded (driver takes over) or deleted.
+
+    Args:
+        run_id: The run identifier.
+    """
+    async with _readonly_lock:
+        if run_id in _readonly_connections:
+            try:
+                await _readonly_connections[run_id].manager.db.close()
+            except Exception as e:
+                logger.warning(
+                    f"Error closing read-only connection for '{run_id}': {e}"
+                )
+            del _readonly_connections[run_id]
+
+
+async def shutdown_readonly_connections() -> None:
+    """Close all read-only connections. Called during app shutdown."""
+    global _cleanup_task
+    async with _readonly_lock:
+        for run_id, cached in list(_readonly_connections.items()):
+            try:
+                await cached.manager.db.close()
+            except Exception as e:
+                logger.warning(
+                    f"Error closing read-only connection for '{run_id}': {e}"
+                )
+        _readonly_connections.clear()
+
+    # Cancel cleanup task
+    if _cleanup_task is not None and not _cleanup_task.done():
+        _cleanup_task.cancel()
+        try:
+            await _cleanup_task
+        except asyncio.CancelledError:
+            pass
+        _cleanup_task = None
+
+
 def get_run_manager() -> RunManager:
     """Get the global run manager instance.
 
@@ -552,9 +752,9 @@ async def get_sql_manager_for_run(
     """Get SQLManager for a run, opening DB if not already loaded.
 
     This function provides database access for runs without requiring
-    the full driver to be loaded. For loaded runs, it wraps the driver's
-    existing database connection. For unloaded runs, it opens the database
-    directly.
+    the full driver to be loaded. For loaded runs, it uses the driver's
+    existing database connection. For unloaded runs, it uses a cached
+    read-only connection that auto-closes after 30s of inactivity.
 
     Args:
         run_id: The run identifier.
@@ -574,12 +774,8 @@ async def get_sql_manager_for_run(
     if run_info.driver is not None:
         return run_info.driver.db
 
-    # Otherwise, open the database directly
-    # Note: For now, we require the driver to be loaded
-    # to avoid managing multiple connections to the same database
-    raise ValueError(
-        f"Run '{run_id}' is not loaded. Load it first with POST /api/runs/{run_id}/load"
-    )
+    # Otherwise, use the read-only connection cache
+    return await get_readonly_sql_manager(run_id, run_info.db_path)
 
 
 @asynccontextmanager
@@ -614,6 +810,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Shutdown all runs
     await _run_manager.shutdown_all()
     _run_manager = None
+
+    # Shutdown read-only connections
+    await shutdown_readonly_connections()
 
 
 def create_app(

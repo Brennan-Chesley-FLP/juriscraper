@@ -21,7 +21,7 @@ from pathlib import Path
 import aiosqlite
 
 # Schema version for migrations
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 6
 
 # SQL statements for creating tables
 _CREATE_REQUESTS = """
@@ -54,10 +54,15 @@ CREATE TABLE IF NOT EXISTS requests (
     -- ArchiveRequest-specific fields
     expected_type TEXT,                      -- For ArchiveRequest: expected file type
 
-    -- Timestamps
+    -- Timestamps (human-readable)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
+
+    -- High-precision monotonic timestamps (nanoseconds from time.monotonic_ns())
+    created_at_ns INTEGER,
+    started_at_ns INTEGER,
+    completed_at_ns INTEGER,
 
     -- Retry tracking (exponential backoff)
     retry_count INTEGER NOT NULL DEFAULT 0,
@@ -197,7 +202,10 @@ CREATE TABLE IF NOT EXISTS run_metadata (
     base_delay REAL NOT NULL,
     jitter REAL NOT NULL,
     num_workers INTEGER NOT NULL,
-    max_backoff_time REAL NOT NULL           -- Max cumulative backoff before marking failed
+    max_backoff_time REAL NOT NULL,          -- Max cumulative backoff before marking failed
+
+    -- Speculation configuration
+    speculation_config_json TEXT             -- JSON: {continuation: {threshold: int, speculation: int}}
 )
 """
 
@@ -284,6 +292,14 @@ _CREATE_SPECULATIVE_PROGRESS_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_speculative_progress_step ON speculative_progress(step_name)",
 ]
 
+_CREATE_SPECULATIVE_START_IDS = """
+CREATE TABLE IF NOT EXISTS speculative_start_ids (
+    step_name TEXT PRIMARY KEY,
+    starting_id INTEGER NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+"""
+
 # Schema metadata table for versioning
 _CREATE_SCHEMA_INFO = """
 CREATE TABLE IF NOT EXISTS schema_info (
@@ -325,6 +341,7 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     await db.execute(_CREATE_RATE_BUCKET)
     await db.execute(_CREATE_RATE_ITEMS)
     await db.execute(_CREATE_SPECULATIVE_PROGRESS)
+    await db.execute(_CREATE_SPECULATIVE_START_IDS)
 
     # Create all indexes
     for index_sql in _CREATE_REQUESTS_INDEXES:
@@ -388,6 +405,61 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT INTO schema_info (version) VALUES (?)",
             (3,),
+        )
+        current_version = 3
+
+    # Migration 3 -> 4: Add speculation_config_json column to run_metadata table
+    if current_version < 4:
+        # Check if column exists
+        cursor = await db.execute("PRAGMA table_info(run_metadata)")
+        columns = [row[1] for row in await cursor.fetchall()]
+        if "speculation_config_json" not in columns:
+            await db.execute(
+                "ALTER TABLE run_metadata ADD COLUMN speculation_config_json TEXT"
+            )
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (4,),
+        )
+        current_version = 4
+
+    # Migration 4 -> 5: Add speculative_start_ids table
+    if current_version < 5:
+        # Create the table if it doesn't exist
+        await db.execute(_CREATE_SPECULATIVE_START_IDS)
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (5,),
+        )
+        current_version = 5
+
+    # Migration 5 -> 6: Add nanosecond timing columns to requests table
+    if current_version < 6:
+        # Check if columns exist
+        cursor = await db.execute("PRAGMA table_info(requests)")
+        columns = [row[1] for row in await cursor.fetchall()]
+
+        if "created_at_ns" not in columns:
+            await db.execute(
+                "ALTER TABLE requests ADD COLUMN created_at_ns INTEGER"
+            )
+        if "started_at_ns" not in columns:
+            await db.execute(
+                "ALTER TABLE requests ADD COLUMN started_at_ns INTEGER"
+            )
+        if "completed_at_ns" not in columns:
+            await db.execute(
+                "ALTER TABLE requests ADD COLUMN completed_at_ns INTEGER"
+            )
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (6,),
         )
 
     # Record initial schema version if not present

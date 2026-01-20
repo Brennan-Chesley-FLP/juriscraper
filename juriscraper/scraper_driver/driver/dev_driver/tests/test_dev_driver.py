@@ -6886,13 +6886,23 @@ class TestSpeculativeRequestHandling:
 
         db_path = tmp_path / "test_speculative_callback.db"
         scraper = SpeculativeScraper()
-        callback_calls: list[tuple[int, str]] = []
+        callback_calls: list[tuple[int, str, int]] = []
+
+        from juriscraper.scraper_driver.driver.dev_driver.speculation import (
+            FlowControl,
+        )
 
         async def speculation_callback(
-            response: Response, continuation_name: str
-        ) -> bool:
-            callback_calls.append((response.status_code, continuation_name))
-            return True  # Always continue
+            response: Response | None,
+            continuation_name: str,
+            speculative_id: int,
+        ) -> FlowControl:
+            if response is None:
+                return FlowControl.AWAIT_MORE_INFO
+            callback_calls.append(
+                (response.status_code, continuation_name, speculative_id)
+            )
+            return FlowControl.CONTINUE  # Always continue
 
         async with LocalDevDriver.open(
             scraper,
@@ -6925,8 +6935,11 @@ class TestSpeculativeRequestHandling:
             await driver.run()
 
         # Callback was called for the 404
+        # The step name passed is the originating speculative step (parse_start),
+        # not the continuation (parse_page). This matches the speculation config keys.
         assert len(callback_calls) == 1
-        assert callback_calls[0] == (404, "parse_page")
+        assert callback_calls[0][0] == 404
+        assert callback_calls[0][1] == "parse_start"
 
         # All speculative results should be True (callback returned True)
         assert scraper.speculative_results == [True, True, True]

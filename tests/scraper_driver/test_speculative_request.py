@@ -31,6 +31,9 @@ from juriscraper.scraper_driver.data_types import (
     ScraperYield,
     SpeculativeRequest,
 )
+from juriscraper.scraper_driver.driver.dev_driver.speculation import (
+    FlowControl,
+)
 from juriscraper.scraper_driver.driver.sync_driver import SyncDriver
 
 # =============================================================================
@@ -234,10 +237,14 @@ class TestSpeculativeRequestBasics:
             collected_data.append(data)
 
         def speculation_callback(
-            response: Response, continuation_name: str
-        ) -> bool:
+            response: Response | None,
+            continuation_name: str,
+            speculative_id: int,
+        ) -> FlowControl:
+            if response is None:
+                return FlowControl.AWAIT_MORE_INFO
             callback_calls.append((response.status_code, continuation_name))
-            return True  # Always say continue
+            return FlowControl.CONTINUE  # Always say continue
 
         responses = {
             "https://example.com/start": create_mock_response(200),
@@ -269,9 +276,11 @@ class TestSpeculativeRequestBasics:
         # Only 200 pages should be processed (continuation only called for 2xx)
         assert scraper.pages_processed == [2, 4, 5]
         # Callback called for 404s
+        # The step name passed is the originating speculative step (parse_start),
+        # not the continuation (parse_page). This matches the speculation config keys.
         assert len(callback_calls) == 2
-        assert callback_calls[0] == (404, "parse_page")
-        assert callback_calls[1] == (404, "parse_page")
+        assert callback_calls[0] == (404, "parse_start")
+        assert callback_calls[1] == (404, "parse_start")
 
     def test_callback_returning_false_stops_speculation(self):
         """Callback returning False should stop the speculative loop."""
@@ -279,11 +288,15 @@ class TestSpeculativeRequestBasics:
         call_count = 0
 
         def speculation_callback(
-            response: Response, continuation_name: str
-        ) -> bool:
+            response: Response | None,
+            continuation_name: str,
+            speculative_id: int,
+        ) -> FlowControl:
             nonlocal call_count
+            if response is None:
+                return FlowControl.AWAIT_MORE_INFO
             call_count += 1
-            return False  # Always say stop
+            return FlowControl.STOP  # Always say stop
 
         responses = {
             "https://example.com/start": create_mock_response(200),
@@ -454,10 +467,18 @@ class TestMultipleSpeculativeYields:
         }
 
         def speculation_callback(
-            response: Response, continuation_name: str
-        ) -> bool:
+            response: Response | None,
+            continuation_name: str,
+            speculative_id: int,
+        ) -> FlowControl:
+            if response is None:
+                return FlowControl.AWAIT_MORE_INFO
             resource = response.url.split("/")[-1] if response.url else ""
-            return callback_results.get(resource, False)
+            return (
+                FlowControl.CONTINUE
+                if callback_results.get(resource, False)
+                else FlowControl.STOP
+            )
 
         driver = SyncDriver(
             scraper,

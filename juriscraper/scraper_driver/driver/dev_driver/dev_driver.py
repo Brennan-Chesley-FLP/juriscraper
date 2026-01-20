@@ -40,6 +40,9 @@ from juriscraper.scraper_driver.driver.async_driver import AsyncDriver
 from juriscraper.scraper_driver.driver.dev_driver.schema import (
     init_database,
 )
+from juriscraper.scraper_driver.driver.dev_driver.speculation import (
+    FlowControl,
+)
 from juriscraper.scraper_driver.driver.dev_driver.sql_manager import (
     Page,
     RequestRecord,
@@ -65,9 +68,15 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable, Generator
 
     # Type alias for speculation response callback (async version)
-    # Called when a SpeculativeRequest receives a non-2xx response
-    # Returns True to continue (and optionally process continuation), False to stop
-    OnSpeculationResponseAsync = Callable[[Response, str], Awaitable[bool]]
+    # Called when a SpeculativeRequest is yielded or receives a response.
+    # Args: (response, continuation_name, speculative_id)
+    #   - response is None for early check (before HTTP), or Response after HTTP
+    #   - continuation_name is the originating step name
+    #   - speculative_id is the ID from SpeculativeRequest
+    # Returns FlowControl: CONTINUE, STOP, or AWAIT_MORE_INFO
+    OnSpeculationResponseAsync = Callable[
+        [Response | None, str, int], Awaitable[FlowControl]
+    ]
 
 logger = logging.getLogger(__name__)
 
@@ -1021,6 +1030,47 @@ class LocalDevDriver(
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
+    async def _apply_speculative_start_ids(self) -> None:
+        """Apply speculative start IDs from database to scraper params.
+
+        This is used by the restart-speculative feature. When the user sets
+        speculative start IDs via the web UI (stored in the speculative_start_ids
+        table), those values are applied to the scraper's params when the driver
+        starts running.
+
+        After applying, the start IDs are cleared from the database to ensure
+        they only take effect once.
+        """
+        # Get start IDs from database
+        start_ids = await self.db.get_speculative_start_ids()
+        if not start_ids:
+            return
+
+        # Ensure scraper has params
+        if (
+            not hasattr(self.scraper, "_params")
+            or self.scraper._params is None
+        ):
+            # Initialize params using the class method
+            self.scraper._params = self.scraper.__class__.params()
+
+        # Apply start IDs to speculative proxy
+        for step_name, starting_id in start_ids.items():
+            try:
+                setattr(
+                    self.scraper._params.speculative, step_name, starting_id
+                )
+                logger.info(
+                    f"Applied speculative start ID: {step_name} = {starting_id}"
+                )
+            except AttributeError:
+                logger.warning(
+                    f"Unknown speculative step: {step_name}, skipping"
+                )
+
+        # Clear the start IDs after applying (one-time use)
+        await self.db.clear_all_speculative_start_ids()
+
     # --- Run Override ---
 
     async def run(self, setup_signal_handlers: bool = True) -> None:
@@ -1038,6 +1088,10 @@ class LocalDevDriver(
 
         # Update run status to running
         await self.db.update_run_status("running")
+
+        # Apply any speculative start IDs from the database to the scraper params
+        # This is used by the restart-speculative feature
+        await self._apply_speculative_start_ids()
 
         await self._emit_progress(
             "run_started",
@@ -1208,6 +1262,8 @@ class LocalDevDriver(
 
                 # Handle SpeculativeRequest with parked generator
                 if speculation_id and speculation_id.startswith("spec_"):
+                    # request is SpeculativeRequest when speculation_id starts with "spec_"
+                    assert isinstance(request, SpeculativeRequest)
                     await self._resolve_speculative_with_storage(
                         request_id, request, speculation_id, continuation_name
                     )
@@ -1385,6 +1441,12 @@ class LocalDevDriver(
         Uses simple iteration (for item in gen). Values are only sent to
         generators via _execute_resume() when processing a ResumeStep.
 
+        For SpeculativeRequests, uses early-continue optimization:
+        - First calls on_speculation_response with response=None
+        - If CONTINUE: enqueue request and immediately resume generator with True
+        - If AWAIT_MORE_INFO: park generator, enqueue request with context
+        - If STOP: immediately resume generator with False (no HTTP request)
+
         Args:
             gen: The generator from the continuation method.
             response: The Response that triggered this continuation.
@@ -1405,6 +1467,47 @@ class LocalDevDriver(
             for item in gen:
                 match item:
                     case SpeculativeRequest():
+                        # Early-continue optimization: check if we can decide without HTTP
+                        if self.on_speculation_response:
+                            flow = await self.on_speculation_response(
+                                None, continuation_name, item.speculative_id
+                            )
+                            if flow == FlowControl.CONTINUE:
+                                # Can continue without waiting for response
+                                # Enqueue the underlying request (without context)
+                                await self.enqueue_request(item, response)
+                                # Immediately resume generator with True
+                                try:
+                                    next_item = gen.send(True)
+                                    # Continue processing with the new item
+                                    await self._handle_yield_and_continue_with_storage(
+                                        gen,
+                                        next_item,
+                                        response,
+                                        parent_request,
+                                        continuation_name,
+                                        request_id,
+                                    )
+                                except StopIteration:
+                                    pass
+                                return
+                            elif flow == FlowControl.STOP:
+                                # Stop speculation without HTTP request
+                                try:
+                                    next_item = gen.send(False)
+                                    await self._handle_yield_and_continue_with_storage(
+                                        gen,
+                                        next_item,
+                                        response,
+                                        parent_request,
+                                        continuation_name,
+                                        request_id,
+                                    )
+                                except StopIteration:
+                                    pass
+                                return
+                            # AWAIT_MORE_INFO: fall through to park generator
+
                         # Park the generator and enqueue with context
                         ctx = SpeculationContext(
                             parked_generator=gen,
@@ -1460,7 +1563,7 @@ class LocalDevDriver(
     async def _resolve_speculative_with_storage(
         self,
         request_id: int,
-        request: BaseRequest,
+        request: SpeculativeRequest,
         speculation_id: str,
         continuation_name: str,
     ) -> None:
@@ -1526,10 +1629,14 @@ class LocalDevDriver(
             # 2xx response: always continue
             should_continue = True
         elif self.on_speculation_response:
-            # Non-2xx: let callback decide
-            should_continue = await self.on_speculation_response(
-                response, continuation_name
+            # Non-2xx: let callback decide with the actual response
+            # Use the originating step name (speculative_step) not the continuation name
+            # This matches the config keys which are named after the @step(speculative=True) method
+            step_for_config = speculative_step or continuation_name
+            flow = await self.on_speculation_response(
+                response, step_for_config, request.speculative_id
             )
+            should_continue = flow == FlowControl.CONTINUE
         else:
             # Non-2xx with no callback: don't continue
             should_continue = False
@@ -1630,6 +1737,12 @@ class LocalDevDriver(
         Called after _execute_resume_with_storage sends a value. Processes the
         first yielded item, then continues with simple iteration for remaining items.
 
+        For SpeculativeRequests, uses early-continue optimization:
+        - First calls on_speculation_response with response=None
+        - If CONTINUE: enqueue request and immediately resume generator with True
+        - If AWAIT_MORE_INFO: park generator, enqueue request with context
+        - If STOP: immediately resume generator with False (no HTTP request)
+
         Args:
             gen: The generator to continue processing.
             item: The first item yielded after send().
@@ -1651,6 +1764,30 @@ class LocalDevDriver(
             while True:
                 match item:
                     case SpeculativeRequest():
+                        # Early-continue optimization: check if we can decide without HTTP
+                        if self.on_speculation_response:
+                            flow = await self.on_speculation_response(
+                                None, continuation_name, item.speculative_id
+                            )
+                            if flow == FlowControl.CONTINUE:
+                                # Can continue without waiting for response
+                                # Enqueue the underlying request (without context)
+                                await self.enqueue_request(item, response)
+                                # Immediately resume generator with True
+                                try:
+                                    item = gen.send(True)
+                                    continue  # Process the new item in next iteration
+                                except StopIteration:
+                                    return
+                            elif flow == FlowControl.STOP:
+                                # Stop speculation without HTTP request
+                                try:
+                                    item = gen.send(False)
+                                    continue  # Process the new item in next iteration
+                                except StopIteration:
+                                    return
+                            # AWAIT_MORE_INFO: fall through to park generator
+
                         # Park again
                         ctx = SpeculationContext(
                             parked_generator=gen,

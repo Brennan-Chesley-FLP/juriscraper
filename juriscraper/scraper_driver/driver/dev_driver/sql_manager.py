@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -101,6 +102,40 @@ class RequestRecord:
     retry_count: int
     cumulative_backoff: float | None
     last_error: str | None
+    # High-precision monotonic timestamps (nanoseconds from time.monotonic_ns())
+    created_at_ns: int | None = None
+    started_at_ns: int | None = None
+    completed_at_ns: int | None = None
+
+    @property
+    def duration_ns(self) -> int | None:
+        """Calculate request duration in nanoseconds (from started to completed)."""
+        if self.started_at_ns is not None and self.completed_at_ns is not None:
+            return self.completed_at_ns - self.started_at_ns
+        return None
+
+    @property
+    def duration_ms(self) -> float | None:
+        """Calculate request duration in milliseconds."""
+        duration = self.duration_ns
+        if duration is not None:
+            return duration / 1_000_000
+        return None
+
+    @property
+    def queue_time_ns(self) -> int | None:
+        """Calculate time spent in queue in nanoseconds (from created to started)."""
+        if self.created_at_ns is not None and self.started_at_ns is not None:
+            return self.started_at_ns - self.created_at_ns
+        return None
+
+    @property
+    def queue_time_ms(self) -> float | None:
+        """Calculate time spent in queue in milliseconds."""
+        queue_time = self.queue_time_ns
+        if queue_time is not None:
+            return queue_time / 1_000_000
+        return None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -119,6 +154,11 @@ class RequestRecord:
             "retry_count": self.retry_count,
             "cumulative_backoff": self.cumulative_backoff,
             "last_error": self.last_error,
+            "created_at_ns": self.created_at_ns,
+            "started_at_ns": self.started_at_ns,
+            "completed_at_ns": self.completed_at_ns,
+            "duration_ms": self.duration_ms,
+            "queue_time_ms": self.queue_time_ms,
         }
 
     def to_json(self) -> str:
@@ -277,6 +317,7 @@ class SQLManager:
         jitter: float,
         num_workers: int,
         max_backoff_time: float,
+        speculation_config: dict[str, dict[str, int]] | None = None,
     ) -> None:
         """Initialize run metadata in database.
 
@@ -289,9 +330,15 @@ class SQLManager:
             jitter: Rate limit jitter in seconds.
             num_workers: Number of concurrent workers.
             max_backoff_time: Maximum total backoff time before failure.
+            speculation_config: Optional dict mapping continuation name to
+                {"threshold": int, "speculation": int} for speculative handling.
         """
         cursor = await self._db.execute(SQL.SELECT_RUN_METADATA_BY_ID)
         row = await cursor.fetchone()
+
+        speculation_config_json = (
+            json.dumps(speculation_config) if speculation_config else None
+        )
 
         if row is None:
             await self._db.execute(
@@ -303,9 +350,36 @@ class SQLManager:
                     jitter,
                     num_workers,
                     max_backoff_time,
+                    speculation_config_json,
                 ),
             )
             await self._db.commit()
+
+    async def get_speculation_config(self) -> dict[str, dict[str, int]] | None:
+        """Get the speculation configuration from run metadata.
+
+        Returns:
+            Dict mapping continuation name to {"threshold": int, "speculation": int},
+            or None if not configured.
+        """
+        cursor = await self._db.execute(SQL.SELECT_SPECULATION_CONFIG)
+        row = await cursor.fetchone()
+        if row and row[0]:
+            return json.loads(row[0])
+        return None
+
+    async def update_speculation_config(
+        self, config: dict[str, dict[str, int]]
+    ) -> None:
+        """Update the speculation configuration in run metadata.
+
+        Args:
+            config: Dict mapping continuation name to {"threshold": int, "speculation": int}.
+        """
+        await self._db.execute(
+            SQL.UPDATE_SPECULATION_CONFIG, (json.dumps(config),)
+        )
+        await self._db.commit()
 
     async def restore_queue(self) -> int:
         """Restore pending requests from database on startup.
@@ -381,6 +455,39 @@ class SQLManager:
         row = await cursor.fetchone()
         return (row[0] if row else 0) > 0
 
+    async def get_run_metadata(self) -> dict[str, Any] | None:
+        """Get run metadata from database.
+
+        Returns:
+            Dict with run metadata or None if not found.
+        """
+        cursor = await self._db.execute(
+            """
+            SELECT scraper_name, scraper_version, status, created_at, started_at,
+                   ended_at, error_message, base_delay, jitter, num_workers,
+                   max_backoff_time, speculation_config_json
+            FROM run_metadata WHERE id = 1
+            """
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+
+        return {
+            "scraper_name": row[0],
+            "scraper_version": row[1],
+            "status": row[2],
+            "created_at": row[3],
+            "started_at": row[4],
+            "ended_at": row[5],
+            "error_message": row[6],
+            "base_delay": row[7],
+            "jitter": row[8],
+            "num_workers": row[9],
+            "max_backoff_time": row[10],
+            "speculation_config": json.loads(row[11]) if row[11] else None,
+        }
+
     # --- Request Queue Operations ---
 
     async def check_dedup_key_exists(self, dedup_key: str) -> bool:
@@ -453,6 +560,7 @@ class SQLManager:
             The ID of the newly inserted request.
         """
         queue_counter = await get_next_queue_counter(self._db)
+        created_at_ns = time.monotonic_ns()
 
         cursor = await self._db.execute(
             SQL.INSERT_REQUEST,
@@ -473,6 +581,7 @@ class SQLManager:
                 expected_type,
                 dedup_key,
                 parent_id,
+                created_at_ns,
             ),
         )
         await self._db.commit()
@@ -513,6 +622,7 @@ class SQLManager:
             The ID of the newly inserted request.
         """
         queue_counter = await get_next_queue_counter(self._db)
+        created_at_ns = time.monotonic_ns()
 
         cursor = await self._db.execute(
             SQL.INSERT_ENTRY_REQUEST,
@@ -530,6 +640,7 @@ class SQLManager:
                 aux_data_json,
                 permanent_json,
                 dedup_key,
+                created_at_ns,
             ),
         )
         await self._db.commit()
@@ -553,7 +664,10 @@ class SQLManager:
         Args:
             request_id: The database ID of the request.
         """
-        await self._db.execute(SQL.UPDATE_REQUEST_IN_PROGRESS, (request_id,))
+        started_at_ns = time.monotonic_ns()
+        await self._db.execute(
+            SQL.UPDATE_REQUEST_IN_PROGRESS, (started_at_ns, request_id)
+        )
         await self._db.commit()
 
     async def mark_request_completed(self, request_id: int) -> None:
@@ -562,7 +676,10 @@ class SQLManager:
         Args:
             request_id: The database ID of the request.
         """
-        await self._db.execute(SQL.UPDATE_REQUEST_COMPLETED, (request_id,))
+        completed_at_ns = time.monotonic_ns()
+        await self._db.execute(
+            SQL.UPDATE_REQUEST_COMPLETED, (completed_at_ns, request_id)
+        )
         await self._db.commit()
 
     async def mark_request_failed(
@@ -574,8 +691,10 @@ class SQLManager:
             request_id: The database ID of the request.
             error_message: Error message describing the failure.
         """
+        completed_at_ns = time.monotonic_ns()
         await self._db.execute(
-            SQL.UPDATE_REQUEST_FAILED, (error_message, request_id)
+            SQL.UPDATE_REQUEST_FAILED,
+            (completed_at_ns, error_message, request_id),
         )
         await self._db.commit()
 
@@ -901,6 +1020,7 @@ class SQLManager:
             The ID of the newly inserted request.
         """
         queue_counter = await get_next_queue_counter(self._db)
+        created_at_ns = time.monotonic_ns()
 
         cursor = await self._db.execute(
             SQL.INSERT_REQUEUE_REQUEST,
@@ -918,6 +1038,7 @@ class SQLManager:
                 aux_data_json,
                 permanent_json,
                 original_request_id,
+                created_at_ns,
             ),
         )
         await self._db.commit()
@@ -947,6 +1068,7 @@ class SQLManager:
         import json
 
         queue_counter = await get_next_queue_counter(self._db)
+        created_at_ns = time.monotonic_ns()
 
         cursor = await self._db.execute(
             SQL.INSERT_REQUEST,
@@ -969,6 +1091,7 @@ class SQLManager:
                 resume_id,  # Store resume_id in expected_type
                 None,  # No dedup_key
                 None,  # No parent_id
+                created_at_ns,  # Nanosecond timestamp
             ),
         )
         await self._db.commit()
@@ -1204,6 +1327,54 @@ class SQLManager:
         rows = await cursor.fetchall()
         return {row[0]: row[1] for row in rows}
 
+    # --- Speculative Start IDs (for restart-speculative feature) ---
+
+    async def set_speculative_start_id(
+        self, step_name: str, starting_id: int
+    ) -> None:
+        """Set a speculative starting ID for a step.
+
+        This is used by the restart-speculative feature to persist starting IDs
+        that will be picked up when the driver next starts.
+
+        Args:
+            step_name: The name of the speculative step method.
+            starting_id: The speculative_id to start from.
+        """
+        await self._db.execute(
+            SQL.UPSERT_SPECULATIVE_START_ID, (step_name, starting_id)
+        )
+        await self._db.commit()
+
+    async def get_speculative_start_ids(self) -> dict[str, int]:
+        """Get all speculative starting IDs.
+
+        Returns:
+            Dict mapping step names to their starting_id.
+        """
+        cursor = await self._db.execute(SQL.SELECT_SPECULATIVE_START_IDS)
+        rows = await cursor.fetchall()
+        return {row[0]: row[1] for row in rows}
+
+    async def clear_speculative_start_id(self, step_name: str) -> None:
+        """Clear a speculative starting ID for a step.
+
+        Called after the driver has applied the starting ID to the params.
+
+        Args:
+            step_name: The name of the speculative step method.
+        """
+        await self._db.execute(SQL.DELETE_SPECULATIVE_START_ID, (step_name,))
+        await self._db.commit()
+
+    async def clear_all_speculative_start_ids(self) -> None:
+        """Clear all speculative starting IDs.
+
+        Called after the driver has applied all starting IDs.
+        """
+        await self._db.execute(SQL.DELETE_ALL_SPECULATIVE_START_IDS)
+        await self._db.commit()
+
     # --- Request Cancellation ---
 
     async def cancel_request(self, request_id: int) -> bool:
@@ -1217,8 +1388,9 @@ class SQLManager:
         Returns:
             True if cancelled, False if not found or not cancellable.
         """
+        completed_at_ns = time.monotonic_ns()
         cursor = await self._db.execute(
-            SQL.UPDATE_CANCEL_REQUEST, (request_id,)
+            SQL.UPDATE_CANCEL_REQUEST, (completed_at_ns, request_id)
         )
         await self._db.commit()
         return cursor.rowcount > 0
@@ -1232,8 +1404,9 @@ class SQLManager:
         Returns:
             Number of requests cancelled.
         """
+        completed_at_ns = time.monotonic_ns()
         cursor = await self._db.execute(
-            SQL.UPDATE_CANCEL_BY_CONTINUATION, (continuation,)
+            SQL.UPDATE_CANCEL_BY_CONTINUATION, (completed_at_ns, continuation)
         )
         await self._db.commit()
         return cursor.rowcount
@@ -1327,6 +1500,9 @@ class SQLManager:
                 retry_count=row[11],
                 cumulative_backoff=row[12],
                 last_error=row[13],
+                created_at_ns=row[14] if len(row) > 14 else None,
+                started_at_ns=row[15] if len(row) > 15 else None,
+                completed_at_ns=row[16] if len(row) > 16 else None,
             )
             for row in rows
         ]
@@ -1506,6 +1682,9 @@ class SQLManager:
             retry_count=row[11],
             cumulative_backoff=row[12],
             last_error=row[13],
+            created_at_ns=row[14] if len(row) > 14 else None,
+            started_at_ns=row[15] if len(row) > 15 else None,
+            completed_at_ns=row[16] if len(row) > 16 else None,
         )
 
     async def get_response(self, response_id: int) -> ResponseRecord | None:

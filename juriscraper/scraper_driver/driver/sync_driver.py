@@ -61,6 +61,9 @@ from juriscraper.scraper_driver.data_types import (
     SpeculationContext,
     SpeculativeRequest,
 )
+from juriscraper.scraper_driver.driver.dev_driver.speculation import (
+    FlowControl,
+)
 
 if TYPE_CHECKING:
     from juriscraper.scraper_driver.common.interceptors import SyncInterceptor
@@ -77,9 +80,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Type alias for speculation response callback
-# Called when a SpeculativeRequest receives a non-2xx response
-# Returns True to continue (and optionally process continuation), False to stop
-OnSpeculationResponse = Callable[[Response, str], bool]
+# Called when a SpeculativeRequest is yielded (first with response=None for early check)
+# or after receiving an HTTP response.
+# Returns FlowControl to indicate how to proceed:
+# - CONTINUE: Continue speculation (send True to generator)
+# - STOP: Stop speculation (send False to generator)
+# - AWAIT_MORE_INFO: Need response to decide (park generator, make HTTP request)
+OnSpeculationResponse = Callable[[Response | None, str, int], FlowControl]
 
 ScraperReturnDatatype = TypeVar("ScraperReturnDatatype")
 
@@ -523,6 +530,12 @@ class SyncDriver(Generic[ScraperReturnDatatype]):
         Uses simple iteration (for item in gen). Values are only sent to
         generators via _execute_resume() when processing a ResumeStep.
 
+        For SpeculativeRequests, uses early-continue optimization:
+        - First calls on_speculation_response with response=None
+        - If CONTINUE: enqueue request and immediately resume generator with True
+        - If AWAIT_MORE_INFO: park generator, enqueue request with context
+        - If STOP: immediately resume generator with False (no HTTP request)
+
         Args:
             gen: The generator from the continuation method.
             response: The Response that triggered this continuation.
@@ -533,6 +546,45 @@ class SyncDriver(Generic[ScraperReturnDatatype]):
             for item in gen:
                 match item:
                     case SpeculativeRequest():
+                        # Early-continue optimization: check if we can decide without HTTP
+                        if self.on_speculation_response:
+                            flow = self.on_speculation_response(
+                                None, continuation_name, item.speculative_id
+                            )
+                            if flow == FlowControl.CONTINUE:
+                                # Can continue without waiting for response
+                                # Enqueue the underlying request
+                                self.enqueue_request(item, response)
+                                # Immediately resume generator with True
+                                try:
+                                    next_item = gen.send(True)
+                                    # Continue processing with the new item
+                                    self._handle_yield_and_continue(
+                                        gen,
+                                        next_item,
+                                        response,
+                                        parent_request,
+                                        continuation_name,
+                                    )
+                                except StopIteration:
+                                    pass
+                                return
+                            elif flow == FlowControl.STOP:
+                                # Stop speculation without HTTP request
+                                try:
+                                    next_item = gen.send(False)
+                                    self._handle_yield_and_continue(
+                                        gen,
+                                        next_item,
+                                        response,
+                                        parent_request,
+                                        continuation_name,
+                                    )
+                                except StopIteration:
+                                    pass
+                                return
+                            # AWAIT_MORE_INFO: fall through to park generator
+
                         # Park the generator and enqueue with context
                         ctx = SpeculationContext(
                             parked_generator=gen,
@@ -564,6 +616,9 @@ class SyncDriver(Generic[ScraperReturnDatatype]):
 
     def _resolve_speculative(self, request: SpeculativeRequest) -> None:
         """Execute speculative request, determine success, enqueue resume, process continuation.
+
+        This is called when a SpeculativeRequest has been parked (AWAIT_MORE_INFO).
+        Now we have the HTTP response and need to make the final decision.
 
         Flow:
         - 2xx response: always success (True), call continuation
@@ -603,10 +658,13 @@ class SyncDriver(Generic[ScraperReturnDatatype]):
             # 2xx response: always continue
             should_continue = True
         elif self.on_speculation_response:
-            # Non-2xx: let callback decide (e.g., track consecutive 404s)
-            should_continue = self.on_speculation_response(
-                response, continuation_name
+            # Non-2xx: let callback decide with the actual response
+            # Use originating_continuation (the @step(speculative=True) method) not continuation_name
+            # This matches the config keys which are named after the speculative step method
+            flow = self.on_speculation_response(
+                response, ctx.originating_continuation, request.speculative_id
             )
+            should_continue = flow == FlowControl.CONTINUE
         else:
             # Non-2xx with no callback: don't continue
             should_continue = False

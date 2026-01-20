@@ -157,7 +157,8 @@ class TennScraper(
 
     # === Regex patterns ===
     # Date patterns: various formats seen on TN courts
-    DATE_PATTERN = re.compile(r"(\d{1,2}/\d{1,2}/\d{4})")
+    # Supports both 4-digit and 2-digit years (e.g., 12/22/2025 or 12/22/25)
+    DATE_PATTERN = re.compile(r"(\d{1,2}/\d{1,2}/\d{2,4})")
     YEAR_PATTERN = re.compile(r"(\d{4})")
     # Case number pattern: e.g., "M2023-01234-SC-R11-CV"
     CASE_NUMBER_PATTERN = re.compile(
@@ -176,6 +177,33 @@ class TennScraper(
         "TennOralArgument": "oral_arguments",
         "TennDocket": "dockets",
     }
+
+    def _parse_date(self, date_str: str) -> date | None:
+        """Parse a date string that may have 2 or 4 digit year.
+
+        Supports formats like:
+        - 12/22/2025 (4-digit year)
+        - 12/22/25 (2-digit year, assumes 2000s)
+
+        Args:
+            date_str: Date string in MM/DD/YY or MM/DD/YYYY format.
+
+        Returns:
+            Parsed date object, or None if parsing fails.
+        """
+        try:
+            # Try 4-digit year first
+            return datetime.strptime(date_str, "%m/%d/%Y").date()
+        except ValueError:
+            pass
+
+        try:
+            # Try 2-digit year (strptime interprets 00-68 as 2000-2068, 69-99 as 1969-1999)
+            return datetime.strptime(date_str, "%m/%d/%y").date()
+        except ValueError:
+            pass
+
+        return None
 
     def _get_requested_data_types(self) -> set[str]:
         """Get the set of data types to scrape based on enabled models.
@@ -787,12 +815,7 @@ class TennScraper(
                 date_text = date_elems[0].text_content().strip()
                 match = self.DATE_PATTERN.search(date_text)
                 if match:
-                    try:
-                        date_filed = datetime.strptime(
-                            match.group(1), "%m/%d/%Y"
-                        ).date()
-                    except ValueError:
-                        pass
+                    date_filed = self._parse_date(match.group(1))
 
             # Apply date filters
             if date_filed:
@@ -1171,12 +1194,7 @@ class TennScraper(
             date_argued = None
             date_match = self.DATE_PATTERN.search(context_text)
             if date_match:
-                try:
-                    date_argued = datetime.strptime(
-                        date_match.group(1), "%m/%d/%Y"
-                    ).date()
-                except ValueError:
-                    pass
+                date_argued = self._parse_date(date_match.group(1))
 
             # If no date found but we have argument_year, use Jan 1 of that year
             if not date_argued and argument_year:
@@ -1220,11 +1238,9 @@ class TennScraper(
             continuation=self.start_docket_scraping,
         )
 
-    @step
+    @step(speculative=True)
     def start_docket_scraping(
-        self,
-        _lxml_tree: CheckedHtmlElement,
-        _response: Response,
+        self, speculative_id: int = 1
     ) -> Generator[
         ScraperYield[
             TennJudge | TennOpinionCluster | TennOralArgument | TennDocket
@@ -1243,7 +1259,7 @@ class TennScraper(
         if it doesn't (404/redirect to error page). We continue until we
         get False.
         """
-        pch_id_gt, pch_id_eq, court_ids = self._get_docket_search_params()
+        _, pch_id_eq, court_ids = self._get_docket_search_params()
 
         # If .eq is set, just fetch that single docket
         if pch_id_eq is not None:
@@ -1261,11 +1277,8 @@ class TennScraper(
                 },
             )
         else:
-            # Start from pch_id_gt + 1 or 1 if not set
-            current_id = (pch_id_gt or 0) + 1
-
             while True:
-                url = f"{DOCKET_CONFIG['case_detail_url']}?id={current_id}"
+                url = f"{DOCKET_CONFIG['case_detail_url']}?id={speculative_id}"
                 should_continue = yield SpeculativeRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
@@ -1273,18 +1286,16 @@ class TennScraper(
                     ),
                     continuation=self.parse_docket_page,
                     accumulated_data={
-                        "speculative_id": {
-                            "TennDocket": {"pch_id": current_id}
-                        },
-                        "pch_id": current_id,
+                        "pch_id": speculative_id,
                         "court_ids": list(court_ids) if court_ids else None,
                     },
+                    speculative_id=speculative_id,
                 )
 
                 if not should_continue:
                     break  # Page doesn't exist or was already processed
 
-                current_id += 1
+                speculative_id += 1
 
     @step(xsd="xsds/parse_docket_page.xsd")
     def parse_docket_page(
@@ -1377,12 +1388,7 @@ class TennScraper(
             if text:
                 match = self.DATE_PATTERN.search(text)
                 if match:
-                    try:
-                        return datetime.strptime(
-                            match.group(1), "%m/%d/%Y"
-                        ).date()
-                    except ValueError:
-                        pass
+                    return self._parse_date(match.group(1))
             return None
 
         # Extract trial court info
@@ -1532,12 +1538,7 @@ class TennScraper(
             if date_text:
                 match = self.DATE_PATTERN.search(date_text)
                 if match:
-                    try:
-                        date_filed = datetime.strptime(
-                            match.group(1), "%m/%d/%Y"
-                        ).date()
-                    except ValueError:
-                        pass
+                    date_filed = self._parse_date(match.group(1))
 
             # Event type from second cell
             event = cells[1].text_content().strip() if len(cells) > 1 else None

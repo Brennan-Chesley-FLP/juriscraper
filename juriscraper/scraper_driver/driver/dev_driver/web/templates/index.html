@@ -20,27 +20,11 @@
             </div>
         </section>
 
-        <!-- Loaded (Ready to Start) -->
+        <!-- Ready (Stopped or Unloaded - can be resumed) -->
         <section class="run-section">
-            <h2>Loaded <span id="loaded-count" class="badge">0</span></h2>
-            <div id="loaded-runs" class="run-grid">
-                <p class="empty-state">No loaded scrapers</p>
-            </div>
-        </section>
-
-        <!-- Unloaded -->
-        <section class="run-section">
-            <h2>Available <span id="unloaded-count" class="badge">0</span></h2>
-            <div id="unloaded-runs" class="run-grid">
-                <p class="empty-state">No available runs</p>
-            </div>
-        </section>
-
-        <!-- Stopped -->
-        <section class="run-section">
-            <h2>Stopped <span id="stopped-count" class="badge">0</span></h2>
-            <div id="stopped-runs" class="run-grid">
-                <p class="empty-state">No stopped runs</p>
+            <h2>Ready <span id="ready-count" class="badge">0</span></h2>
+            <div id="ready-runs" class="run-grid">
+                <p class="empty-state">No runs ready to resume</p>
             </div>
         </section>
     </div>
@@ -131,6 +115,7 @@ function createRunCard(run) {
     };
 
     const statusClass = statusColors[run.status] || 'status-unknown';
+    const isReady = ['unloaded', 'loaded', 'stopped'].includes(run.status);
 
     return `
         <div class="run-card" data-run-id="${run.run_id}">
@@ -143,12 +128,9 @@ function createRunCard(run) {
                 ${run.started_at ? `<p>Started: ${new Date(run.started_at).toLocaleString()}</p>` : ''}
             </div>
             <div class="run-actions">
-                ${run.status === 'unloaded' ? `<button onclick="loadRun('${run.run_id}')" class="btn btn-sm btn-primary">Load</button>` : ''}
-                ${run.status === 'loaded' ? `<button onclick="startRun('${run.run_id}')" class="btn btn-sm btn-primary">Start</button>` : ''}
-                ${run.status === 'loaded' ? `<button onclick="unloadRun('${run.run_id}')" class="btn btn-sm btn-secondary">Unload</button>` : ''}
+                ${isReady ? `<button onclick="resumeRun('${run.run_id}')" class="btn btn-sm btn-primary">Resume</button>` : ''}
                 ${run.status === 'running' ? `<button onclick="stopRun('${run.run_id}')" class="btn btn-sm btn-danger">Stop</button>` : ''}
-                ${run.status === 'stopped' ? `<button onclick="unloadRun('${run.run_id}')" class="btn btn-sm btn-secondary">Unload</button>` : ''}
-                ${run.status === 'unloaded' ? `<button onclick="deleteRun('${run.run_id}')" class="btn btn-sm btn-danger">Delete</button>` : ''}
+                ${isReady ? `<button onclick="deleteRun('${run.run_id}')" class="btn btn-sm btn-danger">Delete</button>` : ''}
             </div>
         </div>
     `;
@@ -161,19 +143,14 @@ async function loadRuns() {
         const data = await response.json();
 
         const running = data.runs.filter(r => r.status === 'running' || r.status === 'stopping');
-        const loaded = data.runs.filter(r => r.status === 'loaded');
-        const unloaded = data.runs.filter(r => r.status === 'unloaded');
-        const stopped = data.runs.filter(r => r.status === 'stopped');
+        // "Ready" includes loaded, stopped, and unloaded - all can be resumed
+        const ready = data.runs.filter(r => ['unloaded', 'loaded', 'stopped'].includes(r.status));
 
         document.getElementById('running-count').textContent = running.length;
-        document.getElementById('loaded-count').textContent = loaded.length;
-        document.getElementById('unloaded-count').textContent = unloaded.length;
-        document.getElementById('stopped-count').textContent = stopped.length;
+        document.getElementById('ready-count').textContent = ready.length;
 
         renderRuns('running-runs', running);
-        renderRuns('loaded-runs', loaded);
-        renderRuns('unloaded-runs', unloaded);
-        renderRuns('stopped-runs', stopped);
+        renderRuns('ready-runs', ready);
     } catch (error) {
         console.error('Failed to load runs:', error);
     }
@@ -224,26 +201,46 @@ function buildSpeculativeForm(scraper) {
     section.style.display = 'block';
     container.innerHTML = '';
 
-    const formRow = document.createElement('div');
-    formRow.className = 'form-row';
-
     for (const step of scraper.speculative_steps) {
-        const fieldDiv = document.createElement('div');
-        fieldDiv.className = 'form-group';
-        fieldDiv.innerHTML = `
-            <label for="speculative-${step.name}">${step.name}</label>
-            <input type="number"
-                   id="speculative-${step.name}"
-                   name="speculative.${step.name}"
-                   value="${step.default_starting_id}"
-                   min="1"
-                   placeholder="Starting ID">
-            <small>Starting ID for speculative requests</small>
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'speculative-step';
+        stepDiv.innerHTML = `
+            <h4>${step.name}</h4>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="speculative-${step.name}-start">Starting ID</label>
+                    <input type="number"
+                           id="speculative-${step.name}-start"
+                           name="speculative.${step.name}.start"
+                           value="${step.default_starting_id}"
+                           min="1"
+                           placeholder="Starting ID">
+                    <small>ID to begin scanning from</small>
+                </div>
+                <div class="form-group">
+                    <label for="speculative-${step.name}-threshold">Threshold</label>
+                    <input type="number"
+                           id="speculative-${step.name}-threshold"
+                           name="speculative.${step.name}.threshold"
+                           value="0"
+                           min="0"
+                           placeholder="Threshold">
+                    <small>IDs ≤ threshold always continue</small>
+                </div>
+                <div class="form-group">
+                    <label for="speculative-${step.name}-speculation">Speculation</label>
+                    <input type="number"
+                           id="speculative-${step.name}-speculation"
+                           name="speculative.${step.name}.speculation"
+                           value="5"
+                           min="1"
+                           placeholder="Speculation limit">
+                    <small>Failed attempts above threshold before stopping</small>
+                </div>
+            </div>
         `;
-        formRow.appendChild(fieldDiv);
+        container.appendChild(stepDiv);
     }
-
-    container.appendChild(formRow);
 }
 
 // Build parameter form for selected scraper
@@ -374,16 +371,30 @@ document.getElementById('new-run-form').addEventListener('submit', async (e) => 
         base_delay: parseFloat(formData.get('base_delay')),
         jitter: parseFloat(formData.get('jitter')),
         num_workers: parseInt(formData.get('num_workers')),
-        params: { models: {}, speculative: {} }
+        params: { models: {}, speculative: {} },
+        speculation_config: {}
     };
 
     // Process params from form
     for (const [key, value] of formData.entries()) {
-        // Handle speculative step starting IDs
+        // Handle speculative step configuration
+        // Format: speculative.<stepName>.<property> where property is start, threshold, or speculation
         if (key.startsWith('speculative.')) {
-            const stepName = key.split('.')[1];
+            const parts = key.split('.');
+            const stepName = parts[1];
+            const prop = parts[2];
+
             if (value) {
-                body.params.speculative[stepName] = parseInt(value);
+                if (prop === 'start') {
+                    // Starting ID goes in params.speculative
+                    body.params.speculative[stepName] = parseInt(value);
+                } else if (prop === 'threshold' || prop === 'speculation') {
+                    // Threshold and speculation go in speculation_config
+                    if (!body.speculation_config[stepName]) {
+                        body.speculation_config[stepName] = {};
+                    }
+                    body.speculation_config[stepName][prop] = parseInt(value);
+                }
             }
         }
         else if (key.startsWith('models.')) {
@@ -430,6 +441,11 @@ document.getElementById('new-run-form').addEventListener('submit', async (e) => 
         }
     }
 
+    // Remove empty speculation_config
+    if (Object.keys(body.speculation_config).length === 0) {
+        delete body.speculation_config;
+    }
+
     try {
         const response = await fetch('/api/runs', {
             method: 'POST',
@@ -460,9 +476,9 @@ async function scanRuns() {
     }
 }
 
-async function loadRun(runId) {
+async function resumeRun(runId) {
     try {
-        const response = await fetch(`/api/runs/${runId}/load`, {
+        const response = await fetch(`/api/runs/${runId}/resume`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({})  // Use defaults (scraper from DB)
@@ -471,19 +487,10 @@ async function loadRun(runId) {
             loadRuns();
         } else {
             const data = await response.json();
-            alert('Failed to load run: ' + (data.detail || 'Unknown error'));
+            alert('Failed to resume run: ' + (data.detail || 'Unknown error'));
         }
     } catch (error) {
-        alert('Failed to load run: ' + error.message);
-    }
-}
-
-async function startRun(runId) {
-    try {
-        await fetch(`/api/runs/${runId}/start`, { method: 'POST' });
-        loadRuns();
-    } catch (error) {
-        alert('Failed to start: ' + error.message);
+        alert('Failed to resume run: ' + error.message);
     }
 }
 
@@ -493,20 +500,6 @@ async function stopRun(runId) {
         loadRuns();
     } catch (error) {
         alert('Failed to stop: ' + error.message);
-    }
-}
-
-async function unloadRun(runId) {
-    try {
-        const response = await fetch(`/api/runs/${runId}/unload`, { method: 'POST' });
-        if (response.ok) {
-            loadRuns();
-        } else {
-            const data = await response.json();
-            alert('Failed to unload run: ' + (data.detail || 'Unknown error'));
-        }
-    } catch (error) {
-        alert('Failed to unload: ' + error.message);
     }
 }
 

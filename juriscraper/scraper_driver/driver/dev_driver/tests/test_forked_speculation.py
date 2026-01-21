@@ -123,6 +123,14 @@ class EchoServer:
         """Clear the request log."""
         self.request_log.clear()
 
+    def get_request_counts_by_endpoint(self) -> dict[str, int]:
+        """Get a count of requests per endpoint (echo value)."""
+        counts: dict[str, int] = {}
+        for r in self.request_log:
+            echo = r["echo"]
+            counts[echo] = counts.get(echo, 0) + 1
+        return counts
+
 
 @pytest.fixture
 async def echo_server():
@@ -631,6 +639,112 @@ class TestForkedSpeculation:
             f"Expected {expected_numbers}, got {numbers}"
         )
         assert letters == list("abcdefghij"), f"Expected a-j, got {letters}"
+
+    async def test_concurrency_produces_same_results(
+        self, tmp_path: Path, echo_server: EchoServer
+    ) -> None:
+        """Test that different worker counts produce identical results.
+
+        This test verifies that concurrency doesn't affect correctness:
+        - Same data is collected with 1, 2, and 3 workers
+        - Same endpoints are hit (no duplicates, no missing requests)
+        - Request counts per endpoint should be identical
+
+        The atomic dequeue using UPDATE ... RETURNING prevents race conditions
+        where multiple workers could select the same request.
+        """
+        base_url = f"http://127.0.0.1:{echo_server.port}"
+
+        # Expected results with threshold=9, speculation=2
+        # - 1-9: 200, at/below threshold => data
+        # - 10: 404, attempt 1 <= 2 => CONTINUE (no data)
+        # - 11-19: 200, resets => data
+        # - 20: 404, attempt 1 <= 2 => CONTINUE (no data)
+        # - 21: 404, attempt 2 <= 2 => CONTINUE (no data)
+        # - 22: 404, attempt 3 > 2 => STOP
+        expected_numbers = list(range(1, 10)) + list(range(11, 20))
+        expected_letters = list("abcdefghij")
+
+        results_by_workers: dict[int, dict[str, Any]] = {}
+
+        def make_collector(
+            target: list[dict[str, Any]],
+        ) -> Any:
+            """Create a data collector bound to a specific list."""
+
+            async def on_data(data: dict[str, Any]) -> None:
+                target.append(data)
+
+            return on_data
+
+        for num_workers in [1, 2, 3]:
+            echo_server.clear_log()
+
+            db_path = tmp_path / f"test_concurrency_{num_workers}.db"
+            scraper = ForkedScraper(base_url)
+
+            speculation_handler = create_speculation_handler(
+                {
+                    "numbers": {"threshold": 9, "speculation": 2},
+                }
+            )
+
+            collected_data: list[dict[str, Any]] = []
+
+            async with LocalDevDriver.open(
+                scraper,
+                db_path,
+                base_delay=0.0,
+                jitter=0.0,
+                num_workers=num_workers,
+                on_speculation_response=speculation_handler,
+            ) as driver:
+                driver.on_data = make_collector(collected_data)
+                await driver.run()
+
+            numbers = sorted(
+                [d["number"] for d in collected_data if "number" in d]
+            )
+            letters = sorted(
+                [d["letter"] for d in collected_data if "letter" in d]
+            )
+            request_counts = echo_server.get_request_counts_by_endpoint()
+
+            results_by_workers[num_workers] = {
+                "numbers": numbers,
+                "letters": letters,
+                "request_counts": request_counts,
+                "total_requests": echo_server.get_request_count(),
+            }
+
+        # Verify all worker counts produce the same data
+        for num_workers in [1, 2, 3]:
+            result = results_by_workers[num_workers]
+
+            assert result["numbers"] == expected_numbers, (
+                f"workers={num_workers}: expected numbers {expected_numbers}, "
+                f"got {result['numbers']}"
+            )
+            assert result["letters"] == expected_letters, (
+                f"workers={num_workers}: expected letters {expected_letters}, "
+                f"got {result['letters']}"
+            )
+
+        # Verify request counts are identical across all worker configurations
+        baseline_counts = results_by_workers[1]["request_counts"]
+        for num_workers in [2, 3]:
+            worker_counts = results_by_workers[num_workers]["request_counts"]
+            assert worker_counts == baseline_counts, (
+                f"workers={num_workers} has different request counts than workers=1.\n"
+                f"workers=1: {baseline_counts}\n"
+                f"workers={num_workers}: {worker_counts}"
+            )
+
+        # Verify each endpoint was hit exactly once (no duplicates)
+        for endpoint, count in baseline_counts.items():
+            assert count == 1, (
+                f"Endpoint '{endpoint}' was hit {count} times, expected 1"
+            )
 
 
 if __name__ == "__main__":

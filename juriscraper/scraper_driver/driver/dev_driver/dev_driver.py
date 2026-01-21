@@ -564,20 +564,19 @@ class LocalDevDriver(
             - Skips 'held' status requests
             - Skips requests in retry backoff (started_at > current time)
         """
-        # Get next pending request (ordered by priority, then queue_counter)
+        # Atomically dequeue the next pending request.
+        # Uses UPDATE ... RETURNING to prevent race conditions where multiple
+        # workers could select the same request.
         # Skip 'held' status requests
         # Skip requests in retry backoff (started_at is used to track retry-after time)
-        row = await self.db.get_next_pending_request()
+        row = await self.db.dequeue_next_request()
 
         if row is None:
             return None
 
         request_id = row[0]
 
-        # Mark as in_progress
-        await self.db.mark_request_in_progress(request_id)
-
-        # Deserialize and return
+        # Deserialize and return (already marked as in_progress by dequeue)
         request = self._deserialize_request(row)
         return (request_id, request)
 

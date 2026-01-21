@@ -654,15 +654,41 @@ class SQLManager:
 
         Returns:
             Row tuple or None if queue is empty.
+
+        Note: This method is deprecated for multi-worker scenarios.
+        Use dequeue_next_request() instead for atomic dequeue.
         """
         cursor = await self._db.execute(SQL.SELECT_NEXT_PENDING_REQUEST)
         return await cursor.fetchone()
+
+    async def dequeue_next_request(self) -> tuple[Any, ...] | None:
+        """Atomically dequeue the next pending request.
+
+        This method atomically selects and marks a request as 'in_progress'
+        in a single database operation using UPDATE ... RETURNING. This
+        prevents race conditions where multiple workers could select the
+        same request.
+
+        Returns:
+            Row tuple (same columns as get_next_pending_request) or None
+            if the queue is empty.
+        """
+        started_at_ns = time.monotonic_ns()
+        cursor = await self._db.execute(
+            SQL.DEQUEUE_NEXT_REQUEST, (started_at_ns,)
+        )
+        row = await cursor.fetchone()
+        await self._db.commit()
+        return row
 
     async def mark_request_in_progress(self, request_id: int) -> None:
         """Mark a request as in progress.
 
         Args:
             request_id: The database ID of the request.
+
+        Note: This method is deprecated for multi-worker scenarios.
+        Use dequeue_next_request() instead for atomic dequeue.
         """
         started_at_ns = time.monotonic_ns()
         await self._db.execute(

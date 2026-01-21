@@ -172,6 +172,29 @@ class SQL:
         LIMIT 1
     """
 
+    # Atomic dequeue: UPDATE the next pending request to 'in_progress' and return it.
+    # This prevents race conditions where multiple workers could select the same request.
+    # Uses a subquery to find the next request and UPDATE ... RETURNING to atomically
+    # claim and return it in a single operation.
+    # Parameter: started_at_ns (monotonic timestamp for duration tracking)
+    DEQUEUE_NEXT_REQUEST = """
+        UPDATE requests
+        SET status = 'in_progress',
+            started_at = CURRENT_TIMESTAMP,
+            started_at_ns = ?
+        WHERE id = (
+            SELECT id FROM requests
+            WHERE status = 'pending'
+              AND (started_at IS NULL OR started_at <= datetime('now'))
+            ORDER BY priority ASC, queue_counter ASC
+            LIMIT 1
+        )
+        RETURNING id, request_type, method, url, headers_json, cookies_json, body,
+                  continuation, current_location,
+                  accumulated_data_json, aux_data_json, permanent_json,
+                  expected_type, priority
+    """
+
     UPDATE_REQUEST_IN_PROGRESS = """
         UPDATE requests SET status = 'in_progress', started_at = CURRENT_TIMESTAMP, started_at_ns = ? WHERE id = ?
     """

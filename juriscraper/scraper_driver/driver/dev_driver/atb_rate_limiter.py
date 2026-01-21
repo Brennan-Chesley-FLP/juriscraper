@@ -1,8 +1,8 @@
 """Adaptive Token Bucket (ATB) Rate Limiter.
 
 This module implements an adaptive rate limiter based on the ATB algorithm
-from the paper. It dynamically adjusts the request rate based on server
-responses:
+from "Rethinking API Rate Limiting: A Client-Side Approach" https://arxiv.org/abs/2510.04516.
+It dynamically adjusts the request rate based on server responses:
 - On success (2xx): increase rate using multiplicative factors
 - On rate limiting (429/5xx): halve the rate and record congestion level
 
@@ -11,7 +11,6 @@ The rate limiter persists its state to SQLite for suspend/resume capability.
 Key features:
 - Token bucket for burst control
 - Adaptive rate based on server feedback
-- Uniform jitter for timing unpredictability
 - SQL persistence for state recovery
 """
 
@@ -19,12 +18,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import random
+import ssl
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from juriscraper.scraper_driver.common.interceptors import AsyncInterceptor
+from juriscraper.scraper_driver.common.request_manager import (
+    AsyncRequestManager,
+)
 from juriscraper.scraper_driver.data_types import BaseRequest, Response
 
 if TYPE_CHECKING:
@@ -47,7 +49,6 @@ class ATBConfig:
         first_step: Aggressive rate increase multiplier (below congestion). Default: 1.5
         second_step: Conservative rate increase multiplier (above congestion). Default: 1.2
         min_rate: Minimum allowed rate. Default: 0.01
-        jitter: Uniform jitter ±seconds after token acquisition. Default: 2.0
     """
 
     bucket_size: float = 4.0
@@ -57,18 +58,17 @@ class ATBConfig:
     first_step: float = 1.5
     second_step: float = 1.2
     min_rate: float = 0.01
-    jitter: float = 2.0
 
 
-class ATBAsyncInterceptor(AsyncInterceptor):
-    """Adaptive Token Bucket rate limiter as an async interceptor.
+class ATBAsyncRequestManager(AsyncRequestManager):
+    """Adaptive Token Bucket rate limiter as a request manager.
 
-    This interceptor:
-    1. Waits for token availability before allowing requests (modify_request)
-    2. Adjusts rate based on response status code (modify_response)
+    This class extends AsyncRequestManager to add ATB rate limiting:
+    1. Waits for token availability before making requests
+    2. Adjusts rate based on response status code
 
     The token bucket generates tokens at the current rate. When a request
-    needs to be made, the interceptor waits until a token is available.
+    needs to be made, the manager waits until a token is available.
 
     Rate adjustment:
     - Success (2xx): Rate increases using first_step (aggressive) or
@@ -78,22 +78,41 @@ class ATBAsyncInterceptor(AsyncInterceptor):
       rate is recorded as the new congestion rate.
 
     Example:
-        config = ATBConfig(initial_rate=0.1, jitter=2.0)
-        interceptor = ATBAsyncInterceptor(config, sql_manager)
-        await interceptor.initialize()
+        config = ATBConfig(initial_rate=0.1)
+        manager = ATBAsyncRequestManager(
+            config=config,
+            sql_manager=sql_manager,
+            ssl_context=scraper.get_ssl_context(),
+        )
+        await manager.initialize()
 
-        # In interceptor chain:
-        request = await interceptor.modify_request(request)  # waits for token
-        response = await interceptor.modify_response(response, request)  # adjusts rate
+        # Make rate-limited requests:
+        response = await manager.resolve_request(request)
     """
 
-    def __init__(self, config: ATBConfig, sql_manager: SQLManager) -> None:
-        """Initialize the ATB interceptor.
+    def __init__(
+        self,
+        config: ATBConfig,
+        sql_manager: SQLManager,
+        interceptors: list[AsyncInterceptor] | None = None,
+        ssl_context: ssl.SSLContext | None = None,
+        timeout: float | None = None,
+    ) -> None:
+        """Initialize the ATB request manager.
 
         Args:
             config: ATB configuration parameters.
-            sql_manager: SQLManager for persisting state.
+            sql_manager: SQLManager for database operations.
+            interceptors: List of async interceptors to apply to requests and
+                responses (in addition to ATB rate limiting).
+            ssl_context: Optional SSL context for HTTPS connections.
+            timeout: Request timeout in seconds. None means no timeout.
         """
+        super().__init__(
+            interceptors=interceptors,
+            ssl_context=ssl_context,
+            timeout=timeout,
+        )
         self.config = config
         self.sql_manager = sql_manager
 
@@ -102,7 +121,6 @@ class ATBAsyncInterceptor(AsyncInterceptor):
         self._rate = config.initial_rate
         self._bucket_size = config.bucket_size
         self._last_congestion_rate = config.initial_congestion
-        self._jitter = config.jitter
         self._last_used = time.time()
 
         # Lock for thread-safe token operations
@@ -127,7 +145,6 @@ class ATBAsyncInterceptor(AsyncInterceptor):
             self._rate = state["rate"]
             self._bucket_size = state["bucket_size"]
             self._last_congestion_rate = state["last_congestion_rate"]
-            self._jitter = state["jitter"]
             self._last_used = state["last_used_at"]
             self._total_requests = state["total_requests"]
             self._total_successes = state["total_successes"]
@@ -150,7 +167,6 @@ class ATBAsyncInterceptor(AsyncInterceptor):
             self._rate = self.config.initial_rate
             self._bucket_size = self.config.bucket_size
             self._last_congestion_rate = self.config.initial_congestion
-            self._jitter = self.config.jitter
             self._last_used = time.time()
 
             await self._persist_state()
@@ -167,7 +183,7 @@ class ATBAsyncInterceptor(AsyncInterceptor):
             rate=self._rate,
             bucket_size=self._bucket_size,
             last_congestion_rate=self._last_congestion_rate,
-            jitter=self._jitter,
+            jitter=0.0,  # Kept for DB schema compatibility
             last_used_at=self._last_used,
             total_requests=self._total_requests,
             total_successes=self._total_successes,
@@ -177,46 +193,43 @@ class ATBAsyncInterceptor(AsyncInterceptor):
     async def _acquire_token(self) -> None:
         """Acquire a token from the bucket, waiting if necessary.
 
-        Generates tokens based on time elapsed, then either:
-        - Returns immediately if a token is available
-        - Waits for enough time to generate a token
+        Uses a "next available" time tracking approach to properly
+        stagger concurrent workers. Each worker reserves a future
+        time slot and waits until that slot arrives.
+
+        This correctly handles multiple workers:
+        - Worker A: reserves slot at T=0, no wait
+        - Worker B: reserves slot at T=1/rate, waits 1/rate seconds
+        - Worker C: reserves slot at T=2/rate, waits 2/rate seconds
         """
+        wait_time = 0.0
+
         async with self._lock:
             now = time.time()
 
-            # Generate tokens based on elapsed time
+            # Generate tokens based on time elapsed since last update
             elapsed = now - self._last_used
-            self._tokens = min(
-                self._bucket_size, self._tokens + elapsed * self._rate
-            )
+            if elapsed > 0:
+                self._tokens = min(
+                    self._bucket_size, self._tokens + elapsed * self._rate
+                )
+                self._last_used = now
 
             if self._tokens >= 1.0:
-                # Token available - consume it
+                # Token available - consume it immediately
                 self._tokens -= 1.0
-                self._last_used = now
             else:
                 # Need to wait for token generation
+                # Calculate time until we'll have a full token
                 wait_time = (1.0 - self._tokens) / self._rate
-                self._tokens = 0.0  # Will be consumed after wait
-                self._last_used = now + wait_time
 
-                # Release lock while waiting
-                self._lock.release()
-                try:
-                    await asyncio.sleep(wait_time)
-                finally:
-                    await self._lock.acquire()
+                # Reserve the token now by going negative
+                # This ensures the next worker sees the correct state
+                self._tokens -= 1.0  # Now negative, indicating debt
 
-            # Apply uniform jitter after token acquisition
-            if self._jitter > 0:
-                jitter_delay = random.uniform(-self._jitter, self._jitter)
-                if jitter_delay > 0:
-                    # Release lock while sleeping for jitter
-                    self._lock.release()
-                    try:
-                        await asyncio.sleep(jitter_delay)
-                    finally:
-                        await self._lock.acquire()
+        # Wait outside the lock so other workers can calculate their slots
+        if wait_time > 0:
+            await asyncio.sleep(wait_time)
 
     def _increase_rate(self) -> float:
         """Increase rate based on success.
@@ -273,31 +286,11 @@ class ATBAsyncInterceptor(AsyncInterceptor):
 
         return self._rate
 
-    async def modify_request(
-        self, request: BaseRequest
-    ) -> BaseRequest | Response:
-        """Wait for token availability before allowing the request.
-
-        Args:
-            request: The request to be made.
-
-        Returns:
-            The unmodified request (after waiting for a token).
-        """
-        await self._acquire_token()
-        return request
-
-    async def modify_response(
-        self, response: Response, original_request: BaseRequest
-    ) -> Response:
+    async def _adjust_rate_for_response(self, response: Response) -> None:
         """Adjust rate based on response status code.
 
         Args:
             response: The response received.
-            original_request: The original request.
-
-        Returns:
-            The unmodified response.
         """
         status_code = response.status_code
 
@@ -325,6 +318,27 @@ class ATBAsyncInterceptor(AsyncInterceptor):
                 self._tokens, self._last_used
             )
 
+    async def resolve_request(self, request: BaseRequest) -> Response:
+        """Fetch a BaseRequest with rate limiting.
+
+        Waits for token availability, then makes the request and adjusts
+        the rate based on the response.
+
+        Args:
+            request: The BaseRequest to fetch. URL should be absolute.
+
+        Returns:
+            Response containing the HTTP response data.
+        """
+        # Wait for rate limiter token
+        await self._acquire_token()
+
+        # Make the actual request via parent class
+        response = await super().resolve_request(request)
+
+        # Adjust rate based on response
+        await self._adjust_rate_for_response(response)
+
         return response
 
     @property
@@ -339,7 +353,6 @@ class ATBAsyncInterceptor(AsyncInterceptor):
             "rate": self._rate,
             "bucket_size": self._bucket_size,
             "last_congestion_rate": self._last_congestion_rate,
-            "jitter": self._jitter,
             "last_used_at": self._last_used,
             "total_requests": self._total_requests,
             "total_successes": self._total_successes,
@@ -363,5 +376,4 @@ class ATBAsyncInterceptor(AsyncInterceptor):
             return "healthy"
         elif self._rate < self._last_congestion_rate:
             return "recovering"
-        else:
-            return "throttled"
+        return "throttled"

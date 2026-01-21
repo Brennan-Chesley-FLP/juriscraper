@@ -16,6 +16,7 @@ The SQLManager handles:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -277,6 +278,10 @@ class SQLManager:
             db: An open aiosqlite connection.
         """
         self._db = db
+        # Lock to serialize database operations - aiosqlite uses a single
+        # connection and concurrent operations can cause "cannot commit
+        # transaction - SQL statements in progress" errors
+        self._lock = asyncio.Lock()
 
     @classmethod
     @asynccontextmanager
@@ -313,8 +318,6 @@ class SQLManager:
         self,
         scraper_name: str,
         scraper_version: str | None,
-        base_delay: float,
-        jitter: float,
         num_workers: int,
         max_backoff_time: float,
         speculation_config: dict[str, dict[str, int]] | None = None,
@@ -326,8 +329,6 @@ class SQLManager:
         Args:
             scraper_name: Name of the scraper class.
             scraper_version: Version string if available.
-            base_delay: Base rate limit delay in seconds.
-            jitter: Rate limit jitter in seconds.
             num_workers: Number of concurrent workers.
             max_backoff_time: Maximum total backoff time before failure.
             speculation_config: Optional dict mapping continuation name to
@@ -341,13 +342,14 @@ class SQLManager:
         )
 
         if row is None:
+            # base_delay and jitter kept for schema compatibility but not used
             await self._db.execute(
                 SQL.INSERT_RUN_METADATA,
                 (
                     scraper_name,
                     scraper_version,
-                    base_delay,
-                    jitter,
+                    0.0,  # base_delay (deprecated)
+                    0.0,  # jitter (deprecated)
                     num_workers,
                     max_backoff_time,
                     speculation_config_json,
@@ -559,33 +561,34 @@ class SQLManager:
         Returns:
             The ID of the newly inserted request.
         """
-        queue_counter = await get_next_queue_counter(self._db)
-        created_at_ns = time.monotonic_ns()
+        async with self._lock:
+            queue_counter = await get_next_queue_counter(self._db)
+            created_at_ns = time.monotonic_ns()
 
-        cursor = await self._db.execute(
-            SQL.INSERT_REQUEST,
-            (
-                priority,
-                queue_counter,
-                request_type,
-                method,
-                url,
-                headers_json,
-                cookies_json,
-                body,
-                continuation,
-                current_location,
-                accumulated_data_json,
-                aux_data_json,
-                permanent_json,
-                expected_type,
-                dedup_key,
-                parent_id,
-                created_at_ns,
-            ),
-        )
-        await self._db.commit()
-        return cursor.lastrowid or 0
+            cursor = await self._db.execute(
+                SQL.INSERT_REQUEST,
+                (
+                    priority,
+                    queue_counter,
+                    request_type,
+                    method,
+                    url,
+                    headers_json,
+                    cookies_json,
+                    body,
+                    continuation,
+                    current_location,
+                    accumulated_data_json,
+                    aux_data_json,
+                    permanent_json,
+                    expected_type,
+                    dedup_key,
+                    parent_id,
+                    created_at_ns,
+                ),
+            )
+            await self._db.commit()
+            return cursor.lastrowid or 0
 
     async def insert_entry_request(
         self,
@@ -621,30 +624,31 @@ class SQLManager:
         Returns:
             The ID of the newly inserted request.
         """
-        queue_counter = await get_next_queue_counter(self._db)
-        created_at_ns = time.monotonic_ns()
+        async with self._lock:
+            queue_counter = await get_next_queue_counter(self._db)
+            created_at_ns = time.monotonic_ns()
 
-        cursor = await self._db.execute(
-            SQL.INSERT_ENTRY_REQUEST,
-            (
-                priority,
-                queue_counter,
-                method,
-                url,
-                headers_json,
-                cookies_json,
-                body,
-                continuation,
-                current_location,
-                accumulated_data_json,
-                aux_data_json,
-                permanent_json,
-                dedup_key,
-                created_at_ns,
-            ),
-        )
-        await self._db.commit()
-        return cursor.lastrowid or 0
+            cursor = await self._db.execute(
+                SQL.INSERT_ENTRY_REQUEST,
+                (
+                    priority,
+                    queue_counter,
+                    method,
+                    url,
+                    headers_json,
+                    cookies_json,
+                    body,
+                    continuation,
+                    current_location,
+                    accumulated_data_json,
+                    aux_data_json,
+                    permanent_json,
+                    dedup_key,
+                    created_at_ns,
+                ),
+            )
+            await self._db.commit()
+            return cursor.lastrowid or 0
 
     async def get_next_pending_request(self) -> tuple[Any, ...] | None:
         """Get the next pending request from the queue.
@@ -673,13 +677,14 @@ class SQLManager:
             Row tuple (same columns as get_next_pending_request) or None
             if the queue is empty.
         """
-        started_at_ns = time.monotonic_ns()
-        cursor = await self._db.execute(
-            SQL.DEQUEUE_NEXT_REQUEST, (started_at_ns,)
-        )
-        row = await cursor.fetchone()
-        await self._db.commit()
-        return row
+        async with self._lock:
+            started_at_ns = time.monotonic_ns()
+            cursor = await self._db.execute(
+                SQL.DEQUEUE_NEXT_REQUEST, (started_at_ns,)
+            )
+            row = await cursor.fetchone()
+            await self._db.commit()
+            return row
 
     async def mark_request_in_progress(self, request_id: int) -> None:
         """Mark a request as in progress.
@@ -690,11 +695,12 @@ class SQLManager:
         Note: This method is deprecated for multi-worker scenarios.
         Use dequeue_next_request() instead for atomic dequeue.
         """
-        started_at_ns = time.monotonic_ns()
-        await self._db.execute(
-            SQL.UPDATE_REQUEST_IN_PROGRESS, (started_at_ns, request_id)
-        )
-        await self._db.commit()
+        async with self._lock:
+            started_at_ns = time.monotonic_ns()
+            await self._db.execute(
+                SQL.UPDATE_REQUEST_IN_PROGRESS, (started_at_ns, request_id)
+            )
+            await self._db.commit()
 
     async def mark_request_completed(self, request_id: int) -> None:
         """Mark a request as completed.
@@ -702,11 +708,12 @@ class SQLManager:
         Args:
             request_id: The database ID of the request.
         """
-        completed_at_ns = time.monotonic_ns()
-        await self._db.execute(
-            SQL.UPDATE_REQUEST_COMPLETED, (completed_at_ns, request_id)
-        )
-        await self._db.commit()
+        async with self._lock:
+            completed_at_ns = time.monotonic_ns()
+            await self._db.execute(
+                SQL.UPDATE_REQUEST_COMPLETED, (completed_at_ns, request_id)
+            )
+            await self._db.commit()
 
     async def mark_request_failed(
         self, request_id: int, error_message: str
@@ -717,12 +724,13 @@ class SQLManager:
             request_id: The database ID of the request.
             error_message: Error message describing the failure.
         """
-        completed_at_ns = time.monotonic_ns()
-        await self._db.execute(
-            SQL.UPDATE_REQUEST_FAILED,
-            (completed_at_ns, error_message, request_id),
-        )
-        await self._db.commit()
+        async with self._lock:
+            completed_at_ns = time.monotonic_ns()
+            await self._db.execute(
+                SQL.UPDATE_REQUEST_FAILED,
+                (completed_at_ns, error_message, request_id),
+            )
+            await self._db.commit()
 
     async def get_retry_state(
         self, request_id: int
@@ -756,29 +764,39 @@ class SQLManager:
             next_retry_delay: Delay before next retry.
             error: Error message from the current attempt.
         """
-        await self._db.execute(
-            SQL.UPDATE_REQUEST_FOR_RETRY,
-            (
-                new_cumulative_backoff,
-                next_retry_delay,
-                error,
-                int(next_retry_delay),
-                request_id,
-            ),
-        )
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(
+                SQL.UPDATE_REQUEST_FOR_RETRY,
+                (
+                    new_cumulative_backoff,
+                    next_retry_delay,
+                    error,
+                    int(next_retry_delay),
+                    request_id,
+                ),
+            )
+            await self._db.commit()
 
     async def count_pending_requests(self) -> int:
         """Count pending requests in the queue."""
-        cursor = await self._db.execute(SQL.COUNT_PENDING_REQUESTS)
-        row = await cursor.fetchone()
-        return row[0] if row else 0
+        async with self._lock:
+            cursor = await self._db.execute(SQL.COUNT_PENDING_REQUESTS)
+            row = await cursor.fetchone()
+            return row[0] if row else 0
 
     async def count_active_requests(self) -> int:
         """Count pending and in_progress requests."""
-        cursor = await self._db.execute(SQL.COUNT_ACTIVE_REQUESTS)
-        row = await cursor.fetchone()
-        return row[0] if row else 0
+        async with self._lock:
+            cursor = await self._db.execute(SQL.COUNT_ACTIVE_REQUESTS)
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+    async def count_in_progress(self) -> int:
+        """Count in_progress requests (being processed by workers)."""
+        async with self._lock:
+            cursor = await self._db.execute(SQL.COUNT_IN_PROGRESS_REQUESTS)
+            row = await cursor.fetchone()
+            return row[0] if row else 0
 
     async def count_all_requests(self) -> int:
         """Count all requests in the database."""
@@ -837,24 +855,25 @@ class SQLManager:
         Returns:
             The database ID of the stored response.
         """
-        cursor = await self._db.execute(
-            SQL.INSERT_RESPONSE,
-            (
-                request_id,
-                status_code,
-                headers_json,
-                url,
-                compressed_content,
-                content_size_original,
-                content_size_compressed,
-                dict_id,
-                continuation,
-                warc_record_id,
-                speculation_outcome,
-            ),
-        )
-        await self._db.commit()
-        return cursor.lastrowid or 0
+        async with self._lock:
+            cursor = await self._db.execute(
+                SQL.INSERT_RESPONSE,
+                (
+                    request_id,
+                    status_code,
+                    headers_json,
+                    url,
+                    compressed_content,
+                    content_size_original,
+                    content_size_compressed,
+                    dict_id,
+                    continuation,
+                    warc_record_id,
+                    speculation_outcome,
+                ),
+            )
+            await self._db.commit()
+            return cursor.lastrowid or 0
 
     async def store_archived_file(
         self,
@@ -878,19 +897,20 @@ class SQLManager:
         Returns:
             The database ID of the archived file record.
         """
-        cursor = await self._db.execute(
-            SQL.INSERT_ARCHIVED_FILE,
-            (
-                request_id,
-                file_path,
-                original_url,
-                expected_type,
-                file_size,
-                content_hash,
-            ),
-        )
-        await self._db.commit()
-        return cursor.lastrowid or 0
+        async with self._lock:
+            cursor = await self._db.execute(
+                SQL.INSERT_ARCHIVED_FILE,
+                (
+                    request_id,
+                    file_path,
+                    original_url,
+                    expected_type,
+                    file_size,
+                    content_hash,
+                ),
+            )
+            await self._db.commit()
+            return cursor.lastrowid or 0
 
     async def get_response_compressed(
         self, response_id: int
@@ -930,18 +950,19 @@ class SQLManager:
         Returns:
             The database ID of the stored result.
         """
-        cursor = await self._db.execute(
-            SQL.INSERT_RESULT,
-            (
-                request_id,
-                result_type,
-                data_json,
-                is_valid,
-                validation_errors_json,
-            ),
-        )
-        await self._db.commit()
-        return cursor.lastrowid or 0
+        async with self._lock:
+            cursor = await self._db.execute(
+                SQL.INSERT_RESULT,
+                (
+                    request_id,
+                    result_type,
+                    data_json,
+                    is_valid,
+                    validation_errors_json,
+                ),
+            )
+            await self._db.commit()
+            return cursor.lastrowid or 0
 
     # --- Step Control ---
 
@@ -1323,10 +1344,11 @@ class SQLManager:
             step_name: The name of the speculative step method.
             speculative_id: The speculative_id that was just processed.
         """
-        await self._db.execute(
-            SQL.UPSERT_SPECULATIVE_PROGRESS, (step_name, speculative_id)
-        )
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(
+                SQL.UPSERT_SPECULATIVE_PROGRESS, (step_name, speculative_id)
+            )
+            await self._db.commit()
 
     async def get_speculative_progress(self, step_name: str) -> int | None:
         """Get the latest speculative_id for a step.
@@ -1931,21 +1953,22 @@ class SQLManager:
             total_successes: Total successful requests.
             total_rate_limited: Total rate-limited requests.
         """
-        await self._db.execute(
-            SQL.UPSERT_RATE_LIMITER_STATE,
-            (
-                tokens,
-                rate,
-                bucket_size,
-                last_congestion_rate,
-                jitter,
-                last_used_at,
-                total_requests,
-                total_successes,
-                total_rate_limited,
-            ),
-        )
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(
+                SQL.UPSERT_RATE_LIMITER_STATE,
+                (
+                    tokens,
+                    rate,
+                    bucket_size,
+                    last_congestion_rate,
+                    jitter,
+                    last_used_at,
+                    total_requests,
+                    total_successes,
+                    total_rate_limited,
+                ),
+            )
+            await self._db.commit()
 
     async def update_rate_limiter_tokens(
         self, tokens: float, last_used_at: float
@@ -1958,10 +1981,11 @@ class SQLManager:
             tokens: New token count.
             last_used_at: Unix timestamp of token acquisition.
         """
-        await self._db.execute(
-            SQL.UPDATE_RATE_LIMITER_TOKENS, (tokens, last_used_at)
-        )
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(
+                SQL.UPDATE_RATE_LIMITER_TOKENS, (tokens, last_used_at)
+            )
+            await self._db.commit()
 
     async def update_rate_limiter_rate_increase(self, new_rate: float) -> None:
         """Update rate after a successful request (rate increase).
@@ -1971,10 +1995,11 @@ class SQLManager:
         Args:
             new_rate: The new rate after increase.
         """
-        await self._db.execute(
-            SQL.UPDATE_RATE_LIMITER_RATE_INCREASE, (new_rate,)
-        )
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(
+                SQL.UPDATE_RATE_LIMITER_RATE_INCREASE, (new_rate,)
+            )
+            await self._db.commit()
 
     async def update_rate_limiter_rate_decrease(
         self, new_rate: float, congestion_rate: float
@@ -1988,23 +2013,27 @@ class SQLManager:
             new_rate: The new rate after decrease.
             congestion_rate: The rate at which congestion occurred.
         """
-        await self._db.execute(
-            SQL.UPDATE_RATE_LIMITER_RATE_DECREASE, (new_rate, congestion_rate)
-        )
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(
+                SQL.UPDATE_RATE_LIMITER_RATE_DECREASE,
+                (new_rate, congestion_rate),
+            )
+            await self._db.commit()
 
     async def increment_rate_limiter_success(self) -> None:
         """Increment success counter without changing rate.
 
         Used when response succeeds but rate doesn't change.
         """
-        await self._db.execute(SQL.UPDATE_RATE_LIMITER_SUCCESS)
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(SQL.UPDATE_RATE_LIMITER_SUCCESS)
+            await self._db.commit()
 
     async def increment_rate_limiter_rate_limited(self) -> None:
         """Increment rate-limited counter without changing rate.
 
         Used when response is rate-limited but rate doesn't change.
         """
-        await self._db.execute(SQL.UPDATE_RATE_LIMITER_RATE_LIMITED)
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(SQL.UPDATE_RATE_LIMITER_RATE_LIMITED)
+            await self._db.commit()

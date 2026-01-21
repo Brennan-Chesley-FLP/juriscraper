@@ -32,7 +32,7 @@ class RateLimiterStateResponse(BaseModel):
     last_congestion_rate: float = Field(
         ..., description="Rate at last congestion event"
     )
-    jitter: float = Field(..., description="Uniform jitter ±seconds")
+    jitter: float = Field(default=0.0, description="Deprecated: always 0.0")
     approximate_requests_per_minute: float = Field(
         ..., description="Approximate requests per minute (rate * 60)"
     )

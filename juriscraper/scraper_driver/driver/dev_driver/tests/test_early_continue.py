@@ -138,8 +138,7 @@ class TestEarlyContinueOptimization:
             scraper,
             db_path,
             on_speculation_response=speculation_callback,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,
             num_workers=1,
         ) as driver:
             call_count = 0
@@ -215,8 +214,7 @@ class TestEarlyContinueOptimization:
             scraper,
             db_path,
             on_speculation_response=speculation_callback,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,
             num_workers=1,
         ) as driver:
 
@@ -333,8 +331,7 @@ class TestEarlyContinueOptimization:
             scraper,
             db_path,
             on_speculation_response=speculation_callback,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,
             num_workers=1,
         ) as driver:
 
@@ -441,8 +438,7 @@ class TestEarlyContinueOptimization:
             scraper,
             db_path,
             on_speculation_response=speculation_callback,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,
             num_workers=1,
         ) as driver:
 
@@ -541,8 +537,7 @@ class TestEarlyContinueOptimization:
             scraper,
             db_path,
             on_speculation_response=speculation_callback,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,
             num_workers=1,
         ) as driver:
 

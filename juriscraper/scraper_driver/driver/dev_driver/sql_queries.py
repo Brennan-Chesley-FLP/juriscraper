@@ -72,6 +72,10 @@ class SQL:
 
     COUNT_ACTIVE_REQUESTS = "SELECT COUNT(*) FROM requests WHERE status IN ('pending', 'in_progress')"
 
+    COUNT_IN_PROGRESS_REQUESTS = (
+        "SELECT COUNT(*) FROM requests WHERE status = 'in_progress'"
+    )
+
     # --- Scheduled Retries ---
 
     # Get the minimum time until a scheduled retry becomes available

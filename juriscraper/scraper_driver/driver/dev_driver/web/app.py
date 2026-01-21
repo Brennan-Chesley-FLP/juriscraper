@@ -29,6 +29,16 @@ if TYPE_CHECKING:
         SQLManager,
     )
 
+# Configure logging for driver module to show worker logs
+# This ensures logs appear even when running uvicorn directly
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logging.getLogger("juriscraper.scraper_driver.driver.dev_driver").setLevel(
+    logging.INFO
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -155,11 +165,8 @@ class RunManager:
         Raises:
             ValueError: If run_id already exists.
         """
-        from juriscraper.scraper_driver.common.request_manager import (
-            AsyncRequestManager,
-        )
         from juriscraper.scraper_driver.driver.dev_driver.atb_rate_limiter import (
-            ATBAsyncInterceptor,
+            ATBAsyncRequestManager,
             ATBConfig,
         )
         from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
@@ -189,12 +196,9 @@ class RunManager:
             # ATB config parameters
             initial_rate = driver_kwargs.pop("initial_rate", 0.1)
             bucket_size = driver_kwargs.pop("bucket_size", 4.0)
-            jitter = driver_kwargs.pop("jitter", 2.0)
             first_step = driver_kwargs.pop("first_step", 1.5)
             second_step = driver_kwargs.pop("second_step", 1.2)
             min_rate = driver_kwargs.pop("min_rate", 0.01)
-            # Legacy parameters (kept for metadata compatibility)
-            base_delay = driver_kwargs.pop("base_delay", 10.0)
             num_workers = driver_kwargs.get("num_workers", 1)
             max_backoff_time = driver_kwargs.get("max_backoff_time", 3600.0)
             speculation_config = driver_kwargs.pop("speculation_config", None)
@@ -209,29 +213,25 @@ class RunManager:
             await sql_manager.init_run_metadata(
                 scraper_name=scraper_name,
                 scraper_version=scraper_version,
-                base_delay=base_delay,
-                jitter=jitter,
                 num_workers=num_workers,
                 max_backoff_time=max_backoff_time,
                 speculation_config=speculation_config,
             )
 
-            # Set up ATB rate limiter and request manager
+            # Set up ATB rate limiter request manager
             atb_config = ATBConfig(
                 bucket_size=bucket_size,
                 initial_rate=initial_rate,
-                jitter=jitter,
                 first_step=first_step,
                 second_step=second_step,
                 min_rate=min_rate,
             )
-            rate_limiter = ATBAsyncInterceptor(atb_config, sql_manager)
-            await rate_limiter.initialize()
-
-            request_manager = AsyncRequestManager(
-                interceptors=[rate_limiter],
+            request_manager = ATBAsyncRequestManager(
+                config=atb_config,
+                sql_manager=sql_manager,
                 ssl_context=scraper.get_ssl_context(),
             )
+            await request_manager.initialize()
 
             # Create speculation handler if config provided
             on_speculation_response = None
@@ -284,11 +284,8 @@ class RunManager:
         Raises:
             ValueError: If run_id not found or already loaded.
         """
-        from juriscraper.scraper_driver.common.request_manager import (
-            AsyncRequestManager,
-        )
         from juriscraper.scraper_driver.driver.dev_driver.atb_rate_limiter import (
-            ATBAsyncInterceptor,
+            ATBAsyncRequestManager,
             ATBConfig,
         )
         from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
@@ -323,12 +320,9 @@ class RunManager:
             # ATB config parameters (with defaults)
             initial_rate = driver_kwargs.pop("initial_rate", 0.1)
             bucket_size = driver_kwargs.pop("bucket_size", 4.0)
-            jitter = driver_kwargs.pop("jitter", 2.0)
             first_step = driver_kwargs.pop("first_step", 1.5)
             second_step = driver_kwargs.pop("second_step", 1.2)
             min_rate = driver_kwargs.pop("min_rate", 0.01)
-            # Legacy parameters (kept for metadata compatibility)
-            base_delay = driver_kwargs.pop("base_delay", 10.0)
             num_workers = driver_kwargs.get("num_workers", 1)
             max_backoff_time = driver_kwargs.get("max_backoff_time", 3600.0)
             speculation_config = driver_kwargs.pop("speculation_config", None)
@@ -343,8 +337,6 @@ class RunManager:
             await sql_manager.init_run_metadata(
                 scraper_name=scraper_name,
                 scraper_version=scraper_version,
-                base_delay=base_delay,
-                jitter=jitter,
                 num_workers=num_workers,
                 max_backoff_time=max_backoff_time,
             )
@@ -360,23 +352,21 @@ class RunManager:
                     f"Restored {pending_count} pending requests from database"
                 )
 
-            # Set up ATB rate limiter and request manager
+            # Set up ATB rate limiter request manager
             # ATB will restore its state from the database if it exists
             atb_config = ATBConfig(
                 bucket_size=bucket_size,
                 initial_rate=initial_rate,
-                jitter=jitter,
                 first_step=first_step,
                 second_step=second_step,
                 min_rate=min_rate,
             )
-            rate_limiter = ATBAsyncInterceptor(atb_config, sql_manager)
-            await rate_limiter.initialize()
-
-            request_manager = AsyncRequestManager(
-                interceptors=[rate_limiter],
+            request_manager = ATBAsyncRequestManager(
+                config=atb_config,
+                sql_manager=sql_manager,
                 ssl_context=scraper.get_ssl_context(),
             )
+            await request_manager.initialize()
 
             # Create speculation handler if config available
             on_speculation_response = None

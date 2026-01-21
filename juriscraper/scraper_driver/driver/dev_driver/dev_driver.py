@@ -157,13 +157,14 @@ class LocalDevDriver(
     - Response archival with compression
     - Resumability from graceful shutdown
     - Progress events for web interface integration
+    - Adaptive Token Bucket (ATB) rate limiting
 
     Args:
         scraper: The scraper instance to run.
         db_path: Path to SQLite database file.
         storage_dir: Directory for downloaded files.
-        base_delay: Base rate limit delay in seconds (default: 10.0).
-        jitter: Rate limit jitter in seconds (default: 2.0).
+        initial_rate: Initial rate limit in requests/second (default: 0.1 = 6 req/min).
+        bucket_size: Maximum tokens in the rate limiter bucket (default: 4.0).
         num_workers: Number of concurrent workers (default: 1).
         resume: If True, resume from existing queue state (default: True).
         max_backoff_time: Maximum total backoff time before marking failed (default: 3600.0).
@@ -179,8 +180,6 @@ class LocalDevDriver(
         scraper: BaseScraper[ScraperReturnDatatype],
         db: SQLManager,
         storage_dir: Path | None = None,
-        base_delay: float = 10.0,
-        jitter: float = 2.0,
         num_workers: int = 1,
         resume: bool = True,
         max_backoff_time: float = 3600.0,
@@ -195,8 +194,6 @@ class LocalDevDriver(
             scraper: The scraper instance to run.
             db: SQLManager for database operations.
             storage_dir: Directory for downloaded files.
-            base_delay: Base rate limit delay in seconds.
-            jitter: Rate limit jitter in seconds.
             num_workers: Number of concurrent workers.
             resume: If True, resume from existing queue state.
             max_backoff_time: Maximum total backoff time before marking failed.
@@ -214,8 +211,6 @@ class LocalDevDriver(
             request_manager=request_manager,
         )
 
-        self.base_delay = base_delay
-        self.jitter = jitter
         self.resume = resume
         self.max_backoff_time = max_backoff_time
         self.on_speculation_response = on_speculation_response
@@ -260,8 +255,8 @@ class LocalDevDriver(
                 await driver.run()
         """
         # Extract driver-specific kwargs for SQLManager initialization
-        base_delay = kwargs.pop("base_delay", 10.0)
-        jitter = kwargs.pop("jitter", 2.0)
+        initial_rate = kwargs.pop("initial_rate", 0.1)
+        bucket_size = kwargs.pop("bucket_size", 4.0)
         num_workers = kwargs.pop("num_workers", 1)
         max_backoff_time = kwargs.pop("max_backoff_time", 3600.0)
         resume = kwargs.pop("resume", True)
@@ -277,8 +272,6 @@ class LocalDevDriver(
         await sql_manager.init_run_metadata(
             scraper_name=scraper_name,
             scraper_version=scraper_version,
-            base_delay=base_delay,
-            jitter=jitter,
             num_workers=num_workers,
             max_backoff_time=max_backoff_time,
         )
@@ -291,33 +284,28 @@ class LocalDevDriver(
                     f"Restored {pending_count} pending requests from database"
                 )
 
-        # Set up rate limiter interceptor
-        from juriscraper.scraper_driver.driver.dev_driver.rate_limiter import (
-            JitterRateLimitInterceptor,
+        # Set up ATB rate limiter request manager
+        from juriscraper.scraper_driver.driver.dev_driver.atb_rate_limiter import (
+            ATBAsyncRequestManager,
+            ATBConfig,
         )
 
-        rate_limiter = JitterRateLimitInterceptor(
-            base_delay_seconds=base_delay,
-            jitter_seconds=jitter,
+        atb_config = ATBConfig(
+            bucket_size=bucket_size,
+            initial_rate=initial_rate,
         )
-
-        # Create request manager with rate limiter
-        from juriscraper.scraper_driver.common.request_manager import (
-            AsyncRequestManager,
-        )
-
-        request_manager = AsyncRequestManager(
-            interceptors=[rate_limiter],
+        request_manager = ATBAsyncRequestManager(
+            config=atb_config,
+            sql_manager=sql_manager,
             ssl_context=scraper.get_ssl_context(),
             timeout=timeout,
         )
+        await request_manager.initialize()
 
         driver = cls(
             scraper,
             sql_manager,
             request_manager=request_manager,
-            base_delay=base_delay,
-            jitter=jitter,
             num_workers=num_workers,
             max_backoff_time=max_backoff_time,
             resume=resume,
@@ -1143,6 +1131,7 @@ class LocalDevDriver(
                     )
 
             # Start workers
+            logger.info(f"Starting {self.num_workers} workers")
             workers = [
                 asyncio.create_task(self._db_worker(i))
                 for i in range(self.num_workers)
@@ -1189,13 +1178,24 @@ class LocalDevDriver(
         Args:
             worker_id: Identifier for this worker.
         """
+        import time as time_module
+
+        logger.info(f"[W{worker_id}] Worker started")
+        requests_processed = 0
+
         while True:
+            loop_start = time_module.time()
+
             # Check for graceful shutdown
             if self.stop_event.is_set():
+                logger.info(
+                    f"[W{worker_id}] Exiting: stop_event set (processed {requests_processed} requests)"
+                )
                 break
 
             # Get next request from DB
             result = await self._get_next_request()
+
             if result is None:
                 # No immediately available requests - check for scheduled retries
                 retry_delay = await self.db.get_next_scheduled_retry_delay()
@@ -1204,9 +1204,8 @@ class LocalDevDriver(
                     # There are scheduled retries - wait for the next one
                     # Add a small buffer and cap at a reasonable max wait
                     wait_time = min(retry_delay + 0.1, 60.0)
-                    logger.debug(
-                        f"Worker {worker_id} waiting {wait_time:.1f}s for "
-                        f"scheduled retry"
+                    logger.info(
+                        f"[W{worker_id}] Waiting {wait_time:.1f}s for scheduled retry"
                     )
                     await asyncio.sleep(wait_time)
 
@@ -1220,15 +1219,65 @@ class LocalDevDriver(
                         # Still nothing - continue loop to check again
                         continue
                 else:
-                    # No scheduled retries - small delay then check once more
-                    await asyncio.sleep(0.1)
+                    # No scheduled retries - poll for new work
+                    # Other workers may still be processing and generating new requests
+                    # Poll at moderate rate (100ms) to balance responsiveness and DB load
+                    consecutive_empty = 0
+                    max_polls = 100  # 10 seconds max polling
 
-                    # Check again - if still empty, exit
-                    result = await self._get_next_request()
+                    for poll_attempt in range(max_polls):
+                        # Wait before retry (100ms gives good balance)
+                        await asyncio.sleep(0.1)
+
+                        # Check for shutdown
+                        if self.stop_event.is_set():
+                            logger.info(
+                                f"[W{worker_id}] Stop event during polling"
+                            )
+                            break
+
+                        # Try to get work - this is the only DB call per iteration
+                        result = await self._get_next_request()
+                        if result is not None:
+                            logger.info(
+                                f"[W{worker_id}] Found work after {poll_attempt + 1} polls"
+                            )
+                            break
+
+                        # Check exit condition periodically (every 0.5s)
+                        if poll_attempt % 5 == 4:
+                            in_progress_count = (
+                                await self.db.count_in_progress()
+                            )
+                            pending_count = (
+                                await self.db.count_pending_requests()
+                            )
+
+                            if in_progress_count == 0 and pending_count == 0:
+                                consecutive_empty += 1
+                                if (
+                                    consecutive_empty >= 6
+                                ):  # ~3 seconds of true idle
+                                    logger.info(
+                                        f"[W{worker_id}] Exiting: idle (processed {requests_processed})"
+                                    )
+                                    break
+                            else:
+                                consecutive_empty = 0
+
+                            if poll_attempt % 20 == 19:
+                                logger.info(
+                                    f"[W{worker_id}] Polling... in_progress={in_progress_count}, pending={pending_count}"
+                                )
+
                     if result is None:
+                        logger.info(
+                            f"[W{worker_id}] Exiting: queue empty after polling (processed {requests_processed} requests)"
+                        )
                         break
 
             request_id, deserialized = result
+            logger.debug(f"[W{worker_id}] Dequeued request {request_id}")
 
             # Handle tuple return for SpeculativeRequest
             speculation_id: str | None = None
@@ -1268,14 +1317,28 @@ class LocalDevDriver(
                 if speculation_id and speculation_id.startswith("spec_"):
                     # request is SpeculativeRequest when speculation_id starts with "spec_"
                     assert isinstance(request, SpeculativeRequest)
+                    spec_start = time_module.time()
                     await self._resolve_speculative_with_storage(
                         request_id, request, speculation_id, continuation_name
+                    )
+                    spec_time = time_module.time() - spec_start
+                    loop_time = time_module.time() - loop_start
+                    requests_processed += 1
+                    logger.info(
+                        f"[W{worker_id}] Completed speculative {request_id} in {spec_time * 1000:.1f}ms (loop={loop_time * 1000:.1f}ms, total={requests_processed})"
                     )
                     continue
 
                 # Regular request flow
+                reg_start = time_module.time()
                 await self._process_regular_request(
                     request_id, request, continuation_name
+                )
+                reg_time = time_module.time() - reg_start
+                loop_time = time_module.time() - loop_start
+                requests_processed += 1
+                logger.info(
+                    f"[W{worker_id}] Completed regular {request_id} in {reg_time * 1000:.1f}ms (loop={loop_time * 1000:.1f}ms, total={requests_processed})"
                 )
 
             except RequestFailedHalt:
@@ -1396,10 +1459,14 @@ class LocalDevDriver(
         # which is a subclass of Response with a file_url field
         from juriscraper.scraper_driver.data_types import ArchiveResponse
 
+        logger.info(f"Request {request_id}: starting HTTP fetch")
         response: Response = (
             await self.resolve_archive_request(request)
             if isinstance(request, ArchiveRequest)
             else await self.resolve_request(request)
+        )
+        logger.info(
+            f"Request {request_id}: HTTP fetch complete, status={response.status_code}"
         )
 
         # Verify ArchiveResponse for ArchiveRequest
@@ -1604,36 +1671,41 @@ class LocalDevDriver(
             speculative_step = request.permanent.get("_speculative_step")
             speculative_id_value = request.permanent.get("_speculative_id")
 
+        import time as time_module
+
         # Get the parked generator context
         ctx = self._parked_generators.get(speculation_id)
-        if ctx is None:
+        context_lost = ctx is None
+
+        if context_lost:
             logger.warning(
                 f"Speculation context {speculation_id} not found - "
-                "generator may have been lost on restart"
+                "generator may have been lost on restart. Will still fetch data."
             )
-            # Attempt recovery: re-invoke the originating step with latest ID
-            if speculative_step and speculative_id_value is not None:
-                await self._recover_speculative_step(
-                    request_id, speculative_step, speculative_id_value
-                )
-            else:
-                await self._mark_request_completed(request_id)
-            return
+            # Don't return early - still make the HTTP request for data collection
+            # We just won't be able to continue the generator chain
 
         # Execute HTTP request
+        http_start = time_module.time()
         try:
             response = await self.resolve_request(request)
+            http_time = time_module.time() - http_start
+            logger.debug(
+                f"Request {request_id}: HTTP completed in {http_time * 1000:.1f}ms, status={response.status_code}"
+            )
         except TransientException as e:
             if self.on_transient_exception:
                 should_continue = await self.on_transient_exception(e)
                 if not should_continue:
-                    # Clean up parked generator
-                    del self._parked_generators[speculation_id]
+                    # Clean up parked generator if it exists
+                    if not context_lost:
+                        del self._parked_generators[speculation_id]
                     await self._mark_request_failed(request_id, str(e))
                     return
                 # Enqueue resume with False - transient error means don't continue
-                await self._enqueue_resume_step(ctx, False)
-                del self._parked_generators[speculation_id]
+                if not context_lost and ctx is not None:
+                    await self._enqueue_resume_step(ctx, False)
+                    del self._parked_generators[speculation_id]
                 await self._mark_request_completed(request_id)
                 return
             else:
@@ -1645,7 +1717,7 @@ class LocalDevDriver(
         if is_success_status:
             # 2xx response: always continue
             should_continue = True
-        elif ctx.pre_approved:
+        elif not context_lost and ctx is not None and ctx.pre_approved:
             # Early-continue optimization already approved this request.
             # Don't call the handler again, but still respect that non-2xx
             # means the continuation should not be called.
@@ -1680,15 +1752,20 @@ class LocalDevDriver(
 
         # For pre_approved requests, the generator was already resumed in the
         # early-continue optimization path. Skip the ResumeStep.
-        if not ctx.pre_approved:
+        # Also skip if context was lost (generator is gone anyway)
+        if not context_lost and ctx is not None and not ctx.pre_approved:
             # Enqueue ResumeStep FIRST (before processing continuation)
             await self._enqueue_resume_step(ctx, should_continue)
 
             # Clean up parked generator reference (it's now tracked by resume_id)
             del self._parked_generators[speculation_id]
+        elif not context_lost and ctx is not None and ctx.pre_approved:
+            # pre_approved: generator already resumed, just clean up reference
+            pass  # Don't delete - was already handled in early-continue path
 
         # THEN process continuation if approved AND response was successful
-        if should_continue and is_success_status:
+        # Skip continuation processing if context was lost (can't continue generator chain)
+        if should_continue and is_success_status and not context_lost:
             continuation = self.scraper.get_continuation(continuation_name)
             gen = continuation(response)
             await self._process_generator_with_storage(

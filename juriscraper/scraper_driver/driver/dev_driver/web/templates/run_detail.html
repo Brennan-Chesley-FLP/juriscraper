@@ -61,11 +61,6 @@
                     <span id="rate-limiter-congestion" class="rate-value">-</span>
                     <span class="rate-unit">req/min</span>
                 </div>
-                <div class="rate-stat">
-                    <span class="rate-label">Jitter</span>
-                    <span id="rate-limiter-jitter" class="rate-value">-</span>
-                    <span class="rate-unit">sec</span>
-                </div>
             </div>
             <div class="rate-limiter-requests">
                 <div class="rate-stat">
@@ -1164,7 +1159,6 @@ async function loadRateLimiterState() {
         document.getElementById('rate-limiter-tokens').textContent = data.tokens.toFixed(2);
         document.getElementById('rate-limiter-bucket-size').textContent = data.bucket_size.toFixed(1);
         document.getElementById('rate-limiter-congestion').textContent = (data.last_congestion_rate * 60).toFixed(1);
-        document.getElementById('rate-limiter-jitter').textContent = `±${data.jitter.toFixed(1)}`;
 
         // Update request stats
         document.getElementById('rate-limiter-total').textContent = data.total_requests;

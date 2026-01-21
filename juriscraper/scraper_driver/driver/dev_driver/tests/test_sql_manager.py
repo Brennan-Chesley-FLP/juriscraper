@@ -72,20 +72,18 @@ class TestRunMetadata:
         await sql_manager.init_run_metadata(
             scraper_name="TestScraper",
             scraper_version="1.0.0",
-            base_delay=1.0,
-            jitter=0.5,
             num_workers=2,
             max_backoff_time=60.0,
         )
 
         # Verify metadata was created
         cursor = await sql_manager.db.execute(
-            "SELECT scraper_name, base_delay FROM run_metadata WHERE id = 1"
+            "SELECT scraper_name, num_workers FROM run_metadata WHERE id = 1"
         )
         row = await cursor.fetchone()
         assert row is not None
         assert row[0] == "TestScraper"
-        assert row[1] == 1.0
+        assert row[1] == 2
 
     async def test_init_run_metadata_idempotent(
         self, sql_manager: SQLManager
@@ -94,8 +92,6 @@ class TestRunMetadata:
         await sql_manager.init_run_metadata(
             scraper_name="TestScraper",
             scraper_version="1.0.0",
-            base_delay=1.0,
-            jitter=0.5,
             num_workers=2,
             max_backoff_time=60.0,
         )
@@ -104,8 +100,6 @@ class TestRunMetadata:
         await sql_manager.init_run_metadata(
             scraper_name="DifferentScraper",
             scraper_version="2.0.0",
-            base_delay=2.0,
-            jitter=1.0,
             num_workers=4,
             max_backoff_time=120.0,
         )
@@ -121,8 +115,6 @@ class TestRunMetadata:
         await sql_manager.init_run_metadata(
             scraper_name="TestScraper",
             scraper_version="1.0.0",
-            base_delay=1.0,
-            jitter=0.5,
             num_workers=2,
             max_backoff_time=60.0,
         )

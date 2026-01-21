@@ -292,8 +292,7 @@ class TestForkedSpeculation:
         async with LocalDevDriver.open(
             scraper,
             db_path,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler,
         ) as driver:
             driver.on_data = on_data
@@ -358,8 +357,7 @@ class TestForkedSpeculation:
         async with LocalDevDriver.open(
             scraper_2,
             db_path_2,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler_2,
         ) as driver_2:
             driver_2.on_data = on_data_2
@@ -400,8 +398,7 @@ class TestForkedSpeculation:
         async with LocalDevDriver.open(
             scraper_3,
             db_path_3,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler_3,
         ) as driver_3:
             driver_3.on_data = on_data_3
@@ -448,8 +445,7 @@ class TestForkedSpeculation:
         async with LocalDevDriver.open(
             scraper_4,
             db_path_4,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler_4,
         ) as driver_4:
             driver_4.on_data = on_data_4
@@ -515,8 +511,7 @@ class TestForkedSpeculation:
         async with LocalDevDriver.open(
             scraper_1,
             db_path_1,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler_1,
         ) as driver_1:
             driver_1.on_data = on_data_1
@@ -569,8 +564,7 @@ class TestForkedSpeculation:
         async with LocalDevDriver.open(
             scraper_2,
             db_path_2,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler_2,
         ) as driver_2:
             driver_2.on_data = on_data_2
@@ -620,8 +614,7 @@ class TestForkedSpeculation:
         async with LocalDevDriver.open(
             scraper,
             db_path,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,  # High rate for tests
         ) as driver:
             driver.on_data = on_data
             await driver.run()
@@ -694,8 +687,7 @@ class TestForkedSpeculation:
             async with LocalDevDriver.open(
                 scraper,
                 db_path,
-                base_delay=0.0,
-                jitter=0.0,
+                initial_rate=100.0,  # High rate for tests
                 num_workers=num_workers,
                 on_speculation_response=speculation_handler,
             ) as driver:

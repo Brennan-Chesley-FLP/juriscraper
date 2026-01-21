@@ -221,8 +221,7 @@ class TestSpeculativeTimeoutRetry:
             scraper,
             db_path,
             max_backoff_time=10.0,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,
             timeout=1.0,  # 1 second timeout
         ) as driver:
             driver.on_transient_exception = on_transient_handler
@@ -333,8 +332,7 @@ class TestSpeculativeTimeoutRetry:
             scraper,
             db_path,
             max_backoff_time=5.0,  # Only 5 seconds of total backoff allowed
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,
             timeout=1.0,  # 1 second timeout
         ) as driver:
             await driver.run()
@@ -556,8 +554,7 @@ class TestSpeculativeResume:
         async with LocalDevDriver.open(
             scraper1,
             db_path1,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,
         ) as driver1:
             driver_ref.append(driver1)
             driver1.on_data = on_data_callback
@@ -611,8 +608,7 @@ class TestSpeculativeResume:
         async with LocalDevDriver.open(
             scraper2,
             db_path2,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,
         ) as driver2:
             driver2.on_data = on_data_callback_no_stop
             await driver2.run()

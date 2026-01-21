@@ -100,8 +100,7 @@ async def cmd_run(args: argparse.Namespace) -> int:
         scraper=scraper,
         db_path=Path(args.db),
         storage_dir=storage_dir,
-        base_delay=args.delay,
-        jitter=args.jitter,
+        initial_rate=args.initial_rate,
         num_workers=args.workers,
         resume=not args.no_resume,
         max_backoff_time=args.max_backoff,
@@ -109,7 +108,9 @@ async def cmd_run(args: argparse.Namespace) -> int:
         print(f"Running scraper: {scraper_class.__name__}")
         print(f"Database: {args.db}")
         print(f"Workers: {args.workers}")
-        print(f"Delay: {args.delay}s ± {args.jitter}s")
+        print(
+            f"Initial rate: {args.initial_rate} req/s ({args.initial_rate * 60:.1f} req/min)"
+        )
 
         await driver.run()
 
@@ -448,6 +449,17 @@ def cmd_serve(args: argparse.Namespace) -> int:
     print(f"Starting web server at http://{args.host}:{args.port}")
     print(f"Runs directory: {runs_dir.absolute()}")
 
+    # Configure logging for the driver module to show worker logs
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    # Ensure our driver logger outputs at INFO level
+    logging.getLogger("juriscraper.scraper_driver.driver.dev_driver").setLevel(
+        log_level
+    )
+
     uvicorn.run(
         app,
         host=args.host,
@@ -502,16 +514,11 @@ def create_parser() -> argparse.ArgumentParser:
         help="Directory for downloaded files",
     )
     parser.add_argument(
-        "--delay",
+        "--initial-rate",
         type=float,
-        default=10.0,
-        help="Base delay between requests (default: 10.0)",
-    )
-    parser.add_argument(
-        "--jitter",
-        type=float,
-        default=2.0,
-        help="Jitter for request delay (default: 2.0)",
+        default=0.1,
+        dest="initial_rate",
+        help="Initial request rate in req/s (default: 0.1 = 6 req/min)",
     )
     parser.add_argument(
         "--workers",

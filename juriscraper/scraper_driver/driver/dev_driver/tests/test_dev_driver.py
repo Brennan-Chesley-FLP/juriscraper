@@ -1879,21 +1879,19 @@ class TestAioSQLiteBucket:
 class TestRateLimiterIntegration:
     """Tests for rate limiter integration with LocalDevDriver."""
 
-    async def test_rate_limiter_interceptor_added_on_init(
-        self, db_path: Path
-    ) -> None:
-        """Test that JitterRateLimitInterceptor is added to interceptors on _init_db."""
+    async def test_atb_rate_limiter_used_on_init(self, db_path: Path) -> None:
+        """Test that ATBAsyncRequestManager is used as the request manager."""
         from juriscraper.scraper_driver.data_types import (
             BaseScraper,
             HttpMethod,
             HTTPRequestParams,
             NavigatingRequest,
         )
+        from juriscraper.scraper_driver.driver.dev_driver.atb_rate_limiter import (
+            ATBAsyncRequestManager,
+        )
         from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
             LocalDevDriver,
-        )
-        from juriscraper.scraper_driver.driver.dev_driver.rate_limiter import (
-            JitterRateLimitInterceptor,
         )
 
         class MinimalScraper(BaseScraper[str]):
@@ -1913,19 +1911,16 @@ class TestRateLimiterIntegration:
         scraper = MinimalScraper()
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=5.0, jitter=1.0
+            scraper, db_path, initial_rate=5.0
         ) as driver:
-            # Verify interceptor was added to request_manager
-            assert len(driver.request_manager.interceptors) == 1
+            # Verify ATBAsyncRequestManager is being used
             assert isinstance(
-                driver.request_manager.interceptors[0],
-                JitterRateLimitInterceptor,
+                driver.request_manager,
+                ATBAsyncRequestManager,
             )
 
-            # Verify parameters were passed correctly
-            rate_limiter = driver.request_manager.interceptors[0]
-            assert rate_limiter.base_delay_seconds == 5.0
-            assert rate_limiter.jitter_seconds == 1.0
+            # Verify initial rate was passed correctly
+            assert driver.request_manager.config.initial_rate == 5.0
 
 
 class TestRunManager:
@@ -2825,7 +2820,7 @@ class TestGracefulShutdownAndResume:
 
         # Open with resume=True (default)
         async with LocalDevDriver.open(
-            mock_scraper, db_path, resume=True, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, resume=True, initial_rate=100.0
         ) as driver:
             # Check that in_progress was reset to pending on open
             assert driver.db.db is not None
@@ -2854,7 +2849,7 @@ class TestGracefulShutdownAndResume:
 
         # First run: Open driver, add requests, then close
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -2883,7 +2878,7 @@ class TestGracefulShutdownAndResume:
 
         # Second run: Resume and verify state
         async with LocalDevDriver.open(
-            mock_scraper, db_path, resume=True, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, resume=True, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -2915,7 +2910,7 @@ class TestGracefulShutdownAndResume:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             # stop_event should be created
             assert driver.stop_event is not None
@@ -2940,7 +2935,7 @@ class TestGracefulShutdownAndResume:
 
         # First open creates metadata with 'created' status
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
             cursor = await driver.db.db.execute(
@@ -2976,9 +2971,7 @@ class TestGracefulShutdownAndResume:
         # Create a run with multiple requests
         request_urls = [f"https://example.com/page{i}" for i in range(10)]
 
-        async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
-        ) as driver:
+        async with LocalDevDriver.open(mock_scraper, db_path) as driver:
             assert driver.db.db is not None
 
             # Add requests
@@ -3032,7 +3025,7 @@ class TestGracefulShutdownAndResume:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3078,7 +3071,7 @@ class TestGracefulShutdownAndResume:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3125,7 +3118,7 @@ class TestGracefulShutdownAndResume:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3153,7 +3146,7 @@ class TestGracefulShutdownAndResume:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3235,7 +3228,7 @@ class TestDeduplication:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3319,7 +3312,7 @@ class TestDeduplication:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3392,7 +3385,7 @@ class TestDeduplication:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3505,7 +3498,7 @@ class TestDeduplication:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3583,7 +3576,7 @@ class TestDeduplication:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3647,7 +3640,7 @@ class TestDeduplication:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3721,7 +3714,7 @@ class TestDeduplication:
         )
 
         async with LocalDevDriver.open(
-            mock_scraper, db_path, base_delay=0.0, jitter=0.0
+            mock_scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -3841,7 +3834,7 @@ class TestRequestLineageTracking:
 
         scraper = MultiStepScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             # Add interceptor
             driver.request_manager.interceptors.append(interceptor)
@@ -3924,7 +3917,7 @@ class TestRequestStatusMarking:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             await driver.run()
@@ -3994,7 +3987,7 @@ class TestRequestStatusMarking:
 
         scraper = FailingScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             await driver.run()
@@ -4082,7 +4075,7 @@ class TestExponentialBackoff:
         scraper = RetryScraper()
         # Use low max_backoff_time so the test is fast
         async with LocalDevDriver.open(
-            scraper, db_path, max_backoff_time=60.0, base_delay=0.1, jitter=0.0
+            scraper, db_path, max_backoff_time=60.0, initial_rate=10.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             await driver.run()
@@ -4152,7 +4145,7 @@ class TestExponentialBackoff:
         scraper = AlwaysFailScraper()
         # Very low max_backoff_time to trigger failure quickly
         async with LocalDevDriver.open(
-            scraper, db_path, max_backoff_time=0.5, base_delay=0.1, jitter=0.0
+            scraper, db_path, max_backoff_time=0.5, initial_rate=10.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             await driver.run()
@@ -4222,7 +4215,7 @@ class TestCompressionRoundTrip:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             await driver.run()
@@ -4314,7 +4307,7 @@ class TestDataStorage:
 
         scraper = DataScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             await driver.run()
@@ -4401,7 +4394,7 @@ class TestRequeueErroredRequests:
 
         scraper = FailThenSucceedScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
 
@@ -4479,7 +4472,7 @@ class TestListRequestsFiltering:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -4557,7 +4550,7 @@ class TestListRequestsFiltering:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -4621,7 +4614,7 @@ class TestListRequestsFiltering:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -4717,7 +4710,7 @@ class TestHeadersOnlyResponse:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             await driver.run()
@@ -4835,7 +4828,7 @@ class TestGracefulShutdownSigterm:
             )
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
 
@@ -4921,7 +4914,7 @@ class TestGracefulShutdownSigterm:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
 
@@ -5014,7 +5007,7 @@ class TestGracefulShutdownSigterm:
 
         # First run - interrupt early
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
 
@@ -5053,7 +5046,7 @@ class TestGracefulShutdownSigterm:
             )
 
         async with LocalDevDriver.open(
-            scraper2, db_path, resume=True, base_delay=0.0, jitter=0.0
+            scraper2, db_path, resume=True, initial_rate=100.0
         ) as driver2:
             driver2.request_manager.interceptors.append(interceptor2)
             await driver2.run(setup_signal_handlers=False)
@@ -5172,7 +5165,7 @@ class TestDevDriverVsOtherDrivers:
             dev_driver_results.append(data)
 
         async with LocalDevDriver.open(
-            scraper2, db_path, base_delay=0.0, jitter=0.0
+            scraper2, db_path, initial_rate=100.0
         ) as dev_driver:
             dev_driver.request_manager.interceptors.append(
                 create_interceptor()
@@ -5236,7 +5229,7 @@ class TestDevDriverVsOtherDrivers:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             await driver.run()
@@ -5351,7 +5344,7 @@ class TestDeferredValidationHandling:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             driver.on_data = collect_result
@@ -5453,7 +5446,7 @@ class TestDeferredValidationHandling:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             driver.on_invalid_data = collect_invalid
@@ -5562,7 +5555,7 @@ class TestNonNavigatingRequestHandling:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             driver.on_data = collect_result
@@ -5663,7 +5656,7 @@ class TestNonNavigatingRequestHandling:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.request_manager.interceptors.append(interceptor)
             driver.on_data = collect_result
@@ -5708,7 +5701,7 @@ class TestRequeueErrorsByType:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -5800,7 +5793,7 @@ class TestRequeueErrorsByType:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -5878,7 +5871,7 @@ class TestRequeueErrorsByType:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             # Try to requeue with no errors in DB
             new_ids = await driver.requeue_errors_by_type(
@@ -5924,7 +5917,7 @@ class TestResponsesAndResultsListing:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -6019,7 +6012,7 @@ class TestResponsesAndResultsListing:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -6090,7 +6083,7 @@ class TestResponsesAndResultsListing:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -6159,7 +6152,7 @@ class TestGetterMethods:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -6223,7 +6216,7 @@ class TestGetterMethods:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             response = await driver.get_response(999)
             assert response is None
@@ -6256,7 +6249,7 @@ class TestGetterMethods:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -6308,7 +6301,7 @@ class TestGetterMethods:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             result = await driver.get_result(999)
             assert result is None
@@ -6345,7 +6338,7 @@ class TestCancellationMethods:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -6400,7 +6393,7 @@ class TestCancellationMethods:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -6456,7 +6449,7 @@ class TestCancellationMethods:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -6510,7 +6503,7 @@ class TestCancellationMethods:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             cancelled = await driver.cancel_request(999)
             assert cancelled is False
@@ -6545,7 +6538,7 @@ class TestCancellationMethods:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             assert driver.db.db is not None
 
@@ -6625,7 +6618,7 @@ class TestCancellationMethods:
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             count = await driver.cancel_requests_by_continuation("nonexistent")
             assert count == 0
@@ -6706,7 +6699,7 @@ class TestSpeculativeRequestHandling:
             collected_data.append(data)
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             driver.on_data = on_data
             # Mock the HTTP request method
@@ -6794,7 +6787,7 @@ class TestSpeculativeRequestHandling:
         scraper = SpeculativeScraper()
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             # First returns 200, second returns 404
             call_count = 0
@@ -6908,8 +6901,7 @@ class TestSpeculativeRequestHandling:
             scraper,
             db_path,
             on_speculation_response=speculation_callback,
-            base_delay=0.0,
-            jitter=0.0,
+            initial_rate=100.0,
         ) as driver:
             call_count = 0
 
@@ -6975,7 +6967,7 @@ class TestSpeculativeRequestHandling:
         scraper = SimpleScraper()
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             # Create a speculative request
             spec_request = SpeculativeRequest(
@@ -7069,7 +7061,7 @@ class TestSpeculativeRequestHandling:
         scraper = DuplicateScraper()
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -7165,7 +7157,7 @@ class TestSpeculativeRequestRestart:
         scraper = SpeculativeScraper()
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             # Mock HTTP responses - all return 200 except page 4 which returns 404
             def mock_request(**kwargs: Any) -> MagicMock:
@@ -7322,7 +7314,7 @@ class TestSpeculativeRequestRestart:
         scraper1 = RestartableScraper()
 
         async with LocalDevDriver.open(
-            scraper1, db_path1, base_delay=0.0, jitter=0.0
+            scraper1, db_path1, initial_rate=100.0
         ) as driver:
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -7354,7 +7346,7 @@ class TestSpeculativeRequestRestart:
         scraper2 = RestartableScraper(params=params)
 
         async with LocalDevDriver.open(
-            scraper2, db_path2, base_delay=0.0, jitter=0.0
+            scraper2, db_path2, initial_rate=100.0
         ) as driver:
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -7436,7 +7428,7 @@ class TestSpeculativeRequestRestart:
         scraper = MetadataScraper()
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             mock_response = MagicMock()
             mock_response.status_code = 200
@@ -7569,7 +7561,7 @@ class TestSpeculativeRequestRestart:
         scraper = MultiStepScraper()
 
         async with LocalDevDriver.open(
-            scraper, db_path, base_delay=0.0, jitter=0.0
+            scraper, db_path, initial_rate=100.0
         ) as driver:
             mock_response = MagicMock()
             mock_response.status_code = 200

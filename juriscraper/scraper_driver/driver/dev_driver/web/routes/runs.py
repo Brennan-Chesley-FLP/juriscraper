@@ -88,11 +88,32 @@ class CreateRunRequest(BaseModel):
     params: ParamsData | None = Field(
         default=None, description="Optional scraper parameters"
     )
-    base_delay: float = Field(
-        default=10.0, description="Base rate limit delay in seconds"
+    # ATB Rate Limiter config
+    initial_rate: float = Field(
+        default=0.1,
+        description="Initial request rate in requests/second (0.1 = 6/min)",
+    )
+    bucket_size: float = Field(
+        default=4.0, description="Maximum tokens in the rate limiter bucket"
     )
     jitter: float = Field(
-        default=2.0, description="Rate limit jitter in seconds"
+        default=2.0,
+        description="Uniform jitter ±seconds after token acquisition",
+    )
+    first_step: float = Field(
+        default=1.5,
+        description="Aggressive rate increase multiplier (below congestion)",
+    )
+    second_step: float = Field(
+        default=1.2,
+        description="Conservative rate increase multiplier (above congestion)",
+    )
+    min_rate: float = Field(
+        default=0.01, description="Minimum allowed rate in requests/second"
+    )
+    # Legacy parameter (kept for metadata compatibility)
+    base_delay: float = Field(
+        default=10.0, description="Legacy: Base rate limit delay in seconds"
     )
     num_workers: int = Field(
         default=1, description="Number of concurrent workers"
@@ -125,11 +146,32 @@ class LoadRunRequest(BaseModel):
         default=None,
         description="Full scraper path (module.path:ClassName). If not provided, uses scraper_name from database.",
     )
-    base_delay: float = Field(
-        default=10.0, description="Base rate limit delay in seconds"
+    # ATB Rate Limiter config
+    initial_rate: float = Field(
+        default=0.1,
+        description="Initial request rate in requests/second (0.1 = 6/min)",
+    )
+    bucket_size: float = Field(
+        default=4.0, description="Maximum tokens in the rate limiter bucket"
     )
     jitter: float = Field(
-        default=2.0, description="Rate limit jitter in seconds"
+        default=2.0,
+        description="Uniform jitter ±seconds after token acquisition",
+    )
+    first_step: float = Field(
+        default=1.5,
+        description="Aggressive rate increase multiplier (below congestion)",
+    )
+    second_step: float = Field(
+        default=1.2,
+        description="Conservative rate increase multiplier (above congestion)",
+    )
+    min_rate: float = Field(
+        default=0.01, description="Minimum allowed rate in requests/second"
+    )
+    # Legacy parameter (kept for metadata compatibility)
+    base_delay: float = Field(
+        default=10.0, description="Legacy: Base rate limit delay in seconds"
     )
     num_workers: int = Field(
         default=1, description="Number of concurrent workers"
@@ -155,11 +197,32 @@ class ResumeRunRequest(BaseModel):
         default=None,
         description="Full scraper path (module.path:ClassName). If not provided, uses scraper_name from database.",
     )
-    base_delay: float = Field(
-        default=10.0, description="Base rate limit delay in seconds"
+    # ATB Rate Limiter config
+    initial_rate: float = Field(
+        default=0.1,
+        description="Initial request rate in requests/second (0.1 = 6/min)",
+    )
+    bucket_size: float = Field(
+        default=4.0, description="Maximum tokens in the rate limiter bucket"
     )
     jitter: float = Field(
-        default=2.0, description="Rate limit jitter in seconds"
+        default=2.0,
+        description="Uniform jitter ±seconds after token acquisition",
+    )
+    first_step: float = Field(
+        default=1.5,
+        description="Aggressive rate increase multiplier (below congestion)",
+    )
+    second_step: float = Field(
+        default=1.2,
+        description="Conservative rate increase multiplier (above congestion)",
+    )
+    min_rate: float = Field(
+        default=0.01, description="Minimum allowed rate in requests/second"
+    )
+    # Legacy parameter (kept for metadata compatibility)
+    base_delay: float = Field(
+        default=10.0, description="Legacy: Base rate limit delay in seconds"
     )
     num_workers: int = Field(
         default=1, description="Number of concurrent workers"
@@ -319,8 +382,15 @@ async def create_run(
         run_info = await manager.create_run(
             run_id=request.run_id,
             scraper=scraper,
-            base_delay=request.base_delay,
+            # ATB config
+            initial_rate=request.initial_rate,
+            bucket_size=request.bucket_size,
             jitter=request.jitter,
+            first_step=request.first_step,
+            second_step=request.second_step,
+            min_rate=request.min_rate,
+            # Legacy/other config
+            base_delay=request.base_delay,
             num_workers=request.num_workers,
             max_backoff_time=request.max_backoff_time,
             speculation_config=speculation_config_dict,
@@ -482,8 +552,15 @@ async def load_run(
         run_info = await manager.load_run(
             run_id=run_id,
             scraper=scraper,
-            base_delay=request.base_delay,
+            # ATB config
+            initial_rate=request.initial_rate,
+            bucket_size=request.bucket_size,
             jitter=request.jitter,
+            first_step=request.first_step,
+            second_step=request.second_step,
+            min_rate=request.min_rate,
+            # Legacy/other config
+            base_delay=request.base_delay,
             num_workers=request.num_workers,
             max_backoff_time=request.max_backoff_time,
             speculation_config=speculation_config_dict,
@@ -723,8 +800,15 @@ async def resume_run(
         run_info = await manager.resume_run(
             run_id=run_id,
             scraper=scraper,
-            base_delay=request.base_delay,
+            # ATB config
+            initial_rate=request.initial_rate,
+            bucket_size=request.bucket_size,
             jitter=request.jitter,
+            first_step=request.first_step,
+            second_step=request.second_step,
+            min_rate=request.min_rate,
+            # Legacy/other config
+            base_delay=request.base_delay,
             num_workers=request.num_workers,
             max_backoff_time=request.max_backoff_time,
             speculation_config=speculation_config_dict,

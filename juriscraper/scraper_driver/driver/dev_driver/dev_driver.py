@@ -656,8 +656,12 @@ class LocalDevDriver(
                 expected_type=expected_type,
             )
         elif request_type == "speculative":
-            # expected_type stores the speculation_id
+            # expected_type stores the speculation_id (internal tracking ID)
             speculation_id = expected_type
+            # Extract speculative_id (user-provided ID) from permanent data
+            speculative_id_value = (
+                permanent.get("_speculative_id", 1) if permanent else 1
+            )
             spec_request = SpeculativeRequest(
                 request=http_params,
                 continuation=continuation,
@@ -666,6 +670,7 @@ class LocalDevDriver(
                 aux_data=aux_data,
                 permanent=permanent,
                 priority=priority,
+                speculative_id=speculative_id_value,
             )
             return (spec_request, speculation_id)
         elif request_type == "resume":
@@ -1474,9 +1479,22 @@ class LocalDevDriver(
                             )
                             if flow == FlowControl.CONTINUE:
                                 # Can continue without waiting for response
-                                # Enqueue the underlying request (without context)
-                                await self.enqueue_request(item, response)
+                                # Enqueue with context (pre_approved=True) so request
+                                # still goes through _resolve_speculative_with_storage
+                                # which respects the 2xx check for calling continuation
+                                ctx = SpeculationContext(
+                                    parked_generator=gen,
+                                    parent_request=parent_request,
+                                    original_response=response,
+                                    originating_continuation=continuation_name,
+                                    pre_approved=True,
+                                )
+                                await self.enqueue_request(
+                                    item.with_context(ctx), response
+                                )
                                 # Immediately resume generator with True
+                                # (the HTTP request will be processed later, but
+                                # we already know speculation should continue)
                                 try:
                                     next_item = gen.send(True)
                                     # Continue processing with the new item
@@ -1628,6 +1646,11 @@ class LocalDevDriver(
         if is_success_status:
             # 2xx response: always continue
             should_continue = True
+        elif ctx.pre_approved:
+            # Early-continue optimization already approved this request.
+            # Don't call the handler again, but still respect that non-2xx
+            # means the continuation should not be called.
+            should_continue = True
         elif self.on_speculation_response:
             # Non-2xx: let callback decide with the actual response
             # Use the originating step name (speculative_step) not the continuation name
@@ -1656,11 +1679,14 @@ class LocalDevDriver(
                 speculative_step, speculative_id_value
             )
 
-        # Enqueue ResumeStep FIRST (before processing continuation)
-        await self._enqueue_resume_step(ctx, should_continue)
+        # For pre_approved requests, the generator was already resumed in the
+        # early-continue optimization path. Skip the ResumeStep.
+        if not ctx.pre_approved:
+            # Enqueue ResumeStep FIRST (before processing continuation)
+            await self._enqueue_resume_step(ctx, should_continue)
 
-        # Clean up parked generator reference (it's now tracked by resume_id)
-        del self._parked_generators[speculation_id]
+            # Clean up parked generator reference (it's now tracked by resume_id)
+            del self._parked_generators[speculation_id]
 
         # THEN process continuation if approved AND response was successful
         if should_continue and is_success_status:
@@ -1771,8 +1797,19 @@ class LocalDevDriver(
                             )
                             if flow == FlowControl.CONTINUE:
                                 # Can continue without waiting for response
-                                # Enqueue the underlying request (without context)
-                                await self.enqueue_request(item, response)
+                                # Enqueue with context (pre_approved=True) so request
+                                # still goes through _resolve_speculative_with_storage
+                                # which respects the 2xx check for calling continuation
+                                ctx = SpeculationContext(
+                                    parked_generator=gen,
+                                    parent_request=parent_request,
+                                    original_response=response,
+                                    originating_continuation=continuation_name,
+                                    pre_approved=True,
+                                )
+                                await self.enqueue_request(
+                                    item.with_context(ctx), response
+                                )
                                 # Immediately resume generator with True
                                 try:
                                     item = gen.send(True)

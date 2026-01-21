@@ -928,3 +928,72 @@ class SQL:
     DELETE_ALL_SPECULATIVE_START_IDS = """
         DELETE FROM speculative_start_ids
     """
+
+    # =========================================================================
+    # ATB Rate Limiter State
+    # =========================================================================
+
+    SELECT_RATE_LIMITER_STATE = """
+        SELECT tokens, rate, bucket_size, last_congestion_rate, jitter,
+               last_used_at, total_requests, total_successes, total_rate_limited,
+               created_at, updated_at
+        FROM rate_limiter_state
+        WHERE id = 1
+    """
+
+    UPSERT_RATE_LIMITER_STATE = """
+        INSERT INTO rate_limiter_state (
+            id, tokens, rate, bucket_size, last_congestion_rate, jitter,
+            last_used_at, total_requests, total_successes, total_rate_limited,
+            updated_at
+        ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE SET
+            tokens = excluded.tokens,
+            rate = excluded.rate,
+            bucket_size = excluded.bucket_size,
+            last_congestion_rate = excluded.last_congestion_rate,
+            jitter = excluded.jitter,
+            last_used_at = excluded.last_used_at,
+            total_requests = excluded.total_requests,
+            total_successes = excluded.total_successes,
+            total_rate_limited = excluded.total_rate_limited,
+            updated_at = CURRENT_TIMESTAMP
+    """
+
+    UPDATE_RATE_LIMITER_TOKENS = """
+        UPDATE rate_limiter_state
+        SET tokens = ?, last_used_at = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = 1
+    """
+
+    UPDATE_RATE_LIMITER_RATE_INCREASE = """
+        UPDATE rate_limiter_state
+        SET rate = ?, total_requests = total_requests + 1,
+            total_successes = total_successes + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = 1
+    """
+
+    UPDATE_RATE_LIMITER_RATE_DECREASE = """
+        UPDATE rate_limiter_state
+        SET rate = ?, last_congestion_rate = ?, tokens = 0,
+            total_requests = total_requests + 1,
+            total_rate_limited = total_rate_limited + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = 1
+    """
+
+    UPDATE_RATE_LIMITER_SUCCESS = """
+        UPDATE rate_limiter_state
+        SET total_requests = total_requests + 1,
+            total_successes = total_successes + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = 1
+    """
+
+    UPDATE_RATE_LIMITER_RATE_LIMITED = """
+        UPDATE rate_limiter_state
+        SET total_requests = total_requests + 1,
+            total_rate_limited = total_rate_limited + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = 1
+    """

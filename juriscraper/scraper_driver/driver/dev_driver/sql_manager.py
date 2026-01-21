@@ -1849,3 +1849,136 @@ class SQLManager:
             self._db, compressed_content, dict_id
         )
         return (content, headers_json)
+
+    # =========================================================================
+    # Rate Limiter State Methods
+    # =========================================================================
+
+    async def get_rate_limiter_state(self) -> dict[str, Any] | None:
+        """Get the current rate limiter state.
+
+        Returns:
+            Dictionary with rate limiter state, or None if not initialized.
+        """
+        cursor = await self._db.execute(SQL.SELECT_RATE_LIMITER_STATE)
+        row = await cursor.fetchone()
+
+        if row is None:
+            return None
+
+        return {
+            "tokens": row[0],
+            "rate": row[1],
+            "bucket_size": row[2],
+            "last_congestion_rate": row[3],
+            "jitter": row[4],
+            "last_used_at": row[5],
+            "total_requests": row[6],
+            "total_successes": row[7],
+            "total_rate_limited": row[8],
+            "created_at": row[9],
+            "updated_at": row[10],
+        }
+
+    async def upsert_rate_limiter_state(
+        self,
+        tokens: float,
+        rate: float,
+        bucket_size: float,
+        last_congestion_rate: float,
+        jitter: float,
+        last_used_at: float,
+        total_requests: int = 0,
+        total_successes: int = 0,
+        total_rate_limited: int = 0,
+    ) -> None:
+        """Create or update the rate limiter state.
+
+        Args:
+            tokens: Current token count.
+            rate: Current rate (tokens per second).
+            bucket_size: Maximum tokens.
+            last_congestion_rate: Rate at last congestion event.
+            jitter: Uniform jitter ±seconds.
+            last_used_at: Unix timestamp of last token acquisition.
+            total_requests: Total requests made.
+            total_successes: Total successful requests.
+            total_rate_limited: Total rate-limited requests.
+        """
+        await self._db.execute(
+            SQL.UPSERT_RATE_LIMITER_STATE,
+            (
+                tokens,
+                rate,
+                bucket_size,
+                last_congestion_rate,
+                jitter,
+                last_used_at,
+                total_requests,
+                total_successes,
+                total_rate_limited,
+            ),
+        )
+        await self._db.commit()
+
+    async def update_rate_limiter_tokens(
+        self, tokens: float, last_used_at: float
+    ) -> None:
+        """Update just the tokens and last_used_at.
+
+        Used when acquiring tokens without changing the rate.
+
+        Args:
+            tokens: New token count.
+            last_used_at: Unix timestamp of token acquisition.
+        """
+        await self._db.execute(
+            SQL.UPDATE_RATE_LIMITER_TOKENS, (tokens, last_used_at)
+        )
+        await self._db.commit()
+
+    async def update_rate_limiter_rate_increase(self, new_rate: float) -> None:
+        """Update rate after a successful request (rate increase).
+
+        Increments total_requests and total_successes.
+
+        Args:
+            new_rate: The new rate after increase.
+        """
+        await self._db.execute(
+            SQL.UPDATE_RATE_LIMITER_RATE_INCREASE, (new_rate,)
+        )
+        await self._db.commit()
+
+    async def update_rate_limiter_rate_decrease(
+        self, new_rate: float, congestion_rate: float
+    ) -> None:
+        """Update rate after a rate-limited response (rate decrease).
+
+        Sets tokens to 0, records congestion rate, increments total_requests
+        and total_rate_limited.
+
+        Args:
+            new_rate: The new rate after decrease.
+            congestion_rate: The rate at which congestion occurred.
+        """
+        await self._db.execute(
+            SQL.UPDATE_RATE_LIMITER_RATE_DECREASE, (new_rate, congestion_rate)
+        )
+        await self._db.commit()
+
+    async def increment_rate_limiter_success(self) -> None:
+        """Increment success counter without changing rate.
+
+        Used when response succeeds but rate doesn't change.
+        """
+        await self._db.execute(SQL.UPDATE_RATE_LIMITER_SUCCESS)
+        await self._db.commit()
+
+    async def increment_rate_limiter_rate_limited(self) -> None:
+        """Increment rate-limited counter without changing rate.
+
+        Used when response is rate-limited but rate doesn't change.
+        """
+        await self._db.execute(SQL.UPDATE_RATE_LIMITER_RATE_LIMITED)
+        await self._db.commit()

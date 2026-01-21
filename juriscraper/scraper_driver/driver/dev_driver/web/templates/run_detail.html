@@ -38,6 +38,57 @@
         </div>
     </section>
 
+    <!-- Rate Limiter -->
+    <section class="rate-limiter-section" id="rate-limiter-section">
+        <h2>Rate Limiter</h2>
+        <div class="rate-limiter-grid">
+            <div class="rate-limiter-status">
+                <span id="rate-limiter-status-badge" class="status">Loading...</span>
+            </div>
+            <div class="rate-limiter-stats">
+                <div class="rate-stat">
+                    <span class="rate-label">Current Rate</span>
+                    <span id="rate-limiter-rate" class="rate-value">-</span>
+                    <span class="rate-unit">req/min</span>
+                </div>
+                <div class="rate-stat">
+                    <span class="rate-label">Tokens</span>
+                    <span id="rate-limiter-tokens" class="rate-value">-</span>
+                    <span class="rate-unit">/ <span id="rate-limiter-bucket-size">-</span></span>
+                </div>
+                <div class="rate-stat">
+                    <span class="rate-label">Congestion Rate</span>
+                    <span id="rate-limiter-congestion" class="rate-value">-</span>
+                    <span class="rate-unit">req/min</span>
+                </div>
+                <div class="rate-stat">
+                    <span class="rate-label">Jitter</span>
+                    <span id="rate-limiter-jitter" class="rate-value">-</span>
+                    <span class="rate-unit">sec</span>
+                </div>
+            </div>
+            <div class="rate-limiter-requests">
+                <div class="rate-stat">
+                    <span class="rate-label">Total Requests</span>
+                    <span id="rate-limiter-total" class="rate-value">-</span>
+                </div>
+                <div class="rate-stat">
+                    <span class="rate-label">Successes</span>
+                    <span id="rate-limiter-successes" class="rate-value success">-</span>
+                </div>
+                <div class="rate-stat">
+                    <span class="rate-label">Rate Limited</span>
+                    <span id="rate-limiter-limited" class="rate-value warning">-</span>
+                </div>
+                <div class="rate-stat">
+                    <span class="rate-label">Success Rate</span>
+                    <span id="rate-limiter-success-rate" class="rate-value">-</span>
+                    <span class="rate-unit">%</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Speculative Progress -->
     <section class="speculative-section" id="speculative-section" style="display:none;">
         <h2>Speculative Progress</h2>
@@ -1089,6 +1140,44 @@ function addEvent(type, message) {
     }
 }
 
+// Rate Limiter State
+async function loadRateLimiterState() {
+    try {
+        const response = await fetch(`/api/runs/${runId}/rate-limiter`);
+        if (!response.ok) {
+            // Run might not be loaded or rate limiter not initialized
+            document.getElementById('rate-limiter-section').style.display = 'none';
+            return;
+        }
+        const data = await response.json();
+
+        // Show section
+        document.getElementById('rate-limiter-section').style.display = 'block';
+
+        // Update status badge
+        const statusBadge = document.getElementById('rate-limiter-status-badge');
+        statusBadge.textContent = data.status;
+        statusBadge.className = `status status-${data.status}`;
+
+        // Update rate stats
+        document.getElementById('rate-limiter-rate').textContent = data.approximate_requests_per_minute.toFixed(1);
+        document.getElementById('rate-limiter-tokens').textContent = data.tokens.toFixed(2);
+        document.getElementById('rate-limiter-bucket-size').textContent = data.bucket_size.toFixed(1);
+        document.getElementById('rate-limiter-congestion').textContent = (data.last_congestion_rate * 60).toFixed(1);
+        document.getElementById('rate-limiter-jitter').textContent = `±${data.jitter.toFixed(1)}`;
+
+        // Update request stats
+        document.getElementById('rate-limiter-total').textContent = data.total_requests;
+        document.getElementById('rate-limiter-successes').textContent = data.total_successes;
+        document.getElementById('rate-limiter-limited').textContent = data.total_rate_limited;
+        document.getElementById('rate-limiter-success-rate').textContent = data.success_rate.toFixed(1);
+
+    } catch (error) {
+        console.error('Failed to load rate limiter state:', error);
+        document.getElementById('rate-limiter-section').style.display = 'none';
+    }
+}
+
 // Speculative Progress
 let currentSpeculativeData = null;
 
@@ -1290,6 +1379,7 @@ loadErrors();
 loadCompressionStats();
 loadCompressionDetails();
 loadDataStats();
+loadRateLimiterState();
 loadSpeculativeProgress();
 
 // Auto-refresh every 5 seconds
@@ -1305,6 +1395,7 @@ setInterval(() => {
     loadCompressionStats();
     loadCompressionDetails();
     loadDataStats();
+    loadRateLimiterState();
     loadSpeculativeProgress();
 }, 5000);
 </script>

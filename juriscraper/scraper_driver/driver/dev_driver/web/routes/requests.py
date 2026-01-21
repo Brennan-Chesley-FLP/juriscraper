@@ -196,6 +196,8 @@ async def get_request_summary(
     Returns a pivot table with one row per continuation, showing counts
     for each status (pending, in_progress, completed, failed, held, cancelled).
 
+    Bookkeeping requests (those without URLs) are excluded from the summary.
+
     Args:
         run_id: The run identifier.
 
@@ -206,9 +208,11 @@ async def get_request_summary(
     db = sql_manager.db
 
     # Query counts grouped by continuation and status
+    # Exclude bookkeeping requests (those without URLs)
     query = """
         SELECT continuation, status, COUNT(*) as count
         FROM requests
+        WHERE url IS NOT NULL AND url != ''
         GROUP BY continuation, status
         ORDER BY continuation
     """

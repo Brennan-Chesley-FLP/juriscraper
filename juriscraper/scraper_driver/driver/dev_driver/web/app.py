@@ -158,11 +158,12 @@ class RunManager:
         from juriscraper.scraper_driver.common.request_manager import (
             AsyncRequestManager,
         )
+        from juriscraper.scraper_driver.driver.dev_driver.atb_rate_limiter import (
+            ATBAsyncInterceptor,
+            ATBConfig,
+        )
         from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
             LocalDevDriver,
-        )
-        from juriscraper.scraper_driver.driver.dev_driver.rate_limiter import (
-            JitterRateLimitInterceptor,
         )
         from juriscraper.scraper_driver.driver.dev_driver.schema import (
             init_database,
@@ -185,8 +186,15 @@ class RunManager:
             storage_dir = get_storage_dir_for_run(self.runs_dir, run_id)
 
             # Extract config from driver_kwargs
-            base_delay = driver_kwargs.get("base_delay", 10.0)
-            jitter = driver_kwargs.get("jitter", 2.0)
+            # ATB config parameters
+            initial_rate = driver_kwargs.pop("initial_rate", 0.1)
+            bucket_size = driver_kwargs.pop("bucket_size", 4.0)
+            jitter = driver_kwargs.pop("jitter", 2.0)
+            first_step = driver_kwargs.pop("first_step", 1.5)
+            second_step = driver_kwargs.pop("second_step", 1.2)
+            min_rate = driver_kwargs.pop("min_rate", 0.01)
+            # Legacy parameters (kept for metadata compatibility)
+            base_delay = driver_kwargs.pop("base_delay", 10.0)
             num_workers = driver_kwargs.get("num_workers", 1)
             max_backoff_time = driver_kwargs.get("max_backoff_time", 3600.0)
             speculation_config = driver_kwargs.pop("speculation_config", None)
@@ -208,11 +216,18 @@ class RunManager:
                 speculation_config=speculation_config,
             )
 
-            # Set up rate limiter interceptor and request manager
-            rate_limiter = JitterRateLimitInterceptor(
-                base_delay_seconds=base_delay,
-                jitter_seconds=jitter,
+            # Set up ATB rate limiter and request manager
+            atb_config = ATBConfig(
+                bucket_size=bucket_size,
+                initial_rate=initial_rate,
+                jitter=jitter,
+                first_step=first_step,
+                second_step=second_step,
+                min_rate=min_rate,
             )
+            rate_limiter = ATBAsyncInterceptor(atb_config, sql_manager)
+            await rate_limiter.initialize()
+
             request_manager = AsyncRequestManager(
                 interceptors=[rate_limiter],
                 ssl_context=scraper.get_ssl_context(),
@@ -272,11 +287,12 @@ class RunManager:
         from juriscraper.scraper_driver.common.request_manager import (
             AsyncRequestManager,
         )
+        from juriscraper.scraper_driver.driver.dev_driver.atb_rate_limiter import (
+            ATBAsyncInterceptor,
+            ATBConfig,
+        )
         from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
             LocalDevDriver,
-        )
-        from juriscraper.scraper_driver.driver.dev_driver.rate_limiter import (
-            JitterRateLimitInterceptor,
         )
         from juriscraper.scraper_driver.driver.dev_driver.schema import (
             init_database,
@@ -304,8 +320,15 @@ class RunManager:
             storage_dir = get_storage_dir_for_run(self.runs_dir, run_id)
 
             # Extract config from driver_kwargs
-            base_delay = driver_kwargs.get("base_delay", 10.0)
-            jitter = driver_kwargs.get("jitter", 2.0)
+            # ATB config parameters (with defaults)
+            initial_rate = driver_kwargs.pop("initial_rate", 0.1)
+            bucket_size = driver_kwargs.pop("bucket_size", 4.0)
+            jitter = driver_kwargs.pop("jitter", 2.0)
+            first_step = driver_kwargs.pop("first_step", 1.5)
+            second_step = driver_kwargs.pop("second_step", 1.2)
+            min_rate = driver_kwargs.pop("min_rate", 0.01)
+            # Legacy parameters (kept for metadata compatibility)
+            base_delay = driver_kwargs.pop("base_delay", 10.0)
             num_workers = driver_kwargs.get("num_workers", 1)
             max_backoff_time = driver_kwargs.get("max_backoff_time", 3600.0)
             speculation_config = driver_kwargs.pop("speculation_config", None)
@@ -337,11 +360,19 @@ class RunManager:
                     f"Restored {pending_count} pending requests from database"
                 )
 
-            # Set up rate limiter interceptor and request manager
-            rate_limiter = JitterRateLimitInterceptor(
-                base_delay_seconds=base_delay,
-                jitter_seconds=jitter,
+            # Set up ATB rate limiter and request manager
+            # ATB will restore its state from the database if it exists
+            atb_config = ATBConfig(
+                bucket_size=bucket_size,
+                initial_rate=initial_rate,
+                jitter=jitter,
+                first_step=first_step,
+                second_step=second_step,
+                min_rate=min_rate,
             )
+            rate_limiter = ATBAsyncInterceptor(atb_config, sql_manager)
+            await rate_limiter.initialize()
+
             request_manager = AsyncRequestManager(
                 interceptors=[rate_limiter],
                 ssl_context=scraper.get_ssl_context(),
@@ -835,6 +866,7 @@ def create_app(
         debug_router,
         errors_router,
         export_router,
+        rate_limiter_router,
         requests_router,
         responses_router,
         results_router,
@@ -873,6 +905,7 @@ def create_app(
     app.include_router(export_router)
     app.include_router(debug_router)
     app.include_router(archived_files_router)
+    app.include_router(rate_limiter_router)
     app.include_router(websocket_router)
 
     # Include view routers (HTML pages) - must be last to avoid route conflicts

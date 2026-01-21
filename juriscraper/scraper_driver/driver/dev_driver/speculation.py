@@ -126,11 +126,12 @@ class SpeculationTracker:
 
         # We have a response - check if successful (2xx)
         is_success = 200 <= response.status_code < 300
+        state = self.states[continuation_name]
+
         if is_success:
             # Success resets the counter, continue
+            state.attempts_above_threshold = 0
             return FlowControl.CONTINUE
-
-        state = self.states[continuation_name]
 
         # Non-2xx above threshold: use speculation attempts
         state.attempts_above_threshold += 1

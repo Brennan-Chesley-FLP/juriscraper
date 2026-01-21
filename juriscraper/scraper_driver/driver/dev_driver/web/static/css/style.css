@@ -1127,6 +1127,88 @@ main {
     overflow-y: auto;
 }
 
+/* Rate Limiter Section */
+.rate-limiter-section {
+    margin-bottom: 2rem;
+}
+
+.rate-limiter-grid {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 1.5rem;
+    background: white;
+    border-radius: 8px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    align-items: center;
+}
+
+.rate-limiter-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rate-limiter-status .status {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+}
+
+.status-healthy {
+    background: #27ae60;
+    color: white;
+}
+
+.status-throttled {
+    background: #e74c3c;
+    color: white;
+}
+
+.status-recovering {
+    background: #f39c12;
+    color: white;
+}
+
+.rate-limiter-stats,
+.rate-limiter-requests {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.rate-stat {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+.rate-label {
+    font-size: 0.7rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.rate-value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.rate-value.success {
+    color: #27ae60;
+}
+
+.rate-value.warning {
+    color: #e74c3c;
+}
+
+.rate-unit {
+    font-size: 0.7rem;
+    color: #999;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .run-grid {
@@ -1147,5 +1229,14 @@ main {
 
     .form-row {
         flex-direction: column;
+    }
+
+    .rate-limiter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .rate-limiter-stats,
+    .rate-limiter-requests {
+        grid-template-columns: repeat(4, 1fr);
     }
 }

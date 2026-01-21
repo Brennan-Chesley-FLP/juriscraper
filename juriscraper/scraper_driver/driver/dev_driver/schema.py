@@ -21,7 +21,7 @@ from pathlib import Path
 import aiosqlite
 
 # Schema version for migrations
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 # SQL statements for creating tables
 _CREATE_REQUESTS = """
@@ -300,6 +300,23 @@ CREATE TABLE IF NOT EXISTS speculative_start_ids (
 )
 """
 
+_CREATE_RATE_LIMITER_STATE = """
+CREATE TABLE IF NOT EXISTS rate_limiter_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),   -- Single row for this driver
+    tokens REAL NOT NULL DEFAULT 1.0,        -- Current token count
+    rate REAL NOT NULL DEFAULT 0.1,          -- Tokens per second (current rate)
+    bucket_size REAL NOT NULL DEFAULT 4.0,   -- Maximum tokens
+    last_congestion_rate REAL NOT NULL DEFAULT 1.0,  -- Rate at last congestion event
+    jitter REAL NOT NULL DEFAULT 2.0,        -- Uniform jitter ±seconds
+    last_used_at REAL NOT NULL,              -- Unix timestamp of last token acquisition
+    total_requests INTEGER NOT NULL DEFAULT 0,
+    total_successes INTEGER NOT NULL DEFAULT 0,
+    total_rate_limited INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+"""
+
 # Schema metadata table for versioning
 _CREATE_SCHEMA_INFO = """
 CREATE TABLE IF NOT EXISTS schema_info (
@@ -342,6 +359,7 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     await db.execute(_CREATE_RATE_ITEMS)
     await db.execute(_CREATE_SPECULATIVE_PROGRESS)
     await db.execute(_CREATE_SPECULATIVE_START_IDS)
+    await db.execute(_CREATE_RATE_LIMITER_STATE)
 
     # Create all indexes
     for index_sql in _CREATE_REQUESTS_INDEXES:
@@ -460,6 +478,18 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT INTO schema_info (version) VALUES (?)",
             (6,),
+        )
+        current_version = 6
+
+    # Migration 6 -> 7: Add rate_limiter_state table
+    if current_version < 7:
+        # Create the table if it doesn't exist
+        await db.execute(_CREATE_RATE_LIMITER_STATE)
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (7,),
         )
 
     # Record initial schema version if not present

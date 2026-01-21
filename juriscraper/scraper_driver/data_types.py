@@ -921,12 +921,16 @@ class SpeculationContext:
         parent_request: The request that initiated the continuation containing the generator.
         original_response: The Response that was passed to the continuation method.
         originating_continuation: Name of the continuation method that yielded this request.
+        pre_approved: If True, the speculation handler already approved this request
+            during early-continue optimization. The handler should not be called again,
+            but the continuation should still only be invoked for 2xx responses.
     """
 
     parked_generator: Generator[ScraperYield, bool | None, None]
     parent_request: BaseRequest
     original_response: Response
     originating_continuation: str
+    pre_approved: bool = False
 
 
 @dataclass(frozen=True)

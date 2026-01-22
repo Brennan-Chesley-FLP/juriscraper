@@ -140,6 +140,7 @@ class TestEarlyContinueOptimization:
             on_speculation_response=speculation_callback,
             initial_rate=100.0,
             num_workers=1,
+            enable_monitor=False,
         ) as driver:
             call_count = 0
 
@@ -216,6 +217,7 @@ class TestEarlyContinueOptimization:
             on_speculation_response=speculation_callback,
             initial_rate=100.0,
             num_workers=1,
+            enable_monitor=False,
         ) as driver:
 
             async def make_response(method, url, **kwargs):
@@ -333,6 +335,7 @@ class TestEarlyContinueOptimization:
             on_speculation_response=speculation_callback,
             initial_rate=100.0,
             num_workers=1,
+            enable_monitor=False,
         ) as driver:
 
             def make_response(**kwargs):
@@ -440,6 +443,7 @@ class TestEarlyContinueOptimization:
             on_speculation_response=speculation_callback,
             initial_rate=100.0,
             num_workers=1,
+            enable_monitor=False,
         ) as driver:
 
             def make_response(**kwargs):
@@ -539,6 +543,7 @@ class TestEarlyContinueOptimization:
             on_speculation_response=speculation_callback,
             initial_rate=100.0,
             num_workers=1,
+            enable_monitor=False,
         ) as driver:
 
             async def make_response_async(method, url, **kwargs):

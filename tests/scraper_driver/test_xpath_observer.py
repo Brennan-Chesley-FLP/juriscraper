@@ -89,7 +89,7 @@ class TestNestedQueries:
     """Test nested queries on result elements."""
 
     def test_nested_queries(self) -> None:
-        """Queries on result elements appear as children in tree."""
+        """Queries on result elements are recorded with parent tracking."""
         tree = CheckedHtmlElement(
             lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
         )
@@ -102,12 +102,13 @@ class TestNestedQueries:
             rows = table.checked_xpath(".//tr[@class='row']", "rows")
             assert len(rows) == 3
 
-        # Should have 2 top-level queries (table query and rows query)
-        # Note: The current implementation adds queries to root level,
-        # not as children. This is because the observer doesn't track
-        # which element a query was executed on. This test documents
-        # the current behavior.
+        # Both queries are recorded at top level
         assert len(observer.queries) == 2
+
+        # The rows query has parent_element_id linking to the table query
+        table_query = observer.queries[0]
+        rows_query = observer.queries[1]
+        assert rows_query.parent_element_id == table_query.element_id
 
 
 class TestCssRecording:
@@ -345,3 +346,342 @@ class TestExpectedCounts:
         assert observer.queries[0].expected_max == 1
         assert observer.queries[1].expected_min == 2
         assert observer.queries[1].expected_max is None
+
+
+class TestParentElementTracking:
+    """Test parent element ID tracking for scoped highlighting."""
+
+    def test_root_query_has_no_parent(self) -> None:
+        """Queries on the root tree have no parent_element_id."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            tree.checked_xpath("//table[@id='results']", "results table")
+
+        assert len(observer.queries) == 1
+        assert observer.queries[0].parent_element_id is None
+
+    def test_child_query_has_parent_id(self) -> None:
+        """Queries on result elements have parent_element_id set."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            table = tree.checked_xpath(
+                "//table[@id='results']", "results table"
+            )[0]
+            # Query on a result element should have parent_element_id
+            table.checked_xpath(".//tr[@class='row']", "rows")
+
+        assert len(observer.queries) == 2
+        table_query = observer.queries[0]
+        rows_query = observer.queries[1]
+
+        # Table query has no parent
+        assert table_query.parent_element_id is None
+
+        # Rows query should reference the table query
+        assert rows_query.parent_element_id == table_query.element_id
+
+    def test_deeply_nested_parent_chain(self) -> None:
+        """Multiple levels of nesting track parent chain correctly."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            # Level 0: root query
+            table = tree.checked_xpath(
+                "//table[@id='results']", "results table"
+            )[0]
+            # Level 1: query on table
+            rows = table.checked_xpath(".//tr[@class='row']", "rows")
+            # Level 2: query on first row
+            cells = rows[0].checked_xpath(".//td", "cells")
+            assert len(cells) == 2
+
+        assert len(observer.queries) == 3
+        table_query = observer.queries[0]
+        rows_query = observer.queries[1]
+        cells_query = observer.queries[2]
+
+        # Table (root) -> no parent
+        assert table_query.parent_element_id is None
+
+        # Rows -> parent is table
+        assert rows_query.parent_element_id == table_query.element_id
+
+        # Cells -> parent is rows (the first row element)
+        assert cells_query.parent_element_id == rows_query.element_id
+
+    def test_sibling_queries_same_parent(self) -> None:
+        """Multiple queries on the same parent have the same parent_element_id."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            table = tree.checked_xpath(
+                "//table[@id='results']", "results table"
+            )[0]
+            # Two queries on the same table element
+            table.checked_xpath(".//tr[@class='row']", "rows")
+            table.checked_xpath(".//td[@class='name']", "name cells")
+
+        assert len(observer.queries) == 3
+        table_query = observer.queries[0]
+        rows_query = observer.queries[1]
+        names_query = observer.queries[2]
+
+        # Both child queries should have the same parent (the table query)
+        assert rows_query.parent_element_id == table_query.element_id
+        assert names_query.parent_element_id == table_query.element_id
+
+    def test_same_selector_different_elements_deduplicated(self) -> None:
+        """Same selector on different elements with same parent is deduplicated."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            rows = tree.checked_xpath(".//tr[@class='row']", "rows")
+            # Query on first row
+            rows[0].checked_xpath(".//td[@class='name']", "first row name")
+            # Query on second row - same selector, same parent query
+            rows[1].checked_xpath(".//td[@class='name']", "second row name")
+
+        # Deduplicated: only 2 queries (rows + one deduplicated name query)
+        assert len(observer.queries) == 2
+        rows_query = observer.queries[0]
+        name_query = observer.queries[1]
+
+        # The deduplicated query has the rows query as parent
+        assert name_query.parent_element_id == rows_query.element_id
+
+        # Match count is aggregated (1 + 1 = 2)
+        assert name_query.match_count == 2
+
+        # Samples are collected from both (up to max_samples)
+        assert len(name_query.sample_elements) == 2
+        assert "Item One" in name_query.sample_elements[0]
+        assert "Item Two" in name_query.sample_elements[1]
+
+    def test_parent_element_id_in_json(self) -> None:
+        """parent_element_id is included in JSON serialization."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            table = tree.checked_xpath(
+                "//table[@id='results']", "results table"
+            )[0]
+            table.checked_xpath(".//tr[@class='row']", "rows")
+
+        result = observer.json()
+
+        assert len(result) == 2
+        # Root query
+        assert "parent_element_id" in result[0]
+        assert result[0]["parent_element_id"] is None
+        # Child query
+        assert "parent_element_id" in result[1]
+        assert result[1]["parent_element_id"] == result[0]["element_id"]
+
+    def test_css_queries_track_parent(self) -> None:
+        """CSS selector queries also track parent_element_id."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            table = tree.checked_css("table#results", "results table")[0]
+            table.checked_css("tr.row", "rows")
+
+        assert len(observer.queries) == 2
+        table_query = observer.queries[0]
+        rows_query = observer.queries[1]
+
+        assert table_query.parent_element_id is None
+        assert rows_query.parent_element_id == table_query.element_id
+
+
+class TestSelectorDeduplication:
+    """Test deduplication of repeated selectors with same parent."""
+
+    def test_parent_child_single_iteration(self) -> None:
+        """parent > child: Single child query is recorded once."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            rows = tree.checked_xpath(".//tr[@class='row']", "rows")
+            # Just one child query
+            rows[0].checked_xpath(".//td[@class='name']", "name cell")
+
+        # 2 queries: parent + 1 child
+        assert len(observer.queries) == 2
+
+        rows_query = observer.queries[0]
+        name_query = observer.queries[1]
+
+        assert rows_query.selector == ".//tr[@class='row']"
+        assert name_query.selector == ".//td[@class='name']"
+        assert name_query.parent_element_id == rows_query.element_id
+        assert name_query.match_count == 1
+
+    def test_parent_child_child_two_iterations(self) -> None:
+        """parent > child+child: Two iterations deduplicated into one query."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            rows = tree.checked_xpath(".//tr[@class='row']", "rows")
+            # Two iterations with same selector
+            rows[0].checked_xpath(".//td[@class='name']", "name cell")
+            rows[1].checked_xpath(".//td[@class='name']", "name cell")
+
+        # Still 2 queries: parent + 1 deduplicated child
+        assert len(observer.queries) == 2
+
+        rows_query = observer.queries[0]
+        name_query = observer.queries[1]
+
+        assert name_query.parent_element_id == rows_query.element_id
+        # Match count aggregated from both iterations
+        assert name_query.match_count == 2
+        # Samples from both
+        assert len(name_query.sample_elements) == 2
+
+    def test_parent_child_times_three(self) -> None:
+        """parent > child*3: Three iterations deduplicated into one query."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            rows = tree.checked_xpath(".//tr[@class='row']", "rows")
+            # Three iterations with same selector
+            for row in rows:
+                row.checked_xpath(".//td[@class='name']", "name cell")
+
+        # Still 2 queries: parent + 1 deduplicated child
+        assert len(observer.queries) == 2
+
+        rows_query = observer.queries[0]
+        name_query = observer.queries[1]
+
+        assert name_query.parent_element_id == rows_query.element_id
+        # Match count aggregated from all three iterations
+        assert name_query.match_count == 3
+        # Samples capped at max_samples (default 3)
+        assert len(name_query.sample_elements) == 3
+        assert "Item One" in name_query.sample_elements[0]
+        assert "Item Two" in name_query.sample_elements[1]
+        assert "Item Three" in name_query.sample_elements[2]
+
+    def test_different_selectors_not_deduplicated(self) -> None:
+        """Different selectors on same parent are not deduplicated."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            rows = tree.checked_xpath(".//tr[@class='row']", "rows")
+            # Different selectors in iteration
+            rows[0].checked_xpath(".//td[@class='name']", "name cell")
+            rows[0].checked_xpath(".//td[@class='value']", "value cell")
+
+        # 3 queries: parent + 2 different children
+        assert len(observer.queries) == 3
+
+        assert observer.queries[1].selector == ".//td[@class='name']"
+        assert observer.queries[2].selector == ".//td[@class='value']"
+
+    def test_same_selector_different_parents_not_deduplicated(self) -> None:
+        """Same selector with different parent queries are not deduplicated."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            # Two separate parent queries
+            table1 = tree.checked_xpath("//table[@id='results']", "table 1")[0]
+            # Query within first parent context
+            table1.checked_xpath(".//td", "cells from table1")
+
+            # Simulate a second parent by querying the same table differently
+            table2 = tree.checked_xpath("//div/table", "table 2")[0]
+            table2.checked_xpath(".//td", "cells from table2")
+
+        # 4 queries: table1, cells1, table2, cells2
+        assert len(observer.queries) == 4
+
+        table1_query = observer.queries[0]
+        cells1_query = observer.queries[1]
+        table2_query = observer.queries[2]
+        cells2_query = observer.queries[3]
+
+        # Same selector but different parents = not deduplicated
+        assert cells1_query.selector == ".//td"
+        assert cells2_query.selector == ".//td"
+        assert cells1_query.parent_element_id == table1_query.element_id
+        assert cells2_query.parent_element_id == table2_query.element_id
+        assert cells1_query.element_id != cells2_query.element_id
+
+    def test_dedup_aggregates_samples_up_to_max(self) -> None:
+        """Deduplication respects max_samples limit when aggregating."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver(max_samples=2) as observer:
+            rows = tree.checked_xpath(".//tr[@class='row']", "rows")
+            for row in rows:  # 3 rows
+                row.checked_xpath(".//td[@class='name']", "name cell")
+
+        name_query = observer.queries[1]
+
+        # Match count includes all 3
+        assert name_query.match_count == 3
+        # But samples capped at max_samples=2
+        assert len(name_query.sample_elements) == 2
+
+    def test_dedup_preserves_first_description(self) -> None:
+        """Deduplicated query keeps the first description."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            rows = tree.checked_xpath(".//tr[@class='row']", "rows")
+            rows[0].checked_xpath(".//td[@class='name']", "first description")
+            rows[1].checked_xpath(".//td[@class='name']", "second description")
+
+        name_query = observer.queries[1]
+        # First description is preserved
+        assert name_query.description == "first description"
+
+    def test_dedup_works_with_css_selectors(self) -> None:
+        """Deduplication also works for CSS selectors."""
+        tree = CheckedHtmlElement(
+            lxml_html.fromstring(SAMPLE_HTML), "http://example.com"
+        )
+
+        with XPathObserver() as observer:
+            rows = tree.checked_css("tr.row", "rows")
+            for row in rows:
+                row.checked_css("td.name", "name cell")
+
+        # 2 queries: parent + deduplicated child
+        assert len(observer.queries) == 2
+
+        name_query = observer.queries[1]
+        assert name_query.selector == "td.name"
+        assert name_query.selector_type == "css"
+        assert name_query.match_count == 3

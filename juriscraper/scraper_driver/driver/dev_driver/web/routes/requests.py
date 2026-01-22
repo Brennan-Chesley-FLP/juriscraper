@@ -5,6 +5,7 @@ This module provides endpoints for:
 - Getting request details
 - Cancelling individual requests
 - Batch cancelling requests by continuation
+- Batch requeuing requests by continuation
 """
 
 from __future__ import annotations
@@ -73,6 +74,23 @@ class CancelByContinuationRequest(BaseModel):
     """Request model for batch cancellation."""
 
     continuation: str = Field(..., description="Continuation to filter by")
+
+
+class RequeueByContinuationRequest(BaseModel):
+    """Request model for batch requeue."""
+
+    continuation: str = Field(..., description="Continuation to filter by")
+    status: str = Field(
+        default="failed",
+        description="Status of requests to requeue (e.g., 'failed', 'completed')",
+    )
+
+
+class RequeueByContinuationResponse(BaseModel):
+    """Response model for batch requeue operations."""
+
+    requeued_count: int
+    message: str
 
 
 class RequestSummaryItem(BaseModel):
@@ -424,4 +442,36 @@ async def cancel_by_continuation(
     return CancelResponse(
         cancelled_count=cancelled_count,
         message=f"Cancelled {cancelled_count} requests with continuation '{request.continuation}'",
+    )
+
+
+@router.post(
+    "/requeue-by-continuation", response_model=RequeueByContinuationResponse
+)
+async def requeue_by_continuation(
+    run_id: str,
+    request: RequeueByContinuationRequest,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> RequeueByContinuationResponse:
+    """Requeue all requests matching continuation and status.
+
+    Creates new pending requests with the same parameters as the
+    original requests.
+
+    Args:
+        run_id: The run identifier.
+        request: Contains continuation name and status filter.
+
+    Returns:
+        Number of requests requeued.
+    """
+    sql_manager = await _get_sql_manager(run_id, manager)
+
+    requeued_count = await sql_manager.requeue_requests_by_continuation(
+        request.continuation, request.status
+    )
+
+    return RequeueByContinuationResponse(
+        requeued_count=requeued_count,
+        message=f"Requeued {requeued_count} '{request.status}' requests with continuation '{request.continuation}'",
     )

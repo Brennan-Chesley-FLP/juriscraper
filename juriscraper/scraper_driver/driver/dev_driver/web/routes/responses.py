@@ -4,13 +4,17 @@ This module provides endpoints for:
 - Listing responses with filters
 - Getting response details
 - Getting decompressed response content
+- Analyzing response output (continuation re-execution with XPath observation)
+- Annotated HTML view with debug palette
 """
 
 from __future__ import annotations
 
-from typing import Annotated
+import json
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
@@ -87,6 +91,56 @@ class SpeculationSummaryResponse(BaseModel):
     skipped: int = 0
     non_speculative: int = 0
     total: int = 0
+
+
+# =============================================================================
+# Response Output Analysis Models (for debug palette)
+# =============================================================================
+
+
+class SelectorInfo(BaseModel):
+    """Information about an XPath/CSS selector query."""
+
+    selector: str
+    selector_type: str  # "xpath" or "css"
+    description: str
+    match_count: int
+    expected_min: int
+    expected_max: int | None
+    sample_elements: list[str]
+    element_id: str  # For highlighting
+    status: str  # "pass" or "fail"
+    children: list[SelectorInfo] = []
+    parent_element_id: str | None = (
+        None  # ID of parent query (for scoped highlights)
+    )
+
+
+class OutputYield(BaseModel):
+    """A single item yielded by a continuation."""
+
+    type: str  # "ParsedData", "NavigatingRequest", "SpeculativeRequest", etc.
+    data_type: str | None = None  # For ParsedData: the model class name
+    preview: str | None = None  # For ParsedData: truncated string repr
+    url: str | None = None  # For request types
+    method: str | None = None  # For request types
+    continuation: str | None = None  # For request types
+    speculative_id: int | None = None  # For SpeculativeRequest
+    expected_type: str | None = None  # For ArchiveRequest
+
+
+class ResponseOutputResponse(BaseModel):
+    """Response model for /output endpoint - continuation analysis."""
+
+    response_id: int
+    continuation: str
+    is_html: bool
+    selectors: list[SelectorInfo]
+    yields: list[OutputYield]
+    yield_summary: dict[
+        str, int
+    ]  # e.g., {"ParsedData": 3, "NavigatingRequest": 2}
+    error: str | None = None
 
 
 @router.get("/speculation-summary", response_model=SpeculationSummaryResponse)
@@ -249,8 +303,6 @@ async def get_response_content(
         HTTPException: 404 if response not found.
         HTTPException: 500 if decompression fails.
     """
-    import json
-
     sql_manager = await _get_sql_manager(run_id, manager)
 
     try:
@@ -291,3 +343,441 @@ async def get_response_content(
             pass
 
     return Response(content=content, media_type=content_type)
+
+
+def _extract_content_type(headers_json: str | None) -> str:
+    """Extract Content-Type from headers JSON."""
+    if not headers_json:
+        return "application/octet-stream"
+    try:
+        headers = json.loads(headers_json)
+        if isinstance(headers, dict):
+            for key, value in headers.items():
+                if key.lower() == "content-type":
+                    return value
+    except json.JSONDecodeError:
+        pass
+    return "application/octet-stream"
+
+
+def _is_html_content_type(content_type: str) -> bool:
+    """Check if content type indicates HTML."""
+    ct_lower = content_type.lower()
+    return "text/html" in ct_lower or "application/xhtml" in ct_lower
+
+
+def _selector_query_to_info(query: dict[str, Any]) -> SelectorInfo:
+    """Convert XPathObserver query dict to SelectorInfo model."""
+    # Determine pass/fail status
+    match_count = query.get("match_count", 0)
+    expected_min = query.get("expected_min", 1)
+    expected_max = query.get("expected_max")
+
+    if match_count >= expected_min:
+        if expected_max is None or match_count <= expected_max:
+            status_val = "pass"
+        else:
+            status_val = "fail"
+    else:
+        status_val = "fail"
+
+    return SelectorInfo(
+        selector=query.get("selector", ""),
+        selector_type=query.get("selector_type", "xpath"),
+        description=query.get("description", ""),
+        match_count=match_count,
+        expected_min=expected_min,
+        expected_max=expected_max,
+        sample_elements=query.get("sample_elements", []),
+        element_id=query.get("element_id", ""),
+        status=status_val,
+        children=[
+            _selector_query_to_info(child)
+            for child in query.get("children", [])
+        ],
+        parent_element_id=query.get("parent_element_id"),
+    )
+
+
+def _describe_yield_for_output(item: Any) -> OutputYield:
+    """Create OutputYield from a yielded item."""
+    from juriscraper.scraper_driver.data_types import (
+        ArchiveRequest,
+        NavigatingRequest,
+        NonNavigatingRequest,
+        ParsedData,
+        SpeculativeRequest,
+    )
+
+    if isinstance(item, ParsedData):
+        data = item.unwrap()
+        data_str = str(data)
+        return OutputYield(
+            type="ParsedData",
+            data_type=type(data).__name__,
+            preview=data_str[:500] + "..."
+            if len(data_str) > 500
+            else data_str,
+        )
+    elif isinstance(item, SpeculativeRequest):
+        # Extract speculative_id from aux_data if present
+        speculative_id = None
+        if item.aux_data and "speculative_id" in item.aux_data:
+            speculative_id = item.aux_data["speculative_id"]
+        return OutputYield(
+            type="SpeculativeRequest",
+            url=item.request.url,
+            method=item.request.method.value,
+            continuation=(
+                item.continuation
+                if isinstance(item.continuation, str)
+                else item.continuation.__name__
+            ),
+            speculative_id=speculative_id,
+        )
+    elif isinstance(item, NavigatingRequest):
+        return OutputYield(
+            type="NavigatingRequest",
+            url=item.request.url,
+            method=item.request.method.value,
+            continuation=(
+                item.continuation
+                if isinstance(item.continuation, str)
+                else item.continuation.__name__
+            ),
+        )
+    elif isinstance(item, ArchiveRequest):
+        # Check ArchiveRequest before NonNavigatingRequest (it's a subclass)
+        return OutputYield(
+            type="ArchiveRequest",
+            url=item.request.url,
+            method=item.request.method.value,
+            continuation=(
+                item.continuation
+                if isinstance(item.continuation, str)
+                else item.continuation.__name__
+            ),
+            expected_type=item.expected_type,
+        )
+    elif isinstance(item, NonNavigatingRequest):
+        return OutputYield(
+            type="NonNavigatingRequest",
+            url=item.request.url,
+            method=item.request.method.value,
+            continuation=(
+                item.continuation
+                if isinstance(item.continuation, str)
+                else item.continuation.__name__
+            ),
+        )
+    elif item is None:
+        return OutputYield(type="None")
+    else:
+        return OutputYield(
+            type="Unknown",
+            preview=str(item)[:200],
+        )
+
+
+async def _get_driver_for_run(run_id: str, manager: RunManager):
+    """Get driver instance for a loaded run.
+
+    Args:
+        run_id: The run identifier.
+        manager: The run manager.
+
+    Returns:
+        LocalDevDriver instance.
+
+    Raises:
+        HTTPException: 404 if run not found, 400 if not loaded.
+    """
+    run_info = await manager.get_run(run_id)
+    if run_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run '{run_id}' not found",
+        )
+    if run_info.driver is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Run '{run_id}' is not loaded. Load it first.",
+        )
+    return run_info.driver
+
+
+@router.get("/{response_id}/output", response_model=ResponseOutputResponse)
+async def get_response_output(
+    run_id: str,
+    response_id: int,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> ResponseOutputResponse:
+    """Analyze a response by re-running its continuation with XPath observation.
+
+    This endpoint retrieves a stored response and re-runs the continuation
+    method with an XPathObserver active to capture all XPath/CSS queries.
+    Returns structured data suitable for the debug palette UI.
+
+    Args:
+        run_id: The run identifier.
+        response_id: The database ID of the response to analyze.
+
+    Returns:
+        Analysis results including selectors, yields, and any errors.
+
+    Raises:
+        HTTPException: 404 if run or response not found.
+        HTTPException: 400 if run not loaded.
+    """
+    from juriscraper.scraper_driver.common.xpath_observer import XPathObserver
+    from juriscraper.scraper_driver.data_types import (
+        HttpMethod,
+        HTTPRequestParams,
+        NavigatingRequest,
+        SpeculativeRequest,
+    )
+    from juriscraper.scraper_driver.data_types import (
+        Response as ScraperResponse,
+    )
+
+    driver = await _get_driver_for_run(run_id, manager)
+
+    # Get response and request data
+    cursor = await driver.db.db.execute(
+        """
+        SELECT
+            r.status_code,
+            r.url,
+            r.headers_json,
+            r.continuation,
+            req.method,
+            req.url as request_url,
+            req.accumulated_data_json,
+            req.aux_data_json,
+            req.permanent_json
+        FROM responses r
+        JOIN requests req ON r.request_id = req.id
+        WHERE r.id = ?
+        """,
+        (response_id,),
+    )
+    row = await cursor.fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Response {response_id} not found",
+        )
+
+    (
+        status_code,
+        url,
+        headers_json,
+        continuation_name,
+        method,
+        request_url,
+        accumulated_data_json,
+        aux_data_json,
+        permanent_json,
+    ) = row
+
+    # Decompress content
+    content = await driver.get_response_content(response_id)
+    if content is None:
+        content = b""
+
+    # Determine if this is HTML
+    content_type = _extract_content_type(headers_json)
+    is_html = _is_html_content_type(content_type)
+
+    # Reconstruct Response object
+    headers = json.loads(headers_json) if headers_json else {}
+    accumulated_data = (
+        json.loads(accumulated_data_json) if accumulated_data_json else {}
+    )
+    aux_data = json.loads(aux_data_json) if aux_data_json else {}
+    permanent = json.loads(permanent_json) if permanent_json else {}
+
+    http_params = HTTPRequestParams(
+        method=HttpMethod(method),
+        url=request_url,
+    )
+    reconstructed_request = NavigatingRequest(
+        request=http_params,
+        continuation=continuation_name,
+        current_location=request_url,
+        accumulated_data=accumulated_data,
+        aux_data=aux_data,
+        permanent=permanent,
+    )
+
+    # Decode content to text
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        text = content.decode("utf-8", errors="replace")
+
+    response = ScraperResponse(
+        status_code=status_code,
+        url=url,
+        content=content,
+        text=text,
+        headers=headers,
+        request=reconstructed_request,
+    )
+
+    # Run continuation with observer
+    yields: list[OutputYield] = []
+    yield_summary: dict[str, int] = {}
+    error: str | None = None
+    selectors: list[SelectorInfo] = []
+
+    with XPathObserver() as observer:
+        try:
+            continuation_method = driver.scraper.get_continuation(
+                continuation_name
+            )
+            gen = continuation_method(response)
+
+            speculation_count = 0
+            for item in gen:
+                yield_info = _describe_yield_for_output(item)
+                yields.append(yield_info)
+
+                # Update summary counts
+                yield_summary[yield_info.type] = (
+                    yield_summary.get(yield_info.type, 0) + 1
+                )
+
+                # Stop after first SpeculativeRequest to prevent infinite generation
+                if isinstance(item, SpeculativeRequest):
+                    speculation_count += 1
+                    if speculation_count >= 1:
+                        break
+
+        except Exception as e:
+            import traceback
+
+            error = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+
+        # Convert observer queries to SelectorInfo list
+        selectors = [_selector_query_to_info(q) for q in observer.json()]
+
+    return ResponseOutputResponse(
+        response_id=response_id,
+        continuation=continuation_name,
+        is_html=is_html,
+        selectors=selectors,
+        yields=yields,
+        yield_summary=yield_summary,
+        error=error,
+    )
+
+
+@router.get("/{response_id}/annotated")
+async def get_annotated_response(
+    run_id: str,
+    response_id: int,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> Response:
+    """Get HTML response with injected debug palette.
+
+    For HTML responses, this endpoint returns the content with JavaScript
+    and CSS injected to display an interactive debug palette. The palette
+    allows highlighting XPath/CSS selector matches and viewing continuation
+    output.
+
+    For non-HTML responses, redirects to the /content endpoint.
+
+    Args:
+        run_id: The run identifier.
+        response_id: The response ID.
+
+    Returns:
+        HTML with injected debug palette, or redirect for non-HTML.
+
+    Raises:
+        HTTPException: 404 if response not found.
+    """
+    sql_manager = await _get_sql_manager(run_id, manager)
+
+    try:
+        result = await sql_manager.get_response_content_with_headers(
+            response_id
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to decompress content: {e}",
+        ) from e
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Response {response_id} not found in run '{run_id}'",
+        )
+
+    content, headers_json = result
+
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Response {response_id} has no content",
+        )
+
+    # Check if HTML
+    content_type = _extract_content_type(headers_json)
+    if not _is_html_content_type(content_type):
+        # Redirect to raw content for non-HTML
+        return RedirectResponse(
+            url=f"/api/runs/{run_id}/responses/{response_id}/content",
+            status_code=status.HTTP_302_FOUND,
+        )
+
+    # Decode HTML
+    try:
+        html = content.decode("utf-8")
+    except UnicodeDecodeError:
+        html = content.decode("utf-8", errors="replace")
+
+    # Inject debug palette
+    output_url = f"/api/runs/{run_id}/responses/{response_id}/output"
+    injected_html = _inject_debug_palette(html, output_url)
+
+    return Response(content=injected_html, media_type="text/html")
+
+
+def _inject_debug_palette(html: str, output_url: str) -> str:
+    """Inject debug palette assets into HTML.
+
+    Args:
+        html: The original HTML content.
+        output_url: URL to fetch output data from.
+
+    Returns:
+        HTML with debug palette injected.
+    """
+    injection = f'''
+<!-- Debug Palette Styles -->
+<link rel="stylesheet" href="/static/css/debug_palette.css">
+
+<!-- Debug Palette Container -->
+<div id="debug-palette-root"></div>
+
+<!-- Debug Palette Script -->
+<script>
+  window.DEBUG_PALETTE_CONFIG = {{
+    outputUrl: "{output_url}"
+  }};
+</script>
+<script src="/static/js/debug_palette.js"></script>
+'''
+
+    # Try to inject before </body>
+    body_close_lower = html.lower().rfind("</body>")
+    if body_close_lower != -1:
+        # Find the actual position (case-preserved)
+        return html[:body_close_lower] + injection + html[body_close_lower:]
+    else:
+        # No </body> tag, append to end
+        return html + injection

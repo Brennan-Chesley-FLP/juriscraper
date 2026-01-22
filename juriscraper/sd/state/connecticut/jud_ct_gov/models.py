@@ -21,6 +21,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Annotated
 
+from pydantic import BaseModel
+
 from juriscraper.scraper_driver.common.models.base import (
     Audio,
     Docket,
@@ -157,15 +159,82 @@ class ConnOralArgument(Audio):
     """Internal audio ID from the CT system (e.g., 2365 from PlayAudio.aspx?ID=2365)"""
 
 
+class ConnPreliminaryPaper(BaseModel):
+    """Preliminary paper information for a party.
+
+    Represents the preliminary papers filed by a party including statement
+    of issues, clerk appendix designation, transcript certificate, etc.
+    """
+
+    party_name: str
+    """Name of the party who filed the preliminary papers"""
+
+    preliminary_statement_of_issues: date | None = None
+    """Date the Preliminary Statement of Issues was filed"""
+
+    designation_clerk_appendix: date | None = None
+    """Date the Designation of Proposed Contents of Clerk Appendix was filed"""
+
+    certificate_transcript_received: date | None = None
+    """Date the Certificate re Transcript Received was filed"""
+
+    docketing_statement: date | None = None
+    """Date the Docketing Statement was filed"""
+
+    pac_statement: date | None = None
+    """Date the PAC Statement was filed"""
+
+    constitutionality_notice: date | None = None
+    """Date the Constitutionality Notice was filed"""
+
+    sealing_notice: date | None = None
+    """Date the Sealing Notice was filed"""
+
+    certificate_interested_entities: date | None = None
+    """Date the Certificate of Interested Entities was filed"""
+
+
+class ConnTranscriptInfo(BaseModel):
+    """Transcript and exhibit information for a party.
+
+    Represents transcript ordering and delivery information for a party.
+    """
+
+    party_name: str
+    """Name of the party"""
+
+    transcripts_ordered: date | None = None
+    """Date transcripts were ordered"""
+
+    estimated_delivery_date: date | None = None
+    """Estimated delivery date for transcripts"""
+
+    delivered_to_party: date | None = None
+    """Date transcripts were delivered to party"""
+
+    pages: int | None = None
+    """Number of transcript pages"""
+
+    delivered_to_court: date | None = None
+    """Date transcripts were delivered to court"""
+
+
 class ConnDocketEntry(DocketEntry):
     """An individual docket entry from Connecticut appellate courts.
 
     Represents a single filing/activity in the Case Activity section.
+    Yielded separately from the parent ConnDocket to simplify document downloads.
     """
 
+    # === Foreign key to parent docket ===
+    docket_id: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    """Parent docket number (e.g., 'AC 48343' for Appellate, 'SC 21125' for Supreme)"""
+
+    # === Required fields ===
     activity_type: str  # Required - e.g., "APPEAL", "MOTION", "ORDER"
     """Activity type (e.g., 'APPEAL', 'MOTION', 'ORDER', 'DISPOSITION')"""
 
+    # === Optional fields ===
     number: str | None = None
     """Activity number (e.g., 'AC 48343', 'AC 243237')"""
 
@@ -189,6 +258,9 @@ class ConnDocketEntry(DocketEntry):
 
     document_url: str | None = None
     """URL to the PDF document (if available)"""
+
+    document_local_path: str | None = None
+    """Local file path to the downloaded PDF document"""
 
     is_paperless: bool = False
     """Whether this is a paperless filing"""
@@ -271,18 +343,33 @@ class ConnDocket(Docket):
     """Case type (e.g., 'CIVIL - FORECLOSURE')"""
 
     # === Related data ===
-    entries: list[ConnDocketEntry] = []
-    """All docket entries (Case Activity section)"""
+    # Note: ConnDocketEntry objects are yielded separately with docket_id reference
+    # to avoid complex accumulated_data threading for document downloads
 
     parties: list[dict] = []
     """List of parties with their attorneys and roles"""
+
+    preliminary_papers: list[ConnPreliminaryPaper] = []
+    """Preliminary papers filed by each party"""
+
+    transcripts: list[ConnTranscriptInfo] = []
+    """Transcript information for each party"""
+
+    exhibits_received_by_court: date | None = None
+    """Date exhibits were received by the court"""
 
     # === Source tracking ===
     source_url: str | None = None
     """URL of the CaseDetail page"""
 
+    subscription_url: str | None = None
+    """URL to subscribe to email notifications for this case"""
+
     is_efiled: bool = False
     """Whether the case was e-filed"""
+
+    unavailable: bool = False
+    """Whether the case is marked as 'not available at this time' (unpublished)"""
 
 
 # Backwards compatibility aliases

@@ -17,6 +17,7 @@ The SQLManager handles:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import time
@@ -37,6 +38,39 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 logger = logging.getLogger(__name__)
+
+
+def compute_cache_key(
+    method: str,
+    url: str,
+    body: bytes | None = None,
+    headers_json: str | None = None,
+) -> str:
+    """Compute a cache key for response caching.
+
+    The cache key is a SHA256 hash of the request parameters that affect
+    the response: method, URL, body, and headers.
+
+    Args:
+        method: HTTP method (GET, POST, etc.).
+        url: Request URL.
+        body: Request body bytes (for POST/PUT requests).
+        headers_json: JSON-encoded headers (optional).
+
+    Returns:
+        Hex-encoded SHA256 hash string.
+    """
+    hasher = hashlib.sha256()
+    hasher.update(method.encode("utf-8"))
+    hasher.update(b"\x00")
+    hasher.update(url.encode("utf-8"))
+    hasher.update(b"\x00")
+    if body:
+        hasher.update(body)
+    hasher.update(b"\x00")
+    if headers_json:
+        hasher.update(headers_json.encode("utf-8"))
+    return hasher.hexdigest()
 
 
 T = TypeVar("T")
@@ -565,6 +599,9 @@ class SQLManager:
             queue_counter = await get_next_queue_counter(self._db)
             created_at_ns = time.monotonic_ns()
 
+            # Compute cache key for response caching
+            cache_key = compute_cache_key(method, url, body, headers_json)
+
             cursor = await self._db.execute(
                 SQL.INSERT_REQUEST,
                 (
@@ -585,6 +622,7 @@ class SQLManager:
                     dedup_key,
                     parent_id,
                     created_at_ns,
+                    cache_key,
                 ),
             )
             await self._db.commit()
@@ -928,6 +966,57 @@ class SQLManager:
         )
         return await cursor.fetchone()
 
+    async def get_cached_response(
+        self, cache_key: str
+    ) -> dict[str, Any] | None:
+        """Look up a cached response by cache key.
+
+        Returns the most recent successful (2xx) response for the given
+        cache key, if one exists.
+
+        Args:
+            cache_key: The cache key (hash of method+url+body+headers).
+
+        Returns:
+            Dictionary with response data if found, None otherwise.
+            Keys: id, request_id, status_code, headers_json, url,
+                  content_compressed, compression_dict_id, created_at, method
+        """
+        cursor = await self._db.execute(
+            SQL.SELECT_CACHED_RESPONSE_BY_KEY, (cache_key,)
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+
+        return {
+            "id": row[0],
+            "request_id": row[1],
+            "status_code": row[2],
+            "headers_json": row[3],
+            "url": row[4],
+            "content_compressed": row[5],
+            "compression_dict_id": row[6],
+            "created_at": row[7],
+            "method": row[8],
+        }
+
+    async def get_compression_dict(self, dict_id: int) -> bytes | None:
+        """Get compression dictionary data by ID.
+
+        Args:
+            dict_id: The database ID of the compression dictionary.
+
+        Returns:
+            Dictionary bytes if found, None otherwise.
+        """
+        cursor = await self._db.execute(
+            "SELECT dictionary_data FROM compression_dicts WHERE id = ?",
+            (dict_id,),
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else None
+
     # --- Result Storage ---
 
     async def store_result(
@@ -1139,6 +1228,7 @@ class SQLManager:
                 None,  # No dedup_key
                 None,  # No parent_id
                 created_at_ns,  # Nanosecond timestamp
+                None,  # No cache_key for resume requests
             ),
         )
         await self._db.commit()
@@ -1458,6 +1548,54 @@ class SQLManager:
         )
         await self._db.commit()
         return cursor.rowcount
+
+    async def requeue_requests_by_continuation(
+        self, continuation: str, status: str
+    ) -> int:
+        """Requeue all requests matching continuation and status.
+
+        Creates new pending requests with the same parameters as the
+        original requests.
+
+        Args:
+            continuation: The continuation method name to filter by.
+            status: The status to filter by (e.g., 'failed', 'completed').
+
+        Returns:
+            Number of requests requeued.
+        """
+        # Get all matching requests
+        cursor = await self._db.execute(
+            SQL.SELECT_REQUESTS_FOR_BATCH_REQUEUE, (continuation, status)
+        )
+        rows = await cursor.fetchall()
+
+        if not rows:
+            return 0
+
+        requeued_count = 0
+        for row in rows:
+            # row: id, method, url, continuation, priority,
+            #      headers_json, cookies_json, body,
+            #      current_location, accumulated_data_json, aux_data_json,
+            #      permanent_json
+            await self.insert_requeue_request(
+                priority=row[4],
+                method=row[1],
+                url=row[2],
+                headers_json=row[5],
+                cookies_json=row[6],
+                body=row[7],
+                continuation=row[3],
+                current_location=row[8],
+                accumulated_data_json=row[9],
+                aux_data_json=row[10],
+                permanent_json=row[11],
+                original_request_id=row[0],
+            )
+            requeued_count += 1
+
+        return requeued_count
 
     # --- Status ---
 

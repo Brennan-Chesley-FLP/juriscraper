@@ -28,6 +28,50 @@ BaseScraper[T]
             - Yield SpeculativeRequest (pagination probing)
 ```
 
+### Early Branching in get_entry()
+
+When a scraper supports multiple data types (opinions, dockets, oral arguments, judges), **branch early in `get_entry()`** to avoid wasting requests on unwanted data:
+
+```python
+def get_entry(self) -> Generator[ScraperYield, None, None]:
+    """Entry point - branch based on requested data types."""
+    requested = self._get_requested_data_types()
+
+    # Opinions are on the archive site
+    if "opinions" in requested:
+        yield NavigatingRequest(
+            url="https://example.com/opinions/archive",
+            continuation=self.parse_opinion_archive,
+        )
+
+    # Dockets are on a separate case search portal
+    if "dockets" in requested:
+        yield NavigatingRequest(
+            url="https://example.com/case-search",
+            continuation=self.parse_case_search,
+        )
+
+    # Oral arguments have their own calendar
+    if "oral_arguments" in requested:
+        yield NavigatingRequest(
+            url="https://example.com/calendar/oral-arguments",
+            continuation=self.parse_oral_arguments,
+        )
+
+    # Judge bios are typically on a different part of the site
+    if "judges" in requested:
+        yield NavigatingRequest(
+            url="https://example.com/about/justices",
+            continuation=self.parse_judges_list,
+        )
+```
+
+**Why branch early?**
+- Different data types often live on completely different parts of a court website
+- Avoids fetching and parsing pages you don't need
+- Makes the scraper more efficient when only one data type is requested
+- Keeps step functions focused on one data type
+
 ## Directory Structure
 
 ```
@@ -615,6 +659,77 @@ def parse_list(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
 
 The driver captures the speculative_ids from accumulated data for future invocation of the scraper to look for more data.
 
+#### SpeculativeRequest Rules
+
+**Rule 1: A step that yields SpeculativeRequests should ONLY yield SpeculativeRequests.**
+
+Don't mix SpeculativeRequest with other request types in the same step:
+
+```python
+# BAD: Mixing request types
+@step
+def bad_step(self, lxml_tree):
+    yield NavigatingRequest(...)  # Regular request
+    yield SpeculativeRequest(...) # Speculative - don't mix!
+
+# GOOD: Separate steps
+@step
+def entry_step(self, lxml_tree):
+    yield NavigatingRequest(
+        url="/start",
+        continuation=self.speculative_step,
+    )
+
+@step
+def speculative_step(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
+    id = 1
+    while True:
+        should_continue = yield SpeculativeRequest(...)
+        if not should_continue:
+            break
+        id += 1
+```
+
+**Rule 2: Prefer date-based search over speculative ID probing.**
+
+When exploring a site, look for date-based search/filter options first:
+
+```python
+# PREFERRED: Date-based search (predictable, efficient)
+@step
+def search_by_date(self, lxml_tree):
+    yield NavigatingRequest(
+        url=f"/search?from={start_date}&to={end_date}",
+        continuation=self.parse_results,
+    )
+
+# FALLBACK: Speculative ID probing (when no date search exists)
+# Use this when resources have auto-incremented IDs like:
+#   /case/12345, /opinion/67890, /document?id=111
+@step
+def probe_by_id(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
+    case_id = starting_id
+    while True:
+        should_continue = yield SpeculativeRequest(
+            request=HTTPRequestParams(url=f"/case/{case_id}"),
+            continuation=self.parse_case,
+            accumulated_data={'speculative_id': {'Case': {'id': case_id}}}
+        )
+        if not should_continue:
+            break
+        case_id += 1
+```
+
+**When to use SpeculativeRequest:**
+- Resources at URLs with auto-incremented IDs (e.g., `/case/12345`)
+- No date-based search or filtering available
+- Need to discover the full range of available records
+
+**When NOT to use SpeculativeRequest:**
+- Site has date-based search (use that instead)
+- Site has pagination with "next page" links (use NavigatingRequest)
+- Site has an index/list page you can parse
+
 ### CheckedHtmlElement
 
 Wrapper that validates XPath/CSS results against expected counts:
@@ -744,7 +859,6 @@ def handle_download(self, response: ArchiveResponse, accumulated_data):
 - [ ] Validated table column headers
 - [ ] Validated expected labeled fields
 - [ ] **Used ArchiveRequest for all binary files (PDFs, audio, etc.)**
-- [ ] Set appropriate rate limiting
 - [ ] Added scraper metadata (court_ids, version, etc.)
 - [ ] Tested with LocalDevDriver
 - [ ] **Created XSD files for each HTML page type in `xsds/` directory**

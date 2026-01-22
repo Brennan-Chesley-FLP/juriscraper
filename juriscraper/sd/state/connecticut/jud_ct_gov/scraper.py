@@ -73,6 +73,8 @@ from .models import (
     ConnOpinion,
     ConnOpinionCluster,
     ConnOralArgument,
+    ConnPreliminaryPaper,
+    ConnTranscriptInfo,
 )
 
 if TYPE_CHECKING:
@@ -280,7 +282,7 @@ class ConnScraper(
             Dict with __VIEWSTATE, __VIEWSTATEGENERATOR, and __EVENTVALIDATION
             if found.
         """
-        viewstate_fields = {}
+        viewstate_fields: dict[str, str] = {}
         field_names = [
             "__VIEWSTATE",
             "__VIEWSTATEGENERATOR",
@@ -288,7 +290,12 @@ class ConnScraper(
         ]
 
         for field_name in field_names:
-            inputs = lxml_tree.xpath(f"//input[@name='{field_name}']/@value")
+            inputs = lxml_tree.checked_xpath(
+                f"//input[@name='{field_name}']/@value",
+                f"ASP.NET {field_name} field",
+                min_count=0,
+                type=str,
+            )
             if inputs:
                 viewstate_fields[field_name] = inputs[0]
 
@@ -972,7 +979,11 @@ class ConnScraper(
         New format: article.ResponseCaseList with section.fullWidth entries
         """
         # Try old format first: term buttons followed by article sections
-        term_buttons = lxml_tree.xpath("//button[contains(text(), 'Term:')]")
+        term_buttons = lxml_tree.checked_xpath(
+            "//button[contains(text(), 'Term:')]",
+            "oral args term buttons",
+            min_count=0,
+        )
 
         if term_buttons:
             # Old format with term buttons
@@ -991,10 +1002,12 @@ class ConnScraper(
 
                 # The article.ResponseCaseList is inside a sibling div, not
                 # a direct sibling article
-                content_sections = button.xpath(
+                content_sections = button.checked_xpath(
                     "following-sibling::div[1]//article[@class='ResponseCaseList']"
                     "//section[@class='fullWidth']"
-                    " | following-sibling::article[1]//section[@class='fullWidth']"
+                    " | following-sibling::article[1]//section[@class='fullWidth']",
+                    "oral args content sections",
+                    min_count=0,
                 )
 
                 for section in content_sections:
@@ -1013,9 +1026,11 @@ class ConnScraper(
             # New format: article.ResponseCaseList with section.fullWidth
             # entries The sections directly contain header.HeaderText with
             # Date Argued
-            sections = lxml_tree.xpath(
+            sections = lxml_tree.checked_xpath(
                 "//article[@class='ResponseCaseList']//section[@class='fullWidth']"
-                " | //section[header[contains(@class, 'HeaderText')]]"
+                " | //section[header[contains(@class, 'HeaderText')]]",
+                "oral args case sections",
+                min_count=0,
             )
 
             for section in sections:
@@ -1050,10 +1065,12 @@ class ConnScraper(
         Works with both old format (div-based) and new format (header-based).
         """
         # Find date - try both old format (div) and new format (header)
-        date_elements = section.xpath(
+        date_elements = section.checked_xpath(
             ".//header[contains(@class, 'HeaderText') and "
             "contains(text(), 'Date Argued:')]"
-            " | .//div[contains(text(), 'Date Argued:')]"
+            " | .//div[contains(text(), 'Date Argued:')]",
+            "date argued element",
+            min_count=0,
         )
 
         if not date_elements:
@@ -1085,9 +1102,11 @@ class ConnScraper(
             return
 
         # Find docket link - works for both formats
-        docket_links = section.xpath(
+        docket_links = section.checked_xpath(
             ".//a[contains(@href, 'appellateinquiry') or "
-            "contains(@href, 'CaseDetail')]"
+            "contains(@href, 'CaseDetail')]",
+            "docket link",
+            min_count=0,
         )
         if not docket_links:
             return
@@ -1116,11 +1135,13 @@ class ConnScraper(
             return
 
         # Find case name - try both formats
-        case_name_elements = section.xpath(
+        case_name_elements = section.checked_xpath(
             ".//div[@class='CaseName']"
             " | .//div[contains(@class, 'Col_7of10')]"
             " | .//div[a[contains(@href, 'appellateinquiry')]]"
-            "/following-sibling::div[1]"
+            "/following-sibling::div[1]",
+            "case name element",
+            min_count=0,
         )
         case_name = "Unknown"
         if case_name_elements:
@@ -1133,7 +1154,11 @@ class ConnScraper(
                 case_name = raw_name
 
         # Find audio link - works for both formats
-        audio_links = section.xpath(".//a[contains(@href, 'PlayAudio')]")
+        audio_links = section.checked_xpath(
+            ".//a[contains(@href, 'PlayAudio')]",
+            "audio link",
+            min_count=0,
+        )
         if not audio_links:
             return
 
@@ -1184,8 +1209,10 @@ class ConnScraper(
         expected_prefix = ORAL_ARGS_CONFIG[court_id]["docket_prefix"]
 
         if not court_year:
-            selected_tab = lxml_tree.xpath(
-                "//a[contains(@class, 'ui-tabs-anchor') and ancestor::li[contains(@class, 'ui-tabs-active')]]"
+            selected_tab = lxml_tree.checked_xpath(
+                "//a[contains(@class, 'ui-tabs-anchor') and ancestor::li[contains(@class, 'ui-tabs-active')]]",
+                "selected court year tab",
+                min_count=0,
             )
             if selected_tab:
                 tab_text = selected_tab[0].text_content().strip()
@@ -1231,9 +1258,17 @@ class ConnScraper(
         ScraperYield[ConnOpinionCluster | ConnOralArgument], None, None
     ]:
         """Parse the audio player page to extract the actual MP3 URL."""
-        audio_sources = lxml_tree.xpath("//audio/source[@src]")
+        audio_sources = lxml_tree.checked_xpath(
+            "//audio/source[@src]",
+            "audio source element",
+            min_count=0,
+        )
         if not audio_sources:
-            audio_sources = lxml_tree.xpath("//source[@type='audio/mpeg']")
+            audio_sources = lxml_tree.checked_xpath(
+                "//source[@type='audio/mpeg']",
+                "mpeg audio source",
+                min_count=0,
+            )
 
         if not audio_sources:
             return
@@ -1373,6 +1408,9 @@ class ConnScraper(
     XPATH_DOCKET_NUMBER = "//span[@id='lblAppealNo']"
     XPATH_CASE_NAME = "//span[@id='lblCaseName']"
     XPATH_STATUS = "//span[@id='lblCaseStatus']"
+    # Some cases display "This case is not available at this time" on a
+    # NotAvailable.aspx page (but URL doesn't change). Detect via this span.
+    XPATH_NOT_AVAILABLE = "//span[@id='lblNotAvailable']"
 
     @step(xsd="xsds/parse_docket_page.xsd")
     def parse_docket_page(
@@ -1393,6 +1431,9 @@ class ConnScraper(
         - Trial court information
         - Parties and attorneys
         - Case activity (docket entries)
+
+        For unavailable cases (unpublished), yields a minimal ConnDocket
+        with unavailable=True.
         """
         crn = accumulated_data.get("crn")
         court_ids_filter = accumulated_data.get("court_ids")
@@ -1400,6 +1441,50 @@ class ConnScraper(
         # Check if we were redirected to an error page
         if DOCKET_CONFIG["error_url"] in response.url:
             return  # No docket at this CRN - this is expected for speculative scraping
+
+        # Check if case is marked as "not available at this time"
+        # These are unpublished cases that show a message like:
+        # "SC 140295 - This case is not available at this time."
+        not_available_elems = lxml_tree.checked_xpath(
+            self.XPATH_NOT_AVAILABLE,
+            "not available message",
+            min_count=0,
+        )
+        if not_available_elems:
+            # Extract docket number from the message (e.g., "SC 140295 - ...")
+            not_available_text = not_available_elems[0].text_content().strip()
+            docket_match = self.DOCKET_NUMBER_PATTERN.match(
+                not_available_text.replace(" ", "")
+            )
+            if not docket_match:
+                # Try with spaces
+                docket_match = re.match(
+                    r"^(SC|AC)\s*(\d+)", not_available_text
+                )
+
+            if docket_match:
+                prefix = docket_match.group(1)
+                docket_num = docket_match.group(2)
+                docket_id = f"{prefix} {docket_num}"
+                court_id = DOCKET_PREFIX_TO_COURT.get(prefix)
+
+                # Filter by court_id if specified
+                if court_ids_filter and court_id not in court_ids_filter:
+                    return
+
+                # Yield a minimal unavailable docket
+                yield ParsedData(
+                    ConnDocket(
+                        crn=crn,
+                        docket_id=docket_id,
+                        court_id=court_id,
+                        case_name="Unavailable",
+                        status="Unavailable",
+                        source_url=response.url,
+                        unavailable=True,
+                    )
+                )
+            return
 
         # Extract docket number from page - this is required
         docket_elems = lxml_tree.checked_xpath(
@@ -1484,94 +1569,78 @@ class ConnScraper(
 
         # === Appeal Case Information ===
         date_filed = extract_date(
-            "//span[@id='ContentPlaceHolder1_lblDateFiled'] | "
-            "//span[contains(@id, 'DateFiled')]",
+            "//span[@id='lblDateFiled']",
             "date filed",
         )
         appeal_by = extract_text(
-            "//span[@id='ContentPlaceHolder1_lblAppealBy'] | "
-            "//span[contains(@id, 'AppealBy')]",
+            "//span[@id='lblAppealBy']",
             "appeal by",
         )
         disposition_method = extract_text(
-            "//span[@id='ContentPlaceHolder1_lblDispMethod'] | "
-            "//span[contains(@id, 'DispMethod')]",
+            "//span[@id='lblDispMethod']",
             "disposition method",
         )
         argued_date = extract_date(
-            "//span[@id='ContentPlaceHolder1_lblArguedDate'] | "
-            "//span[contains(@id, 'ArguedDate')]",
+            "//span[@id='lblArgSub']",
             "argued date",
         )
         disposition_date = extract_date(
-            "//span[@id='ContentPlaceHolder1_lblDispDate'] | "
-            "//span[contains(@id, 'DispDate')]",
+            "//span[@id='lblDispDt']",
             "disposition date",
         )
         submitted_on_briefs_date = extract_date(
-            "//span[@id='ContentPlaceHolder1_lblSOBDate'] | "
-            "//span[contains(@id, 'SOBDate')]",
+            "//span[@id='lblSubmitDt']",
             "submitted on briefs date",
         )
         cite = extract_text(
-            "//span[@id='ContentPlaceHolder1_lblCite'] | "
-            "//span[contains(@id, 'Cite')]",
+            "//span[@id='lblRescript']",
             "citation",
         )
         panel = extract_text(
-            "//span[@id='ContentPlaceHolder1_lblPanel'] | "
-            "//span[contains(@id, 'Panel')]",
+            "//span[@id='lblPanel']",
             "panel",
         )
         response_due_date = extract_date(
-            "//span[@id='ContentPlaceHolder1_lblRespDue'] | "
-            "//span[contains(@id, 'RespDue')]",
+            "//span[@id='lblResponse2Docket']",
             "response due date",
         )
 
         # === Trial Court Information ===
-        trial_court_docket_number = extract_text(
-            "//span[@id='ContentPlaceHolder1_lblTrialCourtDktNum'] | "
-            "//span[contains(@id, 'TrialCourtDktNum')]",
-            "trial court docket number",
-        )
-        # Trial court docket might be a link (optional - min_count=0)
-        trial_docket_link = lxml_tree.checked_xpath(
-            "//a[contains(@id, 'TrialCourtDktNum')]",
-            "trial court docket link",
+        # Trial court docket is in a table with links (dlTCDockets)
+        trial_docket_links = lxml_tree.checked_xpath(
+            "//table[@id='dlTCDockets']//a[contains(@id, 'hlnkDocketNumber')]",
+            "trial court docket links",
             min_count=0,
         )
+        trial_court_docket_number = None
         trial_court_docket_url = None
-        if trial_docket_link:
-            trial_court_docket_url = trial_docket_link[0].get("href")
-            if not trial_court_docket_number:
-                trial_court_docket_number = (
-                    trial_docket_link[0].text_content().strip()
-                )
+        if trial_docket_links:
+            trial_court_docket_url = trial_docket_links[0].get("href")
+            trial_court_docket_number = (
+                trial_docket_links[0].text_content().strip()
+            )
 
         judgment_for = extract_text(
-            "//span[@id='ContentPlaceHolder1_lblJudgmentFor'] | "
-            "//span[contains(@id, 'JudgmentFor')]",
+            "//span[@id='lblJudgementFor'] | "
+            "//span[contains(@id, 'JudgementFor')]",
             "judgment for",
         )
         trial_court = extract_text(
-            "//span[@id='ContentPlaceHolder1_lblTrialCourt'] | "
-            "//span[contains(@id, 'TrialCourt')]",
+            "//span[@id='lblCourt'] | //span[contains(@id, 'Court')]",
             "trial court",
         )
         trial_judge = extract_text(
-            "//span[@id='ContentPlaceHolder1_lblTrialJudge'] | "
+            "//span[@id='lblTrialJudge'] | "
             "//span[contains(@id, 'TrialJudge')]",
             "trial judge",
         )
         judgment_date = extract_date(
-            "//span[@id='ContentPlaceHolder1_lblJudgmentDate'] | "
-            "//span[contains(@id, 'JudgmentDate')]",
+            "//span[@id='lblJudgementdate'] | "
+            "//span[contains(@id, 'Judgementdate')]",
             "judgment date",
         )
         case_type = extract_text(
-            "//span[@id='ContentPlaceHolder1_lblCaseType'] | "
-            "//span[contains(@id, 'CaseType')]",
+            "//span[@id='lblCaseType'] | //span[contains(@id, 'CaseType')]",
             "case type",
         )
 
@@ -1589,7 +1658,18 @@ class ConnScraper(
         # === Parse Case Activity (Docket Entries) ===
         entries = self._parse_docket_entries(lxml_tree)
 
-        # Build and yield the ConnDocket
+        # === Parse Preliminary Papers ===
+        preliminary_papers = self._parse_preliminary_papers(lxml_tree)
+
+        # === Parse Transcripts and Exhibits ===
+        transcripts, exhibits_received_by_court = self._parse_transcripts(
+            lxml_tree
+        )
+
+        # === Extract Subscription URL ===
+        subscription_url = self._extract_subscription_url(lxml_tree)
+
+        # === Yield the ConnDocket (without embedded entries) ===
         docket = ConnDocket(
             crn=crn,
             docket_id=docket_id,
@@ -1612,13 +1692,87 @@ class ConnScraper(
             trial_judge=trial_judge,
             judgment_date=judgment_date,
             case_type=case_type,
-            entries=entries,
             parties=parties,
+            preliminary_papers=preliminary_papers,
+            transcripts=transcripts,
+            exhibits_received_by_court=exhibits_received_by_court,
             source_url=response.url,
+            subscription_url=subscription_url,
             is_efiled=is_efiled,
         )
-
         yield ParsedData(docket)
+
+        # === Yield ConnDocketEntry objects ===
+        # Entries without documents are yielded directly.
+        # Entries with documents trigger an ArchiveRequest for download.
+        for entry_data in entries:
+            # Build ConnDocketEntry with docket_id foreign key
+            entry = ConnDocketEntry(
+                docket_id=docket_id,
+                activity_type=entry_data["activity_type"],
+                number=entry_data["number"],
+                date_filed=entry_data["date_filed"],
+                initiated_by=entry_data["initiated_by"],
+                description=entry_data["description"],
+                action=entry_data["action"],
+                action_date=entry_data["action_date"],
+                notice_date=entry_data["notice_date"],
+                document_url=entry_data["document_url"],
+                is_paperless=entry_data["is_paperless"],
+            )
+
+            if entry_data["document_url"]:
+                # Yield ArchiveRequest for document download
+                yield ArchiveRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url=entry_data["document_url"],
+                    ),
+                    continuation=self.handle_docket_document_download,
+                    expected_type="pdf",
+                    accumulated_data={
+                        "entry": entry.model_dump(mode="json"),
+                    },
+                )
+            else:
+                # No document - yield entry directly
+                yield ParsedData(entry)
+
+    @step
+    def handle_docket_document_download(
+        self,
+        response: ArchiveResponse,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[ConnDocketEntry], None, None]:
+        """Handle a downloaded docket document PDF.
+
+        Yields a single ConnDocketEntry with the downloaded document path.
+        """
+        entry_data = accumulated_data["entry"]
+
+        # Helper to parse ISO date strings
+        def iso_to_date(s: str | None) -> date | None:
+            if s:
+                return datetime.fromisoformat(s).date()
+            return None
+
+        # Rebuild entry with local path
+        entry = ConnDocketEntry(
+            docket_id=entry_data["docket_id"],
+            activity_type=entry_data["activity_type"],
+            number=entry_data.get("number"),
+            date_filed=iso_to_date(entry_data.get("date_filed")),
+            initiated_by=entry_data.get("initiated_by"),
+            description=entry_data.get("description"),
+            action=entry_data.get("action"),
+            action_date=iso_to_date(entry_data.get("action_date")),
+            notice_date=iso_to_date(entry_data.get("notice_date")),
+            document_url=entry_data.get("document_url"),
+            document_local_path=response.file_url,
+            is_paperless=entry_data.get("is_paperless", False),
+        )
+
+        yield ParsedData(entry)
 
     def _parse_parties(self, lxml_tree: CheckedHtmlElement) -> list[dict]:
         """Parse party information from the docket page.
@@ -1638,10 +1792,14 @@ class ConnScraper(
 
         for row in party_rows:
             # Skip header rows
-            if row.xpath(".//th"):
+            if row.checked_xpath(".//th", "header cells", min_count=0):
                 continue
 
-            cells = row.xpath(".//td | .//div[contains(@class, 'col')]")
+            cells = row.checked_xpath(
+                ".//td | .//div[contains(@class, 'col')]",
+                "party row cells",
+                min_count=0,
+            )
             if len(cells) >= 3:
                 party = {
                     "name": cells[0].text_content().strip()
@@ -1669,18 +1827,27 @@ class ConnScraper(
 
     def _parse_docket_entries(
         self, lxml_tree: CheckedHtmlElement
-    ) -> list[ConnDocketEntry]:
+    ) -> list[dict]:
         """Parse case activity (docket entries) from the page.
 
-        Returns a list of ConnDocketEntry objects.
-        """
-        entries: list[ConnDocketEntry] = []
+        Returns a list of dicts with entry data (without docket_id).
+        The caller adds docket_id when constructing ConnDocketEntry objects.
 
-        # Docket entries are typically in a table with Case Activity (optional - min_count=0)
+        Table structure (gvActivities):
+        Column 0: Activity - activity type with optional document links
+        Column 1: Number - e.g., "AC 49011"
+        Column 2: Date filed - e.g., "8/7/2025"
+        Column 3: Initiated By - party name or empty
+        Column 4: Description - activity description
+        Column 5: Action - e.g., "Filed", "Granted"
+        Column 6: Action Date
+        Column 7: Notice Date
+        """
+        entries: list[dict] = []
+
+        # Find the Case Activity table by ID (gvActivities)
         activity_tables = lxml_tree.checked_xpath(
-            "//table[contains(@id, 'Activity')] | "
-            "//table[.//th[contains(text(), 'Activity')]] | "
-            "//div[contains(@id, 'Activity')]//table",
+            "//table[@id='gvActivities']",
             "case activity table",
             min_count=0,
         )
@@ -1688,70 +1855,97 @@ class ConnScraper(
         if not activity_tables:
             return entries
 
-        rows = activity_tables[0].xpath(".//tr")
+        # Get all rows from the table
+        rows = activity_tables[0].checked_xpath(
+            ".//tr",
+            "case activity rows",
+            min_count=0,
+        )
 
         for row in rows:
-            # Skip header rows
-            if row.xpath(".//th"):
+            # Skip header rows (rows containing th elements)
+            header_cells = row.checked_xpath(
+                ".//th",
+                "header cells",
+                min_count=0,
+            )
+            if header_cells:
                 continue
 
-            cells = row.xpath(".//td")
-            if len(cells) < 2:
+            # Get data cells - need at least 6 columns for valid entry
+            cells = row.checked_xpath(
+                ".//td",
+                "data cells",
+                min_count=0,
+            )
+            if len(cells) < 6:
                 continue
 
-            # Parse date from first cell
-            date_text = (
-                cells[0].text_content().strip()
-                if cells[0].text_content()
-                else ""
+            # Column 0: Activity type - extract from lblActivity span or text
+            activity_spans = cells[0].checked_xpath(
+                ".//span[contains(@id, 'lblActivity')]",
+                "activity type span",
+                min_count=0,
             )
-            date_filed = None
-            if date_text:
-                date_match = self.DOCKET_DATE_PATTERN.search(date_text)
-                if date_match:
-                    try:
-                        date_filed = datetime.strptime(
-                            date_match.group(1), "%m/%d/%Y"
-                        ).date()
-                    except ValueError:
-                        pass
+            if activity_spans:
+                activity_type = activity_spans[0].text_content().strip()
+            else:
+                # Fallback to text content (strip document links text)
+                activity_type = cells[0].text_content().strip()
+            if not activity_type:
+                activity_type = "Unknown"
 
-            # Activity type and description from second cell
-            activity_type = (
-                cells[1].text_content().strip()
-                if len(cells) > 1 and cells[1].text_content()
-                else "Unknown"
-            )
-
-            # Number from second or third cell
+            # Column 1: Number (e.g., "AC 49011")
             number = None
-            if len(cells) > 2:
-                number_text = cells[2].text_content().strip()
+            if len(cells) > 1:
+                number_text = cells[1].text_content().strip()
                 if number_text:
                     number = number_text
 
-            # Initiated by
+            # Column 2: Date filed
+            date_filed = None
+            if len(cells) > 2:
+                date_text = cells[2].text_content().strip()
+                if date_text:
+                    date_match = self.DOCKET_DATE_PATTERN.search(date_text)
+                    if date_match:
+                        try:
+                            date_filed = datetime.strptime(
+                                date_match.group(1), "%m/%d/%Y"
+                            ).date()
+                        except ValueError:
+                            pass
+
+            # Column 3: Initiated by
             initiated_by = None
             if len(cells) > 3:
                 initiated_by_text = cells[3].text_content().strip()
                 if initiated_by_text:
                     initiated_by = initiated_by_text
 
-            # Description
+            # Column 4: Description - extract from lblDescription span or text
             description = None
             if len(cells) > 4:
-                desc_text = cells[4].text_content().strip()
-                if desc_text:
-                    description = desc_text
+                desc_spans = cells[4].checked_xpath(
+                    ".//span[contains(@id, 'lblDescription')]",
+                    "description span",
+                    min_count=0,
+                )
+                if desc_spans:
+                    description = desc_spans[0].text_content().strip()
+                else:
+                    desc_text = cells[4].text_content().strip()
+                    if desc_text:
+                        description = desc_text
 
-            # Action
+            # Column 5: Action (e.g., "Filed", "Granted")
             action = None
             if len(cells) > 5:
                 action_text = cells[5].text_content().strip()
                 if action_text:
                     action = action_text
 
-            # Action date
+            # Column 6: Action date
             action_date = None
             if len(cells) > 6:
                 action_date_text = cells[6].text_content().strip()
@@ -1767,7 +1961,7 @@ class ConnScraper(
                         except ValueError:
                             pass
 
-            # Notice date
+            # Column 7: Notice date
             notice_date = None
             if len(cells) > 7:
                 notice_date_text = cells[7].text_content().strip()
@@ -1783,31 +1977,246 @@ class ConnScraper(
                         except ValueError:
                             pass
 
-            # Check for PDF document link
+            # Check for PDF document link in the Activity column (first cell)
             document_url = None
-            pdf_links = row.xpath(
-                ".//a[contains(@href, '.pdf') or contains(@href, 'Document')]"
+            pdf_links = cells[0].checked_xpath(
+                ".//a[contains(@href, 'Document')]",
+                "document PDF link",
+                min_count=0,
             )
             if pdf_links:
-                document_url = pdf_links[0].get("href")
+                href = pdf_links[0].get("href")
+                # Resolve relative URLs against base URL
+                document_url = (
+                    urljoin(DOCKET_CONFIG["base_url"], href) if href else None
+                )
 
             # Check for paperless filing indicator
-            is_paperless = bool(
-                row.xpath(".//img[contains(@alt, 'paperless')]")
+            paperless_indicators = row.checked_xpath(
+                ".//img[contains(@alt, 'aperless') or @title='Paperless']",
+                "paperless filing indicator",
+                min_count=0,
             )
+            is_paperless = bool(paperless_indicators)
 
-            entry = ConnDocketEntry(
-                activity_type=activity_type,
-                number=number,
-                date_filed=date_filed,
-                initiated_by=initiated_by,
-                description=description,
-                action=action,
-                action_date=action_date,
-                notice_date=notice_date,
-                document_url=document_url,
-                is_paperless=is_paperless,
-            )
-            entries.append(entry)
+            entry_data = {
+                "activity_type": activity_type,
+                "number": number,
+                "date_filed": date_filed,
+                "initiated_by": initiated_by,
+                "description": description,
+                "action": action,
+                "action_date": action_date,
+                "notice_date": notice_date,
+                "document_url": document_url,
+                "is_paperless": is_paperless,
+            }
+            entries.append(entry_data)
 
         return entries
+
+    def _parse_preliminary_papers(
+        self, lxml_tree: CheckedHtmlElement
+    ) -> list[ConnPreliminaryPaper]:
+        """Parse preliminary papers section from the page.
+
+        Returns a list of ConnPreliminaryPaper objects.
+
+        Table structure (gvPrelimPapers):
+        Column 0: Party Name
+        Column 1: Preliminary Statement of the Issues
+        Column 2: Designation of the Proposed Contents of the Clerk Appendix
+        Column 3: Certificate re Transcript Received
+        Column 4: Docketing Statement
+        Column 5: PAC Statement
+        Column 6: Constitutionality Notice
+        Column 7: Sealing Notice
+        Column 8: Certificate of Interested Entities
+        """
+        papers: list[ConnPreliminaryPaper] = []
+
+        # Find the Preliminary Papers table by ID
+        prelim_tables = lxml_tree.checked_xpath(
+            "//table[@id='gvPrelimPapers']",
+            "preliminary papers table",
+            min_count=0,
+        )
+
+        if not prelim_tables:
+            return papers
+
+        rows = prelim_tables[0].checked_xpath(
+            ".//tr",
+            "preliminary papers rows",
+            min_count=0,
+        )
+
+        # Helper to extract date from cell
+        def get_date_from_cell(cells: list, cell_idx: int) -> date | None:
+            if len(cells) <= cell_idx:
+                return None
+            date_text = cells[cell_idx].text_content().strip()
+            if not date_text or date_text == "\xa0":  # &nbsp;
+                return None
+            date_match = self.DOCKET_DATE_PATTERN.search(date_text)
+            if date_match:
+                try:
+                    return datetime.strptime(
+                        date_match.group(1), "%m/%d/%Y"
+                    ).date()
+                except ValueError:
+                    pass
+            return None
+
+        for row in rows:
+            # Skip header rows
+            if row.checked_xpath(".//th", "header cells", min_count=0):
+                continue
+
+            cells = row.checked_xpath(".//td", "table cells", min_count=0)
+            if len(cells) < 1:
+                continue
+
+            # Column 0: Party Name
+            party_name = cells[0].text_content().strip()
+            if not party_name:
+                continue
+
+            paper = ConnPreliminaryPaper(
+                party_name=party_name,
+                preliminary_statement_of_issues=get_date_from_cell(cells, 1),
+                designation_clerk_appendix=get_date_from_cell(cells, 2),
+                certificate_transcript_received=get_date_from_cell(cells, 3),
+                docketing_statement=get_date_from_cell(cells, 4),
+                pac_statement=get_date_from_cell(cells, 5),
+                constitutionality_notice=get_date_from_cell(cells, 6),
+                sealing_notice=get_date_from_cell(cells, 7),
+                certificate_interested_entities=get_date_from_cell(cells, 8),
+            )
+            papers.append(paper)
+
+        return papers
+
+    def _parse_transcripts(
+        self, lxml_tree: CheckedHtmlElement
+    ) -> tuple[list[ConnTranscriptInfo], date | None]:
+        """Parse transcripts and exhibits section from the page.
+
+        Returns a tuple of (list of ConnTranscriptInfo objects, exhibits_received_date).
+
+        Table structure (gvTranscripts):
+        Column 0: Party
+        Column 1: Transcripts Ordered
+        Column 2: Estimated Delivery Date
+        Column 3: Delivered To Party
+        Column 4: Pages
+        Column 5: Delivered To Court
+
+        Also extracts "Exhibits Received By Court" date from lblExhbitsRecByCourt.
+        """
+        transcripts: list[ConnTranscriptInfo] = []
+        exhibits_received: date | None = None
+
+        # Extract Exhibits Received By Court date
+        exhibits_elem = lxml_tree.checked_xpath(
+            "//span[@id='lblExhbitsRecByCourt']",
+            "exhibits received by court",
+            min_count=0,
+        )
+        if exhibits_elem:
+            exhibits_text = exhibits_elem[0].text_content().strip()
+            if exhibits_text:
+                date_match = self.DOCKET_DATE_PATTERN.search(exhibits_text)
+                if date_match:
+                    try:
+                        exhibits_received = datetime.strptime(
+                            date_match.group(1), "%m/%d/%Y"
+                        ).date()
+                    except ValueError:
+                        pass
+
+        # Find the Transcripts table by ID
+        transcript_tables = lxml_tree.checked_xpath(
+            "//table[@id='gvTranscripts']",
+            "transcripts table",
+            min_count=0,
+        )
+
+        if not transcript_tables:
+            return transcripts, exhibits_received
+
+        rows = transcript_tables[0].checked_xpath(
+            ".//tr",
+            "transcript rows",
+            min_count=0,
+        )
+
+        # Helper to extract date from cell
+        def get_date_from_cell(cells: list, cell_idx: int) -> date | None:
+            if len(cells) <= cell_idx:
+                return None
+            date_text = cells[cell_idx].text_content().strip()
+            if not date_text or date_text == "\xa0":  # &nbsp;
+                return None
+            date_match = self.DOCKET_DATE_PATTERN.search(date_text)
+            if date_match:
+                try:
+                    return datetime.strptime(
+                        date_match.group(1), "%m/%d/%Y"
+                    ).date()
+                except ValueError:
+                    pass
+            return None
+
+        for row in rows:
+            # Skip header rows
+            if row.checked_xpath(".//th", "header cells", min_count=0):
+                continue
+
+            cells = row.checked_xpath(".//td", "table cells", min_count=0)
+            if len(cells) < 1:
+                continue
+
+            # Column 0: Party Name
+            party_name = cells[0].text_content().strip()
+            if not party_name:
+                continue
+
+            # Column 4: Pages (integer, not date)
+            pages = None
+            if len(cells) > 4:
+                pages_text = cells[4].text_content().strip()
+                if pages_text and pages_text != "\xa0":
+                    try:
+                        pages = int(pages_text)
+                    except ValueError:
+                        pass
+
+            transcript = ConnTranscriptInfo(
+                party_name=party_name,
+                transcripts_ordered=get_date_from_cell(cells, 1),
+                estimated_delivery_date=get_date_from_cell(cells, 2),
+                delivered_to_party=get_date_from_cell(cells, 3),
+                pages=pages,
+                delivered_to_court=get_date_from_cell(cells, 5),
+            )
+            transcripts.append(transcript)
+
+        return transcripts, exhibits_received
+
+    def _extract_subscription_url(
+        self, lxml_tree: CheckedHtmlElement
+    ) -> str | None:
+        """Extract the email subscription URL from the page.
+
+        Looks for the "To receive an email when there is activity on this case"
+        link (hlnkSubscribe).
+        """
+        subscribe_links = lxml_tree.checked_xpath(
+            "//a[@id='hlnkSubscribe']",
+            "subscription link",
+            min_count=0,
+        )
+        if subscribe_links:
+            return subscribe_links[0].get("href")
+        return None

@@ -223,6 +223,7 @@ class TestSpeculativeTimeoutRetry:
             max_backoff_time=10.0,
             initial_rate=100.0,
             timeout=1.0,  # 1 second timeout
+            enable_monitor=False,
         ) as driver:
             driver.on_transient_exception = on_transient_handler
             await driver.run()
@@ -334,6 +335,7 @@ class TestSpeculativeTimeoutRetry:
             max_backoff_time=5.0,  # Only 5 seconds of total backoff allowed
             initial_rate=100.0,
             timeout=1.0,  # 1 second timeout
+            enable_monitor=False,
         ) as driver:
             await driver.run()
 
@@ -555,6 +557,7 @@ class TestSpeculativeResume:
             scraper1,
             db_path1,
             initial_rate=100.0,
+            enable_monitor=False,
         ) as driver1:
             driver_ref.append(driver1)
             driver1.on_data = on_data_callback
@@ -609,6 +612,7 @@ class TestSpeculativeResume:
             scraper2,
             db_path2,
             initial_rate=100.0,
+            enable_monitor=False,
         ) as driver2:
             driver2.on_data = on_data_callback_no_stop
             await driver2.run()

@@ -236,6 +236,12 @@
       - If response.url contains "ErrorPage.aspx", the CRN does not exist
       - Error page shows: "Case Not Found"
 
+      Unavailable Cases:
+      - Some cases are marked as "not available at this time" (unpublished)
+      - Detected by: //span[@id='lblNotAvailable']
+      - Content pattern: "{docket_id} - This case is not available at this time."
+      - When found, scraper yields minimal ConnDocket with unavailable=True
+
       Date Format:
       - All dates use MM/DD/YYYY format
       - Regex pattern: \d{1,2}/\d{1,2}/\d{4}

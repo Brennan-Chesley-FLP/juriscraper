@@ -294,6 +294,7 @@ class TestForkedSpeculation:
             db_path,
             initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler,
+            enable_monitor=False,
         ) as driver:
             driver.on_data = on_data
             await driver.run()
@@ -359,6 +360,7 @@ class TestForkedSpeculation:
             db_path_2,
             initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler_2,
+            enable_monitor=False,
         ) as driver_2:
             driver_2.on_data = on_data_2
             await driver_2.run()
@@ -400,6 +402,7 @@ class TestForkedSpeculation:
             db_path_3,
             initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler_3,
+            enable_monitor=False,
         ) as driver_3:
             driver_3.on_data = on_data_3
             await driver_3.run()
@@ -447,6 +450,7 @@ class TestForkedSpeculation:
             db_path_4,
             initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler_4,
+            enable_monitor=False,
         ) as driver_4:
             driver_4.on_data = on_data_4
             await driver_4.run()
@@ -513,6 +517,7 @@ class TestForkedSpeculation:
             db_path_1,
             initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler_1,
+            enable_monitor=False,
         ) as driver_1:
             driver_1.on_data = on_data_1
             await driver_1.run()
@@ -566,6 +571,7 @@ class TestForkedSpeculation:
             db_path_2,
             initial_rate=100.0,  # High rate for tests
             on_speculation_response=speculation_handler_2,
+            enable_monitor=False,
         ) as driver_2:
             driver_2.on_data = on_data_2
             await driver_2.run()
@@ -615,6 +621,7 @@ class TestForkedSpeculation:
             scraper,
             db_path,
             initial_rate=100.0,  # High rate for tests
+            enable_monitor=False,
         ) as driver:
             driver.on_data = on_data
             await driver.run()
@@ -690,6 +697,7 @@ class TestForkedSpeculation:
                 initial_rate=100.0,  # High rate for tests
                 num_workers=num_workers,
                 on_speculation_response=speculation_handler,
+                enable_monitor=False,
             ) as driver:
                 driver.on_data = make_collector(collected_data)
                 await driver.run()

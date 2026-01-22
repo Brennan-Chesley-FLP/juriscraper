@@ -165,7 +165,8 @@ class LocalDevDriver(
         storage_dir: Directory for downloaded files.
         initial_rate: Initial rate limit in requests/second (default: 0.1 = 6 req/min).
         bucket_size: Maximum tokens in the rate limiter bucket (default: 4.0).
-        num_workers: Number of concurrent workers (default: 1).
+        num_workers: Number of initial concurrent workers (default: 1).
+        max_workers: Maximum workers for dynamic scaling (default: 10).
         resume: If True, resume from existing queue state (default: True).
         max_backoff_time: Maximum total backoff time before marking failed (default: 3600.0).
 
@@ -181,10 +182,12 @@ class LocalDevDriver(
         db: SQLManager,
         storage_dir: Path | None = None,
         num_workers: int = 1,
+        max_workers: int = 10,
         resume: bool = True,
         max_backoff_time: float = 3600.0,
         on_speculation_response: OnSpeculationResponseAsync | None = None,
         request_manager: Any | None = None,
+        enable_monitor: bool = True,
     ) -> None:
         """Initialize the driver.
 
@@ -194,7 +197,8 @@ class LocalDevDriver(
             scraper: The scraper instance to run.
             db: SQLManager for database operations.
             storage_dir: Directory for downloaded files.
-            num_workers: Number of concurrent workers.
+            num_workers: Number of initial concurrent workers.
+            max_workers: Maximum workers for dynamic scaling.
             resume: If True, resume from existing queue state.
             max_backoff_time: Maximum total backoff time before marking failed.
             on_speculation_response: Optional async callback invoked when a SpeculativeRequest
@@ -202,6 +206,8 @@ class LocalDevDriver(
                 return True to resume the generator with True (continue speculation) or False to
                 resume with False (stop speculation). Not called for 2xx responses.
             request_manager: AsyncRequestManager for handling HTTP requests.
+            enable_monitor: If True (default), start the worker monitor for dynamic scaling.
+                Set to False for tests that need the driver to exit quickly.
         """
         # Initialize parent with the request manager
         super().__init__(
@@ -213,7 +219,9 @@ class LocalDevDriver(
 
         self.resume = resume
         self.max_backoff_time = max_backoff_time
+        self.max_workers = max_workers
         self.on_speculation_response = on_speculation_response
+        self.enable_monitor = enable_monitor
 
         self.db = db
         # Progress callback for web interface
@@ -223,6 +231,11 @@ class LocalDevDriver(
 
         # Stop event for graceful shutdown (always set, not optional like in parent)
         self.stop_event: asyncio.Event = asyncio.Event()
+
+        # Worker management for dynamic scaling
+        self._worker_tasks: dict[int, asyncio.Task[None]] = {}
+        self._next_worker_id: int = 0
+        self._monitor_task: asyncio.Task[None] | None = None
 
         # Parked generator storage for speculative requests
         # Maps unique speculation ID -> SpeculationContext
@@ -258,6 +271,7 @@ class LocalDevDriver(
         initial_rate = kwargs.pop("initial_rate", 0.1)
         bucket_size = kwargs.pop("bucket_size", 4.0)
         num_workers = kwargs.pop("num_workers", 1)
+        max_workers = kwargs.pop("max_workers", 10)
         max_backoff_time = kwargs.pop("max_backoff_time", 3600.0)
         resume = kwargs.pop("resume", True)
         timeout = kwargs.pop("timeout", None)  # Request timeout in seconds
@@ -307,6 +321,7 @@ class LocalDevDriver(
             sql_manager,
             request_manager=request_manager,
             num_workers=num_workers,
+            max_workers=max_workers,
             max_backoff_time=max_backoff_time,
             resume=resume,
             **kwargs,
@@ -1130,22 +1145,63 @@ class LocalDevDriver(
                         dedup_key=dedup_key,
                     )
 
-            # Start workers
-            logger.info(f"Starting {self.num_workers} workers")
-            workers = [
-                asyncio.create_task(self._db_worker(i))
-                for i in range(self.num_workers)
-            ]
+            # Start initial workers
+            logger.info(
+                f"Starting {self.num_workers} initial workers (max: {self.max_workers})"
+            )
+            for _ in range(self.num_workers):
+                self._spawn_worker()
 
-            # Wait for all workers to complete
+            # Start the worker monitor for dynamic scaling (if enabled)
+            if self.enable_monitor:
+                self._monitor_task = asyncio.create_task(
+                    self._worker_monitor()
+                )
+
+            # Wait for all workers and monitor to complete
             # Workers exit when queue is empty or stop_event is set
-            await asyncio.gather(*workers, return_exceptions=True)
+            # Monitor exits when no workers remain and no pending work
+            while self._worker_tasks or (
+                self._monitor_task and not self._monitor_task.done()
+            ):
+                # Gather current tasks (workers + monitor if still running)
+                tasks_to_wait: list[asyncio.Task[None]] = list(
+                    self._worker_tasks.values()
+                )
+                if self._monitor_task and not self._monitor_task.done():
+                    tasks_to_wait.append(self._monitor_task)
+
+                if not tasks_to_wait:
+                    break
+
+                # Wait for any task to complete
+                done, _ = await asyncio.wait(
+                    tasks_to_wait,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+
+                # Check for exceptions in completed tasks
+                for task in done:
+                    if (
+                        task.exception() is not None
+                        and task is not self._monitor_task
+                    ):
+                        # Re-raise worker exceptions
+                        raise task.exception()  # type: ignore[misc]
 
         except Exception as e:
             status = "error"
             error = e
             raise
         finally:
+            # Cancel monitor if still running
+            if self._monitor_task and not self._monitor_task.done():
+                self._monitor_task.cancel()
+                try:
+                    await self._monitor_task
+                except asyncio.CancelledError:
+                    pass
+
             # Restore signal handlers if we set them up
             if setup_signal_handlers:
                 self._restore_signal_handlers()
@@ -1166,6 +1222,117 @@ class LocalDevDriver(
                     "error": str(error) if error else None,
                 },
             )
+
+    # --- Worker Management ---
+
+    @property
+    def active_worker_count(self) -> int:
+        """Number of currently active workers."""
+        return sum(1 for t in self._worker_tasks.values() if not t.done())
+
+    def _spawn_worker(self) -> int:
+        """Spawn a new worker and return its ID.
+
+        Returns:
+            The worker ID of the newly spawned worker.
+        """
+        worker_id = self._next_worker_id
+        self._next_worker_id += 1
+        task = asyncio.create_task(self._db_worker(worker_id))
+        self._worker_tasks[worker_id] = task
+
+        # Clean up when worker exits
+        def on_worker_done(
+            _: asyncio.Task[None], wid: int = worker_id
+        ) -> None:
+            self._worker_tasks.pop(wid, None)
+
+        task.add_done_callback(on_worker_done)
+
+        logger.info(
+            f"Spawned worker {worker_id}, total active: {self.active_worker_count}"
+        )
+        return worker_id
+
+    async def _worker_monitor(self) -> None:
+        """Monitor task that dynamically scales workers based on conditions.
+
+        Adds a worker if:
+        - There are pending requests
+        - The rate limit > 2 * active_worker_count
+        - active_worker_count < max_workers
+
+        Exits when:
+        - stop_event is set, OR
+        - active_worker_count == 0 and no pending requests
+        """
+        logger.info(
+            f"Worker monitor started (max_workers={self.max_workers}, "
+            f"poll_interval=60s)"
+        )
+
+        while not self.stop_event.is_set():
+            # Wait 60 seconds between checks
+            try:
+                await asyncio.wait_for(self.stop_event.wait(), timeout=60.0)
+                # If we get here, stop_event was set
+                break
+            except asyncio.TimeoutError:
+                # Normal timeout - proceed with check
+                pass
+
+            # Check exit condition: no workers and no pending work
+            active_count = self.active_worker_count
+            pending_count = await self.db.count_pending_requests()
+
+            if active_count == 0 and pending_count == 0:
+                logger.info(
+                    "Worker monitor exiting: no workers and no pending requests"
+                )
+                break
+
+            # Check scaling conditions
+            if pending_count == 0:
+                logger.debug(
+                    f"Worker monitor: no pending requests "
+                    f"(active_workers={active_count})"
+                )
+                continue
+
+            if active_count >= self.max_workers:
+                logger.debug(
+                    f"Worker monitor: at max workers "
+                    f"({active_count}/{self.max_workers})"
+                )
+                continue
+
+            # Get current rate from the ATB rate limiter
+            current_rate = getattr(self.request_manager, "_rate", 0.0)
+
+            # Scale if rate > 2 * active_workers
+            if current_rate > 2 * active_count:
+                new_worker_id = self._spawn_worker()
+                logger.info(
+                    f"Worker monitor: scaled up to {self.active_worker_count} workers "
+                    f"(rate={current_rate:.2f}/s, pending={pending_count})"
+                )
+
+                await self._emit_progress(
+                    "worker_scaled",
+                    {
+                        "worker_id": new_worker_id,
+                        "active_workers": self.active_worker_count,
+                        "current_rate": current_rate,
+                        "pending_requests": pending_count,
+                    },
+                )
+            else:
+                logger.debug(
+                    f"Worker monitor: rate ({current_rate:.2f}/s) <= "
+                    f"2 * workers ({2 * active_count}), no scale-up"
+                )
+
+        logger.info("Worker monitor stopped")
 
     async def _db_worker(self, worker_id: int) -> None:
         """Worker that processes requests from the database queue.

@@ -45,6 +45,9 @@ class SelectorQuery:
     sample_elements: list[str] = field(default_factory=list)
     children: list[SelectorQuery] = field(default_factory=list)
     element_id: str | None = None  # Unique ID for highlighting in UI
+    parent_element_id: str | None = (
+        None  # ID of parent query (for scoped highlights)
+    )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -58,6 +61,7 @@ class SelectorQuery:
             "sample_elements": self.sample_elements,
             "children": [c.to_dict() for c in self.children],
             "element_id": self.element_id,
+            "parent_element_id": self.parent_element_id,
         }
 
 
@@ -73,6 +77,12 @@ class XPathObserver:
 
             print(observer.simple_tree())  # Human-readable tree
             print(observer.json())  # JSON for UI highlighting
+
+    Deduplication:
+        When the same selector is used multiple times with the same parent query
+        (e.g., iterating over rows and selecting the same column from each),
+        the observer deduplicates these into a single query entry. Match counts
+        and sample elements are aggregated.
     """
 
     def __init__(self, max_sample_length: int = 100, max_samples: int = 3):
@@ -88,6 +98,10 @@ class XPathObserver:
         self._query_stack: list[SelectorQuery] = []
         self._element_counter: int = 0
         self._token: contextvars.Token[XPathObserver | None] | None = None
+        # Maps element id() to the query that produced it
+        self._element_to_query: dict[int, SelectorQuery] = {}
+        # Maps (parent_element_id, selector) to existing SelectorQuery for deduplication
+        self._dedup_index: dict[tuple[str | None, str], SelectorQuery] = {}
 
     def __enter__(self) -> XPathObserver:
         """Enter the observer context."""
@@ -125,10 +139,89 @@ class XPathObserver:
             expected_min: Minimum expected count.
             expected_max: Maximum expected count (None = unlimited).
             parent_element: The element the query was executed on.
+
+        Note:
+            Queries with the same (parent_element_id, selector) are deduplicated.
+            Match counts and samples are aggregated into the existing query.
         """
+        # Find parent query if this query was executed on a child element
+        parent_query_id: str | None = None
+        if parent_element is not None:
+            parent_elem_id = id(parent_element)
+            parent_query = self._element_to_query.get(parent_elem_id)
+            if parent_query is not None:
+                parent_query_id = parent_query.element_id
+
+        # Check for existing query with same parent + selector (deduplication)
+        dedup_key = (parent_query_id, selector)
+        existing_query = self._dedup_index.get(dedup_key)
+
+        if existing_query is not None:
+            # Aggregate into existing query
+            existing_query.match_count += len(results)
+
+            # Add more samples if we haven't hit the limit
+            samples_needed = self.max_samples - len(
+                existing_query.sample_elements
+            )
+            if samples_needed > 0:
+                new_samples = self._extract_samples(results[:samples_needed])
+                existing_query.sample_elements.extend(new_samples)
+
+            # Track which elements came from this query (use existing query)
+            for result in results:
+                elem = self._unwrap_element(result)
+                if elem is not None:
+                    self._element_to_query[id(elem)] = existing_query
+
+            return
+
         # Generate sample content from results
+        samples = self._extract_samples(results[: self.max_samples])
+
+        # Generate unique element ID for highlighting
+        self._element_counter += 1
+        element_id = f"xpath_match_{self._element_counter}"
+
+        query = SelectorQuery(
+            selector=selector,
+            selector_type=selector_type,
+            description=description,
+            match_count=len(results),
+            expected_min=expected_min,
+            expected_max=expected_max,
+            sample_elements=samples,
+            element_id=element_id,
+            parent_element_id=parent_query_id,
+        )
+
+        # Register in dedup index
+        self._dedup_index[dedup_key] = query
+
+        # Track which elements came from this query (for future child queries)
+        for result in results:
+            elem = self._unwrap_element(result)
+            if elem is not None:
+                self._element_to_query[id(elem)] = query
+
+        # Add to current context (nested or top-level)
+        if self._query_stack:
+            self._query_stack[-1].children.append(query)
+        else:
+            self.queries.append(query)
+
+    def _unwrap_element(self, result: Any) -> Any | None:
+        """Unwrap a result to get the underlying HtmlElement."""
+        if hasattr(result, "_element"):
+            return result._element
+        elif hasattr(result, "tag"):  # HtmlElement
+            return result
+        return None
+
+    def _extract_samples(self, results: list[Any]) -> list[str]:
+        """Extract sample text content from results."""
         samples = []
-        for result in results[: self.max_samples]:
+        for result in results:
             if hasattr(result, "text_content"):
                 # HtmlElement - get text content
                 text = result.text_content()
@@ -147,27 +240,7 @@ class XPathObserver:
             if len(text) > self.max_sample_length:
                 text = text[: self.max_sample_length] + "..."
             samples.append(text)
-
-        # Generate unique element ID for highlighting
-        self._element_counter += 1
-        element_id = f"xpath_match_{self._element_counter}"
-
-        query = SelectorQuery(
-            selector=selector,
-            selector_type=selector_type,
-            description=description,
-            match_count=len(results),
-            expected_min=expected_min,
-            expected_max=expected_max,
-            sample_elements=samples,
-            element_id=element_id,
-        )
-
-        # Add to current context (nested or top-level)
-        if self._query_stack:
-            self._query_stack[-1].children.append(query)
-        else:
-            self.queries.append(query)
+        return samples
 
     def push_context(self, query: SelectorQuery) -> None:
         """Push a query onto the stack for nested queries."""

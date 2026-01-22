@@ -12,22 +12,29 @@ Key features:
 - Token bucket for burst control
 - Adaptive rate based on server feedback
 - SQL persistence for state recovery
+- Response caching for development efficiency
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import ssl
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+import zstandard as zstd
+
 from juriscraper.scraper_driver.common.interceptors import AsyncInterceptor
 from juriscraper.scraper_driver.common.request_manager import (
     AsyncRequestManager,
 )
 from juriscraper.scraper_driver.data_types import BaseRequest, Response
+from juriscraper.scraper_driver.driver.dev_driver.sql_manager import (
+    compute_cache_key,
+)
 
 if TYPE_CHECKING:
     from juriscraper.scraper_driver.driver.dev_driver.sql_manager import (
@@ -49,6 +56,7 @@ class ATBConfig:
         first_step: Aggressive rate increase multiplier (below congestion). Default: 1.5
         second_step: Conservative rate increase multiplier (above congestion). Default: 1.2
         min_rate: Minimum allowed rate. Default: 0.01
+        max_rate: Maximum allowed rate. Default: None (no cap)
     """
 
     bucket_size: float = 4.0
@@ -58,6 +66,7 @@ class ATBConfig:
     first_step: float = 1.5
     second_step: float = 1.2
     min_rate: float = 0.01
+    max_rate: float = 40.0
 
 
 class ATBAsyncRequestManager(AsyncRequestManager):
@@ -235,7 +244,7 @@ class ATBAsyncRequestManager(AsyncRequestManager):
         """Increase rate based on success.
 
         Uses first_step (aggressive) if below congestion rate,
-        second_step (conservative) if at or above.
+        second_step (conservative) if at or above. Caps at max_rate if configured.
 
         Returns:
             New rate after increase.
@@ -254,6 +263,10 @@ class ATBAsyncRequestManager(AsyncRequestManager):
                 self._rate + min_increase, self._rate * self.config.second_step
             )
             step = "conservative"
+
+        # Apply max_rate cap if configured
+        if self.config.max_rate is not None:
+            new_rate = min(new_rate, self.config.max_rate)
 
         old_rate = self._rate
         self._rate = round(new_rate, 4)
@@ -319,10 +332,13 @@ class ATBAsyncRequestManager(AsyncRequestManager):
             )
 
     async def resolve_request(self, request: BaseRequest) -> Response:
-        """Fetch a BaseRequest with rate limiting.
+        """Fetch a BaseRequest with rate limiting and response caching.
 
-        Waits for token availability, then makes the request and adjusts
-        the rate based on the response.
+        First checks the cache for a matching response. If found, returns
+        the cached response without consuming a rate limit token.
+
+        If not cached, waits for token availability, makes the request,
+        and adjusts the rate based on the response.
 
         Args:
             request: The BaseRequest to fetch. URL should be absolute.
@@ -330,7 +346,13 @@ class ATBAsyncRequestManager(AsyncRequestManager):
         Returns:
             Response containing the HTTP response data.
         """
-        # Wait for rate limiter token
+        # Check cache first
+        cached = await self._get_cached_response(request)
+        if cached is not None:
+            logger.debug(f"Cache hit for {request.request.url}")
+            return cached
+
+        # Cache miss - wait for rate limiter token
         await self._acquire_token()
 
         # Make the actual request via parent class
@@ -340,6 +362,86 @@ class ATBAsyncRequestManager(AsyncRequestManager):
         await self._adjust_rate_for_response(response)
 
         return response
+
+    async def _get_cached_response(
+        self, request: BaseRequest
+    ) -> Response | None:
+        """Check cache for a matching response.
+
+        Args:
+            request: The request to look up.
+
+        Returns:
+            Response if cached, None otherwise.
+        """
+        # Compute cache key from request parameters
+        http_request = request.request
+
+        # Handle body/data - can be bytes, str, dict, etc.
+        body: bytes | None = None
+        if http_request.data:
+            if isinstance(http_request.data, bytes):
+                body = http_request.data
+            elif isinstance(http_request.data, str):
+                body = http_request.data.encode("utf-8")
+            else:
+                # Dict or other - serialize to JSON
+                body = json.dumps(http_request.data, sort_keys=True).encode(
+                    "utf-8"
+                )
+        elif http_request.json is not None:
+            body = json.dumps(http_request.json, sort_keys=True).encode(
+                "utf-8"
+            )
+
+        headers_json = (
+            json.dumps(dict(http_request.headers), sort_keys=True)
+            if http_request.headers
+            else None
+        )
+        cache_key = compute_cache_key(
+            http_request.method.value,
+            http_request.url,
+            body,
+            headers_json,
+        )
+
+        # Look up cached response
+        cached = await self.sql_manager.get_cached_response(cache_key)
+        if cached is None:
+            return None
+
+        # Decompress content
+        content = b""
+        if cached["content_compressed"]:
+            dict_id = cached["compression_dict_id"]
+            if dict_id is not None:
+                dict_data = await self.sql_manager.get_compression_dict(
+                    dict_id
+                )
+                if dict_data:
+                    dict_obj = zstd.ZstdCompressionDict(dict_data)
+                    decompressor = zstd.ZstdDecompressor(dict_data=dict_obj)
+                else:
+                    decompressor = zstd.ZstdDecompressor()
+            else:
+                decompressor = zstd.ZstdDecompressor()
+            content = decompressor.decompress(cached["content_compressed"])
+
+        # Parse headers
+        headers: dict[str, str] = {}
+        if cached["headers_json"]:
+            headers = json.loads(cached["headers_json"])
+
+        # Build Response object
+        return Response(
+            status_code=cached["status_code"],
+            headers=headers,
+            content=content,
+            text=content.decode("utf-8", errors="replace"),
+            url=cached["url"],
+            request=request,
+        )
 
     @property
     def state(self) -> dict[str, Any]:

@@ -21,7 +21,7 @@ from pathlib import Path
 import aiosqlite
 
 # Schema version for migrations
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 # SQL statements for creating tables
 _CREATE_REQUESTS = """
@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS requests (
     aux_data_json TEXT,                      -- JSON-encoded aux data
     permanent_json TEXT,                     -- JSON-encoded permanent data
     deduplication_key TEXT,                  -- For duplicate detection
+    cache_key TEXT,                          -- Hash of (method, url, body, headers) for response caching
 
     -- ArchiveRequest-specific fields
     expected_type TEXT,                      -- For ArchiveRequest: expected file type
@@ -82,6 +83,7 @@ _CREATE_REQUESTS_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_requests_status_priority ON requests(status, priority, queue_counter)",
     "CREATE INDEX IF NOT EXISTS idx_requests_continuation ON requests(continuation)",
     "CREATE INDEX IF NOT EXISTS idx_requests_deduplication ON requests(deduplication_key)",
+    "CREATE INDEX IF NOT EXISTS idx_requests_cache_key ON requests(cache_key)",
 ]
 
 _CREATE_RESPONSES = """
@@ -361,7 +363,11 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     await db.execute(_CREATE_SPECULATIVE_START_IDS)
     await db.execute(_CREATE_RATE_LIMITER_STATE)
 
-    # Create all indexes
+    # Run migrations BEFORE creating indexes
+    # This ensures columns added by migrations exist when their indexes are created
+    await _run_migrations(db)
+
+    # Create all indexes (after migrations so new columns exist)
     for index_sql in _CREATE_REQUESTS_INDEXES:
         await db.execute(index_sql)
     for index_sql in _CREATE_RESPONSES_INDEXES:
@@ -378,9 +384,6 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
         await db.execute(index_sql)
     for index_sql in _CREATE_SPECULATIVE_PROGRESS_INDEXES:
         await db.execute(index_sql)
-
-    # Run migrations
-    await _run_migrations(db)
 
     await db.commit()
     return db
@@ -490,6 +493,27 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT INTO schema_info (version) VALUES (?)",
             (7,),
+        )
+
+    # Migration 7 -> 8: Add cache_key column to requests for response caching
+    if current_version < 8:
+        # Check if cache_key column already exists (new databases have it in schema)
+        cursor = await db.execute("PRAGMA table_info(requests)")
+        columns = await cursor.fetchall()
+        column_names = {col[1] for col in columns}
+
+        if "cache_key" not in column_names:
+            # Add the cache_key column only if it doesn't exist
+            await db.execute("ALTER TABLE requests ADD COLUMN cache_key TEXT")
+            # Add index for cache lookups
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_requests_cache_key ON requests(cache_key)"
+            )
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (8,),
         )
 
     # Record initial schema version if not present

@@ -119,14 +119,14 @@ class SQL:
             continuation, current_location,
             accumulated_data_json, aux_data_json, permanent_json,
             expected_type, deduplication_key, parent_request_id,
-            created_at_ns
+            created_at_ns, cache_key
         ) VALUES (
             'pending', ?, ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?,
             ?, ?, ?,
             ?, ?, ?,
-            ?
+            ?, ?
         )
     """
 
@@ -240,6 +240,20 @@ class SQL:
             content_compressed, content_size_original, content_size_compressed,
             compression_dict_id, continuation, warc_record_id, speculation_outcome
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
+
+    # Get most recent successful response by cache key (hash of method+url+body+headers)
+    # Only returns 2xx responses. Gets the most recent one.
+    # The cache_key is stored in the requests table, looked up via response's request_id
+    SELECT_CACHED_RESPONSE_BY_KEY = """
+        SELECT r.id, r.request_id, r.status_code, r.headers_json, r.url,
+               r.content_compressed, r.compression_dict_id, r.created_at,
+               req.method
+        FROM responses r
+        JOIN requests req ON r.request_id = req.id
+        WHERE req.cache_key = ? AND r.status_code >= 200 AND r.status_code < 300
+        ORDER BY r.id DESC
+        LIMIT 1
     """
 
     # --- Result Storage ---
@@ -869,6 +883,15 @@ class SQL:
         SET status = 'failed', completed_at = CURRENT_TIMESTAMP, completed_at_ns = ?,
             last_error = 'Cancelled by user (batch)'
         WHERE continuation = ? AND status IN ('pending', 'held')
+    """
+
+    SELECT_REQUESTS_FOR_BATCH_REQUEUE = """
+        SELECT id, method, url, continuation, priority,
+               headers_json, cookies_json, body,
+               current_location, accumulated_data_json, aux_data_json,
+               permanent_json
+        FROM requests
+        WHERE continuation = ? AND status = ?
     """
 
     # =========================================================================

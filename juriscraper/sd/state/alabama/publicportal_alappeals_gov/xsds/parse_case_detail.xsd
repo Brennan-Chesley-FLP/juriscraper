@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<!--
+Alabama Appellate Courts - Case Detail API Response
+====================================================
+
+This XSD documents the JSON API response structure from the Alabama
+appellate courts case detail endpoint.
+
+API Endpoint:
+https://publicportal-api.alappeals.gov/courts/{court-guid}/cms/cases/{case-uuid}
+
+URL Parameters:
+- court-guid: Court GUID (e.g., "68f021c4-6a44-4735-9a76-5360b2e8af13")
+- case-uuid: Case instance UUID
+
+Response Format: JSON
+
+The response contains complete case metadata including header information,
+originating court details, and case status.
+
+Example Response Structure:
+{
+    "caseHeader": {
+        "caseInstanceUUID": "abc123...",
+        "caseNumber": "SC-2023-0123",
+        "caseTitle": "Ex parte State",
+        "caseCaption": "Ex parte State of Alabama",
+        "courtID": 68,
+        "courtAbbreviation": "Alabama Supreme Court",
+        "filedDate": "2023-11-09T14:15:00.000+00:00",
+        "caseClassification": "Appeal - Civil - Other",
+        "closedFlag": false,
+        "originatingCourtCases": [
+            {
+                "originatingCourtName": "Mobile Circuit Court",
+                "originatingCaseNumber": "CC-2022-901234"
+            }
+        ]
+    }
+}
+
+Case Header Fields:
+- caseInstanceUUID: Unique identifier for the case
+- caseNumber: Official case number (e.g., "SC-2023-0123")
+- caseTitle: Short case title
+- caseCaption: Full formal case caption (preferred for case_name)
+- courtID: Numeric court identifier (68=Supreme, 69=Civil, 70=Criminal)
+- filedDate: Date the case was filed (ISO 8601)
+- caseClassification: Case type/classification
+- closedFlag: Boolean indicating if the case is closed
+
+Originating Court Information:
+- originatingCourtCases[]: Array of lower court cases (usually one)
+  - originatingCourtName: Name of the lower court
+  - originatingCaseNumber: Lower court case number
+- Multiple originating cases possible for consolidated appeals
+
+Data Extraction:
+- case_name: Use caseCaption if available, otherwise caseTitle
+- date_filed: Extracted from filedDate (ISO 8601 format)
+- originating_court: From originatingCourtCases[0].originatingCourtName
+- originating_court_number: From originatingCourtCases[0].originatingCaseNumber
+- status: "Closed" if closedFlag is true, otherwise "Open"
+- court_id: Mapped from courtID using _get_court_id_from_guid()
+
+Source URL Pattern:
+https://publicportal.alappeals.gov/portal/court/{court-guid}/case/{case-uuid}
+
+Next Steps:
+After parsing case detail, the scraper fetches:
+1. Parties: https://publicportal-api.alappeals.gov/courts/{court-guid}/cms/cases/{case-uuid}/parties
+2. Docket Entries: https://publicportal-api.alappeals.gov/courts/{court-guid}/cms/cases/{case-uuid}/docketentries
+
+-->
+
+<xs:annotation>
+    <xs:documentation>
+        This is a documentation-only XSD for the Alabama Case Detail API.
+        The actual response is JSON, not XML.
+    </xs:documentation>
+</xs:annotation>
+
+</xs:schema>

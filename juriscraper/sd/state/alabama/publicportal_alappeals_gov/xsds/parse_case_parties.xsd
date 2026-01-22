@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<!--
+Alabama Appellate Courts - Case Parties API Response
+=====================================================
+
+This XSD documents the JSON API response structure from the Alabama
+appellate courts case parties endpoint.
+
+API Endpoint:
+https://publicportal-api.alappeals.gov/courts/{court-guid}/cms/cases/{case-uuid}/parties
+
+URL Parameters:
+- court-guid: Court GUID (e.g., "68f021c4-6a44-4735-9a76-5360b2e8af13")
+- case-uuid: Case instance UUID
+
+Query Parameters:
+- sort: Sort order (e.g., "orderBy,asc&sort=partyNumber,asc")
+- size: Number of results per page (typically 100)
+
+Response Format: JSON
+
+The response contains a list of parties involved in the case, including
+their roles, attorneys, and representation status.
+
+Example Response Structure:
+{
+    "_embedded": {
+        "results": [
+            {
+                "casePartyUUID": "abc123...",
+                "partyType": "Party",
+                "partySubType": "Appellant",
+                "partyStatus": "Active",
+                "proSeFlag": false,
+                "actor": {
+                    "displayName": "John Doe",
+                    "sortName": "Doe, John"
+                },
+                "legalRepresentations": [
+                    {
+                        "legalRepresentationUUID": "def456...",
+                        "primaryFlag": true,
+                        "actor": {
+                            "displayName": "Jane Attorney, Esq.",
+                            "sortName": "Attorney, Jane"
+                        }
+                    }
+                ],
+                "orderBy": 1,
+                "partyNumber": 1
+            }
+        ]
+    },
+    "page": {
+        "size": 100,
+        "totalElements": 5,
+        "totalPages": 1,
+        "number": 0
+    }
+}
+
+Party Fields:
+- casePartyUUID: Unique identifier for this party relationship
+- partyType: Type of party (e.g., "Party", "Attorney")
+- partySubType: Specific role (e.g., "Appellant", "Appellee", "Respondent")
+- partyStatus: Status of the party (e.g., "Active", "Dismissed")
+- proSeFlag: Boolean indicating if party is representing themselves
+- actor.displayName: Name of the party
+- actor.sortName: Sortable name format (Last, First)
+- orderBy: Display order
+- partyNumber: Party number
+
+Legal Representations:
+- legalRepresentations[]: Array of attorneys representing this party
+  - primaryFlag: Boolean indicating if this is the primary attorney
+  - actor.displayName: Attorney's name
+  - actor.sortName: Sortable attorney name
+
+Common Party SubTypes:
+- Appellant: Party appealing the lower court decision
+- Appellee: Party defending the lower court decision
+- Respondent: Responding party
+- Petitioner: Party petitioning the court
+- Real Party in Interest: Actual party with interest in the outcome
+
+Data Structure Output:
+Each party is converted to a dict with:
+{
+    "name": "John Doe",
+    "type": "Party",
+    "role": "Appellant",
+    "status": "Active",
+    "pro_se": false,
+    "attorneys": [
+        {
+            "name": "Jane Attorney, Esq.",
+            "is_primary": true
+        }
+    ]
+}
+
+Next Step:
+After parsing parties, the scraper fetches docket entries:
+https://publicportal-api.alappeals.gov/courts/{court-guid}/cms/cases/{case-uuid}/docketentries
+
+-->
+
+<xs:annotation>
+    <xs:documentation>
+        This is a documentation-only XSD for the Alabama Case Parties API.
+        The actual response is JSON, not XML.
+    </xs:documentation>
+</xs:annotation>
+
+</xs:schema>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<!--
+Alabama Appellate Courts - Events API Response
+===============================================
+
+This XSD documents the JSON API response structure from the Alabama
+appellate courts events endpoint (calendar/oral arguments).
+
+API Endpoint:
+https://publicportal-api.alappeals.gov/courts/cms/events
+
+Query Parameters:
+- startDateFrom: ISO 8601 datetime with timezone (e.g., "2026-01-21T00:00:00.001-06:00")
+- startDateTo: ISO 8601 datetime with timezone (e.g., "2026-02-21T23:59:59.900-06:00")
+- page: Page number (0-indexed)
+- size: Results per page (default: 100)
+- sort: Sort field and direction (e.g., "startDate,desc")
+
+Response Format: JSON
+
+The response contains calendar events (oral argument sessions) with pagination.
+Each event has a UUID that can be used to fetch the cases/hearings for that session.
+
+Example Response Structure:
+{
+    "_embedded": {
+        "results": [
+            {
+                "eventUUID": "f6f1c3a9-f43e-4bdf-8963-8438198b3243",
+                "eventName": "Oral Argument",
+                "eventStatusTypeID": "380000",
+                "suppressCalendarAssignmentFlag": false,
+                "courtID": "1",
+                "courtAbbreviation": "Alabama Supreme Court",
+                "courtSessionType": "Oral Argument",
+                "panelFlag": true,
+                "startDate": "2026-02-04T06:00:00.000+00:00",
+                "location": "Heflin-Torbert Judicial Building"
+            },
+            {
+                "eventUUID": "abc123...",
+                "eventName": "Oral Argument",
+                "courtID": "2",
+                "courtAbbreviation": "Alabama Court of Civil Appeals",
+                "courtSessionType": "Oral Argument",
+                "startDate": "2026-01-28T06:00:00.000+00:00",
+                "location": ""
+            }
+        ]
+    },
+    "page": {
+        "size": 100,
+        "totalElements": 3,
+        "totalPages": 1,
+        "number": 0
+    }
+}
+
+Event Fields:
+- eventUUID: Unique identifier for the event/session (required for fetching hearings)
+- eventName: Name of the event (usually "Oral Argument")
+- courtID: Numeric court identifier (1=Supreme, 2=Civil, 3=Criminal)
+- courtAbbreviation: Full court name (use to map to court_id)
+- courtSessionType: Type of session (e.g., "Oral Argument")
+- startDate: Event start date/time (ISO 8601)
+- location: Physical location (e.g., "Heflin-Torbert Judicial Building")
+- panelFlag: Boolean indicating if this is a panel session
+
+Court Abbreviation Mapping:
+- "Alabama Supreme Court" -> court_id: "ala"
+- "Alabama Court of Civil Appeals" -> court_id: "alactapp"
+- "Alabama Court of Criminal Appeals" -> court_id: "alacrimapp"
+
+Data Extraction:
+- event_uuid: From eventUUID
+- court_id: Mapped from courtAbbreviation
+- event_date: Parsed from startDate (extract date portion)
+- location: From location field
+
+Filtering:
+- Filter by court_id if specified in search params
+- Filter by date range (event_date must be within start_date and end_date)
+
+Pagination:
+- Process all pages until totalPages is reached
+- Use page number from response to fetch next page
+
+Next Step:
+After parsing each event, fetch the hearings (cases) for that event:
+https://publicportal-api.alappeals.gov/courts/{court-guid}/cms/events/{event-uuid}/hearings
+
+Source URL Pattern:
+Events don't have individual detail pages - they're only visible in search results
+-->
+
+<xs:annotation>
+    <xs:documentation>
+        This is a documentation-only XSD for the Alabama Events API.
+        The actual response is JSON, not XML.
+    </xs:documentation>
+</xs:annotation>
+
+</xs:schema>

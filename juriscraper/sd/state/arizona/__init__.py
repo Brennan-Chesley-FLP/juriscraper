@@ -1,0 +1,1 @@
+# Arizona appellate courts scrapers

@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Maine Supreme Judicial Court Archive Page
+  URL Pattern: https://www.courts.maine.gov/courts/sjc/lawcourt/{year}/index.html
+  Example: https://www.courts.maine.gov/courts/sjc/lawcourt/2025/index.html
+
+  Step: parse_archive_page
+
+  This page contains opinions for a specific year in the same table format
+  as the main opinions page.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The archive page contains:
+      - An H1 heading with the year (e.g., "2025 Published Opinions")
+      - A table with opinion listings (same format as main page)
+      - An "Older Opinions" section with links to other archive pages
+
+      Table Structure
+      ===============
+      The opinion table has three columns (identical to main page):
+      | Opinion #   | Case                     | Date              |
+      |-------------|--------------------------|-------------------|
+      | 2025 ME 98  | State v. Lemieux (link)  | December 23, 2025 |
+      | 2025 ME 97  | State v. Cardona         | December 18, 2025 |
+
+      - Column 1: Opinion citation (e.g., "2025 ME 98")
+      - Column 2: Case name as a link to the PDF
+      - Column 3: Decision date in "Month Day, Year" format
+
+      Note: Archive pages use relative PDF URLs (e.g., "25me098.pdf")
+      while the main page uses relative URLs like "lawcourt/2026/26me004.pdf"
+
+      Scraper XPath Assertions
+      ========================
+      1. TABLE_HEADERS: //table//th/text()
+         - Description: "opinion table headers"
+         - min_count: 3
+         - max_count: 3
+         - Expected: ["Opinion #", "Case", "Date"]
+
+      2. TABLE_ROWS: //table/tbody/tr
+         - Description: "opinion table rows"
+         - min_count: 0
+         - Expected: One row per opinion for that year
+
+      3. ROW_CELLS: td (within each row)
+         - Description: "row cells"
+         - min_count: 3
+         - max_count: 3
+
+      PDF URL Pattern
+      ===============
+      On archive pages, PDFs use relative paths:
+      Pattern: {yy}me{nnn}.pdf
+      Example: 25me098.pdf (for 2025 ME 98)
+
+      The scraper uses urljoin() to resolve these to absolute URLs.
+
+      Citation Pattern
+      ================
+      Format: {YEAR} ME {NUMBER}
+      Regex: (\d{4})\s+ME\s+(\d+)
+      Examples: "2025 ME 98", "2025 ME 1"
+
+      Date Pattern
+      ============
+      Format: {Month} {Day}, {Year}
+      Regex: (\w+)\s+(\d{1,2}),\s+(\d{4})
+      Examples: "December 23, 2025", "January 2, 2025"
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element represents the main content area -->
+  <xs:element name="main">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="h1" type="xs:string"/>
+        <xs:element name="h2" type="xs:string" minOccurs="0"/>
+        <xs:element ref="table"/>
+        <xs:element name="h2" type="xs:string" minOccurs="0"/>
+        <xs:element name="ul" type="archiveListType" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Opinion table structure (same as main page) -->
+  <xs:element name="table">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="thead">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="tr">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="th" type="xs:string" minOccurs="3" maxOccurs="3"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="tbody">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="opinionRow" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Single opinion row -->
+  <xs:element name="opinionRow">
+    <xs:complexType>
+      <xs:sequence>
+        <!-- Column 1: Citation -->
+        <xs:element name="td" type="citationType"/>
+        <!-- Column 2: Case name with PDF link -->
+        <xs:element name="td" type="caseLinkType"/>
+        <!-- Column 3: Date -->
+        <xs:element name="td" type="dateType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Citation cell type -->
+  <xs:simpleType name="citationType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{4}\s+ME\s+\d+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Case link cell type -->
+  <xs:complexType name="caseLinkType">
+    <xs:sequence>
+      <xs:element name="a">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="href" type="xs:anyURI" use="required"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Date cell type -->
+  <xs:simpleType name="dateType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\w+\s+\d{1,2},\s+\d{4}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Archive links list type -->
+  <xs:complexType name="archiveListType">
+    <xs:sequence>
+      <xs:element name="li" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="a">
+              <xs:complexType>
+                <xs:simpleContent>
+                  <xs:extension base="xs:string">
+                    <xs:attribute name="href" type="xs:anyURI" use="required"/>
+                  </xs:extension>
+                </xs:simpleContent>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

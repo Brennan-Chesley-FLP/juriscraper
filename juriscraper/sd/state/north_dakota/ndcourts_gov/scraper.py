@@ -270,14 +270,20 @@ class NorthDakotaScraper(BaseScraper[NorthDakotaOpinionCluster]):
 
             # Extract case name (everything before the citation)
             citation_start = full_text.find(f"{year} ND")
-            case_name = full_text[:citation_start].strip() if citation_start > 0 else ""
+            case_name = (
+                full_text[:citation_start].strip()
+                if citation_start > 0
+                else ""
+            )
 
             # Extract docket number
             docket_match = self.DOCKET_PATTERN.search(full_text)
             docket_number = docket_match.group(1) if docket_match else None
 
             # Extract filing date
-            date_match = re.search(r"Filing Date:\s*(\d{1,2}/\d{1,2}/\d{4})", full_text)
+            date_match = re.search(
+                r"Filing Date:\s*(\d{1,2}/\d{1,2}/\d{4})", full_text
+            )
             filing_date = None
             if date_match:
                 filing_date = self._parse_date(date_match.group(1))
@@ -292,21 +298,17 @@ class NorthDakotaScraper(BaseScraper[NorthDakotaOpinionCluster]):
                 continue
 
             # Extract case type
-            case_type_match = re.search(r"Case Type:\s*([^A-Z][^\n]+?)(?=Author:|$)", full_text)
-            case_type = case_type_match.group(1).strip() if case_type_match else None
+            case_type_match = re.search(
+                r"Case Type:\s*([^A-Z][^\n]+?)(?=Author:|$)", full_text
+            )
+            case_type = (
+                case_type_match.group(1).strip() if case_type_match else None
+            )
 
             # Extract author
             author_match = re.search(r"Author:\s*(.+?)(?=$|\s{2,})", full_text)
-            author_str = author_match.group(1).strip() if author_match else None
-
-            # Get the View Opinion button URL
-            # The button triggers a navigation to /supreme-court/opinions/{id}
-            button_onclick = row.checked_xpath(
-                ".//button[contains(., 'View Opinion')]/@onclick",
-                "view opinion button",
-                min_count=0,
-                max_count=1,
-                type=str,
+            author_str = (
+                author_match.group(1).strip() if author_match else None
             )
 
             # If no onclick, we need to find the internal ID differently

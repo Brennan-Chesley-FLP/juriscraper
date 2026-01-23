@@ -103,9 +103,7 @@ class IowaScraper(BaseScraper[IowaOpinionCluster]):
     CASE_NUMBER_PATTERN = re.compile(r"(\d{2})-(\d{4})")
 
     # Date parsing pattern (e.g., "Filed Jan 09, 2026")
-    DATE_PATTERN = re.compile(
-        r"Filed\s+(\w{3})\s+(\d{1,2}),\s+(\d{4})"
-    )
+    DATE_PATTERN = re.compile(r"Filed\s+(\w{3})\s+(\d{1,2}),\s+(\d{4})")
 
     # Internal ID pattern from PDF URL (e.g., /courtcases/22626/embed/...)
     INTERNAL_ID_PATTERN = re.compile(r"/courtcases/(\d+)/")
@@ -184,9 +182,18 @@ class IowaScraper(BaseScraper[IowaOpinionCluster]):
 
         month_str, day_str, year_str = match.groups()
         month_map = {
-            "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4,
-            "May": 5, "Jun": 6, "Jul": 7, "Aug": 8,
-            "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
+            "Jan": 1,
+            "Feb": 2,
+            "Mar": 3,
+            "Apr": 4,
+            "May": 5,
+            "Jun": 6,
+            "Jul": 7,
+            "Aug": 8,
+            "Sep": 9,
+            "Oct": 10,
+            "Nov": 11,
+            "Dec": 12,
         }
         month = month_map.get(month_str)
         if month is None:
@@ -302,7 +309,11 @@ class IowaScraper(BaseScraper[IowaOpinionCluster]):
                 min_count=0,
                 type=str,
             )
-            case_name = " ".join(case_name_parts).strip() if case_name_parts else "Unknown"
+            case_name = (
+                " ".join(case_name_parts).strip()
+                if case_name_parts
+                else "Unknown"
+            )
 
             # Get the next sibling paragraph with the date
             # Using XPath following-sibling
@@ -430,7 +441,9 @@ class IowaScraper(BaseScraper[IowaOpinionCluster]):
         if trial_case_elems:
             for text in trial_case_elems:
                 if "Trial Court Case No.:" in text:
-                    trial_case_no = text.replace("Trial Court Case No.:", "").strip()
+                    trial_case_no = text.replace(
+                        "Trial Court Case No.:", ""
+                    ).strip()
                     break
 
         # Summary - first paragraph in the main content area
@@ -448,7 +461,9 @@ class IowaScraper(BaseScraper[IowaOpinionCluster]):
 
         # If we don't have a PDF URL yet, try to find it on the detail page
         if not pdf_url:
-            opinion_type = COURT_OPINION_TYPE.get(court_id, "SupremeCourtOpinion")
+            opinion_type = COURT_OPINION_TYPE.get(
+                court_id, "SupremeCourtOpinion"
+            )
             pdf_links = lxml_tree.checked_xpath(
                 f"//a[contains(@href, '/embed/{opinion_type}')]/@href",
                 "opinion PDF link on detail page",
@@ -518,7 +533,9 @@ class IowaScraper(BaseScraper[IowaOpinionCluster]):
             opinions=[opinion],
             source_url=accumulated_data["source_url"],
             county=accumulated_data.get("county"),
-            trial_court_case_number=accumulated_data.get("trial_court_case_number"),
+            trial_court_case_number=accumulated_data.get(
+                "trial_court_case_number"
+            ),
             summary=accumulated_data.get("summary"),
             internal_id=accumulated_data.get("internal_id"),
             precedential_status="Published",  # Iowa publishes all appellate opinions

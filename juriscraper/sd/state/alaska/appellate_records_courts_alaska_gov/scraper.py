@@ -362,7 +362,10 @@ class AlaskaScraper(BaseScraper[AlaskaOpinionCluster]):
                 pacific_citation = None
                 if len(cells) >= 5:
                     citation_text = cells[4].text_content().strip()
-                    if citation_text and citation_text != "Pacific Reporter Reference":
+                    if (
+                        citation_text
+                        and citation_text != "Pacific Reporter Reference"
+                    ):
                         pacific_citation = citation_text
 
                 # Create opinion cluster
@@ -423,9 +426,9 @@ class AlaskaScraper(BaseScraper[AlaskaOpinionCluster]):
 
         # Update the opinion with the local path
         if opinion_index < len(cluster.opinions):
-            cluster.opinions[opinion_index].local_path = (
-                archive_response.file_url
-            )
+            cluster.opinions[
+                opinion_index
+            ].local_path = archive_response.file_url
 
         # Yield the complete cluster
         yield ParsedData(data=cluster)

@@ -58,7 +58,9 @@ if TYPE_CHECKING:
 # Base URLs
 BASE_URL = "https://www.wicourts.gov"
 SUPREME_COURT_OPINIONS_URL = "https://www.wicourts.gov/supreme/scopin.jsp"
-APPEALS_COURT_OPINIONS_URL = "https://www.wicourts.gov/other/appeals/caopin.jsp"
+APPEALS_COURT_OPINIONS_URL = (
+    "https://www.wicourts.gov/other/appeals/caopin.jsp"
+)
 
 
 class WisconsinScraper(BaseScraper[WisconsinOpinionCluster]):
@@ -299,7 +301,9 @@ class WisconsinScraper(BaseScraper[WisconsinOpinionCluster]):
         Table structure:
         - Release date | Case number | Caption | Select/view (PDF checkbox and link)
         """
-        date_gte, date_lte, target_docket, target_courts = self._get_search_params()
+        date_gte, date_lte, target_docket, target_courts = (
+            self._get_search_params()
+        )
 
         # Check for "no records found" message
         no_records = lxml_tree.xpath(
@@ -417,7 +421,9 @@ class WisconsinScraper(BaseScraper[WisconsinOpinionCluster]):
 
         Caption may contain "[Recommended for Publication]" in bold.
         """
-        date_gte, date_lte, target_docket, target_courts = self._get_search_params()
+        date_gte, date_lte, target_docket, target_courts = (
+            self._get_search_params()
+        )
 
         # Check for "no records found" message
         no_records = lxml_tree.xpath(
@@ -487,7 +493,9 @@ class WisconsinScraper(BaseScraper[WisconsinOpinionCluster]):
 
         # Check for recommended for publication
         recommended = "[Recommended for Publication]" in case_name_full
-        case_name = case_name_full.replace("[Recommended for Publication]", "").strip()
+        case_name = case_name_full.replace(
+            "[Recommended for Publication]", ""
+        ).strip()
 
         # Determine precedential status
         # Court of Appeals opinions are generally unpublished unless marked
@@ -549,7 +557,9 @@ class WisconsinScraper(BaseScraper[WisconsinOpinionCluster]):
         )
 
         # Parse the date from ISO format
-        date_filed = datetime.fromisoformat(accumulated_data["date_filed"]).date()
+        date_filed = datetime.fromisoformat(
+            accumulated_data["date_filed"]
+        ).date()
 
         # Build and yield the final cluster
         cluster = WisconsinOpinionCluster(

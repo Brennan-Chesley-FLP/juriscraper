@@ -56,8 +56,12 @@ if TYPE_CHECKING:
 
 # Base URLs
 BASE_URL = "https://courts.ms.gov"
-SCT_HANDDOWN_URL_TEMPLATE = "https://courts.ms.gov/Images/HDList/SCT{date}.html"
-COA_HANDDOWN_URL_TEMPLATE = "https://courts.ms.gov/Images/HDList/COA{date}.html"
+SCT_HANDDOWN_URL_TEMPLATE = (
+    "https://courts.ms.gov/Images/HDList/SCT{date}.html"
+)
+COA_HANDDOWN_URL_TEMPLATE = (
+    "https://courts.ms.gov/Images/HDList/COA{date}.html"
+)
 OPINION_PDF_BASE = "https://courts.ms.gov/appellatecourts/Opinions/"
 
 
@@ -103,9 +107,7 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
     # === Regex patterns ===
     # Case number pattern: YYYY-TYPE-NNNNN-COURT
     # Examples: 2024-KA-01001-SCT, 2025-SA-00614-SCT, 2023-CT-01245-SCT
-    CASE_NUMBER_PATTERN = re.compile(
-        r"(\d{4})-([A-Z]{2})-(\d{5})-([A-Z]{3})"
-    )
+    CASE_NUMBER_PATTERN = re.compile(r"(\d{4})-([A-Z]{2})-(\d{5})-([A-Z]{3})")
 
     # Lower court case number pattern: e.g., "53CI1:23-cr-00051-K-1"
     LC_CASE_PATTERN = re.compile(r"LC Case #:\s*([^;]+)")
@@ -282,7 +284,7 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
     # Entry Point
     # =========================================================================
 
-    def get_entry(
+    def get_entry(  # type: ignore[override]
         self,
     ) -> Generator[ScraperYield[MississippiOpinionCluster], None, None]:
         """Yield initial requests to probe hand down list pages."""
@@ -291,11 +293,15 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
         if "opinions" not in requested:
             return
 
-        date_gte, date_lte, docket_number, court_ids = self._get_search_params()
+        date_gte, date_lte, docket_number, court_ids = (
+            self._get_search_params()
+        )
 
         # Determine date range to probe
         end_date = date_lte or date.today()
-        start_date = date_gte or (end_date - timedelta(days=self.DEFAULT_DAYS_TO_PROBE))
+        start_date = date_gte or (
+            end_date - timedelta(days=self.DEFAULT_DAYS_TO_PROBE)
+        )
 
         # Determine which courts to scrape
         scrape_sct = court_ids is None or "miss" in court_ids
@@ -375,7 +381,6 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield[MississippiOpinionCluster], None, None]:
         """Parse a hand down list page and yield requests for opinion PDFs."""
-        court_prefix = accumulated_data["court_prefix"]
         hand_down_date = datetime.fromisoformat(
             accumulated_data["hand_down_date"]
         ).date()
@@ -490,7 +495,11 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
             author = first_text[0].strip()
 
         # Check if published (has X marker)
-        is_published = "X" in all_text.split(case_number)[0] if case_number in all_text else True
+        is_published = (
+            "X" in all_text.split(case_number)[0]
+            if case_number in all_text
+            else True
+        )
 
         # Extract case name from the <ul> or <b> element
         case_name = None
@@ -713,7 +722,9 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
             source_url=accumulated_data["source_url"],
             author=accumulated_data.get("author"),
             lower_court=accumulated_data.get("lower_court"),
-            lower_court_case_number=accumulated_data.get("lower_court_case_number"),
+            lower_court_case_number=accumulated_data.get(
+                "lower_court_case_number"
+            ),
             lower_court_ruling_date=lower_court_ruling_date,
             lower_court_judge=accumulated_data.get("lower_court_judge"),
             disposition=accumulated_data.get("disposition"),
@@ -721,7 +732,9 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
             is_en_banc=accumulated_data.get("is_en_banc", False),
             is_published=accumulated_data.get("is_published", True),
             opinions=[opinion],
-            precedential_status="Published" if accumulated_data.get("is_published") else "Unpublished",
+            precedential_status="Published"
+            if accumulated_data.get("is_published")
+            else "Unpublished",
         )
 
         yield ParsedData(cluster)

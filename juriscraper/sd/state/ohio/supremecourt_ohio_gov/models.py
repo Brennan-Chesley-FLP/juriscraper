@@ -56,7 +56,9 @@ SOURCE_TO_COURT_ID: dict[int, str] = {
 }
 
 # Reverse mapping for URL construction
-COURT_ID_TO_SOURCE: dict[str, int] = {v: k for k, v in SOURCE_TO_COURT_ID.items()}
+COURT_ID_TO_SOURCE: dict[str, int] = {
+    v: k for k, v in SOURCE_TO_COURT_ID.items()
+}
 
 # All supported court IDs
 COURT_IDS: set[str] = set(SOURCE_TO_COURT_ID.values())

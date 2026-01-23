@@ -30,7 +30,7 @@ Design decisions:
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlencode
 
@@ -232,8 +232,8 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
         if date_gte:
             params[f"searchFields[{field_index}].searchType"] = "GreaterThan"
             params[f"searchFields[{field_index}].operation"] = "="
-            params[f"searchFields[{field_index}].values[0]"] = date_gte.strftime(
-                "%m/%d/%Y"
+            params[f"searchFields[{field_index}].values[0]"] = (
+                date_gte.strftime("%m/%d/%Y")
             )
             params[f"searchFields[{field_index}].indexFieldName"] = "filedDate"
             field_index += 1
@@ -241,8 +241,8 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
         if date_lte:
             params[f"searchFields[{field_index}].searchType"] = "LessThan"
             params[f"searchFields[{field_index}].operation"] = "="
-            params[f"searchFields[{field_index}].values[0]"] = date_lte.strftime(
-                "%m/%d/%Y"
+            params[f"searchFields[{field_index}].values[0]"] = (
+                date_lte.strftime("%m/%d/%Y")
             )
             params[f"searchFields[{field_index}].indexFieldName"] = "filedDate"
             field_index += 1
@@ -366,7 +366,9 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
                 min_count=0,
                 type=str,
             )
-            opinion_type = " ".join(t.strip() for t in opinion_type_texts).strip()
+            opinion_type = " ".join(
+                t.strip() for t in opinion_type_texts
+            ).strip()
 
             # Cell 2: Subtype (e.g., "AFFIRMING")
             subtype_texts = cells[2].checked_xpath(
@@ -375,7 +377,9 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
                 min_count=0,
                 type=str,
             )
-            subtype = " ".join(t.strip() for t in subtype_texts).strip() or None
+            subtype = (
+                " ".join(t.strip() for t in subtype_texts).strip() or None
+            )
 
             # Cell 3: Description
             desc_texts = cells[3].checked_xpath(
@@ -413,12 +417,16 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
 
             # Cell 5 (optional): Documents List button
             # Check if there's a documents list button
-            doc_button = cells[5].checked_xpath(
-                ".//button",
-                "documents button",
-                min_count=0,
-                max_count=1,
-            ) if len(cells) > 5 else []
+            doc_button = (
+                cells[5].checked_xpath(
+                    ".//button",
+                    "documents button",
+                    min_count=0,
+                    max_count=1,
+                )
+                if len(cells) > 5
+                else []
+            )
 
             # Build case detail URL from link
             case_detail_url = None
@@ -436,7 +444,8 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
                 yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
-                        url=case_detail_url or f"{BASE_URL}/case/{case_number}",
+                        url=case_detail_url
+                        or f"{BASE_URL}/case/{case_number}",
                     ),
                     continuation=self.parse_case_detail,
                     accumulated_data={
@@ -482,13 +491,17 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
             date_lte_str = accumulated_data.get("date_lte")
             docket_id = accumulated_data.get("docket_id")
 
-            date_gte = date.fromisoformat(date_gte_str) if date_gte_str else None
-            date_lte = date.fromisoformat(date_lte_str) if date_lte_str else None
+            date_gte_filter: date | None = (
+                date.fromisoformat(date_gte_str) if date_gte_str else None
+            )
+            date_lte_filter: date | None = (
+                date.fromisoformat(date_lte_str) if date_lte_str else None
+            )
 
             next_url = self._build_search_url(
                 page_num=next_page,
-                date_gte=date_gte,
-                date_lte=date_lte,
+                date_gte=date_gte_filter,
+                date_lte=date_lte_filter,
                 case_number=docket_id,
             )
 
@@ -552,9 +565,7 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
             min_count=0,
             type=str,
         )
-        case_status = (
-            " ".join(t.strip() for t in status_elems).strip() or None
-        )
+        case_status = " ".join(t.strip() for t in status_elems).strip() or None
 
         # Extract court name
         court_elems = lxml_tree.checked_xpath(
@@ -614,11 +625,14 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
                     doc_url = f"{BASE_URL}{href}"
                 else:
                     doc_url = href
-                document_urls.append({
+                subtype = accumulated_data.get("subtype")
+                doc_entry: dict[str, str] = {
                     "url": doc_url,
                     "type": accumulated_data.get("opinion_type", "Opinion"),
-                    "subtype": accumulated_data.get("subtype"),
-                })
+                }
+                if subtype:
+                    doc_entry["subtype"] = subtype
+                document_urls.append(doc_entry)
 
         # Also look for document links anywhere on the page
         all_doc_links = lxml_tree.checked_xpath(
@@ -635,11 +649,14 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
             else:
                 doc_url = href
             if doc_url not in existing_urls:
-                document_urls.append({
+                subtype = accumulated_data.get("subtype")
+                doc_entry = {
                     "url": doc_url,
                     "type": accumulated_data.get("opinion_type", "Opinion"),
-                    "subtype": accumulated_data.get("subtype"),
-                })
+                }
+                if subtype:
+                    doc_entry["subtype"] = subtype
+                document_urls.append(doc_entry)
                 existing_urls.add(doc_url)
 
         filed_date = date.fromisoformat(accumulated_data["date_filed"])
@@ -761,7 +778,9 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
         if "NOT TO BE PUBLISHED" in judges.upper() if judges else False:
             precedential_status = "Unpublished"
         elif "MEMORANDUM" in opinion_type.upper():
-            precedential_status = "Unpublished"  # Memorandum opinions typically unpublished
+            precedential_status = (
+                "Unpublished"  # Memorandum opinions typically unpublished
+            )
 
         cluster = KentuckyOpinionCluster(
             docket_id=accumulated_data["docket_id"],

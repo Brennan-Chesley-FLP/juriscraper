@@ -53,7 +53,6 @@ from juriscraper.scraper_driver.data_types import (
 
 from .models import (
     CASE_PREFIX_TO_COURT,
-    COURT_TO_VOLUME_PREFIX,
     VOLUME_PREFIX_TO_COURT,
     NebraskaOpinion,
     NebraskaOpinionCluster,
@@ -128,7 +127,9 @@ class NebraskaScraper(BaseScraper[NebraskaOpinionCluster]):
 
     # Date patterns
     # Opening-closing dates: "10/03/2025 - 01/16/2026" or "01/20/2026 -"
-    DATE_RANGE_PATTERN = re.compile(r"(\d{2}/\d{2}/\d{4})\s*-\s*(\d{2}/\d{2}/\d{4})?")
+    DATE_RANGE_PATTERN = re.compile(
+        r"(\d{2}/\d{2}/\d{4})\s*-\s*(\d{2}/\d{2}/\d{4})?"
+    )
 
     # Opinion date: "01/16/2026"
     OPINION_DATE_PATTERN = re.compile(r"(\d{2}/\d{2}/\d{4})")
@@ -362,7 +363,9 @@ class NebraskaScraper(BaseScraper[NebraskaOpinionCluster]):
             full_volume_text = "".join(volume_text_parts).strip()
 
             # Check if expanded (starts with − or -)
-            is_expanded = full_volume_text.startswith("−") or full_volume_text.startswith("-")
+            is_expanded = full_volume_text.startswith(
+                "−"
+            ) or full_volume_text.startswith("-")
 
             # Remove the +/- prefix to get volume text
             volume_text = full_volume_text.lstrip("+-−").strip()
@@ -432,7 +435,11 @@ class NebraskaScraper(BaseScraper[NebraskaOpinionCluster]):
         # Find the "next page" link - look for the >> link
         for href in pagination_links:
             if "offset=" in href:
-                next_url = f"https://www.nebraska.gov{href}" if href.startswith("/") else href
+                next_url = (
+                    f"https://www.nebraska.gov{href}"
+                    if href.startswith("/")
+                    else href
+                )
                 yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
@@ -501,7 +508,8 @@ class NebraskaScraper(BaseScraper[NebraskaOpinionCluster]):
             # Split by whitespace and filter for valid case numbers
             docket_parts = docket_text.split()
             docket_numbers = [
-                d.strip() for d in docket_parts
+                d.strip()
+                for d in docket_parts
                 if self.CASE_NUMBER_PATTERN.match(d.strip())
             ]
 
@@ -520,7 +528,9 @@ class NebraskaScraper(BaseScraper[NebraskaOpinionCluster]):
 
             # Extract citation (fourth cell)
             citation_text = cells[3].text_content().strip()
-            cite_volume, cite_reporter, cite_page = self._parse_citation(citation_text)
+            cite_volume, cite_reporter, cite_page = self._parse_citation(
+                citation_text
+            )
 
             if cite_volume is None or cite_page is None:
                 continue
@@ -567,9 +577,7 @@ class NebraskaScraper(BaseScraper[NebraskaOpinionCluster]):
                 "page_number": cite_page,
                 "status": status,
                 "source_url": response.url,
-                "opinions_data": [
-                    {"download_url": pdf_url, "doc_id": doc_id}
-                ],
+                "opinions_data": [{"download_url": pdf_url, "doc_id": doc_id}],
                 "pending_downloads": 1,
                 "completed_downloads": 0,
                 "downloaded_paths": {},

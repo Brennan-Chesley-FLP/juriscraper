@@ -218,9 +218,7 @@ class OklahomaScraper(BaseScraper[OklahomaOpinionCluster]):
         """
         return f"{self.INDEX_BASE_URL}?ftdb={ftdb}&year={year}&level=1"
 
-    def _parse_link_text(
-        self, link_text: str, link_url: str
-    ) -> dict | None:
+    def _parse_link_text(self, link_text: str, link_url: str) -> dict | None:
         """Parse the opinion link text to extract metadata.
 
         Link text format: "CITATION, [P.3d cite,] MM/DD/YYYY, CASE NAME"
@@ -276,7 +274,9 @@ class OklahomaScraper(BaseScraper[OklahomaOpinionCluster]):
         pacific_cite = None
         pacific_match = self.PACIFIC_REPORTER_PATTERN.search(link_text)
         if pacific_match:
-            pacific_cite = f"{pacific_match.group(1)} P.3d {pacific_match.group(2)}"
+            pacific_cite = (
+                f"{pacific_match.group(1)} P.3d {pacific_match.group(2)}"
+            )
 
         # Extract date
         date_filed = None
@@ -288,7 +288,7 @@ class OklahomaScraper(BaseScraper[OklahomaOpinionCluster]):
         case_name = None
         if date_match:
             # Get text after the date
-            after_date = link_text[date_match.end():].strip()
+            after_date = link_text[date_match.end() :].strip()
             # Remove leading comma and whitespace
             if after_date.startswith(","):
                 after_date = after_date[1:].strip()
@@ -318,7 +318,9 @@ class OklahomaScraper(BaseScraper[OklahomaOpinionCluster]):
         Yields separate NavigatingRequests for each court database and year.
         """
         databases = self._get_target_databases()
-        date_gte, date_lte, cite_id_filter, _ = self._get_opinions_search_params()
+        date_gte, date_lte, cite_id_filter, _ = (
+            self._get_opinions_search_params()
+        )
 
         # Determine year range for searching
         current_year = date.today().year

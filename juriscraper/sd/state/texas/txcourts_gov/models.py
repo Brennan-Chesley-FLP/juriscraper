@@ -152,8 +152,8 @@ class TexasOpinionCluster(OpinionCluster):
     disposition: str | None = None
     """Case disposition (e.g., 'AFFIRM TC JUDGMENT', 'REVERSE AND RENDER')"""
 
-    judges: list[str] = []
-    """List of judges/justices on the panel"""
+    judges: str | None = None
+    """List of judges/justices on the panel (semicolon-separated)"""
 
     author: str | None = None
     """Name of the authoring judge/justice"""

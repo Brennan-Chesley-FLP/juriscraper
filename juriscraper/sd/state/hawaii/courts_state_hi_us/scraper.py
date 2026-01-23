@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.decorators import step
@@ -95,9 +95,7 @@ class HawaiiScraper(BaseScraper[HawaiiOpinionCluster]):
 
     # === Regex patterns ===
     # Case number pattern: CAAP-YY-XXXXXXX, SCWC-YY-XXXXXXX, SCPW-YY-XXXXXXX
-    CASE_NUMBER_PATTERN = re.compile(
-        r"(CAAP|SCWC|SCPW)-(\d{2})-(\d{7})"
-    )
+    CASE_NUMBER_PATTERN = re.compile(r"(CAAP|SCWC|SCPW)-(\d{2})-(\d{7})")
 
     # Opinion type suffix pattern (from PDF filename)
     OPINION_TYPE_PATTERN = re.compile(
@@ -222,8 +220,7 @@ class HawaiiScraper(BaseScraper[HawaiiOpinionCluster]):
         try:
             # Parse RFC 2822 date format
             dt = datetime.strptime(
-                date_str.strip(),
-                "%a, %d %b %Y %H:%M:%S %z"
+                date_str.strip(), "%a, %d %b %Y %H:%M:%S %z"
             )
             return dt.date()
         except ValueError:
@@ -313,7 +310,9 @@ class HawaiiScraper(BaseScraper[HawaiiOpinionCluster]):
         response: Response,
     ) -> Generator[ScraperYield[HawaiiOpinionCluster], None, None]:
         """Parse RSS feed and yield requests for each opinion."""
-        date_gte, date_lte, target_docket, court_ids = self._get_search_params()
+        date_gte, date_lte, target_docket, court_ids = (
+            self._get_search_params()
+        )
 
         # Find all <item> elements in the RSS feed
         items = lxml_tree.checked_xpath(
@@ -398,7 +397,7 @@ class HawaiiScraper(BaseScraper[HawaiiOpinionCluster]):
             opinion_type = self._get_opinion_type_from_url(pdf_url)
 
             # Build accumulated data for download handler
-            cluster_data = {
+            cluster_data: dict[str, Any] = {
                 "docket_id": case_number,
                 "court_id": court_id,
                 "date_filed": pub_date.isoformat(),

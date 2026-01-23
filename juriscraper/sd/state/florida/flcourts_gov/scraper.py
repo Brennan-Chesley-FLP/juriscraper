@@ -13,8 +13,9 @@ Data types scraped:
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from datetime import date, datetime
-from typing import TYPE_CHECKING, ClassVar, Generator
+from typing import TYPE_CHECKING, ClassVar
 
 from juriscraper.scraper_driver.common.models.requests import (
     ArchiveRequest,
@@ -267,13 +268,6 @@ class FloridaScraper(BaseScraper[FloridaOpinionCluster]):
             # Extract oral argument URL if available
             oral_arg_url = result.get("oralArgUrl")
 
-            # Build the opinion model
-            opinion = FloridaOpinion(
-                download_url=pdf_url,
-                type="010combined",  # Florida publishes combined opinions
-                content_id=content_id,
-            )
-
             # Yield ArchiveRequest to download the PDF
             yield ArchiveRequest(
                 request=HTTPRequestParams(url=pdf_url),
@@ -298,8 +292,12 @@ class FloridaScraper(BaseScraper[FloridaOpinionCluster]):
             # Build URL for next page
             date_gte_str = accumulated_data.get("date_gte")
             date_lte_str = accumulated_data.get("date_lte")
-            date_gte = date.fromisoformat(date_gte_str) if date_gte_str else None
-            date_lte = date.fromisoformat(date_lte_str) if date_lte_str else None
+            date_gte = (
+                date.fromisoformat(date_gte_str) if date_gte_str else None
+            )
+            date_lte = (
+                date.fromisoformat(date_lte_str) if date_lte_str else None
+            )
 
             api_url = self._build_api_url(
                 court_id=court_id,

@@ -45,7 +45,9 @@ COURT_TYPE_TO_PATH: dict[str, str] = {
 }
 
 # Reverse mapping
-PATH_TO_COURT_ID: dict[str, str] = {v: k for k, v in COURT_TYPE_TO_PATH.items()}
+PATH_TO_COURT_ID: dict[str, str] = {
+    v: k for k, v in COURT_TYPE_TO_PATH.items()
+}
 
 # All supported court IDs
 COURT_IDS: set[str] = {"utah", "utahctapp"}

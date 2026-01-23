@@ -34,7 +34,7 @@ Design decisions:
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
@@ -216,7 +216,9 @@ class WashingtonScraper(BaseScraper[WashingtonOpinionCluster]):
         Starts with the recent opinions page which contains both
         Supreme Court and Court of Appeals opinions.
         """
-        date_gte, date_lte, docket_filter, _ = self._get_opinions_search_params()
+        date_gte, date_lte, docket_filter, _ = (
+            self._get_opinions_search_params()
+        )
 
         yield NavigatingRequest(
             request=HTTPRequestParams(
@@ -309,7 +311,9 @@ class WashingtonScraper(BaseScraper[WashingtonOpinionCluster]):
 
             # Cell 1: Case Info/File - contains docket number link and PDF link
             case_info_cell = cells[1]
-            docket_links = case_info_cell.xpath(".//a[contains(@href, 'showOpinion')]")
+            docket_links = case_info_cell.xpath(
+                ".//a[contains(@href, 'showOpinion')]"
+            )
             pdf_links = case_info_cell.xpath(".//a[contains(@href, '.pdf')]")
 
             if not docket_links or not pdf_links:
@@ -345,7 +349,9 @@ class WashingtonScraper(BaseScraper[WashingtonOpinionCluster]):
                 "division": None,
                 "detail_url": detail_url,
                 "source_url": response.url,
-                "opinions_data": [{"download_url": pdf_url, "type": "majority"}],
+                "opinions_data": [
+                    {"download_url": pdf_url, "type": "majority"}
+                ],
                 "pending_downloads": 1,
                 "completed_downloads": 0,
                 "downloaded_paths": {},
@@ -419,13 +425,17 @@ class WashingtonScraper(BaseScraper[WashingtonOpinionCluster]):
                 docket_links = case_info_cell.xpath(
                     ".//a[contains(@href, 'showOpinion')]"
                 )
-                pdf_links = case_info_cell.xpath(".//a[contains(@href, '.pdf')]")
+                pdf_links = case_info_cell.xpath(
+                    ".//a[contains(@href, '.pdf')]"
+                )
 
                 if not docket_links or not pdf_links:
                     continue
 
                 docket_number = docket_links[0].text_content().strip()
-                detail_url = urljoin(response.url, docket_links[0].get("href", ""))
+                detail_url = urljoin(
+                    response.url, docket_links[0].get("href", "")
+                )
                 pdf_url = urljoin(response.url, pdf_links[0].get("href", ""))
 
                 # Cell 2: Division (I, II, or III)
@@ -452,13 +462,17 @@ class WashingtonScraper(BaseScraper[WashingtonOpinionCluster]):
                     "docket_number": docket_number,
                     "court_id": "washctapp",
                     "case_name": case_name,
-                    "date_filed": date_filed.isoformat() if date_filed else None,
+                    "date_filed": date_filed.isoformat()
+                    if date_filed
+                    else None,
                     "file_contents": file_contents,
                     "publication_status": pub_status,
                     "division": division,
                     "detail_url": detail_url,
                     "source_url": response.url,
-                    "opinions_data": [{"download_url": pdf_url, "type": "majority"}],
+                    "opinions_data": [
+                        {"download_url": pdf_url, "type": "majority"}
+                    ],
                     "pending_downloads": 1,
                     "completed_downloads": 0,
                     "downloaded_paths": {},

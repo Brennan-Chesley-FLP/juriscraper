@@ -39,7 +39,9 @@ COLLECTION_TO_COURT_ID: dict[str, str] = {
 }
 
 # Court ID to collection ID mapping
-COURT_ID_TO_COLLECTION: dict[str, str] = {v: k for k, v in COLLECTION_TO_COURT_ID.items()}
+COURT_ID_TO_COLLECTION: dict[str, str] = {
+    v: k for k, v in COLLECTION_TO_COURT_ID.items()
+}
 
 # All supported court IDs
 COURT_IDS: set[str] = set(COLLECTION_TO_COURT_ID.values())

@@ -47,7 +47,6 @@ from juriscraper.scraper_driver.data_types import (
 
 from .models import (
     ID_TO_NMONESOURCE_COURT,
-    NMONESOURCE_COURT_TO_ID,
     NMOpinion,
     NMOpinionCluster,
 )
@@ -351,7 +350,10 @@ class NMOneSourceScraper(BaseScraper[NMOpinionCluster]):
                     opinion_type = "slip"
                 elif "unreported" in text_lower:
                     opinion_type = "unreported"
-                if "supreme court" in text_lower or "court of appeals" in text_lower:
+                if (
+                    "supreme court" in text_lower
+                    or "court of appeals" in text_lower
+                ):
                     collection = text.strip()
 
             # Extract PDF download URL if available on listing page
@@ -361,7 +363,9 @@ class NMOneSourceScraper(BaseScraper[NMOpinionCluster]):
                 min_count=0,
                 type=str,
             )
-            pdf_url = urljoin(response.url, pdf_links[0]) if pdf_links else None
+            pdf_url = (
+                urljoin(response.url, pdf_links[0]) if pdf_links else None
+            )
 
             # Build accumulated data for next steps
             cluster_data = {

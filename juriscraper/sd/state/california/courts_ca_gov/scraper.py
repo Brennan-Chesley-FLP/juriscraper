@@ -26,7 +26,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
-from urllib.parse import urljoin, urlparse, parse_qs, urlencode
+from urllib.parse import parse_qs, urljoin, urlparse
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.decorators import step
@@ -44,7 +44,6 @@ from juriscraper.scraper_driver.data_types import (
 
 from .models import (
     CASE_PREFIX_TO_COURT,
-    SOURCE_TO_COURT,
     CalOpinion,
     CalOpinionCluster,
 )
@@ -367,7 +366,9 @@ class CalScraper(BaseScraper[CalOpinionCluster]):
                     case_name = full_title
                     div_match = self.DIVISION_PATTERN.search(full_title)
                     if div_match:
-                        division = f"CA{div_match.group(1)}/{div_match.group(2)}"
+                        division = (
+                            f"CA{div_match.group(1)}/{div_match.group(2)}"
+                        )
                         # Remove division from case name
                         case_name = full_title[: div_match.start()].strip()
                     # Remove trailing date patterns
@@ -375,7 +376,9 @@ class CalScraper(BaseScraper[CalOpinionCluster]):
                         r"\s+\d{1,2}/\d{1,2}/\d{2,4}\s*$", case_name
                     )
                     if date_suffix_match:
-                        case_name = case_name[: date_suffix_match.start()].strip()
+                        case_name = case_name[
+                            : date_suffix_match.start()
+                        ].strip()
                     # Also try "Month Day Year" format at end
                     date_suffix_match2 = re.search(
                         r"\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)"
@@ -384,7 +387,9 @@ class CalScraper(BaseScraper[CalOpinionCluster]):
                         re.IGNORECASE,
                     )
                     if date_suffix_match2:
-                        case_name = case_name[: date_suffix_match2.start()].strip()
+                        case_name = case_name[
+                            : date_suffix_match2.start()
+                        ].strip()
 
             # Extract PDF URL
             pdf_links = item.checked_xpath(
@@ -409,7 +414,9 @@ class CalScraper(BaseScraper[CalOpinionCluster]):
             if other_formats_links:
                 other_formats_url = other_formats_links[0].get("href")
                 if other_formats_url:
-                    other_formats_url = urljoin(response.url, other_formats_url)
+                    other_formats_url = urljoin(
+                        response.url, other_formats_url
+                    )
 
             # Extract related cases if present
             related_cases: list[str] = []
@@ -466,7 +473,9 @@ class CalScraper(BaseScraper[CalOpinionCluster]):
                     # Parse the page number from the URL
                     parsed = urlparse(next_url)
                     query_params = parse_qs(parsed.query)
-                    next_page = int(query_params.get("page", [current_page + 1])[0])
+                    next_page = int(
+                        query_params.get("page", [current_page + 1])[0]
+                    )
 
                     yield NavigatingRequest(
                         request=HTTPRequestParams(
@@ -530,9 +539,18 @@ class CalScraper(BaseScraper[CalOpinionCluster]):
 
         # Try month name format first: January 22, 2026
         month_names = {
-            "january": 1, "february": 2, "march": 3, "april": 4,
-            "may": 5, "june": 6, "july": 7, "august": 8,
-            "september": 9, "october": 10, "november": 11, "december": 12,
+            "january": 1,
+            "february": 2,
+            "march": 3,
+            "april": 4,
+            "may": 5,
+            "june": 6,
+            "july": 7,
+            "august": 8,
+            "september": 9,
+            "october": 10,
+            "november": 11,
+            "december": 12,
         }
 
         for month_name, month_num in month_names.items():

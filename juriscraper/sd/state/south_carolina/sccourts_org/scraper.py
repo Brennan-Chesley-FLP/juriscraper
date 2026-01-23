@@ -35,7 +35,7 @@ Design decisions:
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
@@ -55,7 +55,6 @@ from juriscraper.scraper_driver.data_types import (
 
 from .models import (
     COURT_IDS,
-    COURT_PDF_SEGMENT,
     COURT_URL_SEGMENT,
     SCOpinion,
     SCOpinionCluster,
@@ -230,9 +229,13 @@ class SouthCarolinaScraper(BaseScraper[SCOpinionCluster]):
         """
         court_segment = COURT_URL_SEGMENT[court_id]
         if published:
-            path = self.PUBLISHED_URL_TEMPLATE.format(court_segment=court_segment)
+            path = self.PUBLISHED_URL_TEMPLATE.format(
+                court_segment=court_segment
+            )
         else:
-            path = self.UNPUBLISHED_URL_TEMPLATE.format(court_segment=court_segment)
+            path = self.UNPUBLISHED_URL_TEMPLATE.format(
+                court_segment=court_segment
+            )
 
         term = f"{year:04d}-{month:02d}"
         return f"{self.BASE_URL}{path}?term={term}"
@@ -247,7 +250,9 @@ class SouthCarolinaScraper(BaseScraper[SCOpinionCluster]):
         Yields NavigatingRequests for each court and publication status.
         """
         courts = self._get_target_courts()
-        date_gte, date_lte, opinion_number, _ = self._get_opinions_search_params()
+        date_gte, date_lte, opinion_number, _ = (
+            self._get_opinions_search_params()
+        )
 
         # Determine month/year range for searching
         today = date.today()
@@ -368,7 +373,9 @@ class SouthCarolinaScraper(BaseScraper[SCOpinionCluster]):
                     break
 
                 # Look for download links to PDFs
-                pdf_links = element.xpath(".//a[contains(@href, '.pdf')]/@href")
+                pdf_links = element.xpath(
+                    ".//a[contains(@href, '.pdf')]/@href"
+                )
                 if not pdf_links:
                     continue
 
@@ -406,7 +413,10 @@ class SouthCarolinaScraper(BaseScraper[SCOpinionCluster]):
                     case_name = f"Opinion {opinion_number}"
 
                 # Apply filters
-                if opinion_number_filter and opinion_number != opinion_number_filter:
+                if (
+                    opinion_number_filter
+                    and opinion_number != opinion_number_filter
+                ):
                     continue
 
                 if current_date:
@@ -420,10 +430,14 @@ class SouthCarolinaScraper(BaseScraper[SCOpinionCluster]):
                     "opinion_number": opinion_number,
                     "court_id": court_id,
                     "case_name": case_name,
-                    "date_filed": current_date.isoformat() if current_date else None,
+                    "date_filed": current_date.isoformat()
+                    if current_date
+                    else None,
                     "published": published,
                     "source_url": response.url,
-                    "opinions_data": [{"download_url": pdf_url, "type": "majority"}],
+                    "opinions_data": [
+                        {"download_url": pdf_url, "type": "majority"}
+                    ],
                     "pending_downloads": 1,
                     "completed_downloads": 0,
                     "downloaded_paths": {},

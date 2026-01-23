@@ -45,8 +45,6 @@ from juriscraper.scraper_driver.data_types import (
 )
 
 from .models import (
-    COURT_TO_DOCKET_PREFIXES,
-    DOCKET_PREFIX_TO_COURT,
     ColoradoOpinion,
     ColoradoOpinionCluster,
 )
@@ -211,10 +209,12 @@ class ColoradoScraper(BaseScraper[ColoradoOpinionCluster]):
 
         # Supreme Court slip opinions
         if "colo" in target_courts:
+            slip_url = OPINIONS_CONFIG["colo"]["slip_opinions_url"]
+            assert isinstance(slip_url, str)
             yield NavigatingRequest(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
-                    url=OPINIONS_CONFIG["colo"]["slip_opinions_url"],
+                    url=slip_url,
                 ),
                 continuation=self.parse_slip_opinions_page,
                 accumulated_data={
@@ -378,7 +378,7 @@ class ColoradoScraper(BaseScraper[ColoradoOpinionCluster]):
                 opinions_by_date[current_date].append(opinion_data)
 
         # Yield requests for each opinion detail page
-        for pub_date, opinions in opinions_by_date.items():
+        for _pub_date, opinions in opinions_by_date.items():
             for opinion_data in opinions:
                 yield NavigatingRequest(
                     request=HTTPRequestParams(

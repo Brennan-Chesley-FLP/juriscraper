@@ -32,7 +32,6 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from typing import TYPE_CHECKING, ClassVar
-from urllib.parse import urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.decorators import step
@@ -49,7 +48,6 @@ from juriscraper.scraper_driver.data_types import (
 )
 
 from .models import (
-    COURT_ID_MAP,
     COURT_URL_FILTER_MAP,
     DelOpinion,
     DelOpinionCluster,
@@ -64,7 +62,9 @@ if TYPE_CHECKING:
 # Base URLs
 BASE_URL = "https://courts.delaware.gov"
 OPINIONS_URL = "https://courts.delaware.gov/opinions/"
-DOWNLOAD_URL_PATTERN = "https://courts.delaware.gov/Opinions/Download.aspx?id={id}"
+DOWNLOAD_URL_PATTERN = (
+    "https://courts.delaware.gov/Opinions/Download.aspx?id={id}"
+)
 
 
 class DelawareScraper(BaseScraper[DelOpinionCluster]):
@@ -125,7 +125,9 @@ class DelawareScraper(BaseScraper[DelOpinionCluster]):
     XPATH_CELL_TYPE = ".//td[5]"
     XPATH_CELL_JUDICIAL_OFFICER = ".//td[6]"
     XPATH_CELL_DESCRIPTION = ".//td[7]"
-    XPATH_PAGINATION_BUTTONS = "//nav[@aria-label='Index of pages']//button[not(@disabled)]"
+    XPATH_PAGINATION_BUTTONS = (
+        "//nav[@aria-label='Index of pages']//button[not(@disabled)]"
+    )
 
     # === Regex patterns ===
     # Date format: MM/DD/YYYY
@@ -284,8 +286,6 @@ class DelawareScraper(BaseScraper[DelOpinionCluster]):
         - Download URL (from button onclick/navigation)
         """
         date_gte, date_lte, filter_court_ids = self._get_search_params()
-        page_number = accumulated_data.get("page_number", 1)
-        court_filter = accumulated_data.get("court_filter")
 
         # Find all opinion rows in the table
         rows = lxml_tree.checked_xpath(
@@ -405,7 +405,11 @@ class DelawareScraper(BaseScraper[DelOpinionCluster]):
                 court_id = get_court_id(court_name)
 
             # Apply court filter if filtering by specific courts
-            if filter_court_ids and court_id and court_id not in filter_court_ids:
+            if (
+                filter_court_ids
+                and court_id
+                and court_id not in filter_court_ids
+            ):
                 continue
 
             # Extract case type (Civil/Criminal)
@@ -444,7 +448,9 @@ class DelawareScraper(BaseScraper[DelOpinionCluster]):
             cluster_data = {
                 "docket_number": docket_number,
                 "court_id": court_id or "del",  # Default to Supreme Court
-                "date_filed": opinion_date.isoformat() if opinion_date else None,
+                "date_filed": opinion_date.isoformat()
+                if opinion_date
+                else None,
                 "case_name": case_name,
                 "case_type": case_type,
                 "judicial_officer": judicial_officer,
@@ -505,7 +511,8 @@ class DelawareScraper(BaseScraper[DelOpinionCluster]):
         cluster = DelOpinionCluster(
             docket_number=accumulated_data["docket_number"],
             court_id=accumulated_data["court_id"],
-            date_filed=date_filed or date.today(),  # Fallback to today if no date
+            date_filed=date_filed
+            or date.today(),  # Fallback to today if no date
             case_name=accumulated_data["case_name"],
             opinions=[opinion],
             case_type=accumulated_data.get("case_type"),

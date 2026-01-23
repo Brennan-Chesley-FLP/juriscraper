@@ -123,7 +123,9 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
     XPATH_DECISION_TYPES = '//*[contains(@id, "DecType")]/text()'
     XPATH_DOCKET_NUMBERS = '//a[contains(@id, "hypCaseNum")]//text()'
     XPATH_JUDGES = '//span[contains(@id, "Judges")]//text()'
-    XPATH_CONST_SUMMARY = '//span[contains(@id, "ConstitutionalitySummary")]//text()'
+    XPATH_CONST_SUMMARY = (
+        '//span[contains(@id, "ConstitutionalitySummary")]//text()'
+    )
 
     # XPath for Division 2 site
     XPATH_DIV2_PDF_LINKS = "//table//a[contains(@href, '.pdf')]"
@@ -321,7 +323,9 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
             # Parse filing date
             date_str = filing_dates[i] if i < len(filing_dates) else ""
             try:
-                filed_date = datetime.strptime(date_str.strip(), "%m/%d/%Y").date()
+                filed_date = datetime.strptime(
+                    date_str.strip(), "%m/%d/%Y"
+                ).date()
             except ValueError:
                 # Try alternative format
                 match = self.DATE_PATTERN.search(date_str)
@@ -346,7 +350,9 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
             case_name = titlecase(case_name.strip().upper())
 
             # Extract decision type
-            decision_type = decision_types[i] if i < len(decision_types) else "Unknown"
+            decision_type = (
+                decision_types[i] if i < len(decision_types) else "Unknown"
+            )
             decision_type = decision_type.strip()
 
             # Determine precedential status from decision type
@@ -368,7 +374,9 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
 
             # Get constitutionality summary if available
             const_summary = (
-                const_summaries[i].strip() if i < len(const_summaries) else None
+                const_summaries[i].strip()
+                if i < len(const_summaries)
+                else None
             )
 
             # Resolve PDF URL
@@ -428,7 +436,9 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
 
         for link in pdf_links:
             # Extract docket number from link text
-            docket_text = link.text_content().strip() if link.text_content() else ""
+            docket_text = (
+                link.text_content().strip() if link.text_content() else ""
+            )
             if not docket_text:
                 continue
 
@@ -446,7 +456,9 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
             name_elements = link.xpath("./following::td[1]/*/text()")
             if not name_elements:
                 name_elements = link.xpath("./following::td[1]//text()")
-            case_name = name_elements[0].strip() if name_elements else "Unknown"
+            case_name = (
+                name_elements[0].strip() if name_elements else "Unknown"
+            )
             case_name = titlecase(case_name)
 
             # Extract date from following cell (format: "Opinion Filed: MM/DD/YYYY")
@@ -457,7 +469,9 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
             match = self.DATE_PATTERN.search(date_str)
             if match:
                 try:
-                    filed_date = datetime.strptime(match.group(1), "%m/%d/%Y").date()
+                    filed_date = datetime.strptime(
+                        match.group(1), "%m/%d/%Y"
+                    ).date()
                 except ValueError:
                     filed_date = date.today()
             else:
@@ -471,7 +485,9 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
 
             # Extract summary from following row if available
             summary_elements = link.xpath("./following::tr[1]//text()")
-            summary = "".join(summary_elements).strip() if summary_elements else None
+            summary = (
+                "".join(summary_elements).strip() if summary_elements else None
+            )
 
             # Yield ArchiveRequest for the PDF
             yield ArchiveRequest(
@@ -509,7 +525,9 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
     ) -> Generator[ScraperYield[ArizOpinionCluster], None, None]:
         """Handle a downloaded opinion PDF and yield the final cluster."""
         # Parse the date from ISO format
-        filed_date = datetime.fromisoformat(accumulated_data["date_filed"]).date()
+        filed_date = datetime.fromisoformat(
+            accumulated_data["date_filed"]
+        ).date()
 
         # Create the opinion object
         opinion = ArizOpinion(
@@ -527,7 +545,9 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
             opinions=[opinion],
             decision_type=accumulated_data.get("decision_type"),
             judges=accumulated_data.get("judges"),
-            constitutionality_summary=accumulated_data.get("constitutionality_summary"),
+            constitutionality_summary=accumulated_data.get(
+                "constitutionality_summary"
+            ),
             source_url=accumulated_data.get("source_url"),
             publication_year=accumulated_data.get("publication_year"),
             precedential_status=accumulated_data.get(

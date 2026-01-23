@@ -115,7 +115,9 @@ class OhioScraper(BaseScraper[OhioOpinionCluster]):
     msec_per_request_rate_limit: ClassVar[int] = 1000
 
     # Base URL for opinion search
-    OPINION_SEARCH_URL = "https://www.supremecourt.ohio.gov/Rod/docs/Default.aspx"
+    OPINION_SEARCH_URL = (
+        "https://www.supremecourt.ohio.gov/Rod/docs/Default.aspx"
+    )
 
     # === Regex patterns ===
     # Date pattern: MM/DD/YYYY or M/D/YYYY
@@ -201,13 +203,17 @@ class OhioScraper(BaseScraper[OhioOpinionCluster]):
             for court_id in court_ids:
                 if court_id in COURT_ID_TO_SOURCE:
                     sources.append(COURT_ID_TO_SOURCE[court_id])
-            return sorted(sources) if sources else [0]  # Default to Supreme Court
+            return (
+                sorted(sources) if sources else [0]
+            )  # Default to Supreme Court
 
         # Default: Supreme Court only (source=0)
         # Users can specify court_id.values to include other courts
         return [0]
 
-    def _build_search_url(self, source: int, year_from: int, year_to: int) -> str:
+    def _build_search_url(
+        self, source: int, year_from: int, year_to: int
+    ) -> str:
         """Build the opinion search URL with parameters.
 
         The Ohio site uses form POST for search, but we can use query params
@@ -323,7 +329,10 @@ class OhioScraper(BaseScraper[OhioOpinionCluster]):
             citation = None
             county = None
             if citation_county:
-                if "Slip Opinion" in citation_county or "Ohio" in citation_county:
+                if (
+                    "Slip Opinion" in citation_county
+                    or "Ohio" in citation_county
+                ):
                     citation = citation_county
                 else:
                     county = citation_county
@@ -381,10 +390,16 @@ class OhioScraper(BaseScraper[OhioOpinionCluster]):
                 "topics_and_issues": topics_and_issues,
                 "citation": citation,
                 "county": county,
-                "date_decided": date_decided.isoformat() if date_decided else None,
-                "date_posted": date_posted.isoformat() if date_posted else None,
+                "date_decided": date_decided.isoformat()
+                if date_decided
+                else None,
+                "date_posted": date_posted.isoformat()
+                if date_posted
+                else None,
                 "source_url": response.url,
-                "opinions_data": [{"download_url": pdf_url, "type": "majority"}],
+                "opinions_data": [
+                    {"download_url": pdf_url, "type": "majority"}
+                ],
                 "pending_downloads": 1,
                 "completed_downloads": 0,
                 "downloaded_paths": {},

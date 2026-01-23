@@ -61,7 +61,9 @@ if TYPE_CHECKING:
 # Base URLs
 BASE_URL = "https://mncourts.gov"
 SC_OPINIONS_URL = "https://mncourts.gov/supremecourt/recentopinions/minnesota-supreme-court-opinion"
-COA_PRECEDENTIAL_URL = "https://mncourts.gov/courtofappeals/recentopinions/precedential-opinions"
+COA_PRECEDENTIAL_URL = (
+    "https://mncourts.gov/courtofappeals/recentopinions/precedential-opinions"
+)
 COA_NONPRECEDENTIAL_URL = "https://mncourts.gov/courtofappeals/recentopinions/nonprecedential-opinions"
 
 
@@ -133,9 +135,18 @@ class MNCourtsScraper(BaseScraper[MNOpinionCluster]):
 
     # Month name to number mapping
     MONTH_MAP: ClassVar[dict[str, int]] = {
-        "january": 1, "february": 2, "march": 3, "april": 4,
-        "may": 5, "june": 6, "july": 7, "august": 8,
-        "september": 9, "october": 10, "november": 11, "december": 12,
+        "january": 1,
+        "february": 2,
+        "march": 3,
+        "april": 4,
+        "may": 5,
+        "june": 6,
+        "july": 7,
+        "august": 8,
+        "september": 9,
+        "october": 10,
+        "november": 11,
+        "december": 12,
     }
 
     def _get_requested_data_types(self) -> set[str]:
@@ -239,7 +250,9 @@ class MNCourtsScraper(BaseScraper[MNOpinionCluster]):
 
         return disposition, author
 
-    def _should_scrape_court(self, court_id: str, court_filter: set[str] | None) -> bool:
+    def _should_scrape_court(
+        self, court_id: str, court_filter: set[str] | None
+    ) -> bool:
         """Check if we should scrape opinions from a given court."""
         if court_filter is None:
             return True
@@ -269,7 +282,9 @@ class MNCourtsScraper(BaseScraper[MNOpinionCluster]):
             )
 
         # Court of Appeals - precedential opinions
-        if self._should_scrape_court(MNCourt.COURT_OF_APPEALS.value, court_ids):
+        if self._should_scrape_court(
+            MNCourt.COURT_OF_APPEALS.value, court_ids
+        ):
             yield NavigatingRequest(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
@@ -325,7 +340,9 @@ class MNCourtsScraper(BaseScraper[MNOpinionCluster]):
             re.IGNORECASE,
         )
         if released_match:
-            release_date = self._parse_date_from_header(released_match.group(1))
+            release_date = self._parse_date_from_header(
+                released_match.group(1)
+            )
 
         # Apply date filter
         if release_date:
@@ -393,12 +410,16 @@ class MNCourtsScraper(BaseScraper[MNOpinionCluster]):
             )
 
             # Extract disposition and author
-            disposition, author = self._extract_disposition_and_author(parent_text)
+            disposition, author = self._extract_disposition_and_author(
+                parent_text
+            )
 
             cluster_data = {
                 "docket_id": docket_number,
                 "court_id": MNCourt.SUPREME_COURT.value,
-                "date_filed": release_date.isoformat() if release_date else None,
+                "date_filed": release_date.isoformat()
+                if release_date
+                else None,
                 "case_name": case_name or f"Case {docket_number}",
                 "source_url": response.url,
                 "pdf_url": pdf_url,
@@ -552,7 +573,9 @@ class MNCourtsScraper(BaseScraper[MNOpinionCluster]):
             )
 
             # Extract disposition and author
-            disposition, author = self._extract_disposition_and_author(parent_text)
+            disposition, author = self._extract_disposition_and_author(
+                parent_text
+            )
 
             # Try to extract lower court info
             lower_court, lower_court_judge = self._extract_lower_court_info(
@@ -562,7 +585,9 @@ class MNCourtsScraper(BaseScraper[MNOpinionCluster]):
             cluster_data = {
                 "docket_id": docket_number,
                 "court_id": MNCourt.COURT_OF_APPEALS.value,
-                "date_filed": release_date.isoformat() if release_date else None,
+                "date_filed": release_date.isoformat()
+                if release_date
+                else None,
                 "case_name": case_name or f"Case {docket_number}",
                 "source_url": response.url,
                 "pdf_url": pdf_url,
@@ -597,7 +622,7 @@ class MNCourtsScraper(BaseScraper[MNOpinionCluster]):
             return None
 
         # Get text after docket number
-        after_docket = text[idx + len(docket_number):].strip()
+        after_docket = text[idx + len(docket_number) :].strip()
 
         # Case name typically ends before disposition or court info
         # Look for patterns like "Affirmed.", "Reversed.", county names, etc.
@@ -614,7 +639,7 @@ class MNCourtsScraper(BaseScraper[MNOpinionCluster]):
         for pattern in end_patterns:
             match = re.search(pattern, case_name, re.IGNORECASE)
             if match:
-                case_name = case_name[:match.start()]
+                case_name = case_name[: match.start()]
                 break
 
         # Clean up

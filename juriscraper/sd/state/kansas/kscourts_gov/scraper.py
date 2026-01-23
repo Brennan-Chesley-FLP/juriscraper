@@ -57,7 +57,14 @@ SEARCH_PAGE_URL = "https://searchdro.kscourts.gov/Documents/LoadPage"
 BASE_URL = "https://searchdro.kscourts.gov"
 
 # Expected table columns
-EXPECTED_COLUMNS = ["Release Date", "Case Number", "Case Title", "Court", "Status", "PDF"]
+EXPECTED_COLUMNS = [
+    "Release Date",
+    "Case Number",
+    "Case Title",
+    "Court",
+    "Status",
+    "PDF",
+]
 
 
 class KansasScraper(BaseScraper[KansasOpinionCluster]):
@@ -234,7 +241,9 @@ class KansasScraper(BaseScraper[KansasOpinionCluster]):
         response: Response,
     ) -> Generator[ScraperYield[KansasOpinionCluster], None, None]:
         """Parse search results table and yield requests for each opinion PDF."""
-        date_gte, date_lte, target_docket, court_ids = self._get_search_params()
+        date_gte, date_lte, target_docket, court_ids = (
+            self._get_search_params()
+        )
 
         # Validate table headers to ensure structure hasn't changed
         headers = lxml_tree.checked_xpath(

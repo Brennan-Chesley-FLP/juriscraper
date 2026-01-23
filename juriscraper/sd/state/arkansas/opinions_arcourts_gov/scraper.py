@@ -246,9 +246,7 @@ class ArkansasScraper(BaseScraper[ArkOpinionCluster]):
             # Use speculative requests to probe IDs
             probe_id = current_id
             while True:
-                item_url = (
-                    f"{BASE_URL}{BASE_PATH}/{url_path}/en/item/{probe_id}/index.do"
-                )
+                item_url = f"{BASE_URL}{BASE_PATH}/{url_path}/en/item/{probe_id}/index.do"
 
                 should_continue = yield SpeculativeRequest(
                     request=HTTPRequestParams(
@@ -389,7 +387,9 @@ class ArkansasScraper(BaseScraper[ArkOpinionCluster]):
         # Build PDF URL
         config = COURT_CONFIG[court_id]
         url_path = config["url_path"]
-        pdf_url = f"{BASE_URL}{BASE_PATH}/{url_path}/en/{item_id}/1/document.do"
+        pdf_url = (
+            f"{BASE_URL}{BASE_PATH}/{url_path}/en/{item_id}/1/document.do"
+        )
 
         # Create opinion cluster
         cluster = ArkOpinionCluster(

@@ -57,7 +57,9 @@ if TYPE_CHECKING:
 
 
 # ZIP files page URL
-ZIP_FILES_URL = "https://www.courts.michigan.gov/courts/opinion-order-zip-files/"
+ZIP_FILES_URL = (
+    "https://www.courts.michigan.gov/courts/opinion-order-zip-files/"
+)
 
 
 class MichiganScraper(BaseScraper[MichiganOpinionCluster]):
@@ -108,7 +110,9 @@ class MichiganScraper(BaseScraper[MichiganOpinionCluster]):
 
     # ZIP URL patterns to identify court type
     COA_ZIP_PATTERN = re.compile(r"/coa/zip-files/")
-    MSC_OPINION_ZIP_PATTERN = re.compile(r"/sct/zip-files/.*_msc_opinions\.zip")
+    MSC_OPINION_ZIP_PATTERN = re.compile(
+        r"/sct/zip-files/.*_msc_opinions\.zip"
+    )
     MSC_ORDER_ZIP_PATTERN = re.compile(r"/orders/zip-files/.*_msc_orders\.zip")
 
     # Link text patterns to identify content type
@@ -271,7 +275,9 @@ class MichiganScraper(BaseScraper[MichiganOpinionCluster]):
         response: Response,
     ) -> Generator[ScraperYield[MichiganOpinionCluster], None, None]:
         """Parse ZIP files page and yield requests for each ZIP archive."""
-        date_gte, date_lte, target_docket, court_ids = self._get_search_params()
+        date_gte, date_lte, target_docket, court_ids = (
+            self._get_search_params()
+        )
 
         # Find all links that point to ZIP files
         # The links are in generic containers with "Title" labels
@@ -292,7 +298,9 @@ class MichiganScraper(BaseScraper[MichiganOpinionCluster]):
                 continue
 
             # Get the link text
-            link_text = link.text_content().strip() if link.text_content() else ""
+            link_text = (
+                link.text_content().strip() if link.text_content() else ""
+            )
 
             # Skip MSC orders - we only want opinions
             if self.MSC_ORDER_ZIP_PATTERN.search(href):
@@ -319,7 +327,9 @@ class MichiganScraper(BaseScraper[MichiganOpinionCluster]):
                 continue
 
             # Determine precedential status
-            precedential_status = self._get_precedential_status(link_text, court_id)
+            precedential_status = self._get_precedential_status(
+                link_text, court_id
+            )
 
             # For COA, prefer specific Published/Unpublished ZIPs over "All"
             # to get accurate precedential status
@@ -389,7 +399,7 @@ class MichiganScraper(BaseScraper[MichiganOpinionCluster]):
         try:
             with open(zip_local_path, "rb") as f:
                 zip_data = f.read()
-        except (OSError, IOError):
+        except OSError:
             # File read failed - skip this ZIP
             return
 
@@ -401,7 +411,9 @@ class MichiganScraper(BaseScraper[MichiganOpinionCluster]):
                         continue
 
                     # Extract docket number from filename
-                    docket_number = self._extract_docket_from_filename(filename)
+                    docket_number = self._extract_docket_from_filename(
+                        filename
+                    )
                     if docket_number is None:
                         continue
 

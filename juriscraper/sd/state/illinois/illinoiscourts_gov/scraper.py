@@ -38,7 +38,7 @@ from __future__ import annotations
 import html
 import re
 from datetime import date, datetime
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.decorators import step
@@ -219,8 +219,7 @@ class IllinoisScraper(BaseScraper[IllinoisOpinionCluster]):
         try:
             # Parse RFC 2822 date format
             dt = datetime.strptime(
-                date_str.strip(),
-                "%a, %d %b %Y %H:%M:%S %Z"
+                date_str.strip(), "%a, %d %b %Y %H:%M:%S %Z"
             )
             return dt.date()
         except ValueError:
@@ -319,7 +318,9 @@ class IllinoisScraper(BaseScraper[IllinoisOpinionCluster]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield[IllinoisOpinionCluster], None, None]:
         """Parse RSS feed and yield requests for each opinion."""
-        date_gte, date_lte, target_docket, court_ids = self._get_search_params()
+        date_gte, date_lte, target_docket, court_ids = (
+            self._get_search_params()
+        )
 
         # Find all <item> elements in the RSS feed
         # RSS feeds may have 0 items if no recent opinions
@@ -489,7 +490,7 @@ class IllinoisScraper(BaseScraper[IllinoisOpinionCluster]):
             district = self._get_district_from_name(court_name)
 
             # Build accumulated data for download handler
-            cluster_data = {
+            cluster_data: dict[str, Any] = {
                 "docket_id": citation,
                 "court_id": court_id,
                 "date_filed": filing_date.isoformat(),

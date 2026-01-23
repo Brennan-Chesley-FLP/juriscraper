@@ -37,7 +37,7 @@ COURT_IDS = {
 
 # NMOneSource court code to CourtListener ID mapping
 NMONESOURCE_COURT_TO_ID = {
-    "nmsc": "nm",     # Supreme Court of New Mexico
+    "nmsc": "nm",  # Supreme Court of New Mexico
     "nmca": "nmctapp",  # Court of Appeals of New Mexico
 }
 

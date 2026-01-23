@@ -58,9 +58,7 @@ if TYPE_CHECKING:
 
 # Base URLs
 BASE_URL = "https://www.courts.ri.gov"
-PUBLISHED_OPINIONS_URL = (
-    "https://www.courts.ri.gov/Courts/SupremeCourt/Pages/published-opinions.aspx"
-)
+PUBLISHED_OPINIONS_URL = "https://www.courts.ri.gov/Courts/SupremeCourt/Pages/published-opinions.aspx"
 
 
 class RhodeIslandScraper(BaseScraper[RhodeIslandOpinionCluster]):
@@ -179,9 +177,18 @@ class RhodeIslandScraper(BaseScraper[RhodeIslandOpinionCluster]):
 
             # Convert month name to number
             month_map = {
-                "January": 1, "February": 2, "March": 3, "April": 4,
-                "May": 5, "June": 6, "July": 7, "August": 8,
-                "September": 9, "October": 10, "November": 11, "December": 12
+                "January": 1,
+                "February": 2,
+                "March": 3,
+                "April": 4,
+                "May": 5,
+                "June": 6,
+                "July": 7,
+                "August": 8,
+                "September": 9,
+                "October": 10,
+                "November": 11,
+                "December": 12,
             }
             month = month_map.get(month_name)
             if month:
@@ -386,14 +393,6 @@ class RhodeIslandScraper(BaseScraper[RhodeIslandOpinionCluster]):
                 expected_type="pdf",
                 accumulated_data=cluster_data,
             )
-
-        # Check for pagination - look for "Move to next page" link
-        next_page_links = lxml_tree.checked_xpath(
-            "//a[contains(@title, 'next page') or contains(., 'next page')]/@href",
-            "next page link",
-            min_count=0,
-            type=str,
-        )
 
         # Note: SharePoint search uses JavaScript pagination via URL hash
         # For complete scraping, we would need to iterate through years

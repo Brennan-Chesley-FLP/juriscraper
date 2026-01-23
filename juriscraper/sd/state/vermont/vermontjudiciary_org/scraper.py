@@ -25,7 +25,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from typing import TYPE_CHECKING, ClassVar
-from urllib.parse import urljoin, urlencode
+from urllib.parse import urlencode, urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.decorators import step
@@ -311,7 +311,7 @@ class VermontScraper(BaseScraper[VermontOpinionCluster]):
                 continue
 
             # Extract court division - we only want Supreme Court
-            division_elements = article.checked_xpath(
+            article.checked_xpath(
                 ".//div[contains(@class, 'field--name-field-court-division')]//text() | "
                 ".//span[contains(@class, 'views-field-field-court-division')]//text() | "
                 ".//*[contains(text(), 'Supreme Court') or contains(text(), 'Civil') or "

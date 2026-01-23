@@ -30,7 +30,6 @@ from juriscraper.scraper_driver.common.searchable import (
     DateRange,
     SetFilter,
     SpeculativeID,
-    UniqueMatch,
 )
 
 # Court ID mapping

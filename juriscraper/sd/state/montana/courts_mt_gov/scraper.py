@@ -31,7 +31,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from typing import TYPE_CHECKING, ClassVar
-from urllib.parse import urljoin, quote
+from urllib.parse import quote, urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.decorators import step
@@ -62,7 +62,9 @@ if TYPE_CHECKING:
 BASE_URL = "https://courts.mt.gov"
 DAILY_ORDERS_URL = "https://courts.mt.gov/external/orders/dailyorders"
 CASE_INFO_URL_TEMPLATE = "https://courts.mt.gov/external/orders/caseInfo?id={}"
-DOCUMENT_SERVICE_URL = "https://juddocumentservice.mt.gov/getDocByCTrackId?DocId={}"
+DOCUMENT_SERVICE_URL = (
+    "https://juddocumentservice.mt.gov/getDocByCTrackId?DocId={}"
+)
 
 
 class MontanaScraper(BaseScraper[MontanaOpinionCluster]):
@@ -417,7 +419,9 @@ class MontanaScraper(BaseScraper[MontanaOpinionCluster]):
             type=str,
         )
         if case_type_cells:
-            case_type = " ".join(t.strip() for t in case_type_cells if t.strip())
+            case_type = " ".join(
+                t.strip() for t in case_type_cells if t.strip()
+            )
             accumulated_data["case_type"] = case_type
 
         # Look for document links in the Register of Actions
@@ -454,10 +458,12 @@ class MontanaScraper(BaseScraper[MontanaOpinionCluster]):
                 doc_id_match = self.DOC_ID_PATTERN.search(doc_url)
                 doc_id = doc_id_match.group(1) if doc_id_match else None
 
-                doc_urls.append({
-                    "url": doc_url,
-                    "doc_id": doc_id,
-                })
+                doc_urls.append(
+                    {
+                        "url": doc_url,
+                        "doc_id": doc_id,
+                    }
+                )
 
         if not doc_urls:
             # No documents found - yield cluster without PDFs
@@ -472,7 +478,9 @@ class MontanaScraper(BaseScraper[MontanaOpinionCluster]):
                 opinions=[],
                 source_url=accumulated_data["source_url"],
                 case_info_url=accumulated_data["case_info_url"],
-                document_description=accumulated_data.get("document_description"),
+                document_description=accumulated_data.get(
+                    "document_description"
+                ),
                 case_type=accumulated_data.get("case_type"),
                 precedential_status="Unknown",
             )
@@ -487,10 +495,12 @@ class MontanaScraper(BaseScraper[MontanaOpinionCluster]):
 
         # Start downloading first document
         first_doc = doc_urls[0]
+        first_url = first_doc["url"]
+        assert isinstance(first_url, str)
         yield ArchiveRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
-                url=first_doc["url"],
+                url=first_url,
             ),
             continuation=self.handle_document_download,
             expected_type="pdf",

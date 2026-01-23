@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
@@ -46,7 +46,6 @@ from juriscraper.scraper_driver.data_types import (
 )
 
 from .models import (
-    COURT_PREFIX_TO_ID,
     MissouriOpinion,
     MissouriOpinionCluster,
     get_court_id_from_docket,
@@ -92,7 +91,12 @@ class MissouriScraper(BaseScraper[MissouriOpinionCluster]):
     """
 
     # === Metadata ===
-    court_ids: ClassVar[set[str]] = {"mo", "moctapped", "moctappsd", "moctappwd"}
+    court_ids: ClassVar[set[str]] = {
+        "mo",
+        "moctapped",
+        "moctappsd",
+        "moctappwd",
+    }
     court_url: ClassVar[str] = "https://www.courts.mo.gov/"
     data_types: ClassVar[set[str]] = {"opinions"}
     status: ClassVar[ScraperStatus] = ScraperStatus.IN_DEVELOPMENT
@@ -256,7 +260,9 @@ class MissouriScraper(BaseScraper[MissouriOpinionCluster]):
           - Author text
           - Vote text
         """
-        date_gte, date_lte, target_docket, target_courts = self._get_search_params()
+        date_gte, date_lte, target_docket, target_courts = (
+            self._get_search_params()
+        )
 
         # Find all date containers - these are divs containing a disabled button
         # (indicating that date is expanded) followed by opinion entries
@@ -434,7 +440,7 @@ class MissouriScraper(BaseScraper[MissouriOpinionCluster]):
                 disposition = disp_match.group(1).strip()
 
         # Build accumulated data for download handler
-        cluster_data = {
+        cluster_data: dict[str, Any] = {
             "docket_id": docket_number,
             "court_id": court_id,
             "date_filed": opinion_date.isoformat(),
@@ -510,7 +516,9 @@ class MissouriScraper(BaseScraper[MissouriOpinionCluster]):
             return
 
         # All downloads complete - yield final cluster
-        date_filed = datetime.fromisoformat(accumulated_data["date_filed"]).date()
+        date_filed = datetime.fromisoformat(
+            accumulated_data["date_filed"]
+        ).date()
 
         cluster = MissouriOpinionCluster(
             docket_id=accumulated_data["docket_id"],

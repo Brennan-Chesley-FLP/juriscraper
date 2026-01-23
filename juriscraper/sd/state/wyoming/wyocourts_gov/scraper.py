@@ -222,7 +222,6 @@ class WyomingScraper(BaseScraper[WyomingOpinionCluster]):
         opinion_id_filter = accumulated_data.get("opinion_id_filter")
         date_gte_str = accumulated_data.get("date_gte")
         date_lte_str = accumulated_data.get("date_lte")
-        page_number = accumulated_data.get("page_number", 1)
 
         date_gte = date.fromisoformat(date_gte_str) if date_gte_str else None
         date_lte = date.fromisoformat(date_lte_str) if date_lte_str else None
@@ -314,7 +313,9 @@ class WyomingScraper(BaseScraper[WyomingOpinionCluster]):
                 "appellee": appellee,
                 "date_filed": date_filed.isoformat(),
                 "source_url": response.url,
-                "opinions_data": [{"download_url": pdf_url, "type": "majority"}],
+                "opinions_data": [
+                    {"download_url": pdf_url, "type": "majority"}
+                ],
                 "pending_downloads": 1,
                 "completed_downloads": 0,
                 "downloaded_paths": {},

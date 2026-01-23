@@ -112,13 +112,13 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
 
     # Base URLs
     CCA_CALENDAR_URL = "https://search.txcourts.gov/DocketSrch.aspx?coa=coscca"
-    COA_CALENDAR_URL = "https://search.txcourts.gov/DocketSrch.aspx?coa=coa{court_num:02d}"
+    COA_CALENDAR_URL = (
+        "https://search.txcourts.gov/DocketSrch.aspx?coa=coa{court_num:02d}"
+    )
     CCA_HANDDOWN_URL = (
         "https://search.txcourts.gov/handdown.aspx?coa=coscca&fulldate={date}"
     )
-    COA_HANDDOWN_URL = (
-        "https://search.txcourts.gov/Docket.aspx?coa=coa{court_num:02d}&FullDate={date}"
-    )
+    COA_HANDDOWN_URL = "https://search.txcourts.gov/Docket.aspx?coa=coa{court_num:02d}&FullDate={date}"
 
     # === Regex patterns ===
     # Date pattern: MM/DD/YYYY
@@ -292,7 +292,9 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
                         continue
                     if date_lte and parsed_date > date_lte:
                         continue
-                    handdown_dates.append((parsed_date, urljoin(response.url, href)))
+                    handdown_dates.append(
+                        (parsed_date, urljoin(response.url, href))
+                    )
 
         # Yield requests for each handdown date
         for i, (handdown_date, handdown_url) in enumerate(handdown_dates):
@@ -307,7 +309,9 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
                     "court_code": "coscca",
                     "handdown_date": handdown_date.isoformat(),
                     "is_last_date": is_last,
-                    "remaining_coa_codes": remaining_coa_codes if is_last else [],
+                    "remaining_coa_codes": remaining_coa_codes
+                    if is_last
+                    else [],
                     "sc_requested": sc_requested if is_last else False,
                     "date_gte": date_gte_str,
                     "date_lte": date_lte_str,
@@ -352,11 +356,15 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
         date_lte_str = accumulated_data.get("date_lte")
 
         handdown_date = (
-            date.fromisoformat(handdown_date_str) if handdown_date_str else None
+            date.fromisoformat(handdown_date_str)
+            if handdown_date_str
+            else None
         )
 
         court_id = COURT_CODE_TO_ID.get(court_code, "texcrimapp")
-        court_name = COURT_CODE_NAMES.get(court_code, "Court of Criminal Appeals")
+        court_name = COURT_CODE_NAMES.get(
+            court_code, "Court of Criminal Appeals"
+        )
 
         # The page content is in a specific div structure
         # Categories are in divs with text like "CATEGORY NAME:"
@@ -385,7 +393,9 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
 
             # Extract party name and county from sibling text
             full_text = grandparent.text_content()
-            case_name = self._extract_case_name_from_text(full_text, case_number)
+            case_name = self._extract_case_name_from_text(
+                full_text, case_number
+            )
             county = self._extract_county_from_text(full_text)
 
             # Find category by looking for preceding category header
@@ -393,12 +403,13 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
 
             # Find PDF links associated with this case
             # Look for sibling elements with PDF links
-            pdf_links = grandparent.xpath(".//a[contains(@href, 'SearchMedia.aspx')]")
+            pdf_links = grandparent.xpath(
+                ".//a[contains(@href, 'SearchMedia.aspx')]"
+            )
 
             opinions = []
             for pdf_link in pdf_links:
                 pdf_url = urljoin(response.url, pdf_link.get("href", ""))
-                pdf_text = pdf_link.text_content().strip()
 
                 # Determine opinion type from surrounding text
                 parent_text = ""
@@ -445,7 +456,9 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
                     "court_name": court_name,
                     "case_name": case_name or case_number,
                     "docket_number": case_number,
-                    "date_decided": handdown_date.isoformat() if handdown_date else None,
+                    "date_decided": handdown_date.isoformat()
+                    if handdown_date
+                    else None,
                     "county": county,
                     "case_type": "criminal",
                     "category": category,
@@ -456,10 +469,12 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
                     "downloaded_paths": {},
                 }
 
+                first_url = opinions[0]["download_url"]
+                assert isinstance(first_url, str)
                 yield ArchiveRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
-                        url=opinions[0]["download_url"],
+                        url=first_url,
                     ),
                     continuation=self.handle_opinion_download,
                     expected_type="pdf",
@@ -504,7 +519,9 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
     def _extract_county_from_text(self, text: str) -> str | None:
         """Extract county name from text."""
         # Look for pattern like "TRAVIS COUNTY" or "FROM HARRIS COUNTY"
-        match = re.search(r"(?:FROM\s+)?([A-Z][A-Z\s]+)\s+COUNTY", text, re.IGNORECASE)
+        match = re.search(
+            r"(?:FROM\s+)?([A-Z][A-Z\s]+)\s+COUNTY", text, re.IGNORECASE
+        )
         if match:
             return match.group(1).strip().title()
         return None
@@ -592,7 +609,9 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
                         continue
                     if date_lte and parsed_date > date_lte:
                         continue
-                    handdown_dates.append((parsed_date, urljoin(response.url, href)))
+                    handdown_dates.append(
+                        (parsed_date, urljoin(response.url, href))
+                    )
 
         # Yield requests for each handdown date
         for i, (handdown_date, handdown_url) in enumerate(handdown_dates):
@@ -607,7 +626,9 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
                     "court_code": court_code,
                     "handdown_date": handdown_date.isoformat(),
                     "is_last_date": is_last,
-                    "remaining_coa_codes": remaining_coa_codes if is_last else [],
+                    "remaining_coa_codes": remaining_coa_codes
+                    if is_last
+                    else [],
                     "sc_requested": sc_requested if is_last else False,
                     "date_gte": date_gte_str,
                     "date_lte": date_lte_str,
@@ -648,14 +669,18 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
         date_lte_str = accumulated_data.get("date_lte")
 
         handdown_date = (
-            date.fromisoformat(handdown_date_str) if handdown_date_str else None
+            date.fromisoformat(handdown_date_str)
+            if handdown_date_str
+            else None
         )
 
         court_id = COURT_CODE_TO_ID.get(court_code, "texapp")
         court_name = COURT_CODE_NAMES.get(court_code, "Texas Court of Appeals")
 
         # Find all result tables (Civil Causes Decided, Civil Orders, etc.)
-        tables = lxml_tree.xpath("//table[.//th[contains(text(), 'Case Number')]]")
+        tables = lxml_tree.xpath(
+            "//table[.//th[contains(text(), 'Case Number')]]"
+        )
 
         for table in tables:
             # Determine case type from section heading
@@ -676,22 +701,30 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
 
                 # Cell 0: Case Number and PDF links
                 case_cell = cells[0]
-                case_links = case_cell.xpath(".//a[contains(@href, 'Case.aspx')]")
+                case_links = case_cell.xpath(
+                    ".//a[contains(@href, 'Case.aspx')]"
+                )
                 if not case_links:
                     continue
 
                 case_number = case_links[0].text_content().strip()
 
                 # Find PDF links in the case cell
-                pdf_links = case_cell.xpath(".//a[contains(@href, 'SearchMedia.aspx')]")
+                pdf_links = case_cell.xpath(
+                    ".//a[contains(@href, 'SearchMedia.aspx')]"
+                )
 
                 # Cell 1: Style (case name + lower court)
                 style_cell = cells[1]
                 style_text = style_cell.text_content()
-                case_name, lower_court, county = self._parse_coa_style(style_text)
+                case_name, lower_court, county = self._parse_coa_style(
+                    style_text
+                )
 
                 # Cell 2: Disposition
-                disposition = cells[2].text_content().strip() if len(cells) > 2 else None
+                disposition = (
+                    cells[2].text_content().strip() if len(cells) > 2 else None
+                )
 
                 # Cell 3: Judges
                 judges_text = cells[3].text_content() if len(cells) > 3 else ""
@@ -703,10 +736,14 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
                 opinion_rows = case_cell.xpath(".//table//tr")
                 for op_row in opinion_rows:
                     op_text = op_row.text_content().strip()
-                    op_pdfs = op_row.xpath(".//a[contains(@href, 'SearchMedia.aspx')]")
+                    op_pdfs = op_row.xpath(
+                        ".//a[contains(@href, 'SearchMedia.aspx')]"
+                    )
                     for pdf in op_pdfs:
                         pdf_url = urljoin(response.url, pdf.get("href", ""))
-                        opinion_type = self._determine_coa_opinion_type(op_text)
+                        opinion_type = self._determine_coa_opinion_type(
+                            op_text
+                        )
                         author = self._extract_coa_author(op_text)
                         opinions.append(
                             {
@@ -720,7 +757,9 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
                 if not opinions and pdf_links:
                     # Fallback: just get any PDF links
                     for pdf_link in pdf_links:
-                        pdf_url = urljoin(response.url, pdf_link.get("href", ""))
+                        pdf_url = urljoin(
+                            response.url, pdf_link.get("href", "")
+                        )
                         opinions.append(
                             {
                                 "download_url": pdf_url,
@@ -770,10 +809,12 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
                         "downloaded_paths": {},
                     }
 
+                    first_url = opinions[0]["download_url"]
+                    assert isinstance(first_url, str)
                     yield ArchiveRequest(
                         request=HTTPRequestParams(
                             method=HttpMethod.GET,
-                            url=opinions[0]["download_url"],
+                            url=first_url,
                         ),
                         continuation=self.handle_opinion_download,
                         expected_type="pdf",
@@ -789,12 +830,18 @@ class TexasScraper(BaseScraper[TexasOpinionCluster]):
                 remaining_coa_codes, sc_requested, date_gte_str, date_lte_str
             )
 
-    def _parse_coa_style(self, style_text: str) -> tuple[str | None, str | None, str | None]:
+    def _parse_coa_style(
+        self, style_text: str
+    ) -> tuple[str | None, str | None, str | None]:
         """Parse COA style cell into case name, lower court, and county.
 
         Format: "Party v. Party\nAppeal from Nth District Court of County County"
         """
-        lines = [l.strip() for l in style_text.strip().split("\n") if l.strip()]
+        lines = [
+            line.strip()
+            for line in style_text.strip().split("\n")
+            if line.strip()
+        ]
         case_name = lines[0] if lines else None
 
         lower_court = None

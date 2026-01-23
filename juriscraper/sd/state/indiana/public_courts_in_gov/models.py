@@ -30,9 +30,9 @@ from juriscraper.scraper_driver.common.searchable import (
 
 # Court ID mapping: CourtListener ID -> API Court ID
 COURT_ID_MAP: dict[str, int] = {
-    "ind": 9510,      # Indiana Supreme Court
-    "indctapp": 9530, # Indiana Court of Appeals
-    "indtc": 9550,    # Indiana Tax Court
+    "ind": 9510,  # Indiana Supreme Court
+    "indctapp": 9530,  # Indiana Court of Appeals
+    "indtc": 9550,  # Indiana Tax Court
 }
 
 # Reverse mapping: API Court ID -> CourtListener ID

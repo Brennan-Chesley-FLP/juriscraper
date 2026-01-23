@@ -178,7 +178,9 @@ class SouthDakotaScraper(BaseScraper[SouthDakotaOpinionCluster]):
         # Default: current year only
         return [current_year]
 
-    def _build_url(self, year: int | None = None, page: int | None = None) -> str:
+    def _build_url(
+        self, year: int | None = None, page: int | None = None
+    ) -> str:
         """Build the opinions URL with optional year and page parameters."""
         params = []
         if year:
@@ -304,7 +306,9 @@ class SouthDakotaScraper(BaseScraper[SouthDakotaOpinionCluster]):
                 "opinion_number": opinion_number,
                 "date_filed": date_filed.isoformat() if date_filed else None,
                 "source_url": response.url,
-                "opinions_data": [{"download_url": pdf_url, "type": "majority"}],
+                "opinions_data": [
+                    {"download_url": pdf_url, "type": "majority"}
+                ],
                 "pending_downloads": 1,
                 "completed_downloads": 0,
                 "downloaded_paths": {},

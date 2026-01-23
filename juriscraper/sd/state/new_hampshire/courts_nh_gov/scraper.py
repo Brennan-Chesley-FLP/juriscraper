@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.decorators import step
@@ -52,9 +52,7 @@ if TYPE_CHECKING:
 
 
 # Base URL for opinion year pages
-OPINIONS_BASE_URL = (
-    "https://www.courts.nh.gov/our-courts/supreme-court/orders-and-opinions/opinions"
-)
+OPINIONS_BASE_URL = "https://www.courts.nh.gov/our-courts/supreme-court/orders-and-opinions/opinions"
 
 # Earliest year with opinions available
 EARLIEST_YEAR = 2002
@@ -98,19 +96,13 @@ class NewHampshireScraper(BaseScraper[NHOpinionCluster]):
 
     # === Regex patterns ===
     # Neutral citation pattern: YYYY N.H. NN (e.g., "2025 N.H. 54")
-    NEUTRAL_CITATION_PATTERN = re.compile(
-        r"(\d{4})\s+N\.H\.\s+(\d+)"
-    )
+    NEUTRAL_CITATION_PATTERN = re.compile(r"(\d{4})\s+N\.H\.\s+(\d+)")
 
     # Case number pattern: YYYY-NNNN (e.g., "2025-0056")
-    CASE_NUMBER_PATTERN = re.compile(
-        r"(\d{4})-(\d{4})"
-    )
+    CASE_NUMBER_PATTERN = re.compile(r"(\d{4})-(\d{4})")
 
     # Date pattern: MM/DD/YYYY
-    DATE_PATTERN = re.compile(
-        r"(\d{1,2})/(\d{1,2})/(\d{4})"
-    )
+    DATE_PATTERN = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
 
     # Mapping from model name to data type
     MODEL_TO_DATA_TYPE: ClassVar[dict[str, str]] = {
@@ -220,7 +212,9 @@ class NewHampshireScraper(BaseScraper[NHOpinionCluster]):
             return match.group(0)
         return None
 
-    def _extract_neutral_citation(self, text: str) -> tuple[str | None, int | None]:
+    def _extract_neutral_citation(
+        self, text: str
+    ) -> tuple[str | None, int | None]:
         """Extract neutral citation from text.
 
         Args:
@@ -343,11 +337,15 @@ class NewHampshireScraper(BaseScraper[NHOpinionCluster]):
                 min_count=0,
                 type=str,
             )
-            link_text = " ".join(part.strip() for part in link_text_parts).strip()
+            link_text = " ".join(
+                part.strip() for part in link_text_parts
+            ).strip()
 
             # Parse title to extract citation and case name
             # Format: "2025 N.H. 54, Peregrine Interests LLC v. Todd"
-            citation_string, opinion_number = self._extract_neutral_citation(link_text)
+            citation_string, opinion_number = self._extract_neutral_citation(
+                link_text
+            )
 
             # Extract case name (everything after citation)
             case_name = link_text
@@ -404,12 +402,14 @@ class NewHampshireScraper(BaseScraper[NHOpinionCluster]):
                 if rel_href_list:
                     rel_path = rel_href_list[0]
                     if rel_path.startswith("/"):
-                        related_doc_urls.append(f"https://www.courts.nh.gov{rel_path}")
+                        related_doc_urls.append(
+                            f"https://www.courts.nh.gov{rel_path}"
+                        )
                     else:
                         related_doc_urls.append(rel_path)
 
             # Build accumulated data for download handler
-            cluster_data = {
+            cluster_data: dict[str, Any] = {
                 "docket_number": docket_number or f"unknown-{year}",
                 "court_id": "nh",
                 "date_filed": date_filed.isoformat(),
@@ -504,7 +504,9 @@ class NewHampshireScraper(BaseScraper[NHOpinionCluster]):
             citation_string=accumulated_data.get("citation_string"),
             opinion_number=accumulated_data.get("opinion_number"),
             opinions=opinions,
-            related_document_urls=accumulated_data.get("related_document_urls", []),
+            related_document_urls=accumulated_data.get(
+                "related_document_urls", []
+            ),
             source_url=accumulated_data["source_url"],
             precedential_status="Unknown",
         )

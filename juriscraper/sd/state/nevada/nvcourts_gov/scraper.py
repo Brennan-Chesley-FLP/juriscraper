@@ -100,24 +100,34 @@ class NevadaScraper(BaseScraper[NevadaOpinionCluster]):
 
     # === Regex patterns ===
     # Date pattern: "Jan 15, 2026" or "January 15, 2026"
-    DATE_PATTERN = re.compile(
-        r"(\w+)\s+(\d{1,2}),?\s+(\d{4})"
-    )
+    DATE_PATTERN = re.compile(r"(\w+)\s+(\d{1,2}),?\s+(\d{4})")
 
     # Month names mapping
     MONTHS = {
-        "jan": 1, "january": 1,
-        "feb": 2, "february": 2,
-        "mar": 3, "march": 3,
-        "apr": 4, "april": 4,
+        "jan": 1,
+        "january": 1,
+        "feb": 2,
+        "february": 2,
+        "mar": 3,
+        "march": 3,
+        "apr": 4,
+        "april": 4,
         "may": 5,
-        "jun": 6, "june": 6,
-        "jul": 7, "july": 7,
-        "aug": 8, "august": 8,
-        "sep": 9, "sept": 9, "september": 9,
-        "oct": 10, "october": 10,
-        "nov": 11, "november": 11,
-        "dec": 12, "december": 12,
+        "jun": 6,
+        "june": 6,
+        "jul": 7,
+        "july": 7,
+        "aug": 8,
+        "august": 8,
+        "sep": 9,
+        "sept": 9,
+        "september": 9,
+        "oct": 10,
+        "october": 10,
+        "nov": 11,
+        "november": 11,
+        "dec": 12,
+        "december": 12,
     }
 
     # Case number pattern (5 digits)
@@ -264,7 +274,9 @@ class NevadaScraper(BaseScraper[NevadaOpinionCluster]):
         - Column 3: Case Title
         - Column 4: Date of Opinion Link to Opinion (contains PDF link)
         """
-        date_gte, date_lte, target_docket, court_ids = self._get_search_params()
+        date_gte, date_lte, target_docket, court_ids = (
+            self._get_search_params()
+        )
         opinion_type = accumulated_data.get("opinion_type", "advance_opinion")
         precedential_status = accumulated_data.get(
             "precedential_status", "Published"
@@ -272,9 +284,7 @@ class NevadaScraper(BaseScraper[NevadaOpinionCluster]):
 
         # Find all table rows (skip header)
         # The table has headers: Advance No., Case Number..., Case Title, Date...
-        rows = lxml_tree.xpath(
-            "//table//tr[td]"
-        )
+        rows = lxml_tree.xpath("//table//tr[td]")
 
         for row in rows:
             # Get all cells in this row
@@ -381,16 +391,18 @@ class NevadaScraper(BaseScraper[NevadaOpinionCluster]):
         - Column 2: Case Title
         - Column 3: Date (contains PDF link)
         """
-        date_gte, date_lte, target_docket, court_ids = self._get_search_params()
-        opinion_type = accumulated_data.get("opinion_type", "unpublished_order")
+        date_gte, date_lte, target_docket, court_ids = (
+            self._get_search_params()
+        )
+        opinion_type = accumulated_data.get(
+            "opinion_type", "unpublished_order"
+        )
         precedential_status = accumulated_data.get(
             "precedential_status", "Unpublished"
         )
 
         # Find all table rows (skip header)
-        rows = lxml_tree.xpath(
-            "//table//tr[td]"
-        )
+        rows = lxml_tree.xpath("//table//tr[td]")
 
         for row in rows:
             # Get all cells in this row

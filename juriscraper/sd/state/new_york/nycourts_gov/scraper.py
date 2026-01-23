@@ -205,10 +205,7 @@ class NYCourtOfAppealsScraper(BaseScraper[NYOpinionCluster]):
         # Check overlap
         if date_gte and month_end < date_gte:
             return False
-        if date_lte and month_start > date_lte:
-            return False
-
-        return True
+        return not (date_lte and month_start > date_lte)
 
     def _parse_date(self, date_text: str) -> date | None:
         """Parse a date string like 'December 18, 2025'.
@@ -303,7 +300,6 @@ class NYCourtOfAppealsScraper(BaseScraper[NYOpinionCluster]):
                 continue
 
             year = int(match.group(1))
-            month_abbrev = match.group(2)
             month_name_str = match.group(4)
 
             # Get month number from name
@@ -418,10 +414,12 @@ class NYCourtOfAppealsScraper(BaseScraper[NYOpinionCluster]):
                 continue
 
             # Filter by specific docket if specified
-            if target_docket and opinion_number != target_docket:
-                # Also try without "No. " prefix
-                if target_docket not in first_cell_text:
-                    continue
+            if (
+                target_docket
+                and opinion_number != target_docket
+                and target_docket not in first_cell_text
+            ):
+                continue
 
             # Skip if no current date (shouldn't happen in well-formed page)
             if current_date is None:

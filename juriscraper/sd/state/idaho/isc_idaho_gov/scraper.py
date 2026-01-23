@@ -51,7 +51,6 @@ from juriscraper.scraper_driver.data_types import (
 
 from .models import (
     OPINION_PAGES,
-    PAGE_TO_COURT,
     IdahoOpinion,
     IdahoOpinionCluster,
 )
@@ -116,9 +115,7 @@ class IdahoScraper(BaseScraper[IdahoOpinionCluster]):
     DOCKET_PATTERN = re.compile(r"^(\d{5})([a-z])?$", re.IGNORECASE)
 
     # Unpublished list link pattern: "DocketNumber CaseName" or "D1/D2/D3 CaseName"
-    UNPUB_LINK_PATTERN = re.compile(
-        r"^([\d/]+)\s+(.+)$"
-    )
+    UNPUB_LINK_PATTERN = re.compile(r"^([\d/]+)\s+(.+)$")
 
     # Mapping from model name to data type
     MODEL_TO_DATA_TYPE: ClassVar[dict[str, str]] = {
@@ -197,9 +194,18 @@ class IdahoScraper(BaseScraper[IdahoOpinionCluster]):
         year = int(match.group(3))
 
         month_map = {
-            "January": 1, "February": 2, "March": 3, "April": 4,
-            "May": 5, "June": 6, "July": 7, "August": 8,
-            "September": 9, "October": 10, "November": 11, "December": 12,
+            "January": 1,
+            "February": 2,
+            "March": 3,
+            "April": 4,
+            "May": 5,
+            "June": 6,
+            "July": 7,
+            "August": 8,
+            "September": 9,
+            "October": 10,
+            "November": 11,
+            "December": 12,
         }
         month = month_map.get(month_name)
         if month is None:
@@ -300,7 +306,10 @@ class IdahoScraper(BaseScraper[IdahoOpinionCluster]):
             headers = table.xpath(".//th/text()")
             header_text = " ".join(str(h).strip().lower() for h in headers)
 
-            if "release date" not in header_text or "docket" not in header_text:
+            if (
+                "release date" not in header_text
+                or "docket" not in header_text
+            ):
                 continue
 
             # Found the opinion table - parse rows
@@ -422,7 +431,9 @@ class IdahoScraper(BaseScraper[IdahoOpinionCluster]):
             return
 
         # Look for links to opinion PDFs
-        for link in content[0].xpath(".//a[contains(@href, '/opinions/') and contains(@href, '.pdf')]"):
+        for link in content[0].xpath(
+            ".//a[contains(@href, '/opinions/') and contains(@href, '.pdf')]"
+        ):
             href = link.get("href", "")
             link_text = "".join(link.itertext()).strip()
 

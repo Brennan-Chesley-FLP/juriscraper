@@ -93,9 +93,7 @@ class LouisianaSupremeCourtScraper(BaseScraper[LouisianaOpinionCluster]):
 
     # === Regex patterns ===
     # Case number pattern: YYYY-XX-NNNNN (e.g., 2025-C-01635)
-    CASE_NUMBER_PATTERN = re.compile(
-        r"(\d{4})-([A-Z]+)-(\d{4,5})"
-    )
+    CASE_NUMBER_PATTERN = re.compile(r"(\d{4})-([A-Z]+)-(\d{4,5})")
 
     # Release number pattern: YYYY-NNN (e.g., 2026-001)
     RELEASE_NUMBER_PATTERN = re.compile(r"(\d{4})-(\d{3})")
@@ -118,9 +116,18 @@ class LouisianaSupremeCourtScraper(BaseScraper[LouisianaOpinionCluster]):
 
     # Month name to number mapping
     MONTH_MAP: ClassVar[dict[str, int]] = {
-        "january": 1, "february": 2, "march": 3, "april": 4,
-        "may": 5, "june": 6, "july": 7, "august": 8,
-        "september": 9, "october": 10, "november": 11, "december": 12,
+        "january": 1,
+        "february": 2,
+        "march": 3,
+        "april": 4,
+        "may": 5,
+        "june": 6,
+        "july": 7,
+        "august": 8,
+        "september": 9,
+        "october": 10,
+        "november": 11,
+        "december": 12,
     }
 
     def _get_requested_data_types(self) -> set[str]:
@@ -318,9 +325,6 @@ class LouisianaSupremeCourtScraper(BaseScraper[LouisianaOpinionCluster]):
                 max_count=3,
             )
 
-            # Release number (e.g., "2025 - 58")
-            release_text = cells[0].text_content().strip()
-
             # Date link
             date_links = cells[1].checked_xpath(
                 "a",
@@ -382,25 +386,10 @@ class LouisianaSupremeCourtScraper(BaseScraper[LouisianaOpinionCluster]):
         release_number = accumulated_data.get("release_number")
         release_type = accumulated_data.get("release_type")
 
-        # Get all paragraphs that may contain case entries
-        # Structure: heading (disposition type), then paragraphs with cases
-        content = lxml_tree.checked_xpath(
-            "//div[contains(@class, 'container')]//div",
-            "content div",
-            min_count=0,
-        )
-
         # Find all paragraphs with PDF links - these are the cases
         case_paragraphs = lxml_tree.checked_xpath(
             "//p[.//a[contains(@href, '.pdf')]]",
             "case paragraphs with PDF links",
-            min_count=0,
-        )
-
-        # Find disposition headers (h1 elements)
-        all_headers = lxml_tree.checked_xpath(
-            "//h1",
-            "disposition headers",
             min_count=0,
         )
 
@@ -489,7 +478,9 @@ class LouisianaSupremeCourtScraper(BaseScraper[LouisianaOpinionCluster]):
             opinions_data = [
                 {
                     "download_url": main_pdf_url,
-                    "opinion_type": self._extract_opinion_type_from_url(main_pdf_url),
+                    "opinion_type": self._extract_opinion_type_from_url(
+                        main_pdf_url
+                    ),
                     "author": None,
                 }
             ]
@@ -508,17 +499,21 @@ class LouisianaSupremeCourtScraper(BaseScraper[LouisianaOpinionCluster]):
                 elif "concur" in link_text.lower():
                     opinion_type = "concurrence"
 
-                opinions_data.append({
-                    "download_url": pdf_url,
-                    "opinion_type": opinion_type,
-                    "author": author,
-                })
+                opinions_data.append(
+                    {
+                        "download_url": pdf_url,
+                        "opinion_type": opinion_type,
+                        "author": author,
+                    }
+                )
 
             # Build accumulated data for download
             cluster_data = {
                 "docket_id": docket_id,
                 "court_id": COURT_ID,
-                "date_filed": release_date.isoformat() if release_date else None,
+                "date_filed": release_date.isoformat()
+                if release_date
+                else None,
                 "case_name": case_name,
                 "source_url": response.url,
                 "parish": parish,
@@ -534,10 +529,12 @@ class LouisianaSupremeCourtScraper(BaseScraper[LouisianaOpinionCluster]):
             }
 
             # Yield ArchiveRequest for first PDF
+            first_url = opinions_data[0]["download_url"]
+            assert isinstance(first_url, str)
             yield ArchiveRequest(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
-                    url=opinions_data[0]["download_url"],
+                    url=first_url,
                 ),
                 continuation=self.handle_opinion_download,
                 expected_type="pdf",

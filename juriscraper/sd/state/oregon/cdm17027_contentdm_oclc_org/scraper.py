@@ -338,7 +338,9 @@ class OregonScraper(BaseScraper[OregonOpinionCluster]):
         metadata for each matching record.
         """
         collection = accumulated_data.get("collection", "p17027coll3")
-        remaining_collections = accumulated_data.get("remaining_collections", [])
+        remaining_collections = accumulated_data.get(
+            "remaining_collections", []
+        )
         start = accumulated_data.get("start", 1)
         case_number = accumulated_data.get("case_number")
         date_gte_str = accumulated_data.get("date_gte")
@@ -487,7 +489,9 @@ class OregonScraper(BaseScraper[OregonOpinionCluster]):
 
         # Extract metadata
         case_number = json_content.get("relispt") or ""
-        case_name = json_content.get("subjec") or json_content.get("title") or ""
+        case_name = (
+            json_content.get("subjec") or json_content.get("title") or ""
+        )
         dated = json_content.get("dated") or ""
         date_decided = self._parse_date(dated)
         citation = json_content.get("cita") or None
@@ -510,7 +514,7 @@ class OregonScraper(BaseScraper[OregonOpinionCluster]):
             if match:
                 case_number = match.group(1)
 
-        if not case_number or not date_decided:
+        if not case_number or not date_decided or pointer is None:
             # Skip records without essential metadata
             return
 
@@ -624,7 +628,9 @@ class OregonScraper(BaseScraper[OregonOpinionCluster]):
             opinion_type=accumulated_data.get("opinion_type"),
             parties=accumulated_data.get("parties"),
             notes=accumulated_data.get("notes"),
-            additional_case_number=accumulated_data.get("additional_case_number"),
+            additional_case_number=accumulated_data.get(
+                "additional_case_number"
+            ),
             contentdm_id=accumulated_data.get("contentdm_id"),
             collection_id=accumulated_data.get("collection_id"),
             opinions=opinions,

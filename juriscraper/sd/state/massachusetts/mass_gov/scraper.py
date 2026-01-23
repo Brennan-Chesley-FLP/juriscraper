@@ -108,9 +108,7 @@ class MassachusettsScraper(BaseScraper[MassOpinionCluster]):
     )
 
     # Date pattern in link text: "(January 20, 2026)"
-    DATE_IN_LINK_PATTERN = re.compile(
-        r"\((\w+)\s+(\d{1,2}),\s+(\d{4})\)\s*$"
-    )
+    DATE_IN_LINK_PATTERN = re.compile(r"\((\w+)\s+(\d{1,2}),\s+(\d{4})\)\s*$")
 
     # 128archive date format: MM/DD/YYYY
     ARCHIVE_DATE_PATTERN = re.compile(r"(\d{2})/(\d{2})/(\d{4})")
@@ -195,9 +193,18 @@ class MassachusettsScraper(BaseScraper[MassOpinionCluster]):
             year = int(match.group(3))
 
             month_map = {
-                "January": 1, "February": 2, "March": 3, "April": 4,
-                "May": 5, "June": 6, "July": 7, "August": 8,
-                "September": 9, "October": 10, "November": 11, "December": 12
+                "January": 1,
+                "February": 2,
+                "March": 3,
+                "April": 4,
+                "May": 5,
+                "June": 6,
+                "July": 7,
+                "August": 8,
+                "September": 9,
+                "October": 10,
+                "November": 11,
+                "December": 12,
             }
             month = month_map.get(month_name)
             if month:
@@ -546,19 +553,9 @@ class MassachusettsScraper(BaseScraper[MassOpinionCluster]):
                 accumulated_data=cluster_data,
             )
 
-        # Handle pagination - look for "Next" button
-        next_buttons = lxml_tree.checked_xpath(
-            "//button[contains(text(), 'Next')]/@onclick | //a[contains(text(), 'Next')]/@href",
-            "Next page controls",
-            min_count=0,
-            type=str,
-        )
-
         # Check if there's a next page by looking at pagination info
         # The page shows "Page X of Y" - if X < Y, there are more pages
-        page_info = lxml_tree.xpath(
-            "//text()[contains(., ' of ')]"
-        )
+        page_info = lxml_tree.xpath("//text()[contains(., ' of ')]")
         for info in page_info:
             info_str = str(info).strip()
             if "of" in info_str:
@@ -573,7 +570,6 @@ class MassachusettsScraper(BaseScraper[MassOpinionCluster]):
                             # Need to navigate to next page
                             # The form uses JavaScript, so we need to construct the URL
                             # with page parameters
-                            next_page = current_page + 1
                             # Build next page URL - 128archive uses query params
                             # Note: This is a simplified approach; the actual site
                             # may use different pagination mechanics

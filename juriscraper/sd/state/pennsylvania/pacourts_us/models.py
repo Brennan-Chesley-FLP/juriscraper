@@ -29,10 +29,9 @@ from juriscraper.scraper_driver.common.searchable import (
     UniqueMatch,
 )
 
-
 # Court ID mapping to CourtListener IDs
 COURT_IDS: set[str] = {
-    "pa",         # Supreme Court of Pennsylvania
+    "pa",  # Supreme Court of Pennsylvania
     "pasuperct",  # Superior Court of Pennsylvania
     "pacommwct",  # Commonwealth Court of Pennsylvania
 }

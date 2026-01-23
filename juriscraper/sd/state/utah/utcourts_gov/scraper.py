@@ -38,7 +38,7 @@ Design decisions:
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
@@ -372,7 +372,9 @@ class UtahScraper(BaseScraper[UtahOpinionCluster]):
                 "date_filed": date_filed.isoformat() if date_filed else None,
                 "year": year,
                 "source_url": response.url,
-                "opinions_data": [{"download_url": pdf_url, "type": "majority"}],
+                "opinions_data": [
+                    {"download_url": pdf_url, "type": "majority"}
+                ],
                 "pending_downloads": 1,
                 "completed_downloads": 0,
                 "downloaded_paths": {},

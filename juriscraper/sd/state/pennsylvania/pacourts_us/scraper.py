@@ -232,8 +232,7 @@ class PennsylvaniaScraper(BaseScraper[PennsylvaniaOpinionCluster]):
         try:
             # Try without timezone
             dt = datetime.strptime(
-                date_str.strip()[:25],
-                "%a, %d %b %Y %H:%M:%S"
+                date_str.strip()[:25], "%a, %d %b %Y %H:%M:%S"
             )
             return dt.date()
         except ValueError:
@@ -273,7 +272,7 @@ class PennsylvaniaScraper(BaseScraper[PennsylvaniaOpinionCluster]):
         # Fallback: take everything before the last occurrence of a docket-like pattern
         docket_match = self.DOCKET_PATTERN.search(title)
         if docket_match:
-            before_docket = title[:docket_match.start()].strip()
+            before_docket = title[: docket_match.start()].strip()
             # Remove "No." prefix and clean up
             before_docket = re.sub(r"\s*[-–—]\s*No\.?\s*$", "", before_docket)
             before_docket = before_docket.rstrip(" -–—.,;:")
@@ -307,7 +306,11 @@ class PennsylvaniaScraper(BaseScraper[PennsylvaniaOpinionCluster]):
             return PennsylvaniaOpinionCluster.OPINION_TYPE_CONCURRENCE
 
         # Default to majority for named judges/justices
-        if "justice" in author_lower or "judge" in author_lower or "j." in author_lower:
+        if (
+            "justice" in author_lower
+            or "judge" in author_lower
+            or "j." in author_lower
+        ):
             return PennsylvaniaOpinionCluster.OPINION_TYPE_MAJORITY
 
         return PennsylvaniaOpinionCluster.OPINION_TYPE_UNKNOWN
@@ -383,7 +386,10 @@ class PennsylvaniaScraper(BaseScraper[PennsylvaniaOpinionCluster]):
             title = str(title_elems[0]).strip()
 
             # Skip judgment lists and other non-opinion items
-            if "judgement list" in title.lower() or "judgment list" in title.lower():
+            if (
+                "judgement list" in title.lower()
+                or "judgment list" in title.lower()
+            ):
                 continue
 
             # Extract docket number
@@ -428,7 +434,7 @@ class PennsylvaniaScraper(BaseScraper[PennsylvaniaOpinionCluster]):
             author = None
             creator_elems = item.xpath(
                 "dc:creator/text()",
-                namespaces={"dc": "http://purl.org/dc/elements/1.1/"}
+                namespaces={"dc": "http://purl.org/dc/elements/1.1/"},
             )
             if creator_elems:
                 author = str(creator_elems[0]).strip()

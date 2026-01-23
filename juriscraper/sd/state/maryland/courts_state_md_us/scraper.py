@@ -27,7 +27,6 @@ PDF URL patterns:
 
 from __future__ import annotations
 
-import re
 from datetime import date, datetime
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urljoin
@@ -47,8 +46,6 @@ from juriscraper.scraper_driver.data_types import (
 )
 
 from .models import (
-    COURT_ID_TO_PATH,
-    COURT_IDS,
     MarylandOpinion,
     MarylandOpinionCluster,
 )
@@ -94,7 +91,9 @@ class MarylandScraper(BaseScraper[MarylandOpinionCluster]):
 
     # === Metadata ===
     court_ids: ClassVar[set[str]] = {"md", "mdctspecapp"}
-    court_url: ClassVar[str] = "https://www.courts.state.md.us/opinions/opinions"
+    court_url: ClassVar[str] = (
+        "https://www.courts.state.md.us/opinions/opinions"
+    )
     data_types: ClassVar[set[str]] = {"opinions"}
     status: ClassVar[ScraperStatus] = ScraperStatus.IN_DEVELOPMENT
     version: ClassVar[str] = "2026-01-23"
@@ -293,7 +292,9 @@ class MarylandScraper(BaseScraper[MarylandOpinionCluster]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield[MarylandOpinionCluster], None, None]:
         """Parse the opinions search results page and yield requests."""
-        date_gte, date_lte, target_docket, court_filter = self._get_search_params()
+        date_gte, date_lte, target_docket, court_filter = (
+            self._get_search_params()
+        )
 
         # Get all tables on the page (results may be split across multiple tables)
         tables = lxml_tree.checked_xpath(

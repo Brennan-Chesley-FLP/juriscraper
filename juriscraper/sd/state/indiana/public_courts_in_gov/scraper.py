@@ -230,7 +230,9 @@ class IndianaScraper(BaseScraper[IndianaOpinionCluster]):
             for name in names:
                 name = name.strip()
                 # Remove "Judge " prefix if present
-                name = re.sub(r"^(?:Judge|Justice)\s+", "", name, flags=re.IGNORECASE)
+                name = re.sub(
+                    r"^(?:Judge|Justice)\s+", "", name, flags=re.IGNORECASE
+                )
                 if name:
                     judges.append(name)
             # Add the last name
@@ -436,8 +438,12 @@ class IndianaScraper(BaseScraper[IndianaOpinionCluster]):
             concur_text = opinion_data.get("concurringJudges", "")
             dissent_text = opinion_data.get("dissentingJudges", "")
 
-            concurring_judges = self._extract_judges(concur_text) if concur_text else []
-            dissenting_judges = self._extract_judges(dissent_text) if dissent_text else []
+            concurring_judges = (
+                self._extract_judges(concur_text) if concur_text else []
+            )
+            dissenting_judges = (
+                self._extract_judges(dissent_text) if dissent_text else []
+            )
 
             # Build accumulated data for download handler
             cluster_data = {
@@ -527,7 +533,9 @@ class IndianaScraper(BaseScraper[IndianaOpinionCluster]):
             case_name=accumulated_data["case_name"],
             opinions=[opinion],
             source_url=accumulated_data["source_url"],
-            trial_court_case_number=accumulated_data.get("trial_court_case_number"),
+            trial_court_case_number=accumulated_data.get(
+                "trial_court_case_number"
+            ),
             trial_court_name=accumulated_data.get("trial_court_name"),
             case_category=accumulated_data.get("case_category"),
             disposition=accumulated_data.get("disposition"),
@@ -536,7 +544,9 @@ class IndianaScraper(BaseScraper[IndianaOpinionCluster]):
             dissenting_judges=accumulated_data.get("dissenting_judges", []),
             is_memorandum=accumulated_data.get("is_memorandum", False),
             county=accumulated_data.get("county"),
-            precedential_status="Unpublished" if accumulated_data.get("is_memorandum") else "Published",
+            precedential_status="Unpublished"
+            if accumulated_data.get("is_memorandum")
+            else "Published",
         )
 
         yield ParsedData(cluster)

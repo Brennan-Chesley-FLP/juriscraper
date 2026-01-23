@@ -280,7 +280,9 @@ class NewJerseyScraper(BaseScraper[NewJerseyOpinionCluster]):
                 min_count=0,
                 type=str,
             )
-            case_name = " ".join(t.strip() for t in case_name_parts if t.strip())
+            case_name = " ".join(
+                t.strip() for t in case_name_parts if t.strip()
+            )
 
             if not case_name:
                 continue
@@ -329,7 +331,10 @@ class NewJerseyScraper(BaseScraper[NewJerseyOpinionCluster]):
                 continue
 
             # Filter by specific docket if specified
-            if target_docket and docket_number.upper() != target_docket.upper():
+            if (
+                target_docket
+                and docket_number.upper() != target_docket.upper()
+            ):
                 continue
 
             # Filter by date range
@@ -345,7 +350,10 @@ class NewJerseyScraper(BaseScraper[NewJerseyOpinionCluster]):
             certification_number = cert_match.group(1) if cert_match else None
 
             # Check for redacted/impounded status
-            is_redacted = "redacted" in case_name.lower() or "redacted" in pdf_url.lower()
+            is_redacted = (
+                "redacted" in case_name.lower()
+                or "redacted" in pdf_url.lower()
+            )
             is_record_impounded = "impounded" in case_name.lower()
 
             # Get court_id from opinion type
@@ -389,9 +397,9 @@ class NewJerseyScraper(BaseScraper[NewJerseyOpinionCluster]):
         next_page = current_page + 1
         has_next_page = False
 
-        for link in next_page_links:
-            # Extract page number from link
-            page_match = re.search(r"\?page=(\d+)", link)
+        for page_link in next_page_links:
+            # Extract page number from link (page_link is a string from xpath)
+            page_match = re.search(r"\?page=(\d+)", str(page_link))
             if page_match:
                 page_num = int(page_match.group(1))
                 if page_num == next_page:
@@ -449,7 +457,9 @@ class NewJerseyScraper(BaseScraper[NewJerseyOpinionCluster]):
             opinion_type=accumulated_data["opinion_type"],
             certification_number=accumulated_data.get("certification_number"),
             is_redacted=accumulated_data.get("is_redacted", False),
-            is_record_impounded=accumulated_data.get("is_record_impounded", False),
+            is_record_impounded=accumulated_data.get(
+                "is_record_impounded", False
+            ),
             precedential_status=precedential_status,
         )
 

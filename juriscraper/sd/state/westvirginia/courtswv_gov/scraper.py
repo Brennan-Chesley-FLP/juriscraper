@@ -340,7 +340,9 @@ class WestVirginiaScraper(BaseScraper[WVOpinionCluster]):
                 "decision_type_name": decision_type_name,
                 "date_filed": date_filed.isoformat() if date_filed else None,
                 "source_url": response.url,
-                "opinions_data": [{"download_url": pdf_url, "type": "majority"}],
+                "opinions_data": [
+                    {"download_url": pdf_url, "type": "majority"}
+                ],
                 "pending_downloads": 1,
                 "completed_downloads": 0,
                 "downloaded_paths": {},

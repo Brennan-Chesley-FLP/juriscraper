@@ -221,7 +221,9 @@ class VirginiaScraper(BaseScraper[VaOpinionCluster]):
         Yields separate NavigatingRequests for each opinion page.
         """
         target_pages = self._get_target_pages()
-        date_gte, date_lte, docket_number, _ = self._get_opinions_search_params()
+        date_gte, date_lte, docket_number, _ = (
+            self._get_opinions_search_params()
+        )
 
         first_page = target_pages[0]
         remaining_pages = target_pages[1:]
@@ -267,9 +269,10 @@ class VirginiaScraper(BaseScraper[VaOpinionCluster]):
         - Case name may be in <b> tags or plain text
         - Date and summary follow the case name
         """
-        page_key = accumulated_data.get("page_key", "va")
         court_id = accumulated_data.get("court_id", "va")
-        precedential_status = accumulated_data.get("precedential_status", "published")
+        precedential_status = accumulated_data.get(
+            "precedential_status", "published"
+        )
         remaining_pages = accumulated_data.get("remaining_pages", [])
         docket_filter = accumulated_data.get("docket_filter")
         date_gte_str = accumulated_data.get("date_gte")
@@ -316,7 +319,9 @@ class VirginiaScraper(BaseScraper[VaOpinionCluster]):
             for bold in bold_elements:
                 bold_text = bold.text_content().strip()
                 # Case names typically contain "v." or "v "
-                if bold_text and ("v." in bold_text or " v " in bold_text.lower()):
+                if bold_text and (
+                    "v." in bold_text or " v " in bold_text.lower()
+                ):
                     case_name = bold_text
                     break
 
@@ -326,7 +331,9 @@ class VirginiaScraper(BaseScraper[VaOpinionCluster]):
                 # Find position after case number
                 docket_pos = full_text.find(docket_number)
                 if docket_pos >= 0:
-                    after_docket = full_text[docket_pos + len(docket_number) :].strip()
+                    after_docket = full_text[
+                        docket_pos + len(docket_number) :
+                    ].strip()
                     # Find the date to separate case name from summary
                     date_match = self.DATE_PATTERN.search(after_docket)
                     if date_match:
@@ -372,7 +379,9 @@ class VirginiaScraper(BaseScraper[VaOpinionCluster]):
                 "summary": summary,
                 "date_filed": date_filed.isoformat() if date_filed else None,
                 "source_url": response.url,
-                "opinions_data": [{"download_url": pdf_url, "type": "majority"}],
+                "opinions_data": [
+                    {"download_url": pdf_url, "type": "majority"}
+                ],
                 "pending_downloads": 1,
                 "completed_downloads": 0,
                 "downloaded_paths": {},

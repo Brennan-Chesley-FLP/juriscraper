@@ -29,7 +29,6 @@ from juriscraper.scraper_driver.common.searchable import (
     UniqueMatch,
 )
 
-
 # Court ID mapping for Wyoming
 COURT_IDS: set[str] = {"wyo"}
 

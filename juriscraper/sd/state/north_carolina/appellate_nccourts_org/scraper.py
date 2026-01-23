@@ -47,9 +47,9 @@ from juriscraper.scraper_driver.data_types import (
 )
 
 from .models import (
+    URL_COURT_PARAMS,
     NCOpinion,
     NCOpinionCluster,
-    URL_COURT_PARAMS,
 )
 
 if TYPE_CHECKING:
@@ -133,9 +133,18 @@ class NorthCarolinaScraper(BaseScraper[NCOpinionCluster]):
 
     # Month name to number mapping
     MONTH_MAP = {
-        "january": 1, "february": 2, "march": 3, "april": 4,
-        "may": 5, "june": 6, "july": 7, "august": 8,
-        "september": 9, "october": 10, "november": 11, "december": 12,
+        "january": 1,
+        "february": 2,
+        "march": 3,
+        "april": 4,
+        "may": 5,
+        "june": 6,
+        "july": 7,
+        "august": 8,
+        "september": 9,
+        "october": 10,
+        "november": 11,
+        "december": 12,
     }
 
     # Mapping from model name to data type
@@ -340,7 +349,10 @@ class NorthCarolinaScraper(BaseScraper[NCOpinionCluster]):
                 continue
 
             # Apply docket filter
-            if target_docket and opinion_data["docket_number"] != target_docket:
+            if (
+                target_docket
+                and opinion_data["docket_number"] != target_docket
+            ):
                 continue
 
             # Build cluster data
@@ -348,7 +360,9 @@ class NorthCarolinaScraper(BaseScraper[NCOpinionCluster]):
                 "docket_id": opinion_data["docket_number"],
                 "court_id": court_id,
                 "date_filed": current_filing_date.isoformat(),
-                "mandate_date": current_mandate_date.isoformat() if current_mandate_date else None,
+                "mandate_date": current_mandate_date.isoformat()
+                if current_mandate_date
+                else None,
                 "case_name": opinion_data["case_name"],
                 "author_str": opinion_data.get("author"),
                 "headnotes": opinion_data.get("headnotes"),
@@ -472,12 +486,6 @@ class NorthCarolinaScraper(BaseScraper[NCOpinionCluster]):
         # For published opinions, there should be a clickable link
         # For unpublished, there may not be
         if status == "Published" and pdf_url is None:
-            # Try to find any clickable element in the row
-            clickable = row.checked_xpath(
-                ".//*[@style[contains(., 'cursor')]]",
-                "clickable elements",
-                min_count=0,
-            )
             # If we can't find a PDF link for a published opinion, skip it
             # This might indicate a structural change
             pass
@@ -499,7 +507,9 @@ class NorthCarolinaScraper(BaseScraper[NCOpinionCluster]):
 
         mandate_date = None
         if cluster_data.get("mandate_date"):
-            mandate_date = datetime.fromisoformat(cluster_data["mandate_date"]).date()
+            mandate_date = datetime.fromisoformat(
+                cluster_data["mandate_date"]
+            ).date()
 
         cluster = NCOpinionCluster(
             docket_id=cluster_data["docket_id"],
@@ -527,11 +537,15 @@ class NorthCarolinaScraper(BaseScraper[NCOpinionCluster]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield[NCOpinionCluster], None, None]:
         """Handle a downloaded opinion PDF."""
-        date_filed = datetime.fromisoformat(accumulated_data["date_filed"]).date()
+        date_filed = datetime.fromisoformat(
+            accumulated_data["date_filed"]
+        ).date()
 
         mandate_date = None
         if accumulated_data.get("mandate_date"):
-            mandate_date = datetime.fromisoformat(accumulated_data["mandate_date"]).date()
+            mandate_date = datetime.fromisoformat(
+                accumulated_data["mandate_date"]
+            ).date()
 
         opinion = NCOpinion(
             download_url=accumulated_data["pdf_url"],

@@ -328,9 +328,7 @@ class GeorgiaScraper(BaseScraper[GaOpinionCluster]):
         # Find all date headings and their associated opinion lists
         # The structure is: <p><strong>January 21, 2026—...</strong></p>
         # followed by <ul> with opinion links
-        date_sections = lxml_tree.xpath(
-            "//p[strong[contains(text(), '—')]]"
-        )
+        date_sections = lxml_tree.xpath("//p[strong[contains(text(), '—')]]")
 
         current_date: date | None = None
 
@@ -377,7 +375,9 @@ class GeorgiaScraper(BaseScraper[GaOpinionCluster]):
                         docket_numbers = [
                             d.strip() for d in docket_part.split(",")
                         ]
-                        docket_number = docket_numbers[0] if docket_numbers else ""
+                        docket_number = (
+                            docket_numbers[0] if docket_numbers else ""
+                        )
                     else:
                         continue
                 else:

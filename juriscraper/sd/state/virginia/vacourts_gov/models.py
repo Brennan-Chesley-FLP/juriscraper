@@ -46,7 +46,6 @@ from juriscraper.scraper_driver.common.searchable import (
     UniqueMatch,
 )
 
-
 # Court IDs from courts.toml
 COURT_IDS: set[str] = {"va", "vactapp"}
 

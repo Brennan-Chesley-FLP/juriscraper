@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Hawaii Courts RSS Feed
+  URL: https://www.courts.state.hi.us/opinions-orders/feed
+
+  Step: parse_rss_feed
+  XPath used: //item, title/text(), link/text(), pubDate/text(), description/text()
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      Standard RSS 2.0 feed with WordPress extensions.
+      Each item represents one opinion/order filing.
+
+      RSS Feed Structure:
+      - rss[@version="2.0"]
+        - channel
+          - title: "Opinions &amp; Orders – Judiciary"
+          - link: https://www.courts.state.hi.us
+          - description: "Ka ʻOihana Hoʻokolokolo"
+          - lastBuildDate: RFC 2822 date
+          - language: "en-US"
+          - item (multiple)
+            - title: Case number (e.g., "CAAP-23-0000347")
+            - link: Direct PDF URL
+            - pubDate: RFC 2822 date (e.g., "Thu, 22 Jan 2026 20:21:36 +0000")
+            - dc:creator: (empty)
+            - guid: WordPress post URL
+            - description: CDATA with HTML containing case details
+
+      Item Description CDATA Content:
+      - Case name with disposition (e.g., "Fung v. Hoi (s.d.o., affirmed).")
+      - Related document links (e.g., prior ICA opinion for cert cases)
+      - ADA link (usually empty)
+      - Issued by: Number of judges (e.g., "3" for panel)
+      - Appealed from: Lower court (e.g., "Circuit Court, 1st Circuit")
+
+      Example Description:
+      &lt;![CDATA[ &lt;p&gt;&lt;p&gt;Fung v. Hoi (s.d.o., affirmed).&lt;/p&gt;
+      ADA: &lt;a href=""&gt;ADA&lt;/a&gt;&lt;br /&gt;
+      Issued by: 3&lt;br /&gt;
+      Appealed from: District Court, 1st Circuit, Honolulu Division&lt;br /&gt;
+      &lt;/p&gt; ]]&gt;
+
+      Case Number Patterns:
+      - CAAP-YY-XXXXXXX: Intermediate Court of Appeals (Appeal)
+      - SCWC-YY-XXXXXXX: Supreme Court Writ of Certiorari
+      - SCPW-YY-XXXXXXX: Supreme Court Original Proceeding (Writ Petition)
+
+      Opinion Type Suffixes (in PDF filename):
+      - sdo: Summary Disposition Order
+      - dso: Dismissal Order (variant)
+      - mop: Memorandum Opinion
+      - ord: Order
+      - certrej/certerej: Certiorari Rejected
+      - recond/recong: Reconsideration Order
+      - dsm: Dismissal
+
+      Scraper XPath Assertions
+      ========================
+      1. RSS_ITEMS: //item
+         - Description: "RSS items"
+         - min_count: 0 (feed may be empty)
+         - Expected: List of item elements
+
+      2. ITEM_TITLE: title/text()
+         - Description: "item title"
+         - min_count: 1
+         - max_count: 1
+         - Expected: Case number string (e.g., "CAAP-23-0000347")
+
+      3. ITEM_LINK: link/text()
+         - Description: "item link"
+         - min_count: 1
+         - max_count: 1
+         - Expected: PDF URL string
+
+      4. ITEM_PUBDATE: pubDate/text()
+         - Description: "item pubDate"
+         - min_count: 1
+         - max_count: 1
+         - Expected: RFC 2822 date string
+
+      5. ITEM_DESCRIPTION: description/text()
+         - Description: "item description"
+         - min_count: 0 (may be absent)
+         - Expected: CDATA with HTML content
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- RSS 2.0 root element -->
+  <xs:element name="rss">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="channel" type="channelType"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string" fixed="2.0"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Channel type -->
+  <xs:complexType name="channelType">
+    <xs:sequence>
+      <xs:element name="title" type="xs:string"/>
+      <xs:element name="link" type="xs:anyURI"/>
+      <xs:element name="description" type="xs:string"/>
+      <xs:element name="lastBuildDate" type="xs:string"/>
+      <xs:element name="language" type="xs:string"/>
+      <xs:element name="item" type="itemType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Item type (opinion/order entry) -->
+  <xs:complexType name="itemType">
+    <xs:sequence>
+      <xs:element name="title" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>
+            Case number in format: CAAP-YY-XXXXXXX, SCWC-YY-XXXXXXX, or SCPW-YY-XXXXXXX
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="link" type="xs:anyURI">
+        <xs:annotation>
+          <xs:documentation>
+            Direct URL to the PDF file.
+            Pattern: https://www.courts.state.hi.us/wp-content/uploads/YYYY/MM/{case_number}{suffix}.pdf
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="pubDate" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>
+            Publication date in RFC 2822 format.
+            Example: "Thu, 22 Jan 2026 20:21:36 +0000"
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="guid" type="xs:string" minOccurs="0"/>
+      <xs:element name="description" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            CDATA containing HTML with:
+            - Case name and disposition
+            - Links to related documents
+            - Issued by (number of judges)
+            - Appealed from (lower court)
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

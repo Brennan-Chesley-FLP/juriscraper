@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  JSON Schema Documentation for Florida Courts Opinions API
+  URL: https://flcourts-media.flcourts.gov/_search/opinions
+
+  Step: parse_opinions_api
+
+  This is not a traditional XSD since the API returns JSON, not XML.
+  This document describes the JSON response structure for documentation purposes.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Florida Courts Opinions API Response Structure
+      ==============================================
+
+      The API returns a JSON object with the following top-level fields:
+
+      {
+        "searchParams": { ... },        // Echo of search parameters used
+        "allScopes": { ... },           // Available court scopes
+        "pagerHtml": "...",             // HTML pagination (not used by scraper)
+        "searchResults": [ ... ],       // Array of opinion results
+        "totalCount": 6599,             // Total number of matching results
+        "availableFilters": { ... },    // Filter options
+        "activeFilters": [ ... ],       // Currently active filters
+        "siteaccess": "supreme2",       // Current court scope
+        "view": "full",                 // View mode
+        "sort": "opinion/disposition_date desc, opinion/case_number asc",
+        "template": "full"              // Template used
+      }
+
+      Scraper XPath/JSONPath Assertions
+      ==================================
+
+      1. searchResults (array)
+         - Path: $.searchResults
+         - Description: Array of opinion result objects
+         - min_count: 0
+         - max_count: varies (up to limit parameter)
+
+      2. totalCount (integer)
+         - Path: $.totalCount
+         - Description: Total number of matching results for pagination
+         - Expected: integer >= 0
+
+      3. Each search result has structure:
+         - $.searchResults[*].content.fields.case_number (required)
+         - $.searchResults[*].content.fields.case_style (required, case name)
+         - $.searchResults[*].content.fields.disposition_date.date.date (required)
+         - $.searchResults[*].content.fields.opinion.uri (required, PDF path)
+         - $.searchResults[*].content.fields.note (optional)
+         - $.searchResults[*].oralArgUrl (optional)
+
+      Example searchResult Object
+      ===========================
+
+      {
+        "type": "opinion",
+        "typeLabel": "Opinion",
+        "link": {
+          "name": "SC2025-1378",
+          "url": "https://supremecourt.flcourts.gov/case-information/opinions/..."
+        },
+        "content": {
+          "id": 2484015,
+          "url": "https://supremecourt.flcourts.gov/...",
+          "typeIdentifier": "opinion",
+          "name": "SC2025-1378",
+          "modified": 1769097382,
+          "fields": {
+            "case_number": "SC2025-1378",
+            "opinion": {
+              "uri": "/content/download/2484015/opinion/Opinion_SC2025-1378.pdf",
+              "fileName": "sc2025-1378.pdf",
+              "fileSize": 99121,
+              "mimeType": "application/pdf"
+            },
+            "case_style": "In Re: Amendment to Florida Rule of Appellate Procedure 9.200",
+            "disposition": "affirmed",
+            "disposition_date": {
+              "date": {
+                "date": "2026-01-22 00:00:00.000000",
+                "timezone_type": 1,
+                "timezone": "+00:00"
+              },
+              "stringFormat": "l d F Y"
+            },
+            "type": { "selection": [0] },
+            "note": "Corrected Opinion",   // Optional
+            "publish_date": { ... }
+          }
+        },
+        "oralArgUrl": null,               // Optional: URL to oral argument video
+        "opinionTypeLabel": "Written",
+        "siteAccessLabel": "SC"
+      }
+
+      PDF Download URL Pattern
+      ========================
+
+      Full URL: https://flcourts-media.flcourts.gov{uri}
+
+      Example:
+        URI: /content/download/2484015/opinion/Opinion_SC2025-1378.pdf
+        Full: https://flcourts-media.flcourts.gov/content/download/2484015/opinion/Opinion_SC2025-1378.pdf
+
+      The content ID (2484015 in this example) can be extracted for tracking.
+
+      Date Format
+      ===========
+
+      disposition_date.date.date follows format: "YYYY-MM-DD HH:MM:SS.ffffff"
+      Scraper parses only the date portion before the space.
+
+      Pagination
+      ==========
+
+      - Use offset parameter for pagination (0, 50, 100, ...)
+      - Continue while offset < totalCount
+      - Scraper uses limit=50 for efficiency
+
+    </xs:documentation>
+  </xs:annotation>
+</xs:schema>

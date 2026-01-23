@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for North Dakota Opinions List Page
+  URL: https://www.ndcourts.gov/supreme-court/opinions
+  URL with pagination: https://www.ndcourts.gov/supreme-court/opinions?page=N
+
+  Step: parse_opinions_list
+
+  This page is server-rendered and contains a table of opinion cards.
+  Each card has metadata about an opinion with a "View Opinion" button.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinions list page shows 10 results per page by default (can be 10, 50, or 100).
+      Results are sorted by newest first by default.
+
+      Each opinion row in the table contains:
+      - Paragraph with: Case name + Citation (e.g., "State v. Krall 2026 ND 7")
+      - Docket No.: XXXXXXXX (8 digits)
+      - Filing Date: M/D/YYYY
+      - Case Type: Category - Subcategory - Type
+      - Author: Last, First Middle
+      - View Opinion button
+      - Highlight section with case summary
+
+      Filter controls at top:
+      - Topic dropdown
+      - Author dropdown
+      - Citation search (ND/N.W.2d/N.W.3d)
+      - Search Query text field
+      - Trial Judge dropdown
+      - Show dropdown (10/50/100)
+      - Order By dropdown (Relevance/Newest)
+      - Search button
+
+      Pagination at bottom:
+      - Page X of Y indicator
+      - Numbered page links with ?page=N parameter
+
+      Scraper XPath Assertions
+      ========================
+      1. OPINION_ROWS: //table//tr[.//button[contains(., 'View Opinion')]]
+         - Description: "opinion rows"
+         - min_count: 0
+         - Expected: TR elements containing opinion cards
+
+      2. OPINION_METADATA: .//p[1]//text()
+         - Description: "opinion metadata"
+         - min_count: 1
+         - Expected: Text nodes with case name, citation, docket, date, type, author
+
+      3. VIEW_BUTTON: .//button[contains(., 'View Opinion')]
+         - Description: "view opinion button"
+         - min_count: 1
+         - Expected: Button element that opens opinion detail page
+
+      4. PAGINATION_LINKS: //a[contains(@href, 'page=')]/@href
+         - Description: "pagination links"
+         - min_count: 0
+         - Expected: href attributes like "/supreme-court/opinions?page=2"
+
+      Data Extraction Patterns
+      ========================
+      Citation: (\d{4})\s+ND\s+(\d+) - matches "2026 ND 7"
+      Docket: Docket No\.:\s*(\d{8}) - matches "Docket No.: 20240233"
+      Date: (\d{1,2})/(\d{1,2})/(\d{4}) - matches "1/15/2026"
+      Case Type: Case Type:\s*([^\n]+?) - matches "Case Type: Appeal - Criminal - Homicide"
+      Author: Author:\s*(.+?) - matches "Author: McEvers, Lisa K. Fair"
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element represents the HTML page -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" type="xs:anyType" minOccurs="0"/>
+        <xs:element name="body" type="bodyType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="bodyType">
+    <xs:annotation>
+      <xs:documentation>
+        Body contains the main content including:
+        - Header with navigation
+        - Search/filter controls
+        - Results table with opinion rows
+        - Pagination controls
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:any minOccurs="0" maxOccurs="unbounded" processContents="lax"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

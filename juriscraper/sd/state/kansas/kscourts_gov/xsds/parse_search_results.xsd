@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Kansas Decisions Search Results Page
+  URL: https://searchdro.kscourts.gov/Documents/LoadPage
+
+  Step: parse_search_results
+  Source: Kansas Judicial Branch decisions search portal
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The decisions search page displays a DataTables-powered table of court decisions
+      with filtering options. The page shows results from both Kansas Supreme Court
+      and Court of Appeals by default, showing the last 3 months of decisions.
+
+      Page URL: https://searchdro.kscourts.gov/Documents/LoadPage
+
+      Key Elements:
+      - Search form with date range, publication status, and court filters
+      - Results table with 6 columns: Release Date, Case Number, Case Title, Court, Status, PDF
+      - Pagination controls (10/25/50/100 entries per page)
+      - Client-side filter text box
+
+      Scraper XPath Assertions
+      ========================
+
+      1. TABLE_HEADERS: //table[@id='example']//th/text()
+         - Description: "table headers"
+         - min_count: 6
+         - max_count: 6
+         - Expected: ["Release Date", "Case Number", "Case Title", "Court", "Status", "PDF"]
+
+      2. RESULT_ROWS: //table[@id='example']/tbody/tr
+         - Description: "result rows"
+         - min_count: 0
+         - max_count: unlimited (paginated to 10/25/50/100 per page)
+         - Expected: Table rows containing decision data
+
+      3. ROW_CELLS: td (within each row)
+         - Description: "row cells"
+         - min_count: 6
+         - max_count: 6
+         - Expected: [Release Date, Case Number, Case Title, Court, Status, PDF Link]
+
+      4. PDF_LINK: .//a/@href (within PDF cell)
+         - Description: "PDF link"
+         - min_count: 1
+         - max_count: 1
+         - Expected: Relative URL like "/documents/pdf/caseDecisions/{uuid}_{case-number}.pdf"
+
+      Data Fields
+      ===========
+      - Release Date: Format "M/D/YYYY" (e.g., "1/16/2026")
+      - Case Number: 6-digit number (e.g., "126317")
+      - Case Title: Full case name (e.g., "State v. Hardwick")
+      - Court: "Supreme Court" or "Court of Appeals"
+      - Status: "Published" or "Unpublished"
+      - PDF: Link element with icon, href to PDF document
+
+      Edge Cases
+      ==========
+      - Table may be empty if no results match filters
+      - Date range defaults to last 3 months
+      - Keyword search returns max 500 records
+      - Case numbers are shared across both courts (sequential numbering)
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the search results page -->
+  <xs:element name="searchResults">
+    <xs:complexType>
+      <xs:sequence>
+        <!-- Search filters -->
+        <xs:element name="filters">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="startDate" type="xs:date" minOccurs="0"/>
+              <xs:element name="endDate" type="xs:date" minOccurs="0"/>
+              <xs:element name="publicationStatus">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="Published &amp; Unpublished"/>
+                    <xs:enumeration value="Published"/>
+                    <xs:enumeration value="Unpublished"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="court">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="Both Courts"/>
+                    <xs:enumeration value="Supreme Court"/>
+                    <xs:enumeration value="Court of Appeals"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="keyword" type="xs:string" minOccurs="0"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Results table -->
+        <xs:element name="resultsTable">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="header">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="column" minOccurs="6" maxOccurs="6">
+                      <xs:complexType>
+                        <xs:simpleContent>
+                          <xs:extension base="xs:string">
+                            <xs:attribute name="sortable" type="xs:boolean" default="true"/>
+                          </xs:extension>
+                        </xs:simpleContent>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="row" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="releaseDate" type="xs:date"/>
+                    <xs:element name="caseNumber">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:string">
+                          <xs:pattern value="\d{6}"/>
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:element>
+                    <xs:element name="caseTitle" type="xs:string"/>
+                    <xs:element name="court">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:string">
+                          <xs:enumeration value="Supreme Court"/>
+                          <xs:enumeration value="Court of Appeals"/>
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:element>
+                    <xs:element name="status">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:string">
+                          <xs:enumeration value="Published"/>
+                          <xs:enumeration value="Unpublished"/>
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:element>
+                    <xs:element name="pdfLink">
+                      <xs:complexType>
+                        <xs:attribute name="href" use="required">
+                          <xs:simpleType>
+                            <xs:restriction base="xs:anyURI">
+                              <xs:pattern value="/documents/pdf/caseDecisions/[a-f0-9-]+_\d+\.pdf"/>
+                            </xs:restriction>
+                          </xs:simpleType>
+                        </xs:attribute>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Pagination info -->
+        <xs:element name="pagination">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="showingFrom" type="xs:positiveInteger"/>
+              <xs:element name="showingTo" type="xs:positiveInteger"/>
+              <xs:element name="totalEntries" type="xs:nonNegativeInteger"/>
+              <xs:element name="currentPage" type="xs:positiveInteger"/>
+              <xs:element name="totalPages" type="xs:positiveInteger"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

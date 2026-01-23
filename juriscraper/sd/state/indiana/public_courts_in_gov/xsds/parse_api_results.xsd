@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Indiana Appellate Decisions API Response
+  URL: https://public.courts.in.gov/decisions/api/Opinion/Search
+
+  Step: parse_api_results
+  Request: POST with JSON body
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      API Response Structure
+      ======================
+      The decisions API returns JSON with the following structure:
+
+      Request Body (POST):
+      {
+        "caseParty": string,      // Case number or party name filter
+        "courtId": string,        // "9510" (Supreme), "9530" (Appeals), "9550" (Tax), "" (all)
+        "caseCategoryId": string, // Category filter (empty for all)
+        "judgeId": string,        // Judge filter (empty for all)
+        "fromDate": string,       // "MM/DD/YYYY" format
+        "toDate": string,         // "MM/DD/YYYY" format
+        "countyId": string,       // County filter (empty for all)
+        "showMemorandum": bool,   // Include memorandum decisions
+        "pageNumber": int,        // 1-based page number
+        "pageSize": int           // Results per page (default 25)
+      }
+
+      Response Body:
+      {
+        "totalRecords": int,
+        "pageNumber": int,
+        "pageSize": int,
+        "opinions": [
+          {
+            "caseTitle": string,       // Full case name
+            "opinionDate": string,     // "Month DD, YYYY" format
+            "courtId": int,            // 9510, 9530, or 9550
+            "courtName": string,       // "Supreme Court", "Court of Appeals", "Tax Court"
+            "caseNumber": string,      // Appellate case number (e.g., "25A-CR-00675")
+            "lowerCaseNumber": string, // Trial court case number
+            "lowerCourtName": string,  // Trial court name
+            "categoryName": string,    // "Criminal", "Civil", "Juvenile", etc.
+            "judgeName": string,       // Authoring judge last name
+            "disposition": string,     // "Affirmed", "Reversed", etc.
+            "concurringJudges": string,// "Judge X and Judge Y concur"
+            "dissentingJudges": string,// "Judge Z dissents" (often empty)
+            "isMemorandum": bool,      // True for memorandum decisions
+            "opinionId": string,       // Base64-like ID for PDF download
+            "countyName": string       // County of origin
+          },
+          ...
+        ]
+      }
+
+      PDF Download URL Pattern:
+      api/Document/Opinion?Id={opinionId}
+
+      Scraper Field Mapping
+      =====================
+      API Field            -> Model Field
+      -----------------------------------------
+      caseTitle            -> case_name
+      opinionDate          -> date_filed (parsed)
+      courtId              -> court_id (mapped via API_COURT_ID_TO_CL)
+      caseNumber           -> docket_id
+      lowerCaseNumber      -> trial_court_case_number
+      lowerCourtName       -> trial_court_name
+      categoryName         -> case_category
+      judgeName            -> authoring_judge
+      disposition          -> disposition
+      concurringJudges     -> concurring_judges (parsed to list)
+      dissentingJudges     -> dissenting_judges (parsed to list)
+      isMemorandum         -> is_memorandum, precedential_status
+      opinionId            -> used to construct download_url
+      countyName           -> county
+
+      Court ID Mapping
+      ================
+      API Court ID | CourtListener ID | Court Name
+      9510         | ind              | Indiana Supreme Court
+      9530         | indctapp         | Indiana Court of Appeals
+      9550         | indtc            | Indiana Tax Court
+
+      Case Number Formats
+      ===================
+      Supreme Court: YYS-TYPE-NNNNN (e.g., 25S-CR-00303)
+      Court of Appeals: YYA-TYPE-NNNNN (e.g., 25A-CR-00675)
+      Tax Court: YYT-TYPE-NNNNN (e.g., 24T-TA-00018)
+
+      Where TYPE is:
+      - CR: Criminal
+      - PL: Civil/Plenary
+      - CT: Civil Tort
+      - JT: Juvenile Termination
+      - JP: Juvenile Paternity
+      - MH: Mental Health
+      - DR: Dissolution/Divorce
+      - PC: Post-Conviction
+      - DN: Dissolution
+      - MF: Mortgage Foreclosure
+      - CC: Civil Collection
+      - TA: Tax Appeal
+
+      Pagination
+      ==========
+      - Default page size is 25 results
+      - Use totalRecords to determine if more pages exist
+      - Increment pageNumber for subsequent requests
+    </xs:documentation>
+  </xs:annotation>
+</xs:schema>

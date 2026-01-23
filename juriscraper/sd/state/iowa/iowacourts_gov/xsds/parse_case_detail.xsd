@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Case Detail Page
+
+  URLs:
+  - Supreme Court: https://www.iowacourts.gov/iowa-courts/supreme-court/supreme-court-opinions/case/{case-number}
+  - Court of Appeals: https://www.iowacourts.gov/iowa-courts/court-of-appeals/court-of-appeals-court-opinions/case/{case-number}
+
+  Example:
+  - https://www.iowacourts.gov/iowa-courts/supreme-court/supreme-court-opinions/case/23-1794
+
+  Step: parse_case_detail
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The case detail page shows comprehensive information about a case.
+
+      Layout:
+      1. Page header: h1 with "Case No. XX-XXXX"
+
+      2. Left column - Case information:
+         - h2: Full case name (e.g., "Linda Betz v. Rebecca Mathisen, Eric Muller...")
+         - p: Case summary/abstract
+         - div: "County: Polk"
+         - div: "Trial Court Case No.: LACL155126"
+         - h4 "Resister" / h4 "Applicant" (or Appellant/Appellee)
+         - p: Party names
+         - h4 "Attorney for the Resister" / "Attorneys for the Applicant"
+         - p: Attorney names
+
+      3. Right column - Court sections:
+         - For Supreme Court cases:
+           - h2 "Supreme Court"
+           - h4 "Oral Argument Schedule" (if applicable)
+           - h4 "Briefs" (links to briefs)
+           - YouTube iframe (if oral argument video available)
+           - h4 "Supreme Court Opinion"
+           - div with "Opinion Number:" and "Date Published:"
+           - Link to PDF: /courtcases/{id}/embed/SupremeCourtOpinion
+
+         - For cases with Court of Appeals history:
+           - h2 "Court of Appeals"
+           - h4 "Court of Appeals Opinion"
+           - div with "Opinion Number:" and "Date Published:"
+           - h5 "Summary" with detailed summary text
+           - Link to PDF: /courtcases/{id}/embed/CourtAppealsOpinion
+
+         - Other Information section:
+           - h2 "Other Information"
+           - Further review dates
+           - Links to Further Review Application/Resistance PDFs
+
+      Scraper XPath Assertions
+      ========================
+      1. COUNTY: //*[contains(text(), 'County:')]/text()
+         - Description: "county"
+         - min_count: 0
+         - Expected: "County: {CountyName}"
+
+      2. TRIAL_CASE_NO: //*[contains(text(), 'Trial Court Case No.')]/text()
+         - Description: "trial court case number"
+         - min_count: 0
+         - Expected: "Trial Court Case No.: {CaseNumber}"
+
+      3. SUMMARY: //h2[contains(text(), 'v.')]/following-sibling::p[1]/text()
+         - Description: "case summary"
+         - min_count: 0
+         - Expected: Summary paragraph text
+
+      4. SC_OPINION_PDF: //a[contains(@href, '/embed/SupremeCourtOpinion')]/@href
+         - Description: "Supreme Court opinion PDF link"
+         - min_count: 0
+         - Expected: /courtcases/{id}/embed/SupremeCourtOpinion
+
+      5. COA_OPINION_PDF: //a[contains(@href, '/embed/CourtAppealsOpinion')]/@href
+         - Description: "Court of Appeals opinion PDF link"
+         - min_count: 0
+         - Expected: /courtcases/{id}/embed/CourtAppealsOpinion
+
+      Internal ID Extraction
+      ======================
+      The internal ID (e.g., 22626) is extracted from PDF URLs using regex:
+      Pattern: /courtcases/(\d+)/
+      This ID is used to construct PDF download URLs.
+    </xs:documentation>
+  </xs:annotation>
+</xs:schema>

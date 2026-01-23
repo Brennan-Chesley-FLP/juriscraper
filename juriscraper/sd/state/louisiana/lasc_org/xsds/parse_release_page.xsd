@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Louisiana Supreme Court Release Page
+  URLs:
+    - https://www.lasc.org/Actions?p={year}-{number}
+    - https://www.lasc.org/Opinions?p={year}-{number}
+    - https://www.lasc.org/Rehearings?p={year}-{number}
+
+  Step: parse_release_page
+  Purpose: Parses individual release pages to extract case information and PDF links
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      Release pages list cases grouped by disposition type (for Actions) or
+      authoring justice (for Opinions). Each case entry contains:
+      - Case number and title as a link to the PDF
+      - Parish of origin
+      - Vote information (who dissented, would grant, etc.)
+      - Additional links for concurrences/dissents
+
+      URL Patterns:
+      - Actions: https://www.lasc.org/Actions?p=2026-001
+      - Opinions: https://www.lasc.org/Opinions?p=2025-056
+      - Rehearings: https://www.lasc.org/Rehearings?p=2025-058
+
+      Content Structure
+      =================
+      1. Header section with NEWS RELEASE number
+      2. Date paragraphs: "On the Nth day of Month, Year..."
+      3. Disposition/Author headers (h1): "Writ application denied:", "BY Weimer, C.J.:"
+      4. Case paragraphs with:
+         - Main case link (docket number + case name -> PDF URL)
+         - Parish in parentheses
+         - Vote notations as text
+         - Additional links for dissents/concurrences
+
+      Scraper XPath Assertions
+      ========================
+      1. CASE_PARAGRAPHS: //p[.//a[contains(@href, '.pdf')]]
+         - Description: "case paragraphs with PDF links"
+         - min_count: 0 (release may be empty)
+         - Expected: Paragraphs containing at least one PDF link
+
+      2. DISPOSITION_HEADERS: //h1
+         - Description: "disposition headers"
+         - min_count: 0
+         - Expected: Headers like "Writ application denied:", "BY Hughes, J.:"
+
+      3. PDF_LINKS: .//a[contains(@href, '.pdf')]
+         - Description: "PDF links"
+         - min_count: 1 (at least main opinion)
+         - Expected: Links to opinion PDFs
+
+      4. PRECEDING_HEADERS: preceding::h1
+         - Description: "preceding headers"
+         - min_count: 0
+         - Expected: Most recent h1 before current paragraph
+
+      5. DATE_PARAGRAPHS: preceding::p[contains(text(), 'day of')]
+         - Description: "date paragraphs"
+         - min_count: 0
+         - Expected: Paragraphs with release date text
+
+      PDF URL Patterns
+      ================
+      - Main opinion: /opinions/{year}/{yy}-{number}.{type}.{format}.pdf
+        - Example: /opinions/2026/25-1635.C.PC.pdf (Per Curiam)
+        - Example: /opinions/2025/25-0169.C.OPN.pdf (Full Opinion)
+        - Example: /opinions/2026/26-0030.OK.action.pdf (Writ Action)
+      - Dissent: /opinions/{year}/{yy}-{number}.{type}.{initials}.dip.pdf
+        - Example: /opinions/2026/25-1635.C.ahp.dip.pdf
+      - Concurrence: /opinions/{year}/{yy}-{number}.{type}.{initials}.cip.pdf
+
+      Sample HTML Structure
+      =====================
+      <p>On the 7th day of January, 2026 the following action was taken...</p>
+      <h1>Writ application granted. See per curiam:</h1>
+      <p>
+        <a href="/opinions/2026/25-1635.C.PC.pdf">2025-C-01635 JAMES CARNEZ BURNS VS. LOOMIS ARMORED US, LLC</a>
+        (Parish of Caddo)
+        <a href="/opinions/2026/25-1635.C.ahp.dip.pdf">Penzato, J., dissents in part and assigns reasons.</a>
+      </p>
+      <h1>Writ application denied:</h1>
+      <p>
+        <a href="/opinions/2026/26-0030.OK.action.pdf">2026-OK-00030 STATE OF LOUISIANA VS. DAMON BRYANT</a>
+        (Parish of Jefferson)
+      </p>
+
+      Case Number Format
+      ==================
+      Pattern: {year}-{type}-{number}
+      - year: 4-digit year
+      - type: Case type code (C, K, KK, CC, B, BA, OB, CI, CJ, etc.)
+      - number: 4-5 digit sequence number
+
+      Type Codes:
+      - C: Civil
+      - CC: Civil Certified
+      - K: Criminal
+      - KK: Criminal Writ
+      - KO: Criminal Original
+      - KH: Criminal Habeas
+      - B: Attorney Discipline
+      - BA: Bar Admission
+      - OB: Disciplinary Board Appeal
+      - CI: Corrections (Inmate)
+      - CJ: Civil/Juvenile
+    </xs:documentation>
+  </xs:annotation>
+</xs:schema>

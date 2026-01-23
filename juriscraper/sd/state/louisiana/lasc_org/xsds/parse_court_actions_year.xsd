@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Louisiana Supreme Court Actions Year Page
+  URL: https://www.lasc.org/CourtActions/{year}
+
+  Step: parse_court_actions_year
+  Purpose: Lists all news releases for a given year with links to individual releases
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The Court Actions year page displays a table of all news releases for the year.
+      Each row contains:
+      - Release number (e.g., "2025 - 58")
+      - Date (link to the release page)
+      - Type (Actions, Opinions, or Rehearings)
+
+      URL Pattern: https://www.lasc.org/CourtActions/{year}
+      Example: https://www.lasc.org/CourtActions/2025
+
+      Release Types:
+      - Actions: Writ dispositions (grants, denials, etc.)
+      - Opinions: Full written opinions by justices
+      - Rehearings: Decisions on rehearing applications
+
+      Scraper XPath Assertions
+      ========================
+      1. RELEASE_ROWS: //table//tbody//tr
+         - Description: "release rows"
+         - min_count: 0 (page may exist but have no releases yet)
+         - Expected: Table rows, each containing a release entry
+
+      2. ROW_CELLS: td
+         - Description: "row cells"
+         - min_count: 3
+         - max_count: 3
+         - Expected: [Release #, Date (with link), Type]
+
+      3. DATE_LINK: a
+         - Description: "date link"
+         - min_count: 1
+         - max_count: 1
+         - Expected: Link to release page with href like /Actions?p=2025-057
+
+      Link Patterns
+      =============
+      - Actions: /Actions?p={year}-{number}
+      - Opinions: /Opinions?p={year}-{number}
+      - Rehearings: /Rehearings?p={year}-{number}
+
+      Sample HTML Structure
+      =====================
+      <table>
+        <tbody>
+          <tr>
+            <td>2025 - 58</td>
+            <td><a href="/Rehearings?p=2025-058">December 23, 2025</a></td>
+            <td>Rehearings</td>
+          </tr>
+          <tr>
+            <td>2025 - 57</td>
+            <td><a href="/Actions?p=2025-057">December 16, 18, and 23, 2025</a></td>
+            <td>Actions</td>
+          </tr>
+        </tbody>
+      </table>
+    </xs:documentation>
+  </xs:annotation>
+</xs:schema>

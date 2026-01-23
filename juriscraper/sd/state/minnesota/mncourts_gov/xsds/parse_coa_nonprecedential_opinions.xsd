@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Minnesota Court of Appeals Nonprecedential Opinions Page
+  URL: https://mncourts.gov/courtofappeals/recentopinions/nonprecedential-opinions
+
+  Step: parse_coa_nonprecedential_opinions
+
+  This page displays nonprecedential opinions from the Minnesota Court of Appeals.
+  These are not binding precedent but may be cited for persuasive value.
+  Released same day as precedential opinions (typically Mondays).
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      Similar to precedential opinions page, but with numbered entries.
+
+      The main content area contains:
+      - Page heading "Nonprecedential Opinions"
+      - Explanatory text about nonprecedential opinions
+      - Date heading (e.g., "NONPRECEDENTIAL OPINIONS FILED JANUARY 20, 2026")
+      - Subd reference (e.g., "Pursuant to Minn. R. Civ. App. P. 136.01, subd. 1 (c)")
+      - Numbered opinion entries in paragraph format
+
+      Each opinion entry has:
+      - Number prefix (e.g., "1.", "2.")
+      - Link with docket number(s) pointing to PDF
+      - Case name (not in emphasis, unlike precedential)
+      - Disposition and author
+      - Lower court/agency info
+
+      Example Opinion Entry (Nonprecedential):
+      ----------------------------------------
+      <p>
+        1.
+        <a href="...OPa250797-012026.pdf">A25-0797</a>
+        Edgar C. Ray, et al., Respondents, vs. Timothy Roen Kraft, aka T. Roen Kraft
+        aka Roen Kraft, Defendant, Mark Hoiseth, et al., Appellants.
+        Affirmed. Chief Judge Jennifer L. Frisch.
+        Hennepin County District Court, Hon. Edward Thomas Wahl.
+      </p>
+
+      Key Differences from Precedential Page
+      ======================================
+      - Entries are numbered (1., 2., 3., etc.)
+      - Case names are NOT in emphasis/strong tags
+      - May have multiple docket numbers in one link (e.g., "A25-0110, A25-0113")
+      - No summary/holding text
+      - Can include dissenting opinions noted (e.g., "Dissenting, Judge Peter M. Reyes, Jr.")
+      - Can include partial decisions (e.g., "Affirmed in part, reversed in part and remanded")
+
+      Scraper XPath Assertions
+      ========================
+      1. MAIN_CONTENT: //main
+         - Description: "main content area"
+         - min_count: 1
+         - max_count: 1
+
+      2. PAGE_TEXT: .//text()
+         - Description: "page text nodes"
+         - min_count: 1
+         - Expected: All text nodes to extract filing date
+
+      3. OPINION_LINKS: .//a[contains(@href, '.pdf')]
+         - Description: "opinion PDF links"
+         - min_count: 0
+         - Note: Nonprecedential page typically has many more opinions
+
+      4. LINK_HREF: @href
+         - Description: "link href"
+         - min_count: 1
+         - max_count: 1
+
+      5. LINK_TEXT: .//text()
+         - Description: "link text"
+         - min_count: 0
+         - Note: May contain multiple docket numbers
+
+      Date Extraction
+      ===============
+      Filing date is found in heading like:
+      "NONPRECEDENTIAL OPINIONS FILED JANUARY 20, 2026"
+
+      Same regex pattern as precedential page.
+
+      Multiple Docket Numbers
+      =======================
+      Some opinions handle multiple appeals and have multiple docket numbers:
+      - Link text: "A25-0110, A25-0113"
+      - Use first docket number as primary identifier
+      - All docket numbers in the link reference the same PDF
+
+      Agency Appeals
+      ==============
+      Not all cases originate from District Court. Some come from:
+      - Bureau of Mediation Services
+      - Office of Administrative Hearings
+      - Minnesota Board of Nursing
+      - Other state agencies
+
+      These are identified by absence of "County District Court" pattern.
+
+      Nonprecedential Opinion Rules
+      =============================
+      Per Minn. R. Civ. App. 136.01:
+      - Not binding authority except as law of the case, res judicata, or collateral estoppel
+      - May be cited as persuasive authority
+      - Typically issued when case applies established law to specific facts
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the page -->
+  <xs:element name="page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="main" type="mainContentType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Main content area -->
+  <xs:complexType name="mainContentType">
+    <xs:sequence>
+      <xs:element name="heading" type="xs:string"/>
+      <xs:element name="explanatoryText" type="xs:string"/>
+      <xs:element name="dateHeading" type="xs:string"/>
+      <xs:element name="ruleReference" type="xs:string"/>
+      <xs:element name="opinionEntry" type="opinionEntryType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Individual opinion entry -->
+  <xs:complexType name="opinionEntryType">
+    <xs:sequence>
+      <xs:element name="entryNumber" type="xs:positiveInteger"/>
+      <xs:element name="docketLink">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="href" type="xs:anyURI" use="required"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="caseName" type="xs:string"/>
+      <xs:element name="dispositionAndAuthor" type="xs:string"/>
+      <xs:element name="dissent" type="xs:string" minOccurs="0"/>
+      <xs:element name="lowerCourt" type="xs:string" minOccurs="0"/>
+      <xs:element name="lowerCourtJudge" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

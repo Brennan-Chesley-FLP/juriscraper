@@ -224,6 +224,31 @@ Judge initials appear at end of case numbers (e.g., BWD = Bonnie W. David, V.C.)
 - Court filter values match court names exactly
 - Date filters use predefined ranges or custom date selection
 
+### JavaScript Rendering Challenge
+**IMPORTANT**: The Delaware opinions page renders all table content via JavaScript.
+The table data including opinion IDs are loaded dynamically after page load.
+
+When you click a button in the table, it navigates directly to:
+`/Opinions/Download.aspx?id={opinion_id}`
+
+The opinion ID is **not** stored in HTML attributes (onclick, data-id, href) that can
+be parsed from raw HTML. The ID is stored in JavaScript data structures that get
+bound to click handlers at runtime.
+
+**Options for scraping:**
+1. **Use Playwright Driver**: Click each button and capture the navigation URL
+   to extract the opinion ID. This is the most reliable approach but slower.
+
+2. **Find API Endpoint**: Investigate if there's an underlying API that returns
+   JSON data with opinion IDs. Check network requests during page load.
+
+3. **Reverse Engineer JavaScript**: Find where opinion IDs are stored in the
+   JavaScript and extract them directly from script tags.
+
+The current implementation in `courts_delaware_gov/scraper.py` assumes we can
+parse opinion IDs from HTML attributes. This will need modification to work
+with the JavaScript-rendered content.
+
 ---
 
 ## Example Cases

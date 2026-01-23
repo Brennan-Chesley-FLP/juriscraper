@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Alaska Opinions Page
+  URL: https://appellate-records.courts.alaska.gov/CMSPublic/Home/Opinions?isCOA={True|False}
+
+  Step: parse_opinions_page
+
+  This schema documents the expected HTML structure of the Alaska appellate
+  courts opinions pages (both Supreme Court and Court of Appeals).
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinions page displays opinions grouped by release date.
+
+      Structure:
+      - main > div.content
+        - h3: Court title (e.g., "Supreme Court Opinions")
+        - h4: Subtitle (e.g., "- Recent Decisions -")
+        - Informational paragraphs
+        - Multiple date groups, each containing:
+          - h5: Release date (e.g., "Friday, December 19, 2025")
+          - table: Opinion table for that date
+
+      Each table has:
+      - Header row (thead/tr) with columns:
+        1. Document Download
+        2. Opinion Number
+        3. Case Number and Link to the Case
+        4. Case Title
+        5. Pacific Reporter Reference
+
+      - Body rows (tbody/tr) with:
+        1. PDF download link (/CMSPublic/UserControl/OpenOpinionDocument?q=...)
+        2. Opinion number (integer, e.g., 7799)
+        3. Case number link (/CMSPublic/Case/General?q=...) with case number text
+        4. Case title (italicized)
+        5. Pacific Reporter citation (often empty)
+
+      Scraper XPath Assertions
+      ========================
+      1. DATE_HEADINGS: //h5
+         - Description: "date headings for opinion groups"
+         - min_count: 0 (page could have no opinions)
+         - Expected: Text like "Friday, December 19, 2025"
+
+      2. TABLE_ROWS: table//tbody/tr
+         - Description: "opinion rows in table"
+         - min_count: 0 (could be no opinions for a date)
+         - Expected: 5 cells per row
+
+      3. PDF_LINK: ./td[1]//a/@href
+         - Description: "PDF download link"
+         - Expected: URL starting with /CMSPublic/UserControl/OpenOpinionDocument?q=
+
+      4. OPINION_NUMBER: ./td[2]
+         - Description: "opinion number cell"
+         - Expected: Integer text
+
+      5. CASE_LINK: ./td[3]//a
+         - Description: "case number link"
+         - Expected: href with /CMSPublic/Case/General?q=, text is case number
+
+      6. CASE_TITLE: ./td[4]
+         - Description: "case title cell"
+         - Expected: Italicized case name text
+
+      7. CITATION: ./td[5]
+         - Description: "Pacific Reporter citation"
+         - Expected: Citation text or empty
+
+      Example Extracted Data
+      ======================
+      Date: Friday, December 19, 2025
+      Opinion Number: 7799
+      Case Number: S19135
+      Case URL: /CMSPublic/Case/General?q=w6sobc/DATfbLFego/8maQ==
+      Case Title: Alex Koponen v. Vsevolod Romanov and Maria Sanders
+      PDF URL: /CMSPublic/UserControl/OpenOpinionDocument?q=ujbkX9FR3gPXxJMilyJQ4zlO7yzSZFYQchjaMI+AdaY88kZ5ibXbgtectA34nCMX
+      Citation: (empty - not yet published)
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the opinions page -->
+  <xs:element name="opinions-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="date-group" maxOccurs="unbounded" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="release-date" type="xs:date"/>
+              <xs:element name="opinion" maxOccurs="unbounded" minOccurs="0">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="pdf-url" type="xs:anyURI"/>
+                    <xs:element name="opinion-number" type="xs:integer"/>
+                    <xs:element name="case-number" type="xs:string"/>
+                    <xs:element name="case-url" type="xs:anyURI"/>
+                    <xs:element name="case-title" type="xs:string"/>
+                    <xs:element name="pacific-reporter-citation" type="xs:string" minOccurs="0"/>
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

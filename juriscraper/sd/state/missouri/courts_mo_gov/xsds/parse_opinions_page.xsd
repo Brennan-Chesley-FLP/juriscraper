@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Missouri Opinions Page
+  URL: https://www.courts.mo.gov/page.jsp?id=12086&dist=Opinions&date=all&year={YYYY}
+
+  Step: parse_opinions_page
+
+  This page displays opinions from Missouri appellate courts organized by date.
+  When accessing with date=all, all dates for the year are shown with opinions.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinions page contains:
+      1. Header with page title "Opinions"
+      2. Filter controls (court dropdown, year dropdown, search box)
+      3. Date buttons that expand to show opinions for that date
+      4. Each date section contains opinion entries
+
+      Opinion Entry Structure:
+      - Each opinion is in a div.list-group-item-text
+      - Contains: docket number, optional Overview/Summary link,
+        case name link (to PDF), author, vote
+
+      Example HTML structure for a date section:
+      ```
+      <div class="margin-bottom-15">
+        <input type="hidden" value="01/13/2026">
+        <div class="list-group-item">
+          <div class="list-group-item-text">
+            SC101157:
+            <a href="/file.jsp?id=229864">Overview/Summary</a>
+            <a href="/file.jsp?id=229860">In re: Mark W. Arensberg, Respondent.</a>
+            Author: Judge Zel M. Fischer
+            Vote: DISCIPLINE IMPOSED. All concur.
+          </div>
+        </div>
+      </div>
+      ```
+
+      Scraper XPath Assertions
+      ========================
+
+      1. DATE_CONTAINERS: //div[@class='margin-bottom-15']
+         - Description: "Container divs for each date with opinions"
+         - min_count: 0 (may have no opinions for a year)
+         - Expected: One div per date that has opinions
+
+      2. DATE_INPUT: .//input[@type='hidden']/@value | .//input/@value
+         - Description: "Hidden input with date value"
+         - Format: MM/DD/YYYY (e.g., "01/13/2026")
+         - min_count: 0 (some containers may not have dates)
+
+      3. OPINION_DIVS: .//div[@class='list-group-item-text']
+         - Description: "Individual opinion entry divs"
+         - min_count: 0 (may filter out all opinions)
+
+      4. OPINION_TEXT: .//text()
+         - Description: "All text content in opinion entry"
+         - Contains: docket number, author, vote
+         - Format:
+           - First text: "{DOCKET}:" or "{DOCKET} consolidated with {DOCKET}:"
+           - "Author: {judge name and title}"
+           - "Vote: {disposition}. {concurrences}"
+
+      5. OPINION_LINKS: .//a
+         - Description: "Links to PDF documents"
+         - min_count: 1 (at least main opinion link)
+         - Types:
+           - Overview/Summary link (optional): text = "Overview/Summary"
+           - Main opinion link: text = case name, href = /file.jsp?id={doc_id}
+
+      Court Identification
+      ====================
+      Court is determined from docket number prefix:
+      - SC = Supreme Court of Missouri (court_id: mo)
+      - ED = Eastern District Court of Appeals (court_id: moctapped)
+      - SD = Southern District Court of Appeals (court_id: moctappsd)
+      - WD = Western District Court of Appeals (court_id: moctappwd)
+
+      Order Filtering
+      ===============
+      Order documents (not full opinions) have docket format like:
+      - "SCOrder-01-13-2026"
+      - "EDOrder-01-13-2026"
+      These are filtered out using ORDER_PATTERN regex.
+
+      Consolidated Cases
+      ==================
+      Some cases show as "WD87719 consolidated with WD87745"
+      The scraper uses the first docket number.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the page -->
+  <xs:element name="opinions-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="date-section" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="date" type="xs:string"/>
+              <xs:element name="opinion" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="docket-number" type="xs:string"/>
+                    <xs:element name="case-name" type="xs:string"/>
+                    <xs:element name="opinion-pdf-url" type="xs:anyURI"/>
+                    <xs:element name="summary-pdf-url" type="xs:anyURI" minOccurs="0"/>
+                    <xs:element name="author" type="xs:string" minOccurs="0"/>
+                    <xs:element name="vote" type="xs:string" minOccurs="0"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

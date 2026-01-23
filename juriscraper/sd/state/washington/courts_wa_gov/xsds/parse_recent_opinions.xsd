@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Washington Courts Recent Opinions Page
+  URL: https://www.courts.wa.gov/opinions/index.cfm?fa=opinions.recent
+
+  Step: parse_recent_opinions
+
+  This page displays opinions filed within the last 14 days, organized into
+  three sections:
+  1. Supreme Court Opinions
+  2. Court of Appeals Published Opinions
+  3. Court of Appeals Unpublished Opinions
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+
+      The page has the following structure:
+
+      1. Supreme Court Opinions Section
+         - Heading: h3 containing "Supreme Court Opinions"
+         - Table with 4 columns: File Date, Case Info/File, Case Title, File Contains
+
+      2. Court of Appeals Opinions Section
+         - Heading: h3 containing "Court of Appeals Opinions"
+         - Strong tag: "Published Opinions"
+         - Table with 5 columns: File Date, Case Info/File, Div., Case Title, File Contains
+         - Strong tag: "Unpublished Opinions"
+         - Table with 5 columns: File Date, Case Info/File, Div., Case Title, File Contains
+
+      Supreme Court Table Row Structure
+      =================================
+      - Cell 0 (File Date): "Jan. 15, 2026"
+      - Cell 1 (Case Info/File):
+        - Link to info sheet: /opinions/index.cfm?fa=opinions.showOpinion&amp;filename=1034695MAJ
+        - Link to PDF: /opinions/pdf/1034695.pdf
+        - Docket format: NNN,NNN-N (e.g., "103,469-5")
+      - Cell 2 (Case Title): "State v. Bennett"
+      - Cell 3 (File Contains): "Maj., and Con. Opinions"
+
+      Court of Appeals Table Row Structure
+      ====================================
+      - Cell 0 (File Date): "Jan. 21, 2026"
+      - Cell 1 (Case Info/File):
+        - Link to info sheet: /opinions/index.cfm?fa=opinions.showOpinion&amp;filename=598132MAJ
+        - Link to PDF: varies by division and publication status
+          - Published: /opinions/pdf/D2 59813-2-II Published Opinion.pdf
+          - Unpublished: /opinions/pdf/402711_unp.pdf
+        - Docket format: NNNNN-N (e.g., "59813-2")
+      - Cell 2 (Div.): "I", "II", or "III"
+      - Cell 3 (Case Title): "State Of Washington, Respondent V. James W. Anderson, Appellant"
+      - Cell 4 (File Contains): "Majority Opinion"
+
+      Scraper XPath Assertions
+      ========================
+
+      1. Supreme Court table location:
+         XPath: //h3[contains(text(), 'Supreme Court Opinions')]/following-sibling::table[1]
+         - Expected: 1 table
+
+      2. Supreme Court data rows:
+         XPath: .//tr[td]
+         - min_count: 0 (may be empty some days)
+
+      3. Court of Appeals Published table:
+         XPath: //h3[contains(text(), 'Court of Appeals Opinions')]/following-sibling::*//strong[contains(text(), 'Published Opinions')]/following::table[1]
+         - Expected: 1 table
+
+      4. Court of Appeals Unpublished table:
+         XPath: //strong[contains(text(), 'Unpublished Opinions')]/following::table[1]
+         - Expected: 1 table
+
+      5. Docket number link in row:
+         XPath: .//a[contains(@href, 'showOpinion')]
+         - Expected: 1 per row
+
+      6. PDF link in row:
+         XPath: .//a[contains(@href, '.pdf')]
+         - Expected: 1 per row
+
+      Date Format
+      ===========
+      Dates are formatted as: "Mon. DD, YYYY" (e.g., "Jan. 15, 2026")
+      Regex pattern: (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.\s+(\d{1,2}),\s+(\d{4})
+
+      Docket Number Formats
+      =====================
+      - Supreme Court: NNN,NNN-N (e.g., "103,469-5")
+        Regex: (\d{2,3},\d{3}-\d)
+      - Court of Appeals: NNNNN-N (e.g., "59813-2")
+        Regex: (\d{5}-\d)
+
+      PDF URL Patterns
+      ================
+      - Supreme Court: /opinions/pdf/{docket_no_comma}.pdf
+        Example: /opinions/pdf/1034695.pdf
+      - COA Published Division II: /opinions/pdf/D2 {docket}-II Published Opinion.pdf
+        Example: /opinions/pdf/D2 59813-2-II Published Opinion.pdf
+      - COA Unpublished: /opinions/pdf/{docket}_unp.pdf
+        Example: /opinions/pdf/402711_unp.pdf
+      - COA variations exist (some use order and opinion patterns)
+
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the page -->
+  <xs:element name="page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="supreme-court-section" type="SupremeCourtSectionType"/>
+        <xs:element name="court-of-appeals-section" type="CourtOfAppealsSectionType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Supreme Court section type -->
+  <xs:complexType name="SupremeCourtSectionType">
+    <xs:sequence>
+      <xs:element name="opinion" type="SupremeCourtOpinionType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Court of Appeals section type -->
+  <xs:complexType name="CourtOfAppealsSectionType">
+    <xs:sequence>
+      <xs:element name="published-opinions">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="opinion" type="CourtOfAppealsOpinionType" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="unpublished-opinions">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="opinion" type="CourtOfAppealsOpinionType" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Supreme Court opinion type (4 columns) -->
+  <xs:complexType name="SupremeCourtOpinionType">
+    <xs:sequence>
+      <xs:element name="file-date" type="xs:date"/>
+      <xs:element name="docket-number" type="xs:string"/>
+      <xs:element name="detail-url" type="xs:anyURI"/>
+      <xs:element name="pdf-url" type="xs:anyURI"/>
+      <xs:element name="case-title" type="xs:string"/>
+      <xs:element name="file-contains" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Court of Appeals opinion type (5 columns) -->
+  <xs:complexType name="CourtOfAppealsOpinionType">
+    <xs:sequence>
+      <xs:element name="file-date" type="xs:date"/>
+      <xs:element name="docket-number" type="xs:string"/>
+      <xs:element name="detail-url" type="xs:anyURI"/>
+      <xs:element name="pdf-url" type="xs:anyURI"/>
+      <xs:element name="division">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="I"/>
+            <xs:enumeration value="II"/>
+            <xs:enumeration value="III"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="case-title" type="xs:string"/>
+      <xs:element name="file-contains" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>

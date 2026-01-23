@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Minnesota Court of Appeals Precedential Opinions Page
+  URL: https://mncourts.gov/courtofappeals/recentopinions/precedential-opinions
+
+  Step: parse_coa_precedential_opinions
+
+  This page displays precedential (binding) opinions from the Minnesota Court of Appeals.
+  Opinions are typically released on Mondays at 10:00 AM CST/CDT (Tuesday if Monday is holiday).
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The page has a standard mncourts.gov layout with:
+      - Header with navigation
+      - Breadcrumb navigation
+      - Sidebar with sub-navigation (Overview, Precedential, Nonprecedential, etc.)
+      - Main content area with opinions
+      - Footer
+
+      The main content area contains:
+      - Page heading "Precedential Opinions"
+      - Explanatory text about precedential opinions and Rule 136.01
+      - Date heading (e.g., "DECISIONS OF THE COURT OF APPEALS FILED TUESDAY, JANUARY 20, 2026")
+      - Opinion entries in paragraph format
+
+      Each opinion entry has:
+      - Link with docket number(s) pointing to PDF
+      - Case name in emphasis/strong
+      - Lower court and judge info
+      - Summary/holding text (for precedential opinions)
+      - Disposition and author in bold
+
+      Example Opinion Entry (Precedential):
+      -------------------------------------
+      <p>
+        <a href="...OPa250268-012026.pdf">A25-0268</a>
+        <em><strong>State of Minnesota, Respondent, vs. Jim Duramax Whitcomb, Appellant.</strong></em>
+        Crow Wing County District Court, Hon. Erik J. Askegaard.
+        For possession of pornographic work involving a minor, cloud storage is a
+        "storage system of any other type" within the meaning of Minn. Stat. § 617.247...
+        <strong>Affirmed. Chief Judge Jennifer L. Frisch.</strong>
+      </p>
+
+      Scraper XPath Assertions
+      ========================
+      1. MAIN_CONTENT: //main
+         - Description: "main content area"
+         - min_count: 1
+         - max_count: 1
+         - Expected: Single main element containing all opinion content
+
+      2. PAGE_TEXT: .//text()
+         - Description: "page text nodes"
+         - min_count: 1
+         - Expected: All text nodes to extract filing date
+
+      3. OPINION_LINKS: .//a[contains(@href, '.pdf')]
+         - Description: "opinion PDF links"
+         - min_count: 0
+         - Expected: Links to opinion PDF files
+
+      4. LINK_HREF: @href
+         - Description: "link href"
+         - min_count: 1
+         - max_count: 1
+         - Expected: URL to PDF file
+
+      5. LINK_TEXT: .//text()
+         - Description: "link text"
+         - min_count: 0
+         - Expected: Docket number(s)
+
+      Date Extraction
+      ===============
+      Filing date is found in heading like:
+      "DECISIONS OF THE COURT OF APPEALS FILED TUESDAY, JANUARY 20, 2026"
+
+      Regex pattern: FILED\s+(?:\w+,\s+)?(\w+\s+\d{1,2},\s+\d{4})
+
+      PDF URL Pattern
+      ===============
+      https://mncourts.gov/_media/migration/appellate/court-of-appeals/standard-opinions/{date}/OPa{case_number}-{date}.pdf
+
+      Example: OPa250268-012026.pdf
+      - OP = Opinion prefix
+      - a = lowercase 'a' for Court of Appeals
+      - 250268 = Docket number without hyphen
+      - 012026 = Date in MMDDYY format (January 20, 2026)
+
+      Key Differences from Supreme Court
+      ==================================
+      - Uses lowercase 'a' prefix in filename (OPa vs OPA)
+      - Includes lower court and judge information
+      - Includes summary/holding text
+      - Release day is Monday (vs Wednesday for SC)
+
+      Precedential vs Nonprecedential
+      ===============================
+      Under Minn. R. Civ. App. P. 136.01:
+      - Precedential: Binding authority, published in official reporters
+      - Issued only to clarify or develop the law
+      - Factors: new principle, clarifies case law, novel constitutional/statutory issue
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the page -->
+  <xs:element name="page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="main" type="mainContentType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Main content area -->
+  <xs:complexType name="mainContentType">
+    <xs:sequence>
+      <xs:element name="heading" type="xs:string"/>
+      <xs:element name="explanatoryText" type="xs:string"/>
+      <xs:element name="dateHeading" type="xs:string"/>
+      <xs:element name="opinionEntry" type="opinionEntryType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Individual opinion entry -->
+  <xs:complexType name="opinionEntryType">
+    <xs:sequence>
+      <xs:element name="docketLink">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="href" type="xs:anyURI" use="required"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="caseName" type="xs:string"/>
+      <xs:element name="lowerCourt" type="xs:string" minOccurs="0"/>
+      <xs:element name="lowerCourtJudge" type="xs:string" minOccurs="0"/>
+      <xs:element name="summary" type="xs:string" minOccurs="0"/>
+      <xs:element name="dispositionAndAuthor" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

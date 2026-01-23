@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for 128archive.com Search Results
+  URL: https://128archive.com/
+
+  Step: parse_128archive
+
+  This page shows Appeals Court summary dispositions pursuant to Rule 23.0.
+  These are NOT binding precedent but may be cited for persuasive value.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The page contains:
+      - Header with MROD logo and title
+      - Search form with:
+        - Docket Number input
+        - Party Name input
+        - Release Date From/To inputs
+        - Search Terms input
+      - Results section with:
+        - Result count ("SHOWING RESULTS: X of Y")
+        - Sort dropdown
+        - Result cards (one per disposition)
+        - Pagination controls
+
+      Result Card Structure
+      =====================
+      Each result card contains labeled fields:
+
+        <div class="result-card">
+          <div>
+            <div>Docket Number</div>
+            <div>24-P-0951</div>
+          </div>
+          <div>
+            <div>Case Name</div>
+            <div>KEVIN D. WAGNER & another vs. SRAMOWICZ DEVELOPMENT, LLC, & others.</div>
+          </div>
+          <div>
+            <div>Release Date</div>
+            <div>01/22/2026</div>
+          </div>
+          <div>
+            <a href="/Disposition/DownloadDisposition/...">Download PDF</a>
+            <a href="/Disposition/ViewDispositionDocInHtml?...">Read in Full</a>
+          </div>
+        </div>
+
+      URL Patterns
+      ============
+      PDF Download:
+        /Disposition/DownloadDisposition/{id}?dispositionId={dispositionId}
+
+      HTML View:
+        /Disposition/ViewDispositionDocInHtml?dispositionId={id}&ispublicview=True
+
+      Docket Format
+      =============
+      Appeals Court format: YY-P-NNNN
+      Examples: 24-P-0951, 25-P-0019, 24-P-1200
+
+      Date Format
+      ===========
+      MM/DD/YYYY (e.g., 01/22/2026)
+
+      Scraper XPath Assertions
+      ========================
+      1. DOWNLOAD_LINKS:
+         XPath: //a[contains(text(), 'Download PDF')]
+         Description: "Download PDF links"
+         min_count: 0
+         Expected: Links to PDF downloads
+
+      2. PDF_HREF:
+         XPath: @href
+         Description: "PDF href"
+         min_count: 1, max_count: 1
+         Expected: URL path to PDF
+
+      3. DOCKET_NUMBER (via parent navigation):
+         XPath: .//div[contains(text(), 'Docket Number')]/following-sibling::div[1]/text()
+         Alternative: .//div[div[contains(text(), 'Docket Number')]]/div[2]/text()
+         Expected: Docket in YY-P-NNNN format
+
+      4. CASE_NAME (via parent navigation):
+         XPath: .//div[contains(text(), 'Case Name')]/following-sibling::div[1]/text()
+         Alternative: .//div[div[contains(text(), 'Case Name')]]/div[2]/text()
+         Expected: Full case name with party names
+
+      5. RELEASE_DATE (via parent navigation):
+         XPath: .//div[contains(text(), 'Release Date')]/following-sibling::div[1]/text()
+         Alternative: .//div[div[contains(text(), 'Release Date')]]/div[2]/text()
+         Expected: Date in MM/DD/YYYY format
+
+      Pagination
+      ==========
+      - Shows "Page X of Y" with editable page number
+      - First/Previous/Next/Last buttons
+      - Page size input (default 10)
+      - Total results shown: "SHOWING RESULTS: X of Y"
+
+      Notes
+      =====
+      - Coverage: February 25, 2008 to present
+      - ~19,000+ total dispositions
+      - Summary dispositions pursuant to Rule 23.0 (formerly Rule 1:28)
+      - NOT binding precedent
+      - May be cited for persuasive value
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the page -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" type="xs:anyType"/>
+        <xs:element name="body">
+          <xs:complexType>
+            <xs:sequence>
+              <!-- Search form -->
+              <xs:element name="form" minOccurs="0"/>
+
+              <!-- Results section -->
+              <xs:element name="div" type="ResultsContainer"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="ResultsContainer">
+    <xs:sequence>
+      <xs:element name="ResultCard" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="DocketNumber" type="xs:string"/>
+            <xs:element name="CaseName" type="xs:string"/>
+            <xs:element name="ReleaseDate" type="xs:string"/>
+            <xs:element name="DownloadLink" type="xs:anyURI"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

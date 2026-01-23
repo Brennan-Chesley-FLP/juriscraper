@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Colorado Supreme Court Slip Opinions Page
+  URL: https://www.coloradojudicial.gov/supreme-court/opinions
+
+  Step: parse_slip_opinions_page
+  Purpose: Extract opinion citations, docket numbers, case names, and detail page links
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The slip opinions page lists Supreme Court opinions for the current fiscal year
+      (July 1 through June 30). Structure:
+
+      - Main content in article > div.field
+      - Date headers as plain text paragraphs (e.g., "January 12, 2026")
+      - Opinion entries in paragraphs containing:
+        - Citation link (e.g., "26 CO 1" linking to /node/15606)
+        - Docket number text (e.g., ", 25SA204,")
+        - Case name in em/i tags (e.g., "In re: Interest of B.J.S.")
+      - Horizontal rules (hr) separate date groups
+
+      Example HTML structure:
+      ```html
+      &lt;article&gt;
+        &lt;div class="field"&gt;
+          &lt;p&gt;January 12, 2026&lt;/p&gt;
+          &lt;p&gt;
+            &lt;a href="/node/15606"&gt;26 CO 1&lt;/a&gt;, 25SA204,
+            &lt;em&gt;In re: Interest of B.J.S.&lt;/em&gt;
+            &lt;a href="/node/15604"&gt;26 CO 2&lt;/a&gt;, 25SA179,
+            &lt;em&gt;In Re: People v. Castorena&lt;/em&gt;
+          &lt;/p&gt;
+          &lt;hr/&gt;
+          &lt;p&gt;December 22, 2025&lt;/p&gt;
+          ...
+        &lt;/div&gt;
+      &lt;/article&gt;
+      ```
+
+      Scraper XPath Assertions
+      ========================
+      1. CONTENT_AREA: //article//div[contains(@class, 'field')]
+         - Description: "main content area"
+         - min_count: 1
+         - Expected: Single div containing all opinion entries
+
+      2. PARAGRAPHS: .//p
+         - Description: "content paragraphs"
+         - min_count: 1
+         - Expected: Multiple paragraphs with dates and opinions
+
+      3. CITATION_LINKS: .//a[contains(@href, '/node/') or contains(@href, '/media/')]
+         - Description: "citation links"
+         - min_count: 0 (per paragraph)
+         - Expected: Links to opinion detail pages
+
+      4. CASE_NAME: .//em | .//i
+         - Description: "case name emphasis"
+         - min_count: 0 (per paragraph)
+         - Expected: Case name in italics
+
+      Data Extraction Patterns
+      ========================
+      - Date: Regex pattern for "Month DD, YYYY" format
+      - Citation: Regex for "YY CO N" or "YYYY CO N" with optional "M" suffix
+      - Docket: Regex for "YYSC/SA/CANNN" format
+      - Detail URL: href attribute from citation link
+      - Node ID: Extracted from /node/{id} or /media/{id} in href
+    </xs:documentation>
+  </xs:annotation>
+</xs:schema>

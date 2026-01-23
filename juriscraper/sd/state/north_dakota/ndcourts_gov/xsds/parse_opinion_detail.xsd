@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for North Dakota Opinion Detail Page
+  URL: https://www.ndcourts.gov/supreme-court/opinions/{internal_id}
+  Example: https://www.ndcourts.gov/supreme-court/opinions/202131
+
+  Step: parse_opinion_detail
+
+  IMPORTANT: This page is rendered via JavaScript (React SPA).
+  The content is dynamically loaded after initial page load.
+  Requires PlaywrightDriver for proper rendering.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinion detail page is a React/JavaScript SPA that loads content dynamically.
+      After JavaScript execution, it shows:
+      - Opinion metadata (case name, citation, date, etc.)
+      - Opinion text/content
+      - Download link for PDF
+
+      NOTE: Without JavaScript rendering, the page appears blank.
+
+      Scraper XPath Assertions
+      ========================
+      1. PDF_LINKS: //a[contains(@href, '.pdf') or contains(text(), 'Download') or contains(text(), 'PDF')]/@href
+         - Description: "PDF links"
+         - min_count: 0
+         - Expected: href attribute pointing to PDF download
+
+      2. ALTERNATIVE_PDF_LINKS: //a[contains(@class, 'download') or contains(@class, 'pdf')]/@href
+         - Description: "alternative PDF links"
+         - min_count: 0
+         - Expected: href attribute from download/pdf-styled links
+
+      Data Extraction Patterns
+      ========================
+      PDF URL typically ends in .pdf
+      May be relative or absolute URL
+
+      JavaScript Rendering Notes
+      ==========================
+      - Page uses React for dynamic content loading
+      - Initial HTML is minimal/empty
+      - Content loads via JavaScript after page load
+      - PlaywrightDriver must wait for content to render
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element represents the HTML page -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" type="xs:anyType" minOccurs="0"/>
+        <xs:element name="body" type="bodyType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="bodyType">
+    <xs:annotation>
+      <xs:documentation>
+        Body contains JavaScript-rendered content.
+        After rendering:
+        - Opinion header with case info
+        - Opinion body with text
+        - Download/view PDF link
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:any minOccurs="0" maxOccurs="unbounded" processContents="lax"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

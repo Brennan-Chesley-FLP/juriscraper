@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for California Appellate Courts Opinions Page
+  Published URL: https://www.courts.ca.gov/opinions/publishedcitable-opinions
+  Unpublished URL: https://www.courts.ca.gov/opinions/unpublishednon-citable-opinions
+
+  Step: parse_opinions_page
+
+  This schema documents the expected HTML structure of the California
+  appellate courts opinions pages (both published and unpublished).
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinions page displays opinions as a list of cards with pagination.
+
+      Structure:
+      - main > article > div
+        - h1: Page title (e.g., "Published/Citable Opinions")
+        - Introductory paragraphs
+        - Search/Filter section:
+          - Source dropdown (court selector)
+          - Case Number textbox
+          - Title textbox
+          - Search button
+        - Results info (e.g., "1 - 50 of 298 results")
+        - Results per page dropdown
+        - Opinion list (ul > li)
+        - Pagination
+
+      Each opinion list item contains:
+      - Case info line: "S275272M |January 22, 2026"
+      - Source court line: "Supreme Court • Published Opinion" or
+                          "2nd District Court of Appeal • Unpublished Opinion"
+      - Case name heading with link to case info search
+      - PDF download link
+      - "Other Formats" link
+      - Related Cases (optional)
+
+      Scraper XPath Assertions
+      ========================
+      1. OPINION_ITEMS: //ul/li[.//a[contains(@href, '.PDF')]]
+         - Description: "opinion list items"
+         - min_count: 0 (last page may be empty)
+         - Expected: List items containing PDF links
+
+      2. CASE_INFO_DIV: .//div[contains(text(), '|')] or .//*[contains(text(), '|')]
+         - Description: "case info div with case number and date"
+         - min_count: 0 (alternate structure may exist)
+         - Expected: "S275272M |January 22, 2026"
+
+      3. SOURCE_COURT_INFO: .//div[contains(text(), 'Court of Appeal') or
+                            contains(text(), 'Supreme Court') or
+                            contains(text(), 'Appellate Division')]
+         - Description: "source court info"
+         - min_count: 0
+         - Expected: "2nd District Court of Appeal • Published Opinion"
+
+      4. CASE_NAME_LINK: .//h2//a | .//h3//a
+         - Description: "case name heading link"
+         - min_count: 0
+         - Expected: href to appellatecases.courtinfo.ca.gov, text is case title
+
+      5. PDF_LINK: .//a[contains(@href, '.PDF')]
+         - Description: "PDF download link"
+         - min_count: 1 (required for opinion items)
+         - Expected: URL like https://www.courts.ca.gov/opinions/documents/S275272M.PDF
+
+      6. OTHER_FORMATS_LINK: .//a[contains(text(), 'Other Formats')]
+         - Description: "other formats link"
+         - min_count: 0
+         - Expected: URL to other formats page
+
+      7. RELATED_CASES: .//p[contains(text(), 'Related Cases')]//a
+         - Description: "related case links"
+         - min_count: 0
+         - Expected: Links to related case numbers
+
+      8. NEXT_PAGE_LINK: //a[contains(text(), 'Next') or @aria-label='Go to next page']
+         - Description: "next page link"
+         - min_count: 0 (no next page on last page)
+         - Expected: href like "?page=1"
+
+      Court ID Mapping (from case number prefix)
+      ==========================================
+      - S: California Supreme Court (cal)
+      - A: 1st District Court of Appeal (calctapp1d)
+      - B: 2nd District Court of Appeal (calctapp2d)
+      - C: 3rd District Court of Appeal (calctapp3d)
+      - D: 4th District Court of Appeal, Division One (calctapp4d)
+      - E: 4th District Court of Appeal, Division Two (calctapp4d)
+      - G: 4th District Court of Appeal, Division Three (calctapp4d)
+      - F: 5th District Court of Appeal (calctapp5d)
+      - H: 6th District Court of Appeal (calctapp6d)
+
+      Case Number Format
+      ==================
+      - Base format: [Letter][Digits] (e.g., S275272, A172153)
+      - May include suffix: M (modification), N, S, A (e.g., S275272M, B324360N)
+
+      Example Extracted Data
+      ======================
+      Case Number: S275272M
+      Date Filed: January 22, 2026
+      Court ID: cal (California Supreme Court)
+      Source Court: Supreme Court
+      Case Name: L.A. Police Protective League v. City of L.A.
+      PDF URL: https://www.courts.ca.gov/opinions/documents/S275272M.PDF
+      Case Info URL: https://appellatecases.courtinfo.ca.gov/search/searchResults.cfm?...
+      Other Formats URL: https://courts.ca.gov/opinion/published/2026-01-22/s275272m
+      Precedential Status: Published
+
+      Unpublished Example:
+      Case Number: G064984
+      Date Filed: January 22, 2026
+      Court ID: calctapp4d (4th District)
+      Source Court: 4th District Court of Appeal, Division Three
+      Case Name: P. v. Jimenez
+      PDF URL: https://www.courts.ca.gov/opinions/nonpub/G064984.PDF
+      Precedential Status: Unpublished
+
+      Pagination
+      ==========
+      - Published: 120-day rolling window, ~298 opinions, 6 pages
+      - Unpublished: 60-day rolling window, ~1331 opinions, 27 pages
+      - Page parameter: ?page=0, ?page=1, etc.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the opinions page -->
+  <xs:element name="opinions-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="precedential-status" type="xs:string"/>
+        <!-- "Published" or "Unpublished" -->
+        <xs:element name="page-number" type="xs:integer"/>
+        <xs:element name="total-results" type="xs:integer" minOccurs="0"/>
+        <xs:element name="opinion" maxOccurs="unbounded" minOccurs="0">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="case-number" type="xs:string"/>
+              <!-- e.g., "S275272M" -->
+              <xs:element name="date-filed" type="xs:date"/>
+              <xs:element name="court-id" type="xs:string"/>
+              <!-- e.g., "cal", "calctapp2d" -->
+              <xs:element name="source-court" type="xs:string" minOccurs="0"/>
+              <!-- e.g., "Supreme Court" -->
+              <xs:element name="case-name" type="xs:string"/>
+              <xs:element name="pdf-url" type="xs:anyURI"/>
+              <xs:element name="case-info-url" type="xs:anyURI" minOccurs="0"/>
+              <xs:element name="other-formats-url" type="xs:anyURI" minOccurs="0"/>
+              <xs:element name="division" type="xs:string" minOccurs="0"/>
+              <!-- e.g., "CA2/6" -->
+              <xs:element name="related-cases" minOccurs="0">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="case-number" type="xs:string" maxOccurs="unbounded"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="next-page-url" type="xs:anyURI" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

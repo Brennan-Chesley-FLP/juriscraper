@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Montana Supreme Court Case Info Page
+  URL: https://courts.mt.gov/external/orders/caseInfo?id={CASE_NUMBER}
+
+  Step: parse_case_info
+  Description: Parses the case information page to extract document links
+
+  The page contains:
+  - Case Information table (metadata about the case)
+  - Party Information table (parties involved)
+  - Register of Actions table (list of documents with download links)
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The case info page displays detailed information about a case including:
+
+      1. Case Information Table
+         - Case Number
+         - Appeal Basis
+         - Case Type (e.g., "Direct Appeal - Declaratory Judgment")
+         - Short Title
+         - Full Title
+         - Case Filing Date
+         - Co-Jurisdictional Case Number
+
+      2. Party Information Table
+         - Court Role (Appellant, Appellee, Cross-Appellant, etc.)
+         - First/Middle Name
+         - Last Name
+         - Designation
+         - Co-Appointed
+
+      3. Register of Actions Table
+         - Document Description
+         - Filing Date
+         - Document Link (View Document button)
+
+      Scraper XPath Assertions
+      ========================
+
+      1. CASE_TYPE: //td[contains(text(), 'Case Type')]/following-sibling::td[1]//text()
+         - Description: "case type"
+         - min_count: 0
+         - Expected: Case type text like "Direct Appeal - Civil"
+
+      2. DOCUMENT_LINKS: //a[contains(@href, 'juddocumentservice') or contains(@href, 'getDocByCTrackId')]
+         - Description: "document links"
+         - min_count: 0
+         - Expected: Links to download documents
+
+      3. DOCUMENT_LINKS_ALT: //a[contains(@href, 'DocId=')]
+         - Description: "document links with DocId"
+         - min_count: 0
+         - Expected: Alternative pattern for document links
+
+      Document URL Pattern
+      ====================
+      Documents are served from: https://juddocumentservice.mt.gov/getDocByCTrackId?DocId={DOC_ID}
+
+      Example: https://juddocumentservice.mt.gov/getDocByCTrackId?DocId=549602
+
+      Note: Some documents may be marked as "Unavailable Document" in the
+      Register of Actions and will not have a download link.
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <!-- Case Information section -->
+        <xs:element name="table" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="tr" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="td" minOccurs="0" maxOccurs="unbounded">
+                      <xs:complexType mixed="true">
+                        <xs:sequence>
+                          <xs:element name="a" minOccurs="0">
+                            <xs:complexType>
+                              <xs:simpleContent>
+                                <xs:extension base="xs:string">
+                                  <xs:attribute name="href" type="xs:string"/>
+                                </xs:extension>
+                              </xs:simpleContent>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

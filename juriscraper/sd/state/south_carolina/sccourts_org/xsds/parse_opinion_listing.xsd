@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for South Carolina Opinion Listing Pages
+
+  URLs:
+  - Published SC: https://www.sccourts.org/opinions-orders/opinions/published-opinions/supreme-court/?term=YYYY-MM
+  - Published COA: https://www.sccourts.org/opinions-orders/opinions/published-opinions/court-of-appeals/?term=YYYY-MM
+  - Unpublished SC: https://www.sccourts.org/opinions-orders/opinions/unpublished-opinions/supreme-court/?term=YYYY-MM
+  - Unpublished COA: https://www.sccourts.org/opinions-orders/opinions/unpublished-opinions/court-of-appeals/?term=YYYY-MM
+
+  Step: parse_opinion_listing
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinions listing page has the following structure:
+
+      1. Navigation header with court tabs (Supreme Court, Court of Appeals, Advance Sheets)
+      2. Month/Year picker form
+      3. Prev/Next navigation links
+      4. Current month heading (h2): "January 2026"
+      5. Date sections:
+         - Date heading (h3): "January 7, 2026"
+         - Opinion entries (div/generic):
+           - Opinion number (first paragraph): "28309"
+           - Case name (second paragraph): "Spring Valley Interests, LLC v. The Best for Last, LLC"
+           - Download link: href to PDF
+
+      Example PDF URLs:
+      - Supreme Court: https://www.sccourts.org/media/opinions/HTMLFiles/SC/28309.pdf
+      - Court of Appeals: https://www.sccourts.org/media/opinions/HTMLFiles/COA/6128.pdf
+
+      Scraper XPath Assertions
+      ========================
+      1. DATE_HEADINGS: //h3
+         - Description: "Date headings for opinion groups"
+         - min_count: 0 (some months may have no opinions)
+         - Expected: Text like "January 7, 2026"
+
+      2. PDF_LINKS: .//a[contains(@href, '.pdf')]/@href
+         - Description: "Download links for opinion PDFs"
+         - min_count: 0 (per opinion entry)
+         - Expected: URL path to PDF file
+
+      3. PARAGRAPHS: .//p/text()
+         - Description: "Opinion number and case name paragraphs"
+         - min_count: 2 (opinion number + case name)
+         - Expected: First is opinion number, second is case name
+
+      Data Extraction
+      ===============
+      For each opinion entry:
+      - opinion_number: Extracted from PDF URL path using regex /(?:SC|COA)/(\d+)\.pdf/
+      - case_name: Second paragraph text (after opinion number)
+      - date_filed: From preceding h3 date heading
+      - download_url: Full URL from href attribute
+      - court_id: Determined by URL path (supreme-court -> sc, court-of-appeals -> scctapp)
+      - published: Determined by URL path (published-opinions vs unpublished-opinions)
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the opinion listing page -->
+  <xs:element name="opinion-listing-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="date-section" maxOccurs="unbounded" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="date-heading" type="xs:string"/>
+              <xs:element name="opinion-entry" maxOccurs="unbounded" minOccurs="0">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="opinion-number" type="xs:string"/>
+                    <xs:element name="case-name" type="xs:string"/>
+                    <xs:element name="download-url" type="xs:anyURI"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="court-id" type="xs:string" use="required"/>
+      <xs:attribute name="published" type="xs:boolean" use="required"/>
+      <xs:attribute name="month" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

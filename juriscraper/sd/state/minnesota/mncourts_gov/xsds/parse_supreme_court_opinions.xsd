@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Minnesota Supreme Court Opinions Page
+  URL: https://mncourts.gov/supremecourt/recentopinions/minnesota-supreme-court-opinion
+
+  Step: parse_supreme_court_opinions
+
+  This page displays recently released opinions from the Minnesota Supreme Court.
+  Opinions are typically released on Wednesdays at 10:00 AM.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The page has a standard mncourts.gov layout with:
+      - Header with navigation
+      - Breadcrumb navigation
+      - Main content area with opinions
+      - Footer
+
+      The main content area contains:
+      - Page heading "Minnesota Supreme Court Opinions"
+      - Subheading "Opinions"
+      - Release notice with date (e.g., "RELEASED JANUARY 21, 2026")
+      - Opinion entries in paragraph format
+      - Each opinion entry has:
+        - Link with docket number (e.g., "A23-1738") pointing to PDF
+        - Case name in italics/emphasis
+        - Origin court info (e.g., "Court of Appeals.")
+        - Summary/holding text
+        - Disposition and author in bold (e.g., "Affirmed. Justice Sarah E. Hennesy.")
+
+      Example Opinion Entry:
+      ----------------------
+      <p>
+        <a href="https://mncourts.gov/_media/migration/appellate/supreme-court/standard-opinions/21jan26/OPA231738-012126.pdf">A23-1738</a>
+        In the Matter of the Minnesota Racing Commission's Approval of Running Aces
+        Casino, Hotel & Racetrack's Request to Amend its Plan of Operation.
+        Court of Appeals.
+        When a tribal-state compact permits a federally recognized tribe...
+        <strong>Affirmed. Justice Sarah E. Hennesy.</strong>
+      </p>
+
+      Scraper XPath Assertions
+      ========================
+      1. MAIN_CONTENT: //main
+         - Description: "main content area"
+         - min_count: 1
+         - max_count: 1
+         - Expected: Single main element containing all opinion content
+
+      2. PAGE_TEXT: .//text()
+         - Description: "page text nodes"
+         - min_count: 1
+         - Expected: All text nodes to extract release date
+
+      3. OPINION_LINKS: .//a[contains(@href, '.pdf')]
+         - Description: "opinion PDF links"
+         - min_count: 0
+         - Expected: Links to opinion PDF files
+         - Note: May be 0 if no opinions released
+
+      4. LINK_HREF: @href
+         - Description: "link href"
+         - min_count: 1
+         - max_count: 1
+         - Expected: URL to PDF file
+
+      5. LINK_TEXT: .//text()
+         - Description: "link text"
+         - min_count: 0
+         - Expected: Docket number (e.g., "A23-1738")
+
+      Date Extraction
+      ===============
+      Release date is found in text like:
+      "RELEASED JANUARY 21, 2026"
+
+      Regex pattern: RELEASED\s+(\w+\s+\d{1,2},\s+\d{4})
+
+      PDF URL Pattern
+      ===============
+      https://mncourts.gov/_media/migration/appellate/supreme-court/standard-opinions/{date}/OP{case_number}-{date}.pdf
+
+      Example: OPA231738-012126.pdf
+      - OP = Opinion prefix
+      - A231738 = Docket number without hyphen
+      - 012126 = Date in MMDDYY format (January 21, 2026)
+
+      Docket Number Format
+      ====================
+      Format: A{YY}-{NNNN}
+      - A = Appeal
+      - YY = 2-digit year
+      - NNNN = 4-digit sequence number
+
+      Example: A23-1738 (Appeal from 2023, sequence 1738)
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the page -->
+  <xs:element name="page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="main" type="mainContentType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Main content area -->
+  <xs:complexType name="mainContentType">
+    <xs:sequence>
+      <xs:element name="heading" type="xs:string"/>
+      <xs:element name="releaseNotice" type="xs:string"/>
+      <xs:element name="opinionEntry" type="opinionEntryType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Individual opinion entry -->
+  <xs:complexType name="opinionEntryType">
+    <xs:sequence>
+      <xs:element name="docketLink">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="href" type="xs:anyURI" use="required"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="caseName" type="xs:string"/>
+      <xs:element name="originCourt" type="xs:string" minOccurs="0"/>
+      <xs:element name="summary" type="xs:string" minOccurs="0"/>
+      <xs:element name="dispositionAndAuthor" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

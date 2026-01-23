@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Wisconsin Court of Appeals Opinions Search Results Page
+  URL: https://www.wicourts.gov/other/appeals/caopin.jsp?begin_date=MM/DD/YYYY&end_date=MM/DD/YYYY&SortBy=date
+
+  Step: parse_appeals_court_opinions
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinions search results page displays a table with the following columns:
+      - Release date (e.g., "Jan 21, 2026")
+      - Case number (e.g., "2025AP001744", "2023AP001994-CR")
+      - Caption (case name, may include "[Recommended for Publication]" in bold)
+      - District (e.g., "1", "2", "3", "4", or combined like "4/1")
+      - County (e.g., "Milwaukee", "Chippewa")
+      - Select/view (checkbox + PDF link)
+
+      The table has headers in thead and data rows in tbody.
+      Each row has 6 cells (td elements).
+
+      Caption special handling:
+      - Text may contain "[Recommended for Publication]" wrapped in &lt;strong&gt; tags
+      - This indicates the opinion is recommended for publication (precedential)
+      - Most Court of Appeals opinions are unpublished
+
+      When no results are found, the page displays "Sorry, no records found."
+
+      Scraper XPath Assertions
+      ========================
+      1. NO_RECORDS_CHECK: //*[contains(text(), 'no records found')]
+         - Description: "Check for empty results"
+         - min_count: 0
+         - Expected: Empty list if results exist, otherwise message element
+
+      2. OPINION_ROWS: //table//tbody/tr
+         - Description: "opinion table rows"
+         - min_count: 0
+         - Expected: List of table row elements, one per opinion
+
+      3. TABLE_CELLS: ./td
+         - Description: "table cells"
+         - min_count: 0 (validated to need >= 6)
+         - Expected: 6 cells per row
+
+      4. PDF_LINKS: .//a[contains(@href, '.pdf')]/@href
+         - Description: "PDF link hrefs"
+         - Expected: PDF URL like /ca/opinion/DisplayDocument.pdf?content=pdf&amp;seqNo=1066327
+
+      Data Format
+      ===========
+      - Date: "Jan DD, YYYY" format (e.g., "Jan 21, 2026")
+      - Case number: YYYYAPNNNNNN[-SUFFIX] (e.g., "2025AP001744", "2023AP001994-CR")
+      - District: Single digit "1"-"4" or combined like "4/1"
+      - County: Wisconsin county name
+      - PDF URL: /ca/opinion/DisplayDocument.pdf?content=pdf&amp;seqNo={seqNo}
+
+      Districts:
+      - 1: District I (Milwaukee County)
+      - 2: District II (Waukesha area, 12 counties)
+      - 3: District III (Wausau area, 35 counties)
+      - 4: District IV (Madison area, 24 counties)
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" type="xs:anyType"/>
+        <xs:element name="body" type="bodyType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Body contains the main content -->
+  <xs:complexType name="bodyType">
+    <xs:sequence>
+      <xs:element name="div" type="containerType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Container with potential table -->
+  <xs:complexType name="containerType" mixed="true">
+    <xs:sequence>
+      <xs:element name="table" type="opinionTableType" minOccurs="0"/>
+      <xs:any processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Opinion table structure -->
+  <xs:complexType name="opinionTableType">
+    <xs:sequence>
+      <xs:element name="thead" type="tableHeaderType"/>
+      <xs:element name="tbody" type="tableBodyType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Table header -->
+  <xs:complexType name="tableHeaderType">
+    <xs:sequence>
+      <xs:element name="tr">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="th" type="xs:string" minOccurs="6" maxOccurs="6">
+              <xs:annotation>
+                <xs:documentation>
+                  Expected headers:
+                  1. "Release date"
+                  2. "Case number"
+                  3. "Caption"
+                  4. "District"
+                  5. "County"
+                  6. "Select/view"
+                </xs:documentation>
+              </xs:annotation>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Table body with opinion rows -->
+  <xs:complexType name="tableBodyType">
+    <xs:sequence>
+      <xs:element name="tr" type="opinionRowType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Single opinion row -->
+  <xs:complexType name="opinionRowType">
+    <xs:sequence>
+      <xs:element name="td" minOccurs="6" maxOccurs="6">
+        <xs:complexType mixed="true">
+          <xs:sequence>
+            <xs:element name="strong" type="xs:string" minOccurs="0">
+              <xs:annotation>
+                <xs:documentation>
+                  In the Caption cell, "[Recommended for Publication]" is wrapped in strong tags.
+                </xs:documentation>
+              </xs:annotation>
+            </xs:element>
+            <xs:element name="input" minOccurs="0"/>
+            <xs:element name="a" type="linkType" minOccurs="0"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Link element for PDF -->
+  <xs:complexType name="linkType" mixed="true">
+    <xs:attribute name="href" type="xs:string" use="required"/>
+  </xs:complexType>
+</xs:schema>

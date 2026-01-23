@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Wyoming Supreme Court Opinions Search Page
+  URL: https://www.wyocourts.gov/wy-supreme-court-opinions/
+
+  Step: parse_opinion_search
+  Note: This page requires JavaScript interaction. The "Search" button
+  must be clicked to populate the results table.
+
+  Table Structure (after Search is clicked):
+  - Headers: Opinion ID | Publish Date | Appellant | Appellee | Docket Number
+  - Each row contains a link to the PDF in the Opinion ID cell
+
+  Pagination:
+  - "Previous" and "Next" buttons
+  - Page indicator shows "Page X of Y"
+  - Items per page dropdown: 25, 50, or 75
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The Wyoming Supreme Court opinions page has:
+      - Search form with date filters and party name search
+      - Results table populated after clicking "Search"
+      - Pagination controls (Previous/Next buttons, page indicator)
+
+      Search Form Fields:
+      - Start Date (textbox)
+      - End Date (textbox)
+      - Appellant (textbox)
+      - Appellee (textbox)
+      - Search button
+      - Reset button
+
+      Results Table Columns:
+      1. Opinion ID - link to PDF, format "YYYY WY #" (e.g., "2026 WY 11")
+      2. Publish Date - format M/D/YYYY (e.g., "1/22/2026")
+      3. Appellant - party name(s)
+      4. Appellee - party name(s)
+      5. Docket Number - format S-YY-NNNN (e.g., "S-25-0114")
+
+      PDF URLs:
+      - Pattern: https://documents.courts.state.wy.us/Opinions/{filename}.pdf
+      - Filenames vary but typically include case name and docket number
+
+      Scraper XPath Assertions
+      ========================
+      1. Result rows: //table//tr[td[a[contains(@href, '.pdf')]]]
+         - Description: "rows containing PDF links"
+         - min_count: 0 (empty results possible)
+         - Expected: tr elements with td containing PDF links
+
+      2. PDF link in Opinion ID cell: .//a[contains(@href, '.pdf')]
+         - Description: "PDF download link"
+         - min_count: 1 per row
+         - Expected: anchor element with href to .pdf file
+
+      3. Table cells: ./td
+         - Description: "table cells per row"
+         - min_count: 5
+         - max_count: 5
+         - Expected: Opinion ID, Publish Date, Appellant, Appellee, Docket Number
+
+      Notes
+      =====
+      - Results are limited to opinions from 2006 onwards
+      - Table is initially empty until Search is clicked (requires JS)
+      - Same opinion ID may appear multiple times with different docket numbers
+        (consolidated cases)
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Results table structure -->
+  <xs:element name="table">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="thead" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="tr">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="th" minOccurs="5" maxOccurs="5"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="tbody">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="tr" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="td" minOccurs="5" maxOccurs="5"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Opinion Listing Page
+
+  URLs:
+  - Supreme Court: https://www.iowacourts.gov/iowa-courts/supreme-court/supreme-court-opinions/
+  - Court of Appeals: https://www.iowacourts.gov/iowa-courts/court-of-appeals/court-of-appeals-court-opinions/
+  - Archive pages: .../archive/{YYYY}
+  - Paginated: .../page/{N}
+
+  Step: parse_opinion_list
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinion listing page displays opinions in groups of 12 per page.
+
+      Structure:
+      - h2 "Most Recent Opinions" or "Past Opinions"
+      - For each opinion:
+        - h3: Contains link to case detail page with case number and case name
+              Example: "Case No. 23-1794: Linda Betz v. Rebecca Mathisen..."
+              - Link href: /iowa-courts/supreme-court/supreme-court-opinions/case/23-1794
+              - Case name in em/i tag
+        - p: Filing date (e.g., "Filed Jan 09, 2026")
+        - p: Contains link to view opinion PDF
+              - Link href: /courtcases/{internal_id}/embed/SupremeCourtOpinion (or CourtAppealsOpinion)
+        - p: (Court of Appeals only) Link to view summary
+
+      Pagination:
+      - Shows "Page X of Y" and "Showing N-M of Total"
+      - "Previous" and "Next" links for navigation
+
+      Archive sidebar:
+      - Links to years from 2017-present (Supreme Court) or 2018-present (Court of Appeals)
+
+      Scraper XPath Assertions
+      ========================
+      1. CASE_HEADINGS: //h3[.//a[contains(@href, '/case/')]]
+         - Description: "case headings"
+         - min_count: 0 (page might be empty)
+
+      2. CASE_LINK: .//a[contains(@href, '/case/')]/@href
+         - Description: "case detail link"
+         - min_count: 1
+         - max_count: 1
+         - Expected: relative URL like /iowa-courts/.../case/23-1794
+
+      3. HEADING_TEXT: .//a/text()
+         - Description: "case heading text"
+         - min_count: 1
+         - Expected: "Case No. XX-XXXX:" text
+
+      4. CASE_NAME: .//em/text() | .//i/text()
+         - Description: "case name"
+         - min_count: 0
+         - Expected: Full case name in italics
+
+      5. DATE_PARA: following-sibling::p[1]/text()
+         - Description: "date paragraph"
+         - min_count: 0
+         - Expected: "Filed Mon DD, YYYY" format
+
+      6. PDF_LINK: following-sibling::p[2]//a[contains(@href, '/courtcases/')]/@href
+         - Description: "opinion PDF link"
+         - min_count: 0
+         - Expected: /courtcases/{id}/embed/SupremeCourtOpinion or CourtAppealsOpinion
+
+      7. NEXT_LINK: //a[contains(text(), 'Next')]/@href
+         - Description: "next page link"
+         - min_count: 0
+         - Expected: relative URL to next page
+    </xs:documentation>
+  </xs:annotation>
+</xs:schema>

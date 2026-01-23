@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Virginia Appellate Courts Opinion Pages
+
+  URLs:
+  - Supreme Court: https://www.vacourts.gov/scndex
+    (redirects to https://webdev.vacourts.gov/dynamic/scndex.htm)
+  - Court of Appeals Published: https://www.vacourts.gov/wpcap
+    (redirects to https://webdev.vacourts.gov/dynamic/wpcap.htm)
+  - Court of Appeals Unpublished: https://www.vacourts.gov/wpcau
+    (redirects to https://webdev.vacourts.gov/dynamic/wpcau.htm)
+
+  Step: parse_opinions
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinion pages list opinions in paragraph elements. Each paragraph
+      contains a link to the PDF, case name (sometimes in bold), date, and
+      summary text.
+
+      Supreme Court page header:
+        "Supreme Court of Virginia Opinions and Published Orders"
+
+      Court of Appeals Published page header:
+        "Court of Appeals of Virginia Published Opinions"
+
+      Court of Appeals Unpublished page header:
+        "Court of Appeals of Virginia Unpublished Opinions"
+
+      Each opinion entry structure:
+        <p>
+          <a href="opinions/opnscvwp/1240736.pdf">240736 <img .../></a>
+          Appian Corporation v. Pegasystems
+          01/08/2026
+          In an appeal from a judgment of the Court of Appeals...
+        </p>
+
+      Or with bold case name:
+        <p>
+          <a href="opinions/opncavwp/0350251.pdf">0350251 <img .../></a>
+          <b>Sharon Morgan v. The City of Norfolk</b>
+          01/20/2026
+          Trial court did not err finding...
+        </p>
+
+      Scraper XPath Assertions
+      ========================
+
+      1. OPINION_PARAGRAPHS: //p[a[contains(@href, 'opinions/opn')]]
+         - Description: "paragraphs containing opinion links"
+         - min_count: 0 (could be no opinions in date range)
+         - Expected: List of paragraph elements containing opinion data
+
+      2. PDF_LINKS: .//a[contains(@href, '.pdf')]
+         - Description: "PDF download links within paragraph"
+         - min_count: 1 (within each opinion paragraph)
+         - max_count: 1 (one PDF per opinion entry)
+         - Expected: Single anchor element with PDF URL
+
+      Data Extraction
+      ===============
+
+      Case Number:
+      - Source: Link text content
+      - Format: 6 digits for Supreme Court (e.g., "240736")
+      - Format: 7 digits for Court of Appeals (e.g., "0350251")
+      - Regex: \d{6,7}
+
+      Case Name:
+      - Source: Bold text or text between case number and date
+      - Pattern: Typically contains "v." or "v " for versus
+      - Example: "Appian Corporation v. Pegasystems"
+
+      Date Filed:
+      - Source: Text content of paragraph
+      - Format: MM/DD/YYYY
+      - Regex: \d{1,2}/\d{1,2}/\d{4}
+      - Example: "01/08/2026"
+
+      Summary:
+      - Source: Text after the date
+      - Can be lengthy (multiple sentences describing the case)
+      - Example: "In an appeal from a judgment..."
+
+      PDF URL Patterns
+      ================
+
+      Supreme Court:
+      - Base: https://www.vacourts.gov/opinions/opnscvwp/
+      - Pattern: 1{case_number}.pdf (case number prefixed with "1")
+      - Example: https://www.vacourts.gov/opinions/opnscvwp/1240736.pdf
+
+      Court of Appeals:
+      - Base: https://www.vacourts.gov/opinions/opncavwp/
+      - Pattern: {case_number}.pdf (7-digit case number)
+      - Example: https://www.vacourts.gov/opinions/opncavwp/0350251.pdf
+
+      Historical Notes
+      ================
+
+      Data availability:
+      - Supreme Court: June 9, 1995 - present
+      - Court of Appeals Published: May 2, 1995 - present
+      - Court of Appeals Unpublished: March 5, 2002 - present
+
+      Opinion release schedule:
+      - Supreme Court: Typically released on Thursdays
+      - Court of Appeals: Released every Tuesday
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element for the page -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" type="xs:anyType"/>
+        <xs:element name="body" type="BodyType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Body structure -->
+  <xs:complexType name="BodyType">
+    <xs:sequence>
+      <xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Opinion paragraph structure -->
+  <xs:complexType name="OpinionParagraphType">
+    <xs:sequence>
+      <xs:element name="a" type="PdfLinkType"/>
+      <xs:choice minOccurs="0">
+        <xs:element name="b" type="xs:string"/>
+      </xs:choice>
+      <!-- Mixed content with case name, date, and summary -->
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- PDF link element -->
+  <xs:complexType name="PdfLinkType" mixed="true">
+    <xs:sequence>
+      <xs:element name="img" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="href" type="xs:string" use="required"/>
+  </xs:complexType>
+
+</xs:schema>

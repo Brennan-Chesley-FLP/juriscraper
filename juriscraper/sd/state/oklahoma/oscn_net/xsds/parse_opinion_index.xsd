@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Oklahoma OSCN Opinion Index Page
+  URL: https://www.oscn.net/applications/oscn/Index.asp?ftdb={database}&year={year}&level=1
+
+  Databases:
+  - STOKCSSC: Oklahoma Supreme Court Cases
+  - STOKCSCR: Oklahoma Court of Criminal Appeals Cases
+  - STOKCSCV: Oklahoma Court of Civil Appeals Cases
+
+  Step: parse_opinion_index
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinion index page lists opinions for a specific court and year.
+
+      Key structural elements:
+      1. Page header with court name and database info
+         - H1 containing: "{Court Name} ({FTDB}) {year range}"
+         - Example: "Oklahoma Supreme Court Cases (STOKCSSC) 1890 to Present"
+
+      2. Year indicator paragraph
+         - "Decisions published in {YYYY}"
+
+      3. Opinion links as paragraphs
+         - Each opinion is a &lt;p&gt; containing an &lt;a&gt; link
+         - Link href format: DeliverDocument.asp?CiteID={numeric_id}
+         - Link text format: "{CITATION}, [{P.3d cite},] {MM/DD/YYYY}, {CASE NAME}"
+
+      Citation Formats:
+      - Supreme Court: YYYY OK N (e.g., 2026 OK 1)
+      - Criminal Appeals: YYYY OK CR N (e.g., 2026 OK CR 1)
+      - Civil Appeals: YYYY OK CIV APP N (e.g., 2026 OK CIV APP 1)
+
+      Example Link Texts:
+      - "2026 OK 1, 01/13/2026, TOBACCO SETTLEMENT ENDOWMENT TRUST FUND v. STITT, ET AL."
+      - "2025 OK 1, 562 P.3d 612, 01/13/2025, STATE ex rel. OBA v. JONES"
+      - "2026 OK CR 1, 01/15/2026, ZOU v. STATE"
+      - "2026 OK CIV APP 1, 06/25/2025, STEIDLEY, et al. v. SINGER, et al."
+
+      Scraper XPath Assertions
+      ========================
+      1. OPINION_LINKS: //a[contains(@href, 'DeliverDocument.asp?CiteID=')]
+         - Description: "Links to individual opinion pages"
+         - min_count: 0 (year may have no opinions yet)
+         - Expected: List of &lt;a&gt; elements with opinion info in text
+
+      Data Extraction Patterns
+      ========================
+      From link text (regex):
+      - Citation: (\d{4})\s+OK(\s+CR|\s+CIV\s+APP)?\s+(\d+)
+      - Pacific Reporter: (\d+)\s+P\.3d\s+(\d+)
+      - Date: (\d{1,2}/\d{1,2}/\d{4})
+      - Case name: Text after the last date
+
+      From link href:
+      - CiteID: CiteID=(\d+)
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the index page -->
+  <xs:element name="oscn-index-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="header" type="headerType"/>
+        <xs:element name="opinion-list" type="opinionListType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Header information -->
+  <xs:complexType name="headerType">
+    <xs:sequence>
+      <xs:element name="court-name" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>
+            Full court name from the H1 heading.
+            Examples: "Oklahoma Supreme Court Cases",
+                      "Oklahoma Court of Criminal Appeals Cases",
+                      "Oklahoma Court of Civil Appeals Cases"
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="database-code" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>
+            OSCN database code (ftdb parameter).
+            Values: STOKCSSC, STOKCSCR, STOKCSCV
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="year-range" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>
+            Year range shown in header (e.g., "1890 to Present")
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="display-year" type="xs:gYear">
+        <xs:annotation>
+          <xs:documentation>
+            Year for which decisions are displayed (from "Decisions published in YYYY")
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- List of opinions -->
+  <xs:complexType name="opinionListType">
+    <xs:sequence>
+      <xs:element name="opinion" type="opinionType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Individual opinion entry -->
+  <xs:complexType name="opinionType">
+    <xs:sequence>
+      <xs:element name="cite-id" type="xs:positiveInteger">
+        <xs:annotation>
+          <xs:documentation>
+            Unique OSCN identifier extracted from URL.
+            Example: 551118 from "DeliverDocument.asp?CiteID=551118"
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="citation" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>
+            Official Oklahoma citation.
+            Format varies by court:
+            - Supreme Court: "YYYY OK N" (e.g., "2026 OK 1")
+            - Criminal Appeals: "YYYY OK CR N" (e.g., "2026 OK CR 1")
+            - Civil Appeals: "YYYY OK CIV APP N" (e.g., "2026 OK CIV APP 1")
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="pacific-reporter-cite" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Pacific Reporter citation if present.
+            Format: "NNN P.3d NNN" (e.g., "562 P.3d 612")
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="date-filed" type="xs:date">
+        <xs:annotation>
+          <xs:documentation>
+            Opinion filing/decision date in ISO format.
+            Parsed from MM/DD/YYYY format in link text.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="case-name" type="xs:string">
+        <xs:annotation>
+          <xs:documentation>
+            Case name/caption.
+            Example: "TOBACCO SETTLEMENT ENDOWMENT TRUST FUND v. STITT, ET AL."
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="download-url" type="xs:anyURI">
+        <xs:annotation>
+          <xs:documentation>
+            Full URL to the opinion HTML page.
+            Format: https://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID={id}
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="court-id" type="courtIdType" use="required"/>
+  </xs:complexType>
+
+  <!-- Court ID enumeration -->
+  <xs:simpleType name="courtIdType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="okla">
+        <xs:annotation>
+          <xs:documentation>Oklahoma Supreme Court</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="oklacrimapp">
+        <xs:annotation>
+          <xs:documentation>Oklahoma Court of Criminal Appeals</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="oklacivapp">
+        <xs:annotation>
+          <xs:documentation>Oklahoma Court of Civil Appeals</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+    </xs:restriction>
+  </xs:simpleType>
+</xs:schema>

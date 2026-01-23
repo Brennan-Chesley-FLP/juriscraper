@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Mass.gov New Opinions Page
+  URL: https://www.mass.gov/info-details/new-opinions
+
+  Step: parse_new_opinions
+
+  This page lists recent published opinions from both the Supreme Judicial
+  Court (SJC) and Appeals Court. Opinions link directly to PDF downloads.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The page contains:
+      - Header/navigation
+      - Main content area with:
+        - "Today's Opinions" section with current day's opinions
+        - "Recent Published Opinions..." section with a list
+      - Sidebar with contact info
+
+      Opinion Link Structure
+      ======================
+      Each opinion appears as a link with format:
+        <a href="/doc/{case-name-slug}/download">
+          {Case Name} ({Court} {Docket}) [(Date)]
+        </a>
+
+      Examples:
+        "Commonwealth v. Ortiz (AC 24-P-1364)"
+        "Commonwealth v. Lewis (SJC 13767) (January 20, 2026)"
+
+      URL Patterns
+      ============
+      PDF URLs follow the pattern:
+        /doc/{case-name-slug}-{court}-{letter}{docket}/download
+
+      Where:
+        - {case-name-slug}: lowercase, hyphenated case name
+        - {court}: "sjc" or "ac"
+        - {letter}: single letter (m, b, n, o, p, etc.)
+        - {docket}: docket number without hyphens
+
+      Examples:
+        /doc/commonwealth-v-lewis-sjc-m13767/download
+        /doc/commonwealth-v-ortiz-ac-m24p1364/download
+
+      Scraper XPath Assertions
+      ========================
+      1. OPINION_PDF_LINKS:
+         XPath: //main//a[contains(@href, '/doc/') and contains(@href, '/download')]
+         Description: "opinion PDF links"
+         min_count: 0
+         Expected: Links to opinion PDF downloads
+
+      2. LINK_HREF:
+         XPath: @href
+         Description: "link href"
+         min_count: 1, max_count: 1
+         Expected: URL path like "/doc/.../download"
+
+      3. LINK_TEXT:
+         XPath: .//text()
+         Description: "link text"
+         min_count: 1
+         Expected: Case name and docket info
+
+      Edge Cases
+      ==========
+      - Some links are to "List of unpublished..." on 128archive.com (skip)
+      - Date may or may not be present in link text
+      - Today's opinions may not have date in link text
+      - Docket format differs: SJC uses "SJC 13767", AC uses "24-P-1364"
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the page -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" type="xs:anyType"/>
+        <xs:element name="body">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="main">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="a" maxOccurs="unbounded">
+                      <xs:annotation>
+                        <xs:documentation>
+                          Opinion links containing:
+                          - @href: PDF download URL
+                          - text: Case name with court and docket info
+                        </xs:documentation>
+                      </xs:annotation>
+                      <xs:complexType>
+                        <xs:simpleContent>
+                          <xs:extension base="xs:string">
+                            <xs:attribute name="href" type="xs:string" use="required"/>
+                          </xs:extension>
+                        </xs:simpleContent>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

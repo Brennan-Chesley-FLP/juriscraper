@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for South Dakota Supreme Court Opinions List Page
+  URL: https://ujs.sd.gov/supreme-court/opinions/
+  URL with year: https://ujs.sd.gov/supreme-court/opinions/?year=2025
+  URL with pagination: https://ujs.sd.gov/supreme-court/opinions/?year=2025&page=2
+
+  Step: parse_opinions_list
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinions page displays a table of Supreme Court opinions with:
+      - Results count: "Showing 1-10 of 74"
+      - Year filter dropdown (2006-present)
+      - Table with columns: Date, Title, Number
+      - Pagination links
+
+      Table Structure
+      ===============
+      - Column 0 (Date): Filing date in M/D/YYYY format (e.g., "1/14/2026")
+      - Column 1 (Title): Case name + citation with PDF link
+        - Link text: "ESTATE OF WEBB, 2026 S.D. 2"
+        - Link href: "/media/wb0plwaw/31017.pdf"
+      - Column 2 (Number): Sequential opinion number (e.g., "2")
+
+      Citation Format
+      ===============
+      South Dakota citations follow the pattern: {YEAR} S.D. {NUMBER}
+      Examples:
+      - 2026 S.D. 2
+      - 2025 S.D. 74
+
+      PDF URL Pattern
+      ===============
+      https://ujs.sd.gov/media/{hash}/{case_number}.pdf
+      Where:
+      - {hash} is a random alphanumeric string (e.g., "wb0plwaw")
+      - {case_number} is the internal case number (e.g., "31017")
+
+      Pagination
+      ==========
+      - Navigation with "Previous" / "Next" links and page numbers
+      - aria-label="Pagination" for the nav element
+      - URLs: /supreme-court/opinions/?year=2025&amp;page=2
+
+      Scraper XPath Assertions
+      ========================
+      1. RESULT_ROWS: //table//tr[td[.//a[contains(@href, '.pdf')]]]
+         - Description: "opinion result rows"
+         - min_count: 0 (page could be empty)
+         - max_count: 10 (10 per page)
+         - Expected: table rows containing PDF links
+
+      2. DATE_CELL: ./td[1]
+         - Description: "date cell"
+         - Contains: Date text in M/D/YYYY format
+
+      3. TITLE_CELL: ./td[2]//a[contains(@href, '.pdf')]
+         - Description: "title with PDF link"
+         - Contains: Case name and citation text
+         - Attribute @href: relative path to PDF
+
+      4. NEXT_LINK: //nav[@aria-label='Pagination']//a[contains(text(), 'Next')]/@href
+         - Description: "next page link"
+         - Optional: only present if more pages exist
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root HTML element -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" minOccurs="0"/>
+        <xs:element name="body">
+          <xs:complexType>
+            <xs:sequence>
+              <!-- Main content area -->
+              <xs:element name="main" minOccurs="0">
+                <xs:complexType>
+                  <xs:sequence>
+                    <!-- Results table -->
+                    <xs:element name="table">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="thead">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="tr">
+                                  <xs:complexType>
+                                    <xs:sequence>
+                                      <xs:element name="th" fixed="Date"/>
+                                      <xs:element name="th" fixed="Title"/>
+                                      <xs:element name="th" fixed="Number"/>
+                                    </xs:sequence>
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="tbody">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="tr" minOccurs="0" maxOccurs="10">
+                                  <xs:complexType>
+                                    <xs:sequence>
+                                      <!-- Date cell: M/D/YYYY -->
+                                      <xs:element name="td">
+                                        <xs:simpleType>
+                                          <xs:restriction base="xs:string">
+                                            <xs:pattern value="\d{1,2}/\d{1,2}/\d{4}"/>
+                                          </xs:restriction>
+                                        </xs:simpleType>
+                                      </xs:element>
+                                      <!-- Title cell with PDF link -->
+                                      <xs:element name="td">
+                                        <xs:complexType>
+                                          <xs:sequence>
+                                            <xs:element name="strong">
+                                              <xs:complexType>
+                                                <xs:sequence>
+                                                  <xs:element name="a">
+                                                    <xs:complexType>
+                                                      <xs:simpleContent>
+                                                        <xs:extension base="xs:string">
+                                                          <xs:attribute name="href" use="required">
+                                                            <xs:simpleType>
+                                                              <xs:restriction base="xs:string">
+                                                                <xs:pattern value="/media/[a-z0-9]+/\d+(-\d+)*\.pdf"/>
+                                                              </xs:restriction>
+                                                            </xs:simpleType>
+                                                          </xs:attribute>
+                                                        </xs:extension>
+                                                      </xs:simpleContent>
+                                                    </xs:complexType>
+                                                  </xs:element>
+                                                </xs:sequence>
+                                              </xs:complexType>
+                                            </xs:element>
+                                          </xs:sequence>
+                                        </xs:complexType>
+                                      </xs:element>
+                                      <!-- Number cell: sequential opinion number -->
+                                      <xs:element name="td" type="xs:positiveInteger"/>
+                                    </xs:sequence>
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <!-- Pagination navigation (optional) -->
+                    <xs:element name="nav" minOccurs="0">
+                      <xs:complexType>
+                        <xs:attribute name="aria-label" fixed="Pagination"/>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Utah Appellate Courts Opinion List Page
+
+  URLs:
+  - Supreme Court: https://legacy.utcourts.gov/opinions/supopin/
+  - Court of Appeals: https://legacy.utcourts.gov/opinions/appopin/
+
+  Step: parse_opinion_list
+
+  This schema documents the structure of the opinion listing pages
+  for both Utah Supreme Court and Utah Court of Appeals.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+
+      The opinion listing page contains:
+      1. Header with navigation
+      2. Main content area with:
+         - Heading: "Supreme Court Opinions By Date - {YEAR}" or
+                    "Court of Appeals Published Decisions By Date - {YEAR}"
+         - Back link: "Back to Appellate Court Opinions"
+         - Separator (&lt;hr&gt;)
+         - Opinion paragraphs (see below)
+      3. Footer
+
+      Opinion Paragraph Structure
+      ===========================
+      Each opinion is displayed as a paragraph element containing:
+
+      &lt;p&gt;
+        &lt;a href="{filename}.pdf"&gt;{Case Name}&lt;/a&gt;,
+        Case No. {case_number}, Filed {Month} {Day}, {Year}, {citation}
+      &lt;/p&gt;
+
+      Example:
+      &lt;p&gt;
+        &lt;a href="State v. Macbeth20260115_20230512_3.pdf"&gt;State v. Macbeth&lt;/a&gt;,
+        Case No. 20230512-CA, Filed January 15, 2026, 2026 UT App 3
+      &lt;/p&gt;
+
+      PDF Filename Pattern
+      ====================
+      {Case Name}{YYYYMMDD}_{CaseNumber}_{OpinionNum}.pdf
+
+      Where:
+      - Case Name: e.g., "State v. Macbeth"
+      - YYYYMMDD: Date filed (e.g., "20260115")
+      - CaseNumber: Original case number without suffix (e.g., "20230512")
+      - OpinionNum: Sequential number for the opinion (e.g., "3")
+
+      Citation Formats
+      ================
+      - Supreme Court: "{YYYY} UT {N}" (e.g., "2026 UT 1")
+      - Court of Appeals: "{YYYY} UT App {N}" (e.g., "2026 UT App 5")
+
+      Case Number Formats
+      ===================
+      - Court of Appeals: "{YYYYMMDD}-CA" (e.g., "20230512-CA")
+      - Supreme Court: Various formats
+
+      Scraper XPath Assertions
+      ========================
+      1. OPINION_PARAGRAPHS: //main//p[a[contains(@href, '.pdf')]]
+         - Description: "Paragraphs containing PDF links"
+         - min_count: 0 (page may be empty for current year early in year)
+         - max_count: unlimited
+         - Returns: List of paragraph elements
+
+      2. PDF_LINKS: .//a[contains(@href, '.pdf')]
+         - Description: "PDF link within each paragraph"
+         - Context: Within each opinion paragraph
+         - min_count: 1
+         - max_count: 1
+         - Returns: Single anchor element
+
+      Data Extraction
+      ===============
+      From PDF link:
+      - href attribute -> PDF URL (relative, needs urljoin)
+      - text_content() -> Case name
+
+      From paragraph text_content():
+      - "Case No. {X}" -> Case number
+      - "Filed {Month} {Day}, {Year}" -> Date filed
+      - "{YYYY} UT [App] {N}" -> Citation
+
+      Edge Cases
+      ==========
+      1. Empty page: Early in the year, the current year page may be empty
+         (shows "Empty Table" message)
+      2. Some opinions may have unusual case name formats with special characters
+      3. Date format variations: "January 15, 2026" vs "January 2, 2026"
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the page -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" minOccurs="1" maxOccurs="1"/>
+        <xs:element name="body" minOccurs="1" maxOccurs="1">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="main" minOccurs="1" maxOccurs="1">
+                <xs:complexType>
+                  <xs:sequence>
+                    <!-- Opinion paragraphs -->
+                    <xs:element name="p" minOccurs="0" maxOccurs="unbounded">
+                      <xs:complexType mixed="true">
+                        <xs:sequence>
+                          <xs:element name="a" minOccurs="0" maxOccurs="1">
+                            <xs:complexType>
+                              <xs:simpleContent>
+                                <xs:extension base="xs:string">
+                                  <xs:attribute name="href" type="xs:string" use="required">
+                                    <xs:annotation>
+                                      <xs:documentation>
+                                        Relative URL to PDF file.
+                                        Pattern: {CaseName}{Date}_{CaseNum}_{OpNum}.pdf
+                                      </xs:documentation>
+                                    </xs:annotation>
+                                  </xs:attribute>
+                                </xs:extension>
+                              </xs:simpleContent>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

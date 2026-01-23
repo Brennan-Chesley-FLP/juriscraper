@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for West Virginia Opinions Page
+
+  URLs:
+  - SCA Current Term: https://www.courtswv.gov/appellate-courts/supreme-court-of-appeals/opinions
+  - SCA Prior Terms: https://www.courtswv.gov/appellate-courts/supreme-court-of-appeals/opinions/prior-terms
+  - ICA Current Term: https://www.courtswv.gov/appellate-courts/intermediate-court-of-appeals/opinions
+  - ICA Prior Terms: https://www.courtswv.gov/appellate-courts/intermediate-court-of-appeals/opinions/prior-terms
+
+  Step: parse_opinions_page
+
+  Page Structure
+  ==============
+  The opinions pages contain:
+  1. A heading with court name and term (e.g., "SUPREME COURT OF APPEALS OF WEST VIRGINIA SPRING 2026 OPINIONS")
+  2. Filter controls (Case Type, Decision Type dropdowns, Search box)
+  3. A table with opinion listings
+  4. Pagination controls (for prior terms pages)
+
+  Table Structure
+  ===============
+  The table has 5 columns:
+  - Date Filed: Date in MM/DD/YYYY format
+  - Case No: Case number (e.g., "25-765" for SCA, "25-ICA-304" for ICA)
+  - Case Name: Case caption with link to PDF
+  - Case Type: Code like "WC", "FAM", "POST", etc.
+  - Decision Type: Code like "MD", "SO", "SEP", etc.
+
+  PDF URL Patterns
+  ================
+  - SCA: /sites/default/pubfilesmnt/{YYYY-MM}/{case_no}%20{decision_type}.pdf
+    Example: /sites/default/pubfilesmnt/2026-01/25-576%20md.pdf
+  - ICA: /sites/default/pubfilesmnt/{YYYY-MM}/{case_no}_{decision_type}.pdf
+    Example: /sites/default/pubfilesmnt/2026-01/25-ICA-304_MD.pdf
+
+  Scraper XPath Assertions
+  ========================
+  1. RESULT_ROWS: //table//tr[td[.//a[contains(@href, '.pdf')]]]
+     - Description: "table rows containing PDF links"
+     - min_count: 0 (may be empty if no results)
+     - Expected: Each row contains cells for date, case no, case name (with PDF link), case type, decision type
+
+  2. PAGINATION_NEXT: //nav[contains(@class, 'pagination')]//a[contains(text(), 'Next')]/@href
+     - Description: "next page link in pagination"
+     - min_count: 0
+     - max_count: 1
+     - Expected: Relative URL like "?page=1"
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      West Virginia Courts Opinions Page Schema
+
+      This schema documents the expected structure of the opinions listing pages
+      on courtswv.gov for both the Supreme Court of Appeals (SCA) and the
+      Intermediate Court of Appeals (ICA).
+
+      Both courts use the same table structure with 5 columns.
+      The PDF URLs differ slightly between courts (space vs underscore separator).
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the page -->
+  <xs:element name="opinions-page">
+    <xs:complexType>
+      <xs:sequence>
+        <!-- Page header with court and term info -->
+        <xs:element name="header" type="xs:string"/>
+
+        <!-- Filter controls -->
+        <xs:element name="filters">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="case-type-dropdown" type="xs:string"/>
+              <xs:element name="decision-type-dropdown" type="xs:string"/>
+              <xs:element name="search-box" type="xs:string"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Results table -->
+        <xs:element name="results-table">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="header-row">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="date-filed" type="xs:string" fixed="Date Filed"/>
+                    <xs:element name="case-no" type="xs:string" fixed="Case No"/>
+                    <xs:element name="case-name" type="xs:string" fixed="Case Name"/>
+                    <xs:element name="case-type" type="xs:string" fixed="Case Type"/>
+                    <xs:element name="decision-type" type="xs:string" fixed="Decision Type"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+
+              <xs:element name="data-row" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="date-filed">
+                      <xs:simpleType>
+                        <xs:restriction base="xs:string">
+                          <xs:pattern value="\d{1,2}/\d{1,2}/\d{4}"/>
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:element>
+                    <xs:element name="case-no">
+                      <xs:annotation>
+                        <xs:documentation>
+                          SCA format: {YY}-{number} (e.g., 25-765)
+                          ICA format: {YY}-ICA-{number} (e.g., 25-ICA-304)
+                        </xs:documentation>
+                      </xs:annotation>
+                      <xs:simpleType>
+                        <xs:restriction base="xs:string">
+                          <xs:pattern value="\d{2}(-ICA)?-\d+"/>
+                        </xs:restriction>
+                      </xs:simpleType>
+                    </xs:element>
+                    <xs:element name="case-name">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="pdf-link">
+                            <xs:complexType>
+                              <xs:simpleContent>
+                                <xs:extension base="xs:string">
+                                  <xs:attribute name="href" type="xs:anyURI" use="required"/>
+                                </xs:extension>
+                              </xs:simpleContent>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="case-type" type="caseTypeCode"/>
+                    <xs:element name="decision-type" type="decisionTypeCode"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Pagination (optional, present on prior terms pages) -->
+        <xs:element name="pagination" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="page-link" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="href" type="xs:anyURI"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="next-link" minOccurs="0">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="href" type="xs:anyURI" use="required"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Case type codes enumeration -->
+  <xs:simpleType name="caseTypeCode">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ADM"/>
+      <xs:enumeration value="CERQ"/>
+      <xs:enumeration value="CIV-O"/>
+      <xs:enumeration value="CR-F"/>
+      <xs:enumeration value="CR-M"/>
+      <xs:enumeration value="CR-O"/>
+      <xs:enumeration value="FAM"/>
+      <xs:enumeration value="J-DISC"/>
+      <xs:enumeration value="JUV"/>
+      <xs:enumeration value="L-ADM"/>
+      <xs:enumeration value="L-DISC"/>
+      <xs:enumeration value="MISC"/>
+      <xs:enumeration value="OJ-H"/>
+      <xs:enumeration value="OJ-M"/>
+      <xs:enumeration value="OJ-O"/>
+      <xs:enumeration value="OJ-P"/>
+      <xs:enumeration value="POST"/>
+      <xs:enumeration value="PR"/>
+      <xs:enumeration value="TAX"/>
+      <xs:enumeration value="TCR"/>
+      <xs:enumeration value="WC"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Decision type codes enumeration -->
+  <xs:simpleType name="decisionTypeCode">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="MD"/>
+      <xs:enumeration value="SO"/>
+      <xs:enumeration value="SEP"/>
+      <xs:enumeration value="Per Curiam"/>
+      <xs:enumeration value="Order"/>
+    </xs:restriction>
+  </xs:simpleType>
+</xs:schema>

@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Mississippi Hand Down List Page
+  URL: https://courts.ms.gov/Images/HDList/{SCT|COA}{MM-DD-YYYY}.html
+
+  Step: parse_hand_down_list
+
+  This schema documents the HTML structure of Mississippi appellate court
+  hand down list pages for both Supreme Court (SCT) and Court of Appeals (COA).
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The hand down list page has a simple HTML structure:
+
+      1. Header section with court name and date
+      2. ZIP download link for bulk opinions
+      3. Table with opinion entries
+
+      Example URL: https://courts.ms.gov/Images/HDList/SCT01-22-2026.html
+
+      Page Layout:
+      ```
+      &lt;div&gt;
+        &lt;strong&gt;Supreme Court of Mississippi&lt;/strong&gt;
+        &lt;p&gt;&lt;strong&gt;Hand Down List&lt;br&gt;January 22, 2026&lt;/strong&gt;&lt;/p&gt;
+      &lt;/div&gt;
+      &lt;p&gt;
+        &lt;a href="..\ZIPS\SupremeCourt\SC20260122.ZIP"&gt;
+          01/22/2026 - Hand Down and published opinions in WordPerfect/ZIP format
+        &lt;/a&gt;
+      &lt;/p&gt;
+      &lt;p&gt;
+        &lt;table&gt;
+          &lt;tbody&gt;
+            &lt;tr&gt;...opinion entry rows...&lt;/tr&gt;
+          &lt;/tbody&gt;
+        &lt;/table&gt;
+      &lt;/p&gt;
+      ```
+
+      Opinion Entry Types
+      ===================
+
+      1. PUBLISHED OPINION (with PDF):
+         - Has author name as first text
+         - "X" marker indicates published
+         - Link to PDF with case number as text
+         - &lt;ul&gt; with case details
+
+         Structure:
+         ```
+         &lt;tr&gt;
+           &lt;td&gt;&lt;/td&gt;
+           &lt;td&gt;
+             Author Name, Title
+             &lt;div&gt;X &lt;a href="..\Opinions\CO189869.pdf"&gt;2024-KA-01001-SCT&lt;/a&gt;&lt;/div&gt;
+             &lt;ul&gt;
+               &lt;b&gt;Case Name v. Other Party&lt;/b&gt;; Lower Court; LC Case #: xxx;
+               Ruling Date: MM/DD/YYYY; Ruling Judge: Name;
+               Majority Opinion: Author. Disposition: Affirmed.
+               Votes: Justice1, Justice2, ... Concur.
+             &lt;/ul&gt;
+             &lt;hr&gt;
+           &lt;/td&gt;
+         &lt;/tr&gt;
+         ```
+
+      2. EN BANC ORDER (no PDF):
+         - Starts with "EN BANC" text
+         - Case number as plain text (no link)
+         - &lt;ul&gt; with case details and disposition
+
+         Structure:
+         ```
+         &lt;tr&gt;
+           &lt;td&gt;&lt;/td&gt;
+           &lt;td&gt;
+             EN BANC
+             2023-CT-01245-SCT
+             &lt;ul&gt;
+               &lt;b&gt;Case Name&lt;/b&gt;; Lower Court; LC Case #: xxx;
+               Ruling Date: MM/DD/YYYY; Ruling Judge: Name;
+               Disposition: Petition denied. All Justices Agree.
+             &lt;/ul&gt;
+             &lt;hr&gt;
+           &lt;/td&gt;
+         &lt;/tr&gt;
+         ```
+
+      Scraper XPath Assertions
+      ========================
+
+      1. OPINION_ROWS: //table//tr[td]
+         - Description: "opinion rows"
+         - min_count: 0 (page may have no opinions)
+         - Returns: All table rows containing opinion entries
+
+      2. ROW_CELLS: td
+         - Description: "row cells"
+         - min_count: 1
+         - Expected: Each row has 2 cells; content is in second cell
+
+      3. PDF_LINKS: .//a[contains(@href, '.pdf')]
+         - Description: "PDF links"
+         - min_count: 0 (EN BANC orders have no PDF)
+         - Returns: Link elements pointing to opinion PDFs
+
+      4. CASE_NUMBER_TEXT: .//text()
+         - Description: "case number text"
+         - min_count: 1 (when PDF link exists)
+         - Returns: Case number like "2024-KA-01001-SCT"
+
+      5. PDF_HREF: @href
+         - Description: "PDF href"
+         - min_count: 1, max_count: 1
+         - Returns: Relative URL like "..\Opinions\CO189869.pdf"
+
+      6. AUTHOR_TEXT: text()[1]
+         - Description: "first text"
+         - min_count: 0
+         - Returns: Author name like "Coleman, Josiah Dennis, P.J."
+
+      7. CASE_NAME_BOLD: .//b//text()
+         - Description: "case name bold"
+         - min_count: 0
+         - Returns: Case name in bold
+
+      8. CASE_DETAILS_UL: .//ul//text()
+         - Description: "case details"
+         - min_count: 0
+         - Returns: Full case details text
+
+      9. UL_ELEMENT: .//ul
+         - Description: "ul element"
+         - min_count: 0
+         - Returns: UL element containing case metadata
+
+      Case Number Format
+      ==================
+      Pattern: YYYY-TYPE-NNNNN-COURT
+
+      TYPE codes:
+      - CA: Civil Appeal
+      - KA: Criminal Appeal
+      - SA: Supreme Court Assignment
+      - CT: Certiorari
+      - FC: Federal Court (Certified Question)
+      - WC: Workers' Compensation
+
+      COURT suffixes:
+      - SCT: Supreme Court
+      - COA: Court of Appeals
+
+      Examples:
+      - 2024-KA-01001-SCT
+      - 2025-SA-00614-SCT
+      - 2023-CT-01245-SCT
+
+      Metadata Fields (in &lt;ul&gt; text)
+      ===============================
+      - Lower Court: After case name, before "LC Case #:"
+      - LC Case #: Lower court case number
+      - Ruling Date: MM/DD/YYYY format
+      - Ruling Judge: Name of lower court judge
+      - Majority Opinion: Author of majority opinion
+      - Disposition: Outcome (Affirmed, Reversed, etc.)
+      - Votes: Justices concurring/dissenting
+
+      URL Patterns
+      ============
+      - SCT Hand Down: https://courts.ms.gov/Images/HDList/SCT{MM-DD-YYYY}.html
+      - COA Hand Down: https://courts.ms.gov/Images/HDList/COA{MM-DD-YYYY}.html
+      - Opinion PDF: https://courts.ms.gov/appellatecourts/Opinions/CO{ID}.pdf
+      - ZIP Bundle: https://courts.ms.gov/appellatecourts/ZIPS/SupremeCourt/SC{YYYYMMDD}.ZIP
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the hand down list page -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="body" type="BodyType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="BodyType">
+    <xs:sequence>
+      <xs:element name="div" type="HeaderType"/>
+      <xs:element name="p" type="ZipLinkType"/>
+      <xs:element name="p" type="TableContainerType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="HeaderType">
+    <xs:sequence>
+      <xs:element name="strong" type="xs:string" minOccurs="2" maxOccurs="2"/>
+      <xs:element name="p">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="strong" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ZipLinkType">
+    <xs:sequence>
+      <xs:element name="a">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="href" type="xs:string" use="required"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="TableContainerType">
+    <xs:sequence>
+      <xs:element name="table">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="tbody">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="tr" type="OpinionRowType" minOccurs="0" maxOccurs="unbounded"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="OpinionRowType">
+    <xs:sequence>
+      <xs:element name="td" minOccurs="2" maxOccurs="2">
+        <xs:complexType mixed="true">
+          <xs:sequence>
+            <xs:element name="div" minOccurs="0">
+              <xs:complexType mixed="true">
+                <xs:sequence>
+                  <xs:element name="a" minOccurs="0">
+                    <xs:complexType>
+                      <xs:simpleContent>
+                        <xs:extension base="xs:string">
+                          <xs:attribute name="href" type="xs:string"/>
+                        </xs:extension>
+                      </xs:simpleContent>
+                    </xs:complexType>
+                  </xs:element>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+            <xs:element name="ul" minOccurs="0">
+              <xs:complexType mixed="true">
+                <xs:sequence>
+                  <xs:element name="b" type="xs:string" minOccurs="0"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+            <xs:element name="hr" minOccurs="0"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>

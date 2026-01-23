@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Vermont Opinions Search Results Page
+  URL Pattern: https://www.vermontjudiciary.org/opinions-decisions?f[0]=court_division_opinions_library_:7&page={N}
+
+  Step: parse_search_results
+  Description: Parses the search results page showing Supreme Court opinions
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The search results page shows a list of opinions in article elements.
+      Each article contains:
+      - Link to PDF document (case name as text, href to /media/{id})
+      - Time element with date (MM/DD/YYYY format)
+      - Division name (e.g., "Supreme Court")
+      - Docket number (e.g., "25-AP-314")
+
+      The page uses pagination with "Next page" and "Last page" links.
+
+      Example article structure:
+      ```html
+      <article>
+        <a href="/media/19786">In re H.B., Juvenile</a>
+        <time>01/09/2026</time>
+        <div>Supreme Court</div>
+        <div>25-AP-314</div>
+      </article>
+      ```
+
+      Scraper XPath Assertions
+      ========================
+
+      1. OPINION_ARTICLES: //main//article
+         - Description: "opinion result articles"
+         - min_count: 0 (page may have no results)
+         - Returns: Article elements containing opinion metadata
+
+      2. CASE_LINK: .//a
+         - Description: "case link"
+         - min_count: 1, max_count: 1
+         - Returns: Link element with case name and PDF URL
+
+      3. CASE_NAME: .//a//text()
+         - Description: "case name text"
+         - min_count: 1
+         - Returns: Case name as string (e.g., "In re H.B., Juvenile")
+
+      4. PDF_URL: .//a/@href
+         - Description: "PDF URL"
+         - min_count: 1, max_count: 1
+         - Returns: Relative URL to PDF (e.g., "/media/19786")
+
+      5. DATE: .//time/text()
+         - Description: "date text"
+         - min_count: 0, max_count: 1
+         - Returns: Date string in MM/DD/YYYY format
+
+      6. ALL_TEXT: .//text()
+         - Description: "all text"
+         - min_count: 0
+         - Returns: All text content to find division and docket
+
+      7. NEXT_PAGE: //nav[@aria-label='Pagination']//a[text()='>']/@href
+         - Description: "next page link"
+         - min_count: 0
+         - Returns: URL for next page if exists
+
+      URL Parameters
+      ==============
+      - f[0]=court_division_opinions_library_:7 - Supreme Court filter
+      - search_api_fulltext - Keyword search (empty string for all)
+      - facet_from_date - Start date filter (MM/DD/YYYY)
+      - facet_to_date - End date filter (MM/DD/YYYY)
+      - page - Page number (0-indexed)
+
+      Docket Number Format
+      ====================
+      Vermont Supreme Court docket numbers follow the pattern: YY-AP-NNN
+      - YY: Two-digit year
+      - AP: Appeal designation
+      - NNN: Sequential number
+
+      Examples: 25-AP-314, 24-AP-320, 25-AP-161
+
+      Date Format
+      ===========
+      Dates are displayed in MM/DD/YYYY format (e.g., 01/09/2026)
+
+      Court Divisions
+      ===============
+      The filter value 7 corresponds to "Supreme Court".
+      Other divisions (not scraped):
+      - Civil
+      - Environmental
+      - Family
+      - Criminal
+      - Probate
+    </xs:documentation>
+  </xs:annotation>
+</xs:schema>

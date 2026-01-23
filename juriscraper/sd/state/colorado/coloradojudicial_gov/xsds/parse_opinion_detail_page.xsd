@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Colorado Opinion Detail Page
+  URL: https://www.coloradojudicial.gov/node/{node_id}
+
+  Step: parse_opinion_detail_page
+  Purpose: Extract PDF download URL from opinion detail page
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The opinion detail page displays:
+      - Page title: docket number (e.g., "23SC847")
+      - PDF link in the main content area
+
+      Example HTML structure:
+      ```html
+      &lt;main&gt;
+        &lt;h1&gt;23SC847&lt;/h1&gt;
+        &lt;article&gt;
+          &lt;div&gt;
+            &lt;div&gt;Case Opinion PDF&lt;/div&gt;
+            &lt;a href="/system/files/opinions-2025-12/23SC847.pdf"&gt;23SC847.pdf&lt;/a&gt;
+          &lt;/div&gt;
+        &lt;/article&gt;
+      &lt;/main&gt;
+      ```
+
+      PDF URL Pattern:
+      /system/files/opinions-{year}-{month}/{docket_number}.pdf
+
+      Examples:
+      - /system/files/opinions-2025-12/23SC847.pdf
+      - /system/files/opinions-2026-01/25SA204.pdf
+
+      Scraper XPath Assertions
+      ========================
+      1. PDF_LINK: //a[contains(@href, '.pdf')]
+         - Description: "PDF download link"
+         - min_count: 1
+         - Expected: Link to the opinion PDF file
+
+      Data Extraction
+      ===============
+      - PDF URL: href attribute from the PDF link
+      - Resolved to absolute URL using urljoin with response URL
+    </xs:documentation>
+  </xs:annotation>
+</xs:schema>

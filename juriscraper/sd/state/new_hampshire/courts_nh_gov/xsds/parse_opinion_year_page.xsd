@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for New Hampshire Supreme Court Opinion Year Page
+  URL: https://www.courts.nh.gov/our-courts/supreme-court/orders-and-opinions/opinions/{YEAR}
+
+  Step: parse_opinion_year_page
+
+  NOTE: This page is JavaScript-rendered and requires browser automation.
+  The structure below represents the rendered DOM after JavaScript execution.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The page contains a dynamic grid of opinions that is loaded via JavaScript.
+
+      Key elements:
+      - Page header with navigation and breadcrumbs
+      - Notice about opinion citations and rehearing rules
+      - Filter controls (keyword search, sort options, result count)
+      - Grid of opinion rows (JavaScript-rendered)
+      - Pagination controls (First, Prev, page numbers, Next, Last)
+
+      Grid Structure:
+      ```
+      div[role="grid"]
+        div[role="rowgroup"]
+          div[role="row"]  // One per opinion
+            div[role="gridcell"]
+              div
+                img (PDF icon)
+                div
+                  h3
+                    a[@href] (PDF link with citation and case name)
+                  p (case number, e.g., "Issued in case no. 2025-0056")
+                  div
+                    strong "Document Format:"
+                    text "PDF"
+                  div
+                    strong "Date:"
+                    text "12/23/2025"
+                  div (optional - Related Documents)
+                    strong "Related Documents:"
+                    a[@href] (link to related PDF)
+      ```
+
+      Example Opinion Row Content:
+      - Citation: "2025 N.H. 54, Peregrine Interests LLC v. Todd"
+      - Case Number: "(Issued in case no. 2025-0056)"
+      - Format: "PDF"
+      - Date: "12/23/2025"
+
+      Scraper XPath Assertions
+      ========================
+      1. OPINION_ROWS: //div[contains(@class, 'grid') or @role='grid']//div[@role='row']
+         - Description: "opinion rows"
+         - min_count: 0 (page may have no opinions, or none matching filters)
+
+      2. PDF_LINKS: .//a[contains(@href, '.pdf')]
+         - Description: "PDF links"
+         - min_count: 0 (some rows might be headers)
+
+      3. PDF_HREF: @href
+         - Description: "PDF href"
+         - min_count: 1
+         - max_count: 1
+         - Expected: URL path like "/sites/g/files/ehbemt471/files/documents/2025-12/2025054peregrine.pdf"
+
+      4. LINK_TEXT: .//text()
+         - Description: "link text"
+         - min_count: 0
+         - Expected: Citation and case name like "2025 N.H. 54, Peregrine Interests LLC v. Todd"
+
+      5. ROW_TEXT: .//text()
+         - Description: "row text"
+         - min_count: 0
+         - Expected: Contains case number and date information
+
+      URL Patterns
+      ============
+      - Opinion Year Page: /our-courts/supreme-court/orders-and-opinions/opinions/{YEAR}
+        - YEAR: 2002-2026 (and future years)
+
+      - Opinion PDF: /sites/g/files/ehbemt471/files/documents/{YYYY-MM}/{filename}.pdf
+        - Filename pattern: {opinion_number}{casename}.pdf
+        - Example: 2025054peregrine.pdf (opinion 54 of 2025, Peregrine case)
+
+      Citation Format Changes
+      =======================
+      - 2024 and later: Neutral citation format "YYYY N.H. NN"
+        - Example: "2025 N.H. 54"
+        - NN is the sequential opinion number for that year
+
+      - 2023 and earlier: Case number format "YYYY-NNNN"
+        - Example: "2023-0532"
+        - Listed in reverse chronological order by case number
+
+      Date Format
+      ===========
+      - Display format: MM/DD/YYYY (e.g., "12/23/2025")
+      - Note: Leading zeros may be omitted (e.g., "1/5/2025")
+
+      Related Documents
+      =================
+      Some opinions have "Related Documents" which are typically:
+      - Dictionary/encyclopedia citations referenced in the opinion
+      - Earlier rulings in the same case
+
+      These are displayed as additional links in the row.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Page root element -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="head"/>
+        <xs:element ref="body"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="head" type="xs:anyType"/>
+
+  <xs:element name="body">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="main" minOccurs="1" maxOccurs="1">
+          <xs:annotation>
+            <xs:documentation>Main content area with role="main"</xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="opinionGrid"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Opinion grid structure -->
+  <xs:element name="opinionGrid">
+    <xs:annotation>
+      <xs:documentation>
+        The JavaScript-rendered grid containing opinion rows.
+        Located at: //div[@role='grid']
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="opinionRow" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="role" fixed="grid"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Individual opinion row -->
+  <xs:element name="opinionRow">
+    <xs:annotation>
+      <xs:documentation>
+        A single opinion entry in the grid.
+        Located at: //div[@role='row']
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="gridcell">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="pdfIcon" type="xs:anyType"/>
+              <xs:element ref="opinionContent"/>
+            </xs:sequence>
+            <xs:attribute name="role" fixed="gridcell"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="role" fixed="row"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Opinion content within a row -->
+  <xs:element name="opinionContent">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="title">
+          <xs:annotation>
+            <xs:documentation>
+              Contains the h3 with PDF link.
+              Link text format: "YYYY N.H. NN, Case Name" (for 2024+)
+              or "Case Name" (for pre-2024)
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="a">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="href" type="xs:anyURI" use="required"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="caseNumber" type="xs:string">
+          <xs:annotation>
+            <xs:documentation>
+              Paragraph with case number.
+              Format: "(Issued in case no. YYYY-NNNN)"
+            </xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="documentFormat" type="xs:string">
+          <xs:annotation>
+            <xs:documentation>Always "PDF"</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="date" type="xs:string">
+          <xs:annotation>
+            <xs:documentation>
+              Date in MM/DD/YYYY format.
+              Example: "12/23/2025"
+            </xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="relatedDocuments" minOccurs="0">
+          <xs:annotation>
+            <xs:documentation>
+              Optional related documents section.
+              Contains links to additional PDFs.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="a" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="href" type="xs:anyURI" use="required"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

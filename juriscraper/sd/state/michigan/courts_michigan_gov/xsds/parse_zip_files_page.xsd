@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Michigan Opinion & Order ZIP Files Page
+  URL: https://www.courts.michigan.gov/courts/opinion-order-zip-files/
+
+  Step: parse_zip_files_page
+  This page lists ZIP file archives for Court of Appeals and Supreme Court opinions.
+
+  Page Structure
+  ==============
+  The page is divided into sections:
+  1. Michigan Court Of Appeals Opinions (past 28 days)
+     - ZIP files in three formats per date: All, Published, Unpublished
+     - Link pattern: "M/D/YYYY - [Type] Court Of Appeals Opinions"
+     - URL pattern: /{hash}/siteassets/case-documents/uploads/opinions/final/coa/zip-files/YYYYMMDD_[type].zip
+
+  2. Michigan Supreme Court Opinions (past 90 days)
+     - ZIP files for opinions only (orders are separate)
+     - Link pattern: "M/D/YYYY - Supreme Court Opinions"
+     - URL pattern: /{hash}/siteassets/case-documents/uploads/opinions/final/sct/zip-files/YYYYMMDD_msc_opinions.zip
+
+  3. Michigan Supreme Court Orders (past 28 days)
+     - Not scraped by this scraper (orders, not opinions)
+     - URL pattern: /{hash}/siteassets/case-documents/uploads/sct/public/orders/zip-files/YYYYMMDD_msc_orders.zip
+
+  4. Michigan Business Court Opinions (past month)
+     - Trial court opinions, not appellate
+
+  Scraper XPath Assertions
+  ========================
+  1. ZIP_LINKS: //a[contains(@href, '.zip')]
+     - Description: "ZIP file links"
+     - min_count: 0 (page may have no ZIPs if no recent opinions)
+     - Expected: Link elements with href to .zip files
+
+  Data Extraction
+  ===============
+  From each ZIP link:
+  - href attribute: Full or relative URL to ZIP file
+  - text content: Contains date and opinion type (e.g., "1/21/2026 - Published Court Of Appeals Opinions")
+
+  Date Format
+  ===========
+  Dates in link text use M/D/YYYY format (no leading zeros):
+  - "1/21/2026" (January 21, 2026)
+  - "12/30/2025" (December 30, 2025)
+
+  URL Structure
+  =============
+  URLs contain a hash prefix that may change:
+  - /48f6e9/siteassets/... (hash: 48f6e9)
+
+  The hash appears to be a content hash and is not predictable.
+
+  ZIP File Contents
+  =================
+  Each ZIP contains PDF files named with 6-digit docket numbers:
+  - 167745_74_01.pdf (docket 167745)
+  - 366123_01.pdf (docket 366123)
+  - 166477-8_107_01.pdf (consolidated dockets 166477-8)
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Michigan Courts Opinion ZIP Files Page Schema
+
+      This schema documents the structure of the Opinion &amp; Order ZIP Files page
+      used by the Michigan appellate courts scraper.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the page -->
+  <xs:element name="page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="header" type="headerType"/>
+        <xs:element name="main" type="mainContentType"/>
+        <xs:element name="footer" type="footerType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Main content containing ZIP file sections -->
+  <xs:complexType name="mainContentType">
+    <xs:sequence>
+      <xs:element name="section" type="zipSectionType" maxOccurs="4"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Section for each court's ZIP files -->
+  <xs:complexType name="zipSectionType">
+    <xs:sequence>
+      <xs:element name="heading" type="xs:string"/>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:element name="searchBox" type="xs:string" minOccurs="0"/>
+      <xs:element name="zipFileList" type="zipFileListType"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- List of ZIP file links -->
+  <xs:complexType name="zipFileListType">
+    <xs:sequence>
+      <xs:element name="zipLink" type="zipLinkType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Individual ZIP file link -->
+  <xs:complexType name="zipLinkType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="href" type="xs:anyURI" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- Header type placeholder -->
+  <xs:complexType name="headerType">
+    <xs:sequence>
+      <xs:any minOccurs="0" maxOccurs="unbounded" processContents="skip"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Footer type placeholder -->
+  <xs:complexType name="footerType">
+    <xs:sequence>
+      <xs:any minOccurs="0" maxOccurs="unbounded" processContents="skip"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

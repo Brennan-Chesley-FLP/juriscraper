@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Illinois Courts RSS Feed
+
+  URLs:
+  - Supreme Court: https://www.illinoiscourts.gov/views/courts/rss/opinions-supreme.aspx
+  - Appellate Court: https://www.illinoiscourts.gov/views/courts/rss/opinions-appellate.aspx
+
+  Step: parse_rss_feed
+
+  This schema documents the structure of the Illinois Courts RSS feeds
+  which include custom opinion: namespaced elements.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:opinion="https://www.illinoiscourts.gov/top-level-opinions/">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      RSS 2.0 feed with custom opinion: namespace for court-specific metadata.
+
+      Feed Channel Structure:
+      - title: "State of Illinois Office of the Illinois Courts - Opinions (Supreme Court)" or
+               "State of Illinois Office of the Illinois Courts - Opinions (Appellate Court)"
+      - link: https://illinoiscourts.gov
+      - description: (empty)
+      - atom:link: Self-reference to feed URL
+
+      Item Structure (per opinion):
+      - guid: Unique ID like "78432-opinion-www.illinoiscourts.gov"
+      - category: "Opinion" or "Rule 23"
+      - pubDate: RFC 2822 date like "Thu, 22 Jan 2026 00:00:00 GMT"
+      - title: Case name (e.g., "People v. Seymore")
+      - link: PDF URL
+      - opinion:casename: Case name (same as title)
+      - opinion:filingdate: Filing date (M/D/YYYY format, e.g., "1/22/2026")
+      - opinion:type: "Opinion" or "Rule 23"
+      - opinion:citationnum: Citation (e.g., "2025 IL 131564" or "2026 IL App (1st) 241387-U")
+      - opinion:docketstatus: "Slip", "Released", or "Final"
+      - opinion:court: Court name (e.g., "Supreme Court", "First District Appellate Court")
+      - opinion:notes: HTML with optional link to summary PDF (may be empty)
+      - opinion:pdf: Direct PDF URL
+
+      Scraper XPath Assertions
+      ========================
+      1. ITEMS: //item
+         - Description: "RSS items"
+         - min_count: 0 (feed may be empty)
+
+      2. GUID: guid/text()
+         - Description: "item guid"
+         - min_count: 1
+         - max_count: 1
+         - Expected: Unique string identifier
+
+      3. CATEGORY: category/text()
+         - Description: "item category"
+         - min_count: 1
+         - max_count: 1
+         - Expected: "Opinion" or "Rule 23"
+
+      4. TITLE: title/text()
+         - Description: "item title"
+         - min_count: 1
+         - max_count: 1
+         - Expected: Case name string
+
+      5. LINK: link/text()
+         - Description: "item link"
+         - min_count: 1
+         - max_count: 1
+         - Expected: URL to PDF
+
+      6. PUBDATE: pubDate/text()
+         - Description: "item pubDate"
+         - min_count: 1
+         - max_count: 1
+         - Expected: RFC 2822 date string
+
+      7. CASENAME: *[local-name()='casename']/text()
+         - Description: "opinion:casename"
+         - min_count: 0 (optional, fallback to title)
+         - Expected: Case name string
+
+      8. FILINGDATE: *[local-name()='filingdate']/text()
+         - Description: "opinion:filingdate"
+         - min_count: 0 (optional, fallback to pubDate)
+         - Expected: Date in M/D/YYYY format
+
+      9. TYPE: *[local-name()='type']/text()
+         - Description: "opinion:type"
+         - min_count: 0 (optional, fallback to category)
+         - Expected: "Opinion" or "Rule 23"
+
+      10. CITATIONNUM: *[local-name()='citationnum']/text()
+          - Description: "opinion:citationnum"
+          - min_count: 0 (but required for processing)
+          - Expected: Citation like "2025 IL 131564" or "2026 IL App (1st) 240123"
+
+      11. DOCKETSTATUS: *[local-name()='docketstatus']/text()
+          - Description: "opinion:docketstatus"
+          - min_count: 0 (optional)
+          - Expected: "Slip", "Released", or "Final"
+
+      12. COURT: *[local-name()='court']/text()
+          - Description: "opinion:court"
+          - min_count: 0 (but required for processing)
+          - Expected: Court name (see COURT_NAME_TO_ID in models.py)
+
+      13. NOTES: *[local-name()='notes']/text()
+          - Description: "opinion:notes"
+          - min_count: 0 (optional)
+          - Expected: HTML string, may contain link to summary PDF
+
+      14. PDF: *[local-name()='pdf']/text()
+          - Description: "opinion:pdf"
+          - min_count: 0 (optional, fallback to link)
+          - Expected: Direct PDF URL
+
+      Citation Formats
+      ================
+      Supreme Court:
+      - Format: YYYY IL XXXXXX
+      - Example: "2025 IL 131564"
+
+      Appellate Court (Published):
+      - Format: YYYY IL App (Xd) XXXXXX
+      - Example: "2026 IL App (1st) 240123"
+      - Districts: 1st, 2d, 3d, 4th, 5th
+
+      Appellate Court (Rule 23 / Unpublished):
+      - Format: YYYY IL App (Xd) XXXXXX-U
+      - Example: "2026 IL App (1st) 241387-U"
+
+      Court Names in RSS
+      ==================
+      - "Supreme Court" -> court_id: "ill"
+      - "First District Appellate Court" -> court_id: "illappct", district: "1st"
+      - "Second District Appellate Court" -> court_id: "illappct", district: "2d"
+      - "Third District Appellate Court" -> court_id: "illappct", district: "3d"
+      - "Fourth District Appellate Court" -> court_id: "illappct", district: "4th"
+      - "Fifth District Appellate Court" -> court_id: "illappct", district: "5th"
+      - "Workers' Compensation Commission Division" -> court_id: "illappct", district: "WC"
+
+      Notes Field Format
+      ==================
+      When present, contains HTML with link to summary:
+      &lt;a href="https://ilcourtsaudio.blob.core.windows.net/..."&gt;Summary&lt;/a&gt;
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- RSS root element -->
+  <xs:element name="rss">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="channel" type="channelType"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string" fixed="2.0"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Channel type -->
+  <xs:complexType name="channelType">
+    <xs:sequence>
+      <xs:element name="title" type="xs:string"/>
+      <xs:element name="link" type="xs:anyURI"/>
+      <xs:element name="description" type="xs:string"/>
+      <xs:any namespace="http://www.w3.org/2005/Atom" minOccurs="0"/>
+      <xs:element name="item" type="itemType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Item type -->
+  <xs:complexType name="itemType">
+    <xs:sequence>
+      <xs:element name="guid">
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="isPermaLink" type="xs:boolean" default="false"/>
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="category" type="categoryType"/>
+      <xs:element name="pubDate" type="xs:string"/>
+      <xs:element name="title" type="xs:string"/>
+      <xs:element name="link" type="xs:anyURI"/>
+      <!-- opinion: namespaced elements -->
+      <xs:any namespace="https://www.illinoiscourts.gov/top-level-opinions/"
+              minOccurs="0" maxOccurs="unbounded" processContents="lax"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Category enumeration -->
+  <xs:simpleType name="categoryType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Opinion"/>
+      <xs:enumeration value="Rule 23"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Docket status enumeration -->
+  <xs:simpleType name="docketStatusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Slip"/>
+      <xs:enumeration value="Released"/>
+      <xs:enumeration value="Final"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

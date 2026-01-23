@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Pennsylvania Appellate Courts RSS Feed
+
+  URL Patterns:
+    - Supreme Court: https://www.pacourts.us/Rss/Opinions/Supreme/
+    - Superior Court: https://www.pacourts.us/Rss/Opinions/Superior/
+    - Commonwealth Court: https://www.pacourts.us/Rss/Opinions/Commonwealth/
+
+  Step: parse_rss_feed
+  XPath used: //item
+
+  Feed Format: RSS 2.0 with Dublin Core (dc:) namespace extensions
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Pennsylvania Courts RSS Feed Structure
+      ======================================
+
+      The feed follows RSS 2.0 standard with these namespaces:
+      - dc: http://purl.org/dc/elements/1.1/ (Dublin Core for dc:creator)
+      - atom: http://www.w3.org/2005/Atom
+      - pheedo: http://www.pheedo.com/namespace/pheedo
+
+      Channel Level
+      -------------
+      - title: "Unified Judicial System of Pennsylvania: {Court} Court Opinions"
+      - link: Feed URL
+      - lastBuildDate: RFC 822 date (e.g., "Wed, 21 Jan 2026 05:00:00 GMT")
+      - language: "en-us"
+
+      Item Level (Opinions)
+      ---------------------
+      Each &lt;item&gt; represents one opinion posting.
+
+      Scraper XPath Assertions
+      ========================
+
+      1. ITEMS: //item
+         - Description: "RSS items"
+         - min_count: 0 (feed may be empty)
+         - Expected: List of opinion item elements
+
+      2. TITLE: title/text()
+         - Description: "item title"
+         - min_count: 1, max_count: 1 per item
+         - Format: "Case Name - No. Docket Number" or "Case Name No. Docket"
+         - Examples:
+           * "Com. v. Woodall, J. No. 876 WDA 2024"
+           * "Commonwealth v. Fitzpatrick, J., Aplt. - No. 95 MAP 2024"
+           * "J. Kline v. PA PUC - 918 C.D. 2024"
+           * "Judgement List" (skip these)
+
+      3. LINK: link/text()
+         - Description: "item link"
+         - min_count: 1, max_count: 1 per item
+         - Format: Direct PDF URL
+         - Pattern: https://www.pacourts.us/assets/opinions/{Court}/out/{filename}.pdf
+         - Examples:
+           * https://www.pacourts.us/assets/opinions/Supreme/out/J-86-2025mo - 106651291344073938.pdf
+           * https://www.pacourts.us/assets/opinions/Superior/out/J-S29013-25m.pdf
+           * https://www.pacourts.us/assets/opinions/Commonwealth/out/918CD24_1-22-26.pdf
+
+      4. GUID: guid/text()
+         - Description: "item guid"
+         - min_count: 0, max_count: 1 per item
+         - Usually same as link URL
+         - Used for deduplication
+
+      5. PUBDATE: pubDate/text()
+         - Description: "item pubDate"
+         - min_count: 1, max_count: 1 per item
+         - Format: RFC 822 date
+         - Example: "Thu, 22 Jan 2026 05:00:00 GMT"
+
+      6. DC:CREATOR: dc:creator/text()
+         - Description: "item author"
+         - min_count: 0, max_count: 1 per item
+         - Namespace: http://purl.org/dc/elements/1.1/
+         - Examples:
+           * "Justice David Wecht"
+           * "Nichols, J."
+           * "Per Curiam"
+           * "Cohn Jubelirer, President Judge ~ Dissenting Opinion by Leavitt, President Judge Emerita"
+           * Empty (for some items)
+
+      7. DESCRIPTION: description/text()
+         - Description: "item description"
+         - min_count: 0 per item
+         - Usually empty CDATA: &lt;![CDATA[]]&gt;
+
+      Docket Number Patterns
+      ======================
+      - Supreme Court: {Number} {TYPE} {YEAR}
+        * Types: MAP, MAL, WAL, EAL, EAP, WAP
+        * Example: "95 MAP 2024", "167 WAL 2025"
+
+      - Superior Court: {Number} {TYPE} {YEAR}
+        * Types: WDA, MDA, EDA
+        * Example: "876 WDA 2024", "348 MDA 2025"
+
+      - Commonwealth Court: {Number} {TYPE} {YEAR}
+        * Types: C.D., M.D.
+        * Example: "918 C.D. 2024"
+
+      Special Cases
+      =============
+      - "Judgement List" items: Batch PDFs listing multiple dispositions
+        * Should be skipped (not individual opinions)
+        * Example title: "Judgement List"
+        * Filename pattern: 012226 E.pdf, 012226 M.pdf, 012226 W.pdf
+
+      - Reconsideration/Reargument Orders:
+        * Indicated in title: "(RECONSIDERATION/REARGUMENT ORDER)"
+        * Commonwealth Court specific
+
+      - Multiple opinions per case:
+        * Different RSS items for same docket with different authors
+        * Use docket_number for grouping if needed
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- RSS root element -->
+  <xs:element name="rss">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="channel" type="channelType"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Channel type -->
+  <xs:complexType name="channelType">
+    <xs:sequence>
+      <xs:element name="title" type="xs:string"/>
+      <xs:element name="link" type="xs:string"/>
+      <xs:element name="description" type="xs:string"/>
+      <xs:element name="lastBuildDate" type="xs:string"/>
+      <xs:element name="language" type="xs:string"/>
+      <xs:element name="item" type="itemType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Item type (opinion) -->
+  <xs:complexType name="itemType">
+    <xs:sequence>
+      <xs:element name="title" type="xs:string"/>
+      <xs:element name="link" type="xs:anyURI"/>
+      <xs:element name="guid" type="xs:string" minOccurs="0"/>
+      <xs:element name="pubDate" type="xs:string"/>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <!-- dc:creator requires namespace, but XSD doesn't enforce namespaces well -->
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

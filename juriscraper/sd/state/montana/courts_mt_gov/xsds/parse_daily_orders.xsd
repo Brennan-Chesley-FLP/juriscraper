@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Montana Supreme Court Daily Orders Page
+  URL: https://courts.mt.gov/external/orders/dailyorders
+
+  Step: parse_daily_orders
+  Description: Parses the daily orders/opinions listing page
+
+  The page contains multiple tables organized by date, with each table listing
+  orders and opinions filed on that date.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The daily orders page displays a list of recent orders and opinions
+      from the Montana Supreme Court. The page is organized by date with
+      each date section containing a table of filings.
+
+      Each table has the following columns:
+      1. Document Description - Text describing the order/opinion
+      2. File Date - Date and time of filing (YYYY-MM-DD HH:MM:SS.0)
+      3. Case Number - Linked to case info page (format: DA 25-0142)
+      4. Title - Full case name
+
+      Scraper XPath Assertions
+      ========================
+
+      1. ORDER_TABLES: //table
+         - Description: "order tables"
+         - min_count: 0
+         - Expected: Multiple tables, one per date section
+
+      2. TABLE_ROWS: .//tr[td]
+         - Description: "table rows with data"
+         - min_count: 0
+         - Expected: Multiple rows per table
+
+      3. ROW_CELLS: td
+         - Description: "row cells"
+         - min_count: 0
+         - Expected: 4 cells per row (description, date, case number, title)
+
+      4. CASE_LINK: .//a
+         - Description: "case number link"
+         - min_count: 0
+         - Expected: Link to case info page in case number cell
+
+      URL Pattern
+      ===========
+      Daily orders page: https://courts.mt.gov/external/orders/dailyorders
+      Case info links: caseInfo?id={URL_ENCODED_CASE_NUMBER}
+
+      Example row data:
+      - Document Description: "Order granting motion for extension..."
+      - File Date: "2026-01-22 08:59:34.0"
+      - Case Number: "DA 25-0142" (linked)
+      - Title: "Mae Nan Ellingson, et al. v. State of Montana, et al."
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="table" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="tr" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="td" minOccurs="4" maxOccurs="4">
+                      <xs:complexType mixed="true">
+                        <xs:sequence>
+                          <xs:element name="a" minOccurs="0">
+                            <xs:complexType>
+                              <xs:simpleContent>
+                                <xs:extension base="xs:string">
+                                  <xs:attribute name="href" type="xs:string"/>
+                                </xs:extension>
+                              </xs:simpleContent>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Rhode Island Published Opinions Search Page
+  URL: https://www.courts.ri.gov/Courts/SupremeCourt/Pages/published-opinions.aspx
+
+  Step: parse_opinions_page
+  XPath used: //a[contains(@href, '/Opinions/') and contains(@href, '.pdf')]/..
+
+  Page Structure
+  ==============
+  The page is a SharePoint search results page showing published Supreme Court opinions.
+  Results are displayed in a list, with each result containing:
+  - A link to the PDF with the case name as link text
+  - A metadata div with case number, date, and summary
+
+  Example HTML structure:
+  <div>
+    <a href="https://www.courts.ri.gov/Opinions/Supreme-25-21.pdf">
+      Clifton Peasley v. City of Providence, by and through its Treasurer, Shomari Husband
+    </a>
+    <div>
+      <div>Number: 2025-0021-Appeal.</div>
+      <div>Date: Thursday, January 22, 2026</div>
+      <div>The plaintiff, Clifton Peasley (plaintiff or Peasley), appealed...</div>
+    </div>
+  </div>
+
+  Scraper XPath Assertions
+  ========================
+  1. RESULT_CONTAINERS: //a[contains(@href, '/Opinions/') and contains(@href, '.pdf')]/..
+     - Description: "opinion result containers"
+     - min_count: 0
+     - Expected: Container divs for each opinion result
+
+  2. PDF_LINK: .//a[contains(@href, '/Opinions/') and contains(@href, '.pdf')]
+     - Description: "PDF link"
+     - min_count: 1
+     - max_count: 1
+     - Expected: Link element with href to PDF
+
+  3. METADATA_DIV: .//div[contains(., 'Number:')]
+     - Description: "metadata div"
+     - min_count: 0
+     - Expected: Div containing case number, date, and summary
+
+  PDF URL Patterns
+  ================
+  - Supreme-{YY}-{N}.pdf (e.g., Supreme-25-21.pdf)
+  - Supreme-{YYYY}-{NNNN}.pdf (e.g., Supreme-2024-0149.pdf)
+
+  Case Number Formats
+  ===================
+  - 2025-0021-Appeal.
+  - 2024-0269-Appeal.
+  - 2023-0082-M.P.
+  - 2024-0038-C.A.
+
+  Date Format
+  ===========
+  - "Thursday, January 22, 2026"
+
+  Pagination
+  ==========
+  SharePoint uses JavaScript-based pagination via URL hash fragments.
+  The hash contains a JSON object with filter refiners.
+  Year filter example: {"k":"","r":[{"n":"RIJYear","t":["..."],"o":"OR",...}],"l":1033}
+
+  Notes
+  =====
+  - About 3,028 total published opinions available
+  - Years available: 1999 to present
+  - Results are displayed 10 per page by default
+  - No intermediate appellate court in Rhode Island
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Rhode Island Published Opinions Search Results Page Schema
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Result container element -->
+  <xs:element name="result-container" type="ResultContainerType"/>
+
+  <xs:complexType name="ResultContainerType">
+    <xs:sequence>
+      <xs:element name="pdf-link" type="PdfLinkType"/>
+      <xs:element name="metadata" type="MetadataType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="PdfLinkType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="href" type="xs:anyURI" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="MetadataType">
+    <xs:sequence>
+      <xs:element name="case-number" type="xs:string"/>
+      <xs:element name="date" type="xs:string"/>
+      <xs:element name="summary" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

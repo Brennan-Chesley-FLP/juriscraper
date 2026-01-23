@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Nebraska Volume List Page
+  URL: https://www.nebraska.gov/apps-courts-epub/public/supreme
+       https://www.nebraska.gov/apps-courts-epub/public/appeals
+
+  Step: parse_volume_list
+
+  Page Structure
+  ==============
+  The page displays a table of volumes with expandable rows.
+  Each volume row contains:
+  - Volume number link (e.g., "+ 320 Neb." or "− 320 Neb." when expanded)
+  - Optional PDF version link for older volumes
+  - Opening-Closing dates (e.g., "10/03/2025 - 01/16/2026")
+  - Memo, DWO, PFR links
+
+  When expanded (requires JavaScript/Playwright click):
+  - A new row appears after the volume header row
+  - Contains a nested table with opinion data
+
+  Nested Opinion Table Columns:
+  - Date: MM/DD/YYYY format
+  - Docket No.: Can have multiple (e.g., "S-25-141 S-25-140")
+  - Caption: Case name
+  - Citation: e.g., "320 Neb. 675"
+  - Status: Link to PDF with "Advance" or "Published" text
+
+  XPaths Used by Scraper
+  ======================
+  1. Volume rows:
+     //table//tbody/tr
+     - Contains all rows in the main table
+
+  2. Volume link:
+     .//a[contains(@href, '#volumeOpinionsHeading')]
+     - Identifies volume header rows
+     - Text starts with "+"/"-" followed by volume (e.g., "+ 320 Neb.")
+
+  3. Nested opinions table:
+     .//table
+     - Found in the row immediately after an expanded volume header
+
+  4. Opinion rows in nested table:
+     .//tbody/tr
+     - Each row contains one opinion with 5 cells
+
+  5. Pagination:
+     //a[contains(@href, 'offset=')]/@href
+     - Links to paginate through volumes (25 per page)
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Nebraska Appellate Courts Online Library - Volume List Page
+
+      This page requires JavaScript to expand volumes. The scraper expects
+      the Playwright/browser driver to have clicked on volume links to
+      expand them before parsing.
+
+      Example volume header (expanded):
+      "− 320 Neb." with date range "10/03/2025 -"
+
+      Example opinion row data:
+      - Date: 01/16/2026
+      - Docket: S-25-141 S-25-140 S-25-139 S-25-138 S-25-137
+      - Caption: In re Interest of Johnny H.
+      - Citation: 320 Neb. 675
+      - Status: pdf link with "Advance"
+    </xs:documentation>
+  </xs:annotation>
+</xs:schema>

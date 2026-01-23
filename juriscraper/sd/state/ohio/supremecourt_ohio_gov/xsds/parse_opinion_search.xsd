@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Ohio Opinion Search Results Page
+  URL: https://www.supremecourt.ohio.gov/Rod/docs/Default.aspx?source={N}
+
+  where N is:
+    0 = Supreme Court of Ohio
+    1-12 = District Courts of Appeals
+    13 = Court of Claims
+    15 = All Sources
+    16 = All District Courts
+
+  Step: parse_opinion_search
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The Ohio Opinion Search page is an ASP.NET WebForms application that displays
+      search results in a table format. The page contains:
+
+      1. Search filters (form at top):
+         - Opinion Text Search (full-text)
+         - Source dropdown (court selection)
+         - Year Decided From/To dropdowns
+         - County dropdown
+         - Case Number text field
+         - Author text field
+         - Topics and Issues text field
+         - WebCite No fields (year + number)
+         - Citation text field
+
+      2. Results table with columns:
+         - Case Caption (link to PDF)
+         - Case No.
+         - Topics and Issues
+         - Author
+         - Citation / County
+         - Decided (date)
+         - Posted (date)
+         - WebCite
+
+      3. Pagination controls (rows per page: 5, 10, 25, 50, 100, 200)
+
+      Scraper XPath Assertions
+      ========================
+
+      1. RESULT_ROWS: //table//tr[td[a[contains(@href, '.pdf')]]]
+         - Description: "Opinion result rows with PDF links"
+         - min_count: 0 (may be empty search results)
+         - max_count: 200 (maximum rows per page)
+         - Expected: Table rows containing cells with PDF download links
+
+      2. CELLS_PER_ROW: ./td
+         - Description: "Table cells in each row"
+         - min_count: 8
+         - max_count: 8
+         - Expected: 8 cells per row matching the column headers
+
+      3. PDF_LINK: .//a[contains(@href, '.pdf')]
+         - Description: "PDF download link in caption cell"
+         - min_count: 1
+         - max_count: 1
+         - Expected: Single link to the opinion PDF in the first cell
+
+      Column Mapping
+      ==============
+      | Index | Header              | Content Example                           |
+      |-------|---------------------|-------------------------------------------|
+      | 0     | Case Caption        | "State v. McAlpin" (link to PDF)          |
+      | 1     | Case No.            | "2024-0749" or empty                      |
+      | 2     | Topics and Issues   | Summary text or empty                     |
+      | 3     | Author              | "Kennedy, C.J." or "Per Curiam" or empty  |
+      | 4     | Citation / County   | "Slip Opinion No. 2026-Ohio-148" (SC) or  |
+      |       |                     | "Hamilton" (CoA county)                   |
+      | 5     | Decided             | "1/21/2026" (M/D/YYYY format)             |
+      | 6     | Posted              | "1/21/2026" (M/D/YYYY format)             |
+      | 7     | WebCite             | "2026-Ohio-148"                           |
+
+      PDF URL Pattern
+      ===============
+      https://www.supremecourt.ohio.gov/rod/docs/pdf/{district}/{year}/{webcite}.pdf
+
+      Examples:
+      - Supreme Court: https://www.supremecourt.ohio.gov/rod/docs/pdf/0/2026/2026-Ohio-148.pdf
+      - First District: https://www.supremecourt.ohio.gov/rod/docs/pdf/1/2026/2026-Ohio-173.pdf
+
+      Date Format
+      ===========
+      Dates are in M/D/YYYY format (e.g., "1/21/2026" or "12/22/2025")
+      - Month: 1-2 digits
+      - Day: 1-2 digits
+      - Year: 4 digits
+
+      WebCite Format
+      ==============
+      Pattern: YYYY-Ohio-NNN
+      - YYYY: 4-digit year
+      - Ohio: Literal string
+      - NNN: Sequential number (not zero-padded)
+
+      Examples: "2026-Ohio-148", "2026-Ohio-1", "2025-Ohio-4567"
+
+      Edge Cases
+      ==========
+      1. Case Announcements and Administrative Actions have no case number or author
+         - Example: "01/22/2026 Case Announcements" with empty Case No. and Author
+
+      2. Courts of Appeals show county name instead of citation
+         - Example: "Hamilton" instead of "Slip Opinion No. 2026-Ohio-160"
+
+      3. Some rows may have empty Topics and Issues column
+         - The scraper still processes these rows
+
+      4. The Topics and Issues column may contain long summaries with em-dashes
+         - Example: "Criminal law—A defendant's failure to obtain leave..."
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the HTML page -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="body" type="bodyType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Body contains the results table -->
+  <xs:complexType name="bodyType">
+    <xs:sequence>
+      <xs:element name="table" type="resultsTableType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Results table structure -->
+  <xs:complexType name="resultsTableType">
+    <xs:sequence>
+      <xs:element name="tr" type="resultRowType" minOccurs="0" maxOccurs="200"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Each result row has 8 cells -->
+  <xs:complexType name="resultRowType">
+    <xs:sequence>
+      <xs:element name="td" minOccurs="8" maxOccurs="8">
+        <xs:complexType mixed="true">
+          <xs:sequence>
+            <xs:element name="a" type="pdfLinkType" minOccurs="0" maxOccurs="1"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- PDF link in the caption cell -->
+  <xs:complexType name="pdfLinkType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="href" type="pdfUrlType" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- PDF URL pattern -->
+  <xs:simpleType name="pdfUrlType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="https://www\.supremecourt\.ohio\.gov/rod/docs/pdf/\d{1,2}/\d{4}/\d{4}-Ohio-\d+\.pdf"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

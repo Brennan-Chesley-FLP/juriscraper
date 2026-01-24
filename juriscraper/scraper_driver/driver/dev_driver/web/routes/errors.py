@@ -10,6 +10,7 @@ This module provides endpoints for:
 
 from __future__ import annotations
 
+import time
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -509,6 +510,7 @@ async def batch_requeue(
 
     for row in rows:
         queue_counter = await get_next_queue_counter(db)
+        created_at_ns = time.monotonic_ns()
 
         await db.execute(
             SQL.INSERT_REQUEUE_REQUEST,
@@ -526,6 +528,7 @@ async def batch_requeue(
                 row[11],  # aux_data_json
                 row[12],  # permanent_json
                 row[1],  # parent_request_id
+                created_at_ns,
             ),
         )
 

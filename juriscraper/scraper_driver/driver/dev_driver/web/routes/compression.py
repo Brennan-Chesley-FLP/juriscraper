@@ -32,11 +32,15 @@ class TrainDictRequest(BaseModel):
     continuation: str = Field(
         ..., description="Continuation to train dictionary for"
     )
-    sample_limit: int = Field(
-        default=100, ge=1, description="Maximum samples to use"
+    sample_limit: int | None = Field(
+        default=None,
+        ge=1,
+        description="Maximum samples to use (auto-calculated if not specified)",
     )
-    dict_size: int = Field(
-        default=112640, ge=1024, description="Dictionary size in bytes"
+    dict_size: int | None = Field(
+        default=None,
+        ge=1024,
+        description="Dictionary size in bytes (auto-calculated if not specified)",
     )
 
 
@@ -121,6 +125,16 @@ async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
         ) from e
 
 
+# Default training parameters
+DEFAULT_DICT_SIZE = 112640  # 110KB
+DEFAULT_SAMPLE_LIMIT = 100
+
+# Large collection thresholds
+LARGE_COLLECTION_THRESHOLD = 1024 * 1024 * 1024  # 1GB
+LARGE_DICT_SIZE = 1024 * 1024  # 1MB
+TARGET_SAMPLE_BYTES = 100 * 1024 * 1024  # 100MB
+
+
 @router.post("/train-dict", response_model=TrainDictResponse)
 async def train_dictionary(
     run_id: str,
@@ -131,6 +145,9 @@ async def train_dictionary(
 
     Samples responses for the specified continuation and trains a zstd
     dictionary that can significantly improve compression ratios.
+
+    For large collections (>1GB uncompressed), automatically uses a larger
+    dictionary (1MB) and samples ~100MB of data for training.
 
     Args:
         run_id: The run identifier.
@@ -149,12 +166,51 @@ async def train_dictionary(
     sql_manager = await _get_sql_manager(run_id, manager)
     db = sql_manager.db
 
+    # Calculate smart defaults if not provided
+    dict_size = request.dict_size
+    sample_limit = request.sample_limit
+
+    if dict_size is None or sample_limit is None:
+        # Query collection stats for this continuation
+        cursor = await db.execute(
+            """
+            SELECT COUNT(*), COALESCE(SUM(content_size_original), 0)
+            FROM responses
+            WHERE continuation = ?
+            """,
+            (request.continuation,),
+        )
+        row = await cursor.fetchone()
+        response_count = row[0] or 0
+        total_original_bytes = row[1] or 0
+
+        if dict_size is None:
+            if total_original_bytes > LARGE_COLLECTION_THRESHOLD:
+                dict_size = LARGE_DICT_SIZE
+            else:
+                dict_size = DEFAULT_DICT_SIZE
+
+        if sample_limit is None:
+            if (
+                total_original_bytes > LARGE_COLLECTION_THRESHOLD
+                and response_count > 0
+            ):
+                # Calculate average doc size and target ~100MB of samples
+                avg_doc_size = total_original_bytes // response_count
+                if avg_doc_size > 0:
+                    sample_limit = TARGET_SAMPLE_BYTES // avg_doc_size
+                    sample_limit = max(1, sample_limit)  # At least 1 sample
+                else:
+                    sample_limit = DEFAULT_SAMPLE_LIMIT
+            else:
+                sample_limit = DEFAULT_SAMPLE_LIMIT
+
     try:
         dict_id = await train_compression_dict(
             db,
             request.continuation,
-            sample_limit=request.sample_limit,
-            dict_size=request.dict_size,
+            sample_limit=sample_limit,
+            dict_size=dict_size,
         )
     except ValueError as e:
         raise HTTPException(
@@ -171,7 +227,7 @@ async def train_dictionary(
         dict_id=dict_id,
         continuation=request.continuation,
         sample_count=sample_count,
-        dict_size=request.dict_size,
+        dict_size=dict_size,
         message=f"Trained dictionary {dict_id} from {sample_count} samples",
     )
 

@@ -137,3 +137,101 @@ async def get_rate_limiter_state(
         created_at=state.get("created_at"),
         updated_at=state.get("updated_at"),
     )
+
+
+class ThroughputStatsResponse(BaseModel):
+    """Response model for throughput statistics."""
+
+    active_workers: int = Field(
+        ..., description="Number of requests currently in progress"
+    )
+    rate_5m: float = Field(
+        ..., description="Requests per minute over last 5 minutes"
+    )
+    rate_15m: float = Field(
+        ..., description="Requests per minute over last 15 minutes"
+    )
+    rate_1h: float = Field(
+        ..., description="Requests per minute over last hour"
+    )
+    rate_1d: float = Field(
+        ..., description="Requests per minute over last day"
+    )
+
+
+@router.get("/throughput", response_model=ThroughputStatsResponse)
+async def get_throughput_stats(
+    run_id: str,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> ThroughputStatsResponse:
+    """Get throughput statistics for a run.
+
+    Computes actual request rates over various time windows by counting
+    completed requests in those periods.
+
+    Args:
+        run_id: The unique identifier of the run.
+
+    Returns:
+        Throughput statistics including active workers and request rates.
+
+    Raises:
+        HTTPException: 404 if run not found.
+    """
+    # Get run info
+    run_info = await manager.get_run(run_id)
+    if run_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run '{run_id}' not found",
+        )
+
+    # Get SQLManager
+    try:
+        sql_manager = await get_sql_manager_for_run(run_id, manager)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        ) from e
+
+    db = sql_manager.db
+
+    # Get active workers (in_progress requests)
+    cursor = await db.execute(
+        "SELECT COUNT(*) FROM requests WHERE status = 'in_progress'"
+    )
+    row = await cursor.fetchone()
+    active_workers = row[0] if row else 0
+
+    # Compute request rates over different time windows
+    # Count completed requests in each time window
+    time_windows = [
+        ("5m", 5),
+        ("15m", 15),
+        ("1h", 60),
+        ("1d", 1440),
+    ]
+
+    rates = {}
+    for name, minutes in time_windows:
+        cursor = await db.execute(
+            """
+            SELECT COUNT(*) FROM requests
+            WHERE status = 'completed'
+            AND completed_at >= datetime('now', ?)
+            """,
+            (f"-{minutes} minutes",),
+        )
+        row = await cursor.fetchone()
+        count = row[0] if row else 0
+        # Convert to requests per minute
+        rates[name] = count / minutes if minutes > 0 else 0.0
+
+    return ThroughputStatsResponse(
+        active_workers=active_workers,
+        rate_5m=round(rates["5m"], 2),
+        rate_15m=round(rates["15m"], 2),
+        rate_1h=round(rates["1h"], 2),
+        rate_1d=round(rates["1d"], 2),
+    )

@@ -20,8 +20,8 @@
         <h2>Statistics</h2>
         <div class="stats-grid">
             <div class="stat-card">
-                <h3>Queue</h3>
-                <div id="queue-stats">Loading...</div>
+                <h3>Throughput</h3>
+                <div id="throughput-stats">Loading...</div>
             </div>
             <div class="stat-card">
                 <h3>Compression</h3>
@@ -34,52 +34,6 @@
             <div class="stat-card">
                 <h3>Errors</h3>
                 <div id="error-stats">Loading...</div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Rate Limiter -->
-    <section class="rate-limiter-section" id="rate-limiter-section">
-        <h2>Rate Limiter</h2>
-        <div class="rate-limiter-grid">
-            <div class="rate-limiter-status">
-                <span id="rate-limiter-status-badge" class="status">Loading...</span>
-            </div>
-            <div class="rate-limiter-stats">
-                <div class="rate-stat">
-                    <span class="rate-label">Current Rate</span>
-                    <span id="rate-limiter-rate" class="rate-value">-</span>
-                    <span class="rate-unit">req/min</span>
-                </div>
-                <div class="rate-stat">
-                    <span class="rate-label">Tokens</span>
-                    <span id="rate-limiter-tokens" class="rate-value">-</span>
-                    <span class="rate-unit">/ <span id="rate-limiter-bucket-size">-</span></span>
-                </div>
-                <div class="rate-stat">
-                    <span class="rate-label">Congestion Rate</span>
-                    <span id="rate-limiter-congestion" class="rate-value">-</span>
-                    <span class="rate-unit">req/min</span>
-                </div>
-            </div>
-            <div class="rate-limiter-requests">
-                <div class="rate-stat">
-                    <span class="rate-label">Total Requests</span>
-                    <span id="rate-limiter-total" class="rate-value">-</span>
-                </div>
-                <div class="rate-stat">
-                    <span class="rate-label">Successes</span>
-                    <span id="rate-limiter-successes" class="rate-value success">-</span>
-                </div>
-                <div class="rate-stat">
-                    <span class="rate-label">Rate Limited</span>
-                    <span id="rate-limiter-limited" class="rate-value warning">-</span>
-                </div>
-                <div class="rate-stat">
-                    <span class="rate-label">Success Rate</span>
-                    <span id="rate-limiter-success-rate" class="rate-value">-</span>
-                    <span class="rate-unit">%</span>
-                </div>
             </div>
         </div>
     </section>
@@ -163,6 +117,7 @@
         </div>
         <div class="form-actions">
             <button type="button" class="btn btn-secondary" onclick="closeRequestsDetailModal()">Close</button>
+            <button type="button" class="btn btn-primary" id="requeue-all-btn" style="display:none;" onclick="requeueAllInModal()">Requeue All</button>
         </div>
     </div>
 </div>
@@ -233,6 +188,8 @@ const runId = '{{ run_id }}';
 let ws = null;
 let currentErrorId = null;
 let currentView = 'summary'; // 'summary' or 'list'
+let currentModalContinuation = null;
+let currentModalStatus = null;
 
 // Load run details
 async function loadRunDetails() {
@@ -343,10 +300,18 @@ function switchView(view) {
 
 // Open modal with filtered requests
 async function openFilteredRequests(continuation, status) {
+    // Track current modal state for batch operations
+    currentModalContinuation = continuation;
+    currentModalStatus = status;
+
     // Show the requests-detail-modal with filtered requests
     document.getElementById('requests-detail-modal').classList.add('active');
     document.getElementById('requests-detail-title').textContent = `${continuation} - ${status}`;
     document.getElementById('requests-detail-content').innerHTML = 'Loading...';
+
+    // Show "Requeue All" button only for failed requests
+    const requeueAllBtn = document.getElementById('requeue-all-btn');
+    requeueAllBtn.style.display = status === 'failed' ? 'inline-block' : 'none';
 
     try {
         const response = await fetch(`/api/runs/${runId}/requests?continuation=${encodeURIComponent(continuation)}&status=${status}&limit=100`);
@@ -383,6 +348,45 @@ async function openFilteredRequests(continuation, status) {
 
 function closeRequestsDetailModal() {
     document.getElementById('requests-detail-modal').classList.remove('active');
+    currentModalContinuation = null;
+    currentModalStatus = null;
+}
+
+// Requeue all failed requests in the current modal view via errors batch-requeue
+async function requeueAllInModal() {
+    if (!currentModalContinuation || !currentModalStatus) return;
+
+    const btn = document.getElementById('requeue-all-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Requeuing...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`/api/runs/${runId}/errors/batch-requeue`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                continuation: currentModalContinuation
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            addEvent('requeue', `Requeued ${data.requeued_count} errors for ${currentModalContinuation}`);
+            closeRequestsDetailModal();
+            loadRequestSummary();
+            loadRequests();
+            loadErrors();
+        } else {
+            const data = await response.json();
+            alert('Failed to requeue: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Failed to requeue: ' + error.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
 }
 
 // Load request queue
@@ -1135,40 +1139,26 @@ function addEvent(type, message) {
     }
 }
 
-// Rate Limiter State
-async function loadRateLimiterState() {
+// Throughput Stats
+async function loadThroughputStats() {
     try {
-        const response = await fetch(`/api/runs/${runId}/rate-limiter`);
+        const response = await fetch(`/api/runs/${runId}/rate-limiter/throughput`);
         if (!response.ok) {
-            // Run might not be loaded or rate limiter not initialized
-            document.getElementById('rate-limiter-section').style.display = 'none';
+            document.getElementById('throughput-stats').innerHTML = '<p class="error">-</p>';
             return;
         }
         const data = await response.json();
 
-        // Show section
-        document.getElementById('rate-limiter-section').style.display = 'block';
-
-        // Update status badge
-        const statusBadge = document.getElementById('rate-limiter-status-badge');
-        statusBadge.textContent = data.status;
-        statusBadge.className = `status status-${data.status}`;
-
-        // Update rate stats
-        document.getElementById('rate-limiter-rate').textContent = data.approximate_requests_per_minute.toFixed(1);
-        document.getElementById('rate-limiter-tokens').textContent = data.tokens.toFixed(2);
-        document.getElementById('rate-limiter-bucket-size').textContent = data.bucket_size.toFixed(1);
-        document.getElementById('rate-limiter-congestion').textContent = (data.last_congestion_rate * 60).toFixed(1);
-
-        // Update request stats
-        document.getElementById('rate-limiter-total').textContent = data.total_requests;
-        document.getElementById('rate-limiter-successes').textContent = data.total_successes;
-        document.getElementById('rate-limiter-limited').textContent = data.total_rate_limited;
-        document.getElementById('rate-limiter-success-rate').textContent = data.success_rate.toFixed(1);
-
+        document.getElementById('throughput-stats').innerHTML = `
+            <p>Workers: ${data.active_workers}</p>
+            <p>5m: ${data.rate_5m.toFixed(1)}/min</p>
+            <p>15m: ${data.rate_15m.toFixed(1)}/min</p>
+            <p>1h: ${data.rate_1h.toFixed(1)}/min</p>
+            <p>1d: ${data.rate_1d.toFixed(2)}/min</p>
+        `;
     } catch (error) {
-        console.error('Failed to load rate limiter state:', error);
-        document.getElementById('rate-limiter-section').style.display = 'none';
+        console.error('Failed to load throughput stats:', error);
+        document.getElementById('throughput-stats').innerHTML = '<p class="error">Failed to load</p>';
     }
 }
 
@@ -1373,7 +1363,7 @@ loadErrors();
 loadCompressionStats();
 loadCompressionDetails();
 loadDataStats();
-loadRateLimiterState();
+loadThroughputStats();
 loadSpeculativeProgress();
 
 // Auto-refresh every 5 seconds
@@ -1389,7 +1379,7 @@ setInterval(() => {
     loadCompressionStats();
     loadCompressionDetails();
     loadDataStats();
-    loadRateLimiterState();
+    loadThroughputStats();
     loadSpeculativeProgress();
 }, 5000);
 </script>

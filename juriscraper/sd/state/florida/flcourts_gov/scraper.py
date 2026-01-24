@@ -36,11 +36,11 @@ from .models import (
 )
 
 if TYPE_CHECKING:
+    from juriscraper.scraper_driver.common.scraper import ScraperParams
     from juriscraper.scraper_driver.data_types import (
         ArchiveResponse,
         ScraperYield,
     )
-    from juriscraper.scraper_driver.common.scraper import ScraperParams
 
 
 class FloridaScraper(BaseScraper[FloridaOpinionCluster]):

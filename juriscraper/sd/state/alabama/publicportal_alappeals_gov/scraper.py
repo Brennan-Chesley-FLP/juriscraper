@@ -61,13 +61,11 @@ Design decisions:
 
 from __future__ import annotations
 
-import json
 import re
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlencode
 
-from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.decorators import step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
@@ -76,6 +74,7 @@ from juriscraper.scraper_driver.data_types import (
     HttpMethod,
     HTTPRequestParams,
     NavigatingRequest,
+    NonNavigatingRequest,
     ParsedData,
     Response,
     ScraperStatus,
@@ -418,7 +417,7 @@ class AlabamaScraper(
     @step(xsd="xsds/parse_publications_list.xsd")
     def parse_publications_list(
         self,
-        lxml_tree: CheckedHtmlElement,
+        json_content: dict,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
@@ -461,20 +460,15 @@ class AlabamaScraper(
         court_id: str = accumulated_data.get("court_id", "")
         court_guid: str = accumulated_data.get("court_guid", "")
 
-        try:
-            data = json.loads(response.text)
-        except json.JSONDecodeError:
-            return
-
         # Navigate to results
-        embedded = data.get("_embedded", {})
+        embedded = json_content.get("_embedded", {})
         results = embedded.get("results", [])
 
         if not results:
             return
 
         # Get pagination info
-        page_info = data.get("page", {})
+        page_info = json_content.get("page", {})
         current_page = page_info.get("number", 0)
         total_pages = page_info.get("totalPages", 1)
 
@@ -623,7 +617,7 @@ class AlabamaScraper(
             }
             url = f"{api_url}?{urlencode(params)}"
 
-            yield NavigatingRequest(
+            yield NonNavigatingRequest(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
                     url=url,
@@ -738,7 +732,7 @@ class AlabamaScraper(
     @step(xsd="xsds/parse_events_list.xsd")
     def parse_events_list(
         self,
-        lxml_tree: CheckedHtmlElement,
+        json_content: dict,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
@@ -778,13 +772,8 @@ class AlabamaScraper(
         start_date = date.fromisoformat(accumulated_data["start_date"])
         end_date = date.fromisoformat(accumulated_data["end_date"])
 
-        try:
-            data = json.loads(response.text)
-        except json.JSONDecodeError:
-            return
-
         # Get pagination info
-        page_info = data.get("page", {})
+        page_info = json_content.get("page", {})
         current_page = page_info.get("number", 0)
         total_pages = page_info.get("totalPages", 1)
 
@@ -792,7 +781,7 @@ class AlabamaScraper(
         target_courts = self._get_target_courts("oral_arguments")
 
         # Process events
-        results = data.get("_embedded", {}).get("results", [])
+        results = json_content.get("_embedded", {}).get("results", [])
         for event in results:
             event_uuid = event.get("eventUUID")
             court_abbr = event.get("courtAbbreviation", "")
@@ -887,8 +876,7 @@ class AlabamaScraper(
     @step(xsd="xsds/parse_event_hearings.xsd")
     def parse_event_hearings(
         self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
+        json_content: dict,
         accumulated_data: dict,
     ) -> Generator[
         ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
@@ -922,16 +910,11 @@ class AlabamaScraper(
         event_uuid = accumulated_data["event_uuid"]
         event_date = date.fromisoformat(accumulated_data["event_date"])
 
-        try:
-            data = json.loads(response.text)
-        except json.JSONDecodeError:
-            return
-
         # Get case number filter if specified
         _, _, case_number_filter, _ = self._get_oral_arguments_search_params()
 
         # Get hearings
-        results = data.get("_embedded", {}).get("results", [])
+        results = json_content.get("_embedded", {}).get("results", [])
 
         for hearing in results:
             case_header = hearing.get("caseHeader", {})
@@ -1071,8 +1054,7 @@ class AlabamaScraper(
     @step(xsd="xsds/parse_dockets_search.xsd")
     def parse_dockets_search(
         self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
+        json_content: dict,
         accumulated_data: dict,
     ) -> Generator[
         ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
@@ -1113,13 +1095,8 @@ class AlabamaScraper(
         end_date = date.fromisoformat(accumulated_data["end_date"])
         is_first_page = accumulated_data.get("is_first_page", False)
 
-        try:
-            data = json.loads(response.text)
-        except json.JSONDecodeError:
-            return
-
         # Get pagination info
-        page_info = data.get("page", {})
+        page_info = json_content.get("page", {})
         current_page = page_info.get("number", 0)
         total_pages = page_info.get("totalPages", 1)
         total_elements = page_info.get("totalElements", 0)
@@ -1131,7 +1108,7 @@ class AlabamaScraper(
             return
 
         # Navigate to results
-        embedded = data.get("_embedded", {})
+        embedded = json_content.get("_embedded", {})
         results = embedded.get("results", [])
 
         # Process each case in the results
@@ -1256,8 +1233,7 @@ class AlabamaScraper(
     @step(xsd="xsds/parse_case_detail.xsd")
     def parse_case_detail(
         self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
+        json_content: dict,
         accumulated_data: dict,
     ) -> Generator[
         ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
@@ -1289,12 +1265,7 @@ class AlabamaScraper(
         case_instance_uuid = accumulated_data["case_instance_uuid"]
         court_guid = accumulated_data["court_guid"]
 
-        try:
-            data = json.loads(response.text)
-        except json.JSONDecodeError:
-            return
-
-        case_header = data.get("caseHeader", {})
+        case_header = json_content.get("caseHeader", {})
 
         # Extract basic case info
         case_number = case_header.get("caseNumber", "")
@@ -1378,8 +1349,7 @@ class AlabamaScraper(
     @step(xsd="xsds/parse_case_parties.xsd")
     def parse_case_parties(
         self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
+        json_content: dict,
         accumulated_data: dict,
     ) -> Generator[
         ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
@@ -1418,12 +1388,7 @@ class AlabamaScraper(
         """
         docket: AlaDocket = accumulated_data["docket"]
 
-        try:
-            data = json.loads(response.text)
-        except json.JSONDecodeError:
-            data = {}
-
-        embedded = data.get("_embedded", {})
+        embedded = json_content.get("_embedded", {})
         results = embedded.get("results", [])
 
         parties = []
@@ -1488,8 +1453,7 @@ class AlabamaScraper(
     @step(xsd="xsds/parse_docket_entries.xsd")
     def parse_docket_entries(
         self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
+        json_content: dict,
         accumulated_data: dict,
     ) -> Generator[
         ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
@@ -1520,16 +1484,11 @@ class AlabamaScraper(
         """
         docket: AlaDocket = accumulated_data["docket"]
 
-        try:
-            data = json.loads(response.text)
-        except json.JSONDecodeError:
-            data = {}
-
-        embedded = data.get("_embedded", {})
+        embedded = json_content.get("_embedded", {})
         results = embedded.get("results", [])
 
         # Get pagination info
-        page_info = data.get("page", {})
+        page_info = json_content.get("page", {})
         current_page = page_info.get("number", 0)
         total_pages = page_info.get("totalPages", 1)
 

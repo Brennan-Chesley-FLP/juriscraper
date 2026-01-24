@@ -21,7 +21,7 @@ Supported parameter names:
 The decorator also handles:
 
 - Attaching priority metadata to functions
-- Attaching encoding and xsd metadata for drivers to optionally use
+- Attaching encoding, xsd, and json_model metadata for drivers to optionally use
 - Auto-resolving Callable continuations to string names
 - Automatic yielding from wrapped generators
 - Validating that speculative=True steps have a speculative_id parameter
@@ -57,6 +57,7 @@ class StepMetadata:
         priority: Priority hint for queue ordering (lower = higher priority).
         encoding: Character encoding for text/HTML decoding.
         xsd: Optional path to XSD schema file for structural validation hints.
+        json_model: Optional dotted path to Pydantic model for JSON response validation.
         speculative: Whether this step handles speculative requests. When True,
             consumers can configure the maximum speculative ID for this step.
     """
@@ -66,11 +67,13 @@ class StepMetadata:
         priority: int = 9,
         encoding: str = "utf-8",
         xsd: str | None = None,
+        json_model: str | None = None,
         speculative: bool = False,
     ):
         self.priority = priority
         self.encoding = encoding
         self.xsd = xsd
+        self.json_model = json_model
         self.speculative = speculative
 
 
@@ -187,6 +190,7 @@ def step(
     priority: int = 9,
     encoding: str = "utf-8",
     xsd: str | None = None,
+    json_model: str | None = None,
     speculative: bool = False,
 ) -> Any:
     """Decorator for scraper step methods with automatic argument injection.
@@ -233,6 +237,12 @@ def step(
             # to optionally use when evaluating structural errors
             ...
 
+        @step(json_model="api.publications.PublicationsResponse")
+        def parse_api_response(self, json_content: dict):
+            # JSON model reference available via get_step_metadata() for drivers
+            # to optionally use for post-hoc validation
+            ...
+
         @step(speculative=True)
         def parse_case(self, lxml_tree: CheckedHtmlElement, speculative_id: int):
             # Marks this step as handling speculative requests.
@@ -253,6 +263,9 @@ def step(
         encoding: Character encoding for text/HTML decoding.
         xsd: Optional path to XSD schema file. Drivers may use this hint
             when evaluating structural assumption errors.
+        json_model: Optional dotted path to Pydantic model (e.g.,
+            "api.publications.PublicationsResponse"). Resolved relative to
+            scraper package. Drivers may use this for post-hoc validation.
         speculative: Whether this step handles speculative requests. When True,
             consumers can configure the maximum speculative ID for this step
             via the params system.
@@ -284,6 +297,7 @@ def step(
             priority=priority,
             encoding=encoding,
             xsd=xsd,
+            json_model=json_model,
             speculative=speculative,
         )
 

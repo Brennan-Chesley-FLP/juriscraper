@@ -620,6 +620,84 @@ class TestXsdParameter:
         assert metadata.xsd == "schemas/special.xsd"
 
 
+class TestJsonModelParameter:
+    """Tests for json_model parameter support."""
+
+    def test_default_json_model_is_none(self):
+        """The @step decorator shall have json_model=None by default."""
+
+        class NoJsonModelScraper(BaseScraper[dict]):
+            @step
+            def parse(
+                self, response: Response
+            ) -> Generator[ScraperYield, None, None]:
+                yield ParsedData(data={})
+
+        scraper = NoJsonModelScraper()
+        metadata = get_step_metadata(scraper.parse)
+
+        assert metadata is not None
+        assert metadata.json_model is None
+
+    def test_json_model_attached_when_specified(self):
+        """The @step decorator shall attach json_model path when specified."""
+
+        class JsonModelScraper(BaseScraper[dict]):
+            @step(json_model="api.publications.PublicationsResponse")
+            def parse(
+                self, response: Response
+            ) -> Generator[ScraperYield, None, None]:
+                yield ParsedData(data={})
+
+        scraper = JsonModelScraper()
+        metadata = get_step_metadata(scraper.parse)
+
+        assert metadata is not None
+        assert metadata.json_model == "api.publications.PublicationsResponse"
+
+    def test_json_model_with_other_parameters(self):
+        """The @step decorator shall support json_model alongside priority and encoding."""
+
+        class CombinedScraper(BaseScraper[dict]):
+            @step(
+                priority=3,
+                encoding="utf-8",
+                json_model="api.cases.CasesResponse",
+            )
+            def parse(
+                self, response: Response
+            ) -> Generator[ScraperYield, None, None]:
+                yield ParsedData(data={})
+
+        scraper = CombinedScraper()
+        metadata = get_step_metadata(scraper.parse)
+
+        assert metadata is not None
+        assert metadata.priority == 3
+        assert metadata.encoding == "utf-8"
+        assert metadata.json_model == "api.cases.CasesResponse"
+
+    def test_json_model_and_xsd_together(self):
+        """The @step decorator shall support both json_model and xsd together."""
+
+        class BothModelsScraper(BaseScraper[dict]):
+            @step(
+                xsd="schemas/court_page.xsd",
+                json_model="api.metadata.MetadataResponse",
+            )
+            def parse(
+                self, response: Response
+            ) -> Generator[ScraperYield, None, None]:
+                yield ParsedData(data={})
+
+        scraper = BothModelsScraper()
+        metadata = get_step_metadata(scraper.parse)
+
+        assert metadata is not None
+        assert metadata.xsd == "schemas/court_page.xsd"
+        assert metadata.json_model == "api.metadata.MetadataResponse"
+
+
 class TestSpeculativeParameter:
     """Tests for speculative parameter support."""
 

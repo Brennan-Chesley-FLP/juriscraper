@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 import aiosqlite
+from pydantic import BaseModel
 
 from juriscraper.scraper_driver.driver.dev_driver.schema import (
     get_next_queue_counter,
@@ -2177,3 +2178,80 @@ class SQLManager:
         async with self._lock:
             await self._db.execute(SQL.UPDATE_RATE_LIMITER_RATE_LIMITED)
             await self._db.commit()
+
+    # --- JSON Response Validation ---
+
+    async def validate_json_responses(
+        self,
+        continuation: str,
+        model: type[BaseModel],
+    ) -> list[int]:
+        """Validate stored JSON responses against a Pydantic model.
+
+        This diagnostic function retrieves all stored responses for a continuation,
+        decompresses them, parses as JSON, and validates against the provided model.
+
+        Args:
+            continuation: The continuation method name to filter responses.
+            model: Pydantic BaseModel class to validate against.
+
+        Returns:
+            List of request_id values for responses that failed validation.
+            Empty list if all responses are valid or if no responses exist.
+
+        Example::
+
+            from myapi.models import PublicationsResponse
+            async with SQLManager.open(db_path) as manager:
+                invalid_ids = await manager.validate_json_responses(
+                    "parse_publications",
+                    PublicationsResponse
+                )
+                if invalid_ids:
+                    print(f"Invalid responses: {invalid_ids}")
+        """
+        from juriscraper.scraper_driver.driver.dev_driver.compression import (
+            decompress_response,
+        )
+
+        # Get all responses for this continuation
+        cursor = await self._db.execute(
+            """
+            SELECT id, request_id, content_compressed, compression_dict_id
+            FROM responses
+            WHERE continuation = ?
+            """,
+            (continuation,),
+        )
+        rows = await cursor.fetchall()
+
+        if not rows:
+            return []
+
+        invalid_request_ids = []
+
+        for row in rows:
+            response_id, request_id, compressed_content, dict_id = row
+
+            # Skip empty responses
+            if compressed_content is None:
+                continue
+
+            try:
+                # Decompress the response
+                content = await decompress_response(
+                    self._db, compressed_content, dict_id
+                )
+
+                # Parse as JSON
+                content_str = content.decode("utf-8")
+                data = json.loads(content_str)
+
+                # Validate against the model
+                model.model_validate(data)
+
+            except Exception:
+                # Any error (decompression, JSON parse, validation) means invalid
+                invalid_request_ids.append(request_id)
+
+        return invalid_request_ids

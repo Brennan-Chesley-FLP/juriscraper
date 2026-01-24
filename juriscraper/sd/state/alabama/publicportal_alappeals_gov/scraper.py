@@ -414,7 +414,10 @@ class AlabamaScraper(
                 },
             )
 
-    @step(xsd="xsds/parse_publications_list.xsd")
+    @step(
+        xsd="xsds/parse_publications_list.xsd",
+        json_model="api.responses.PublicationsListResponse",
+    )
     def parse_publications_list(
         self,
         json_content: dict,
@@ -729,7 +732,10 @@ class AlabamaScraper(
             },
         )
 
-    @step(xsd="xsds/parse_events_list.xsd")
+    @step(
+        xsd="xsds/parse_events_list.xsd",
+        json_model="api.responses.EventsListResponse",
+    )
     def parse_events_list(
         self,
         json_content: dict,
@@ -873,7 +879,10 @@ class AlabamaScraper(
                 },
             )
 
-    @step(xsd="xsds/parse_event_hearings.xsd")
+    @step(
+        xsd="xsds/parse_event_hearings.xsd",
+        json_model="api.responses.EventHearingsResponse",
+    )
     def parse_event_hearings(
         self,
         json_content: dict,
@@ -1051,7 +1060,10 @@ class AlabamaScraper(
             },
         )
 
-    @step(xsd="xsds/parse_dockets_search.xsd")
+    @step(
+        xsd="xsds/parse_dockets_search.xsd",
+        json_model="api.responses.DocketsSearchResponse",
+    )
     def parse_dockets_search(
         self,
         json_content: dict,
@@ -1230,7 +1242,10 @@ class AlabamaScraper(
                 return court_id
         return None
 
-    @step(xsd="xsds/parse_case_detail.xsd")
+    @step(
+        xsd="xsds/parse_case_detail.xsd",
+        json_model="api.responses.CaseDetailResponse",
+    )
     def parse_case_detail(
         self,
         json_content: dict,
@@ -1346,7 +1361,10 @@ class AlabamaScraper(
             },
         )
 
-    @step(xsd="xsds/parse_case_parties.xsd")
+    @step(
+        xsd="xsds/parse_case_parties.xsd",
+        json_model="api.responses.CasePartiesResponse",
+    )
     def parse_case_parties(
         self,
         json_content: dict,
@@ -1450,7 +1468,10 @@ class AlabamaScraper(
             },
         )
 
-    @step(xsd="xsds/parse_docket_entries.xsd")
+    @step(
+        xsd="xsds/parse_docket_entries.xsd",
+        json_model="api.responses.DocketEntriesResponse",
+    )
     def parse_docket_entries(
         self,
         json_content: dict,

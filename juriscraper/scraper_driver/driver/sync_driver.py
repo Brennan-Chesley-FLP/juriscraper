@@ -649,6 +649,14 @@ class SyncDriver(Generic[ScraperReturnDatatype]):
             else request.continuation.__name__
         )
 
+        # Check for hidden failures in successful responses
+        # If fails_successfully returns False, treat as status 555
+        if (
+            200 <= response.status_code < 300
+            and not self.scraper.fails_successfully(response)
+        ):
+            response.status_code = 555
+
         # Determine success based on status code
         is_success_status = 200 <= response.status_code < 300
 

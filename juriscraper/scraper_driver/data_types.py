@@ -346,6 +346,41 @@ class BaseScraper(Generic[ScraperReturnType]):
                 continue
         return steps
 
+    def fails_successfully(self, response: Response) -> bool:
+        """Detect hidden error states in successful HTTP responses.
+
+        Some websites return HTTP 200 status codes but embed error states
+        in the page content or headers (e.g., "No results found" pages,
+        session timeout pages, soft 404s). This method allows scrapers to
+        detect these hidden failures.
+
+        This is primarily used for SpeculativeRequest handling. When a
+        speculative request gets a 2xx response, the driver calls this
+        method to check if the response actually represents a failure.
+        If this returns False, the driver sets status_code=555 before
+        calling the speculation callback.
+
+        Args:
+            response: The Response object to check for hidden errors.
+
+        Returns:
+            True if the response is genuinely successful (default behavior).
+            False if the response contains a hidden error pattern.
+
+        Example:
+            Override this method to detect site-specific error patterns::
+
+                def fails_successfully(self, response: Response) -> bool:
+                    # Detect "No results" page that returns 200
+                    if "No results found" in response.text:
+                        return False
+                    # Detect session timeout
+                    if response.url.endswith("/login"):
+                        return False
+                    return True
+        """
+        return True
+
 
 @dataclass(frozen=True)
 class ParsedData(Generic[T]):

@@ -4,12 +4,14 @@ This module provides factory functions for creating speculation response
 handlers that control how speculative scraping behaves when encountering
 non-2xx responses.
 
-The main factory function `create_speculation_handler` creates a handler that:
+The main factory function ``create_speculation_handler`` creates a handler that:
+
 - Always returns True for speculative_ids below the threshold
 - Returns True for the first N "speculation" attempts above the threshold
 - Returns False after the speculation attempts are exhausted
 
 This is useful for:
+
 - Speculative ID scanning (e.g., case IDs from 1 to N)
 - Pagination probing
 - Any scenario where you want to try a few extra requests beyond known data
@@ -20,30 +22,25 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from enum import Enum, auto
 from typing import TYPE_CHECKING
+
+# Import FlowControl from data_types and re-export for backward compatibility
+from juriscraper.scraper_driver.data_types import FlowControl
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from juriscraper.scraper_driver.data_types import Response
 
-
-class FlowControl(Enum):
-    """Control flow decisions for speculation handling.
-
-    Values:
-        CONTINUE: Continue speculation (send True to generator).
-        SKIP: Skip this request but continue iteration.
-        STOP: Stop speculation (send False to generator).
-        AWAIT_MORE_INFO: Need response to decide - park generator until response available.
-    """
-
-    CONTINUE = auto()
-    SKIP = auto()
-    STOP = auto()
-    AWAIT_MORE_INFO = auto()
-
+# Re-export for backward compatibility
+__all__ = [
+    "FlowControl",
+    "SpeculationConfig",
+    "SpeculationState",
+    "SpeculationTracker",
+    "create_speculation_handler",
+    "create_speculation_handler_with_tracking",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +93,7 @@ class SpeculationTracker:
         """Determine if speculation should continue.
 
         This method can be called in two scenarios:
+
         1. Early check (response=None): Called when a SpeculativeRequest is first
            yielded to determine if we can make a decision without the HTTP response.
         2. Full check (response provided): Called after receiving the HTTP response.
@@ -173,19 +171,22 @@ def create_speculation_handler(
     """Create a speculation response handler from a configuration map.
 
     The configuration map specifies threshold and speculation values per
-    continuation name:
+    continuation name::
+
         {
             "start_docket_scraping": {"threshold": 89000, "speculation": 10},
             "parse_listing": {"threshold": 0, "speculation": 5},
         }
 
     The handler:
+
     - For speculative_id <= threshold: returns CONTINUE (can decide without response)
     - For speculative_id > threshold with no response: returns AWAIT_MORE_INFO
     - For speculative_id > threshold with response: returns CONTINUE for first N
       non-2xx responses, then STOP
 
     The handler may be called twice for a single speculative request:
+
     1. First call with response=None to check if early decision possible
     2. Second call with response if AWAIT_MORE_INFO was returned
 
@@ -196,7 +197,8 @@ def create_speculation_handler(
     Returns:
         Async callback suitable for on_speculation_response parameter.
 
-    Example:
+    Example::
+
         handler = create_speculation_handler({
             "start_docket_scraping": {"threshold": 89000, "speculation": 10},
         })

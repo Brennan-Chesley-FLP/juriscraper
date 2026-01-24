@@ -1,29 +1,35 @@
 """New Jersey Courts Scraper.
 
-This module scrapes opinions from New Jersey courts:
-- Supreme Court of New Jersey (nj)
-- Superior Court Appellate Division (njsuperctappdiv)
+This module scrapes opinions from New Jersey courts::
 
-Entry points:
-- Supreme Court: https://www.njcourts.gov/attorneys/opinions/supreme
-- Published Appellate: https://www.njcourts.gov/attorneys/opinions/published-appellate
-- Unpublished Appellate: https://www.njcourts.gov/attorneys/opinions/unpublished-appellate
+    - Supreme Court of New Jersey (nj)
+    - Superior Court Appellate Division (njsuperctappdiv)
 
-Flow:
-1. get_entry -> yields requests to opinion list pages based on court filter
-2. parse_opinions_list -> parses article elements, yields ArchiveRequests for PDFs
-3. handle_opinion_download -> yields final NewJerseyOpinionCluster
+Entry points::
 
-Design decisions:
-- Each opinion type has its own paginated list page
-- Pages are paginated with ?page=N (0-indexed)
-- Each opinion entry is an <article> element containing:
-  - Case name link (to PDF)
-  - Docket number
-  - Court type badge (Supreme, Published Appellate, etc.)
-  - Date
-- Uses DateRange filter on date_filed for searching
-- Uses SetFilter on court_id to select which courts to scrape
+    - Supreme Court: https://www.njcourts.gov/attorneys/opinions/supreme
+    - Published Appellate: https://www.njcourts.gov/attorneys/opinions/published-appellate
+    - Unpublished Appellate: https://www.njcourts.gov/attorneys/opinions/unpublished-appellate
+
+Flow::
+
+    1. get_entry -> yields requests to opinion list pages based on court filter
+    2. parse_opinions_list -> parses article elements, yields ArchiveRequests for PDFs
+    3. handle_opinion_download -> yields final NewJerseyOpinionCluster
+
+Design decisions::
+
+    - Each opinion type has its own paginated list page
+    - Pages are paginated with ?page=N (0-indexed)
+    - Each opinion entry is an <article> element containing:
+
+        - Case name link (to PDF)
+        - Docket number
+        - Court type badge (Supreme, Published Appellate, etc.)
+        - Date
+
+    - Uses DateRange filter on date_filed for searching
+    - Uses SetFilter on court_id to select which courts to scrape
 """
 
 from __future__ import annotations

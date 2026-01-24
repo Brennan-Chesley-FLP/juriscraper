@@ -4,38 +4,44 @@ This module contains a unified scraper for opinions from Virginia courts:
 - Supreme Court of Virginia (va)
 - Court of Appeals of Virginia (vactapp) - both published and unpublished
 
-Entry points:
-- Supreme Court: https://www.vacourts.gov/scndex
-  (redirects to https://webdev.vacourts.gov/dynamic/scndex.htm)
-- Court of Appeals Published: https://www.vacourts.gov/wpcap
-  (redirects to https://webdev.vacourts.gov/dynamic/wpcap.htm)
-- Court of Appeals Unpublished: https://www.vacourts.gov/wpcau
-  (redirects to https://webdev.vacourts.gov/dynamic/wpcau.htm)
+Entry points::
 
-PDF URL patterns:
-- Supreme Court: https://www.vacourts.gov/opinions/opnscvwp/1{case_number}.pdf
-- Court of Appeals: https://www.vacourts.gov/opinions/opncavwp/{case_number}.pdf
+  - Supreme Court: https://www.vacourts.gov/scndex
+    (redirects to https://webdev.vacourts.gov/dynamic/scndex.htm)
+  - Court of Appeals Published: https://www.vacourts.gov/wpcap
+    (redirects to https://webdev.vacourts.gov/dynamic/wpcap.htm)
+  - Court of Appeals Unpublished: https://www.vacourts.gov/wpcau
+    (redirects to https://webdev.vacourts.gov/dynamic/wpcau.htm)
 
-Page structure:
-- Opinions are listed in <p> elements
-- Each <p> contains:
-  - <a> link with case number text and href to PDF
-  - <b> or plain text with case name
-  - Date in MM/DD/YYYY format
-  - Summary/disposition text
+PDF URL patterns::
 
-Flow:
+  - Supreme Court: https://www.vacourts.gov/opinions/opnscvwp/1{case_number}.pdf
+  - Court of Appeals: https://www.vacourts.gov/opinions/opncavwp/{case_number}.pdf
+
+Page structure::
+
+  - Opinions are listed in <p> elements
+  - Each <p> contains:
+
+    - <a> link with case number text and href to PDF
+    - <b> or plain text with case name
+    - Date in MM/DD/YYYY format
+    - Summary/disposition text
+
+Flow::
+
   1. get_entry -> opinion index page(s) based on requested courts
   2. parse_opinions -> extracts opinion metadata from paragraph elements
   3. yields ArchiveRequests for PDFs
   4. handle_download -> stores local paths, yields final clusters
 
-Design decisions:
-- Uses restrictive checked_xpaths to catch structural changes early
-- Uses DateRange filter on date_filed for searching
-- Uses SetFilter on court_id to select which courts to scrape
-- Archives opinion PDFs via ArchiveRequest
-- Scrapes all three opinion pages (va, vactapp published, vactapp unpublished)
+Design decisions::
+
+  - Uses restrictive checked_xpaths to catch structural changes early
+  - Uses DateRange filter on date_filed for searching
+  - Uses SetFilter on court_id to select which courts to scrape
+  - Archives opinion PDFs via ArchiveRequest
+  - Scrapes all three opinion pages (va, vactapp published, vactapp unpublished)
 """
 
 from __future__ import annotations
@@ -76,7 +82,8 @@ class VirginiaScraper(BaseScraper[VaOpinionCluster]):
 
     Scrapes opinions from Supreme Court of Virginia and Court of Appeals.
 
-    Usage:
+    Usage::
+
         # Scrape all courts (default)
         scraper = VirginiaScraper()
 

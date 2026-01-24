@@ -17,14 +17,15 @@ from collections.abc import Generator
 from datetime import date, datetime
 from typing import TYPE_CHECKING, ClassVar
 
-from juriscraper.scraper_driver.common.models.requests import (
+from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
+    BaseScraper,
+    HttpMethod,
     HTTPRequestParams,
     NavigatingRequest,
+    ParsedData,
 )
-from juriscraper.scraper_driver.common.scraper import BaseScraper
-from juriscraper.scraper_driver.common.step import step
-from juriscraper.scraper_driver.common.types import ParsedData, ScraperYield
 
 from .models import (
     API_CONFIG,
@@ -35,8 +36,9 @@ from .models import (
 )
 
 if TYPE_CHECKING:
-    from juriscraper.scraper_driver.common.models.responses import (
+    from juriscraper.scraper_driver.data_types import (
         ArchiveResponse,
+        ScraperYield,
     )
     from juriscraper.scraper_driver.common.scraper import ScraperParams
 
@@ -162,7 +164,7 @@ class FloridaScraper(BaseScraper[FloridaOpinionCluster]):
 
         return f"{API_CONFIG['search_endpoint']}?{'&'.join(params)}"
 
-    def get_entry(self) -> Generator[ScraperYield, None, None]:
+    def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Entry point - fetch opinions for each requested court."""
         requested_courts = self._get_requested_court_ids()
         date_gte, date_lte = self._get_date_range()
@@ -186,7 +188,7 @@ class FloridaScraper(BaseScraper[FloridaOpinionCluster]):
             )
 
             yield NavigatingRequest(
-                request=HTTPRequestParams(url=api_url),
+                request=HTTPRequestParams(method=HttpMethod.GET, url=api_url),
                 continuation=self.parse_opinions_api,
                 accumulated_data={
                     "court_id": court_id,
@@ -270,7 +272,7 @@ class FloridaScraper(BaseScraper[FloridaOpinionCluster]):
 
             # Yield ArchiveRequest to download the PDF
             yield ArchiveRequest(
-                request=HTTPRequestParams(url=pdf_url),
+                request=HTTPRequestParams(method=HttpMethod.GET, url=pdf_url),
                 continuation=self.handle_pdf_download,
                 expected_type="pdf",
                 accumulated_data={
@@ -308,7 +310,7 @@ class FloridaScraper(BaseScraper[FloridaOpinionCluster]):
             )
 
             yield NavigatingRequest(
-                request=HTTPRequestParams(url=api_url),
+                request=HTTPRequestParams(method=HttpMethod.GET, url=api_url),
                 continuation=self.parse_opinions_api,
                 accumulated_data={
                     **accumulated_data,

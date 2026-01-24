@@ -5,6 +5,7 @@ searchable, allowing scrapers to advertise which fields can be filtered
 when querying for data.
 
 Four filter types are supported:
+
 - DateRange: Filter by date range (gte/lte)
 - SetFilter: Filter by a set of allowed values
 - UniqueMatch: Filter by exact match (single value)

@@ -4,14 +4,17 @@ These models extend ConsumerModel types from base.py to capture
 Louisiana Supreme Court opinion data.
 
 Mapping to base.py types:
+
 - LouisianaOpinion -> Opinion (individual opinion document)
 - LouisianaOpinionCluster -> OpinionCluster (group of related opinions)
 
 Supported court:
+
 - la: Supreme Court of Louisiana
 
 Case number format:
-- {year}-{type}-{number} e.g., 2025-C-01635
+
+- ``{year}-{type}-{number}`` e.g., 2025-C-01635
 - Type codes: C (civil), K (criminal), KK (criminal writ), CC (civil certified),
   B (disciplinary), BA (bar admission), OB (disciplinary appeal), etc.
 """

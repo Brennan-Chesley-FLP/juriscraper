@@ -3,22 +3,22 @@
 This module contains the sync driver that processes scraper generators.
 It evolves across the 29 steps of the design documentation.
 
-Step 1: A simple function that runs a scraper generator and collects results.
-Step 2: A class-based driver that handles NavigatingRequest, fetches pages,
-        and calls continuation methods by name.
-Step 3: Tracks current_location and handles NonNavigatingRequest.
-Step 4: Handles ArchiveRequest to download and save files locally.
-Step 5: No driver changes - accumulated_data flows through requests automatically.
-Step 6: No driver changes - aux_data flows through requests automatically.
-Step 7: Adds on_data callback for side effects (persistence, logging) when data yielded.
-Step 9: Adds on_invalid_data callback for handling validation failures.
-Step 10: Adds on_transient_exception callback for handling transient errors.
-Step 11: Adds interceptors for request/response transformation with short-circuit support.
-Step 12: Adds rate limiting interceptor with adaptive rate reduction.
-Step 13: Adds on_archive callback for customizing file archival behavior.
-Step 14: Adds on_run_start and on_run_complete lifecycle hooks for tracking scraper runs.
-Step 15: Replaces list queue with heapq priority queue for memory optimization.
-Step 16: Adds deduplication_key field to requests and duplicate_check callback for preventing duplicate requests.
+- Step 1: A simple function that runs a scraper generator and collects results.
+- Step 2: A class-based driver that handles NavigatingRequest, fetches pages,
+  and calls continuation methods by name.
+- Step 3: Tracks current_location and handles NonNavigatingRequest.
+- Step 4: Handles ArchiveRequest to download and save files locally.
+- Step 5: No driver changes - accumulated_data flows through requests automatically.
+- Step 6: No driver changes - aux_data flows through requests automatically.
+- Step 7: Adds on_data callback for side effects (persistence, logging) when data yielded.
+- Step 9: Adds on_invalid_data callback for handling validation failures.
+- Step 10: Adds on_transient_exception callback for handling transient errors.
+- Step 11: Adds interceptors for request/response transformation with short-circuit support.
+- Step 12: Adds rate limiting interceptor with adaptive rate reduction.
+- Step 13: Adds on_archive callback for customizing file archival behavior.
+- Step 14: Adds on_run_start and on_run_complete lifecycle hooks for tracking scraper runs.
+- Step 15: Replaces list queue with heapq priority queue for memory optimization.
+- Step 16: Adds deduplication_key field to requests and duplicate_check callback for preventing duplicate requests.
 """
 
 from __future__ import annotations
@@ -50,6 +50,7 @@ from juriscraper.scraper_driver.data_types import (
     ArchiveResponse,
     BaseRequest,
     BaseScraper,
+    FlowControl,
     HTTPRequestParams,
     NavigatingRequest,
     NonNavigatingRequest,
@@ -60,9 +61,6 @@ from juriscraper.scraper_driver.data_types import (
     SkipDeduplicationCheck,
     SpeculationContext,
     SpeculativeRequest,
-)
-from juriscraper.scraper_driver.driver.dev_driver.speculation import (
-    FlowControl,
 )
 
 if TYPE_CHECKING:

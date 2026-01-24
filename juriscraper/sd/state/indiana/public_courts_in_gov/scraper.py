@@ -371,32 +371,32 @@ class IndianaScraper(BaseScraper[IndianaOpinionCluster]):
     ) -> Generator[ScraperYield[IndianaOpinionCluster], None, None]:
         """Parse API JSON response and yield requests for each opinion.
 
-        API response structure:
-        {
-            "totalRecords": int,
-            "pageNumber": int,
-            "pageSize": int,
-            "opinions": [
-                {
-                    "caseTitle": "Devon Makel Jones v. State of Indiana",
-                    "opinionDate": "January 22, 2026",
-                    "courtId": 9530,
-                    "courtName": "Court of Appeals",
-                    "caseNumber": "25A-CR-00675",
-                    "lowerCaseNumber": "48C04-2312-F1-003574",
-                    "lowerCourtName": "Madison Circuit Court 4",
-                    "categoryName": "Criminal",
-                    "judgeName": "Mathias",
-                    "disposition": "Affirmed",
-                    "concurringJudges": "Judge Vaidik and Judge Pyle concur",
-                    "dissentingJudges": "",
-                    "isMemorandum": true,
-                    "opinionId": "14qhbbHnhfrM_A7WeRi1bLIgbGGYrPCWY5YRPMpRBAcs-HMgaJe9r8SDHW4QBtWY0",
-                    "countyName": "Madison"
-                },
-                ...
-            ]
-        }
+        API response structure::
+
+            {
+                "totalRecords": int,
+                "pageNumber": int,
+                "pageSize": int,
+                "opinions": [
+                    {
+                        "caseTitle": "Devon Makel Jones v. State of Indiana",
+                        "opinionDate": "January 22, 2026",
+                        "courtId": 9530,
+                        "courtName": "Court of Appeals",
+                        "caseNumber": "25A-CR-00675",
+                        "lowerCaseNumber": "48C04-2312-F1-003574",
+                        "lowerCourtName": "Madison Circuit Court 4",
+                        "categoryName": "Criminal",
+                        "judgeName": "Mathias",
+                        "disposition": "Affirmed",
+                        "concurringJudges": "Judge Vaidik and Judge Pyle concur",
+                        "dissentingJudges": "",
+                        "isMemorandum": true,
+                        "opinionId": "14qhbbHnhfrM_A7WeRi1bLIgbGGYrPCWY5YRPMpRBAcs-HMgaJe9r8SDHW4QBtWY0",
+                        "countyName": "Madison"
+                    }
+                ]
+            }
         """
         target_docket = accumulated_data.get("target_docket")
 

@@ -1,37 +1,41 @@
 """Texas Appellate Courts Opinion Scraper.
 
 This module contains a unified scraper for opinions and orders from Texas courts:
+
 - Texas Supreme Court (tex)
 - Court of Criminal Appeals of Texas (texcrimapp)
 - Texas Courts of Appeals 1-15 (texapp)
 
 Entry points:
-- Court of Criminal Appeals: https://search.txcourts.gov/DocketSrch.aspx?coa=coscca
-- Courts of Appeals: https://search.txcourts.gov/DocketSrch.aspx?coa=coa{NN}
-- Supreme Court: https://www.txcourts.gov/supreme/orders-opinions/
+
+- Court of Criminal Appeals: ``https://search.txcourts.gov/DocketSrch.aspx?coa=coscca``
+- Courts of Appeals: ``https://search.txcourts.gov/DocketSrch.aspx?coa=coa{NN}``
+- Supreme Court: ``https://www.txcourts.gov/supreme/orders-opinions/``
 
 URL patterns:
+
 - CCA/COA Handdown by Date:
-  - CCA: https://search.txcourts.gov/handdown.aspx?coa=coscca&fulldate=MM/DD/YYYY
-  - COA: https://search.txcourts.gov/Docket.aspx?coa=coa{NN}&FullDate=MM/DD/YYYY
-- PDF URLs:
-  - https://search.txcourts.gov/SearchMedia.aspx?MediaVersionID={UUID}&...
+  CCA: ``https://search.txcourts.gov/handdown.aspx?coa=coscca&fulldate=MM/DD/YYYY``,
+  COA: ``https://search.txcourts.gov/Docket.aspx?coa=coa{NN}&FullDate=MM/DD/YYYY``
+- PDF URLs: ``https://search.txcourts.gov/SearchMedia.aspx?MediaVersionID={UUID}&...``
 
 Flow:
-  1. get_entry -> branch by requested courts
-  2. For CCA: parse_cca_calendar -> list of dates -> parse_cca_handdown -> opinions
-  3. For COA: parse_coa_calendar -> list of dates -> parse_coa_handdown -> opinions
-  4. yield ArchiveRequests for PDFs
-  5. handle_opinion_download -> stores local paths, yields final clusters
+
+1. get_entry -> branch by requested courts
+2. For CCA: parse_cca_calendar -> list of dates -> parse_cca_handdown -> opinions
+3. For COA: parse_coa_calendar -> list of dates -> parse_coa_handdown -> opinions
+4. yield ArchiveRequests for PDFs
+5. handle_opinion_download -> stores local paths, yields final clusters
 
 Design decisions:
+
 - Uses restrictive checked_xpaths to catch structural changes early
 - Uses DateRange filter on date_decided for searching
 - Uses SetFilter on court_id to select which courts to scrape
 - Archives opinion PDFs via ArchiveRequest
 - Texas has TWO high courts (unique among US states):
-  - Supreme Court: civil matters only
-  - Court of Criminal Appeals: criminal matters only
+  Supreme Court handles civil matters only,
+  Court of Criminal Appeals handles criminal matters only.
 """
 
 from __future__ import annotations

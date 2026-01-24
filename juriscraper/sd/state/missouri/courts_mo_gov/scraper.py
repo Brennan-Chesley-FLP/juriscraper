@@ -250,15 +250,16 @@ class MissouriScraper(BaseScraper[MissouriOpinionCluster]):
     ) -> Generator[ScraperYield[MissouriOpinionCluster], None, None]:
         """Parse the opinions page and yield requests for each opinion.
 
-        The page structure:
-        - Date buttons (//button) contain dates in MM/DD/YYYY format
-        - When a date is selected, opinions appear in a div after the button
-        - Each opinion entry is in a div with:
-          - Docket number prefix (e.g., "SC101157:")
-          - Optional "Overview/Summary" link
-          - Case name link to PDF
-          - Author text
-          - Vote text
+        The page structure::
+
+            - Date buttons (//button) contain dates in MM/DD/YYYY format
+            - When a date is selected, opinions appear in a div after the button
+            - Each opinion entry is in a div with:
+              - Docket number prefix (e.g., "SC101157:")
+              - Optional "Overview/Summary" link
+              - Case name link to PDF
+              - Author text
+              - Vote text
         """
         date_gte, date_lte, target_docket, target_courts = (
             self._get_search_params()

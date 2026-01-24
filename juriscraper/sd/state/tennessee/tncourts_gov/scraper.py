@@ -1,50 +1,57 @@
 """Tennessee Appellate Courts Scraper.
 
 This module contains a unified scraper for judges, opinions, oral arguments,
-and dockets from Tennessee courts:
-- Tennessee Supreme Court (tenn)
-- Court of Appeals of Tennessee (tennctapp)
-- Court of Criminal Appeals of Tennessee (tenncrimapp)
+and dockets from Tennessee courts::
 
-Entry points:
-- Judges:
-  - https://www.tncourts.gov/courts/{court}/judges
-- Opinions:
-  - https://www.tncourts.gov/courts/{court}/opinions
-- Oral Arguments:
-  - https://www.tncourts.gov/courts/{court}/oral-arguments (YouTube videos)
-- Dockets:
-  - https://pch.tncourts.gov/CaseDetails.aspx?id={N}
+    - Tennessee Supreme Court (tenn)
+    - Court of Appeals of Tennessee (tennctapp)
+    - Court of Criminal Appeals of Tennessee (tenncrimapp)
 
-Judges Flow:
-  1. get_entry -> judges list page for selected courts (if "judges" requested)
-  2. parse_judges_list -> yields requests for each judge detail page
-  3. parse_judge_detail -> extracts profile, yields ArchiveRequest for photo
-  4. handle_judge_photo -> stores local path, yields final TennJudge
+Entry points::
 
-Opinions Flow:
-  1. get_entry -> opinions page for selected courts (if "opinions" requested)
-  2. parse_opinions_list -> extracts opinion metadata, handles pagination
-  3. yields ArchiveRequests for PDFs
-  4. handle_opinion_download -> stores local paths, yields final clusters
+    - Judges:
+      - https://www.tncourts.gov/courts/{court}/judges
+    - Opinions:
+      - https://www.tncourts.gov/courts/{court}/opinions
+    - Oral Arguments:
+      - https://www.tncourts.gov/courts/{court}/oral-arguments (YouTube videos)
+    - Dockets:
+      - https://pch.tncourts.gov/CaseDetails.aspx?id={N}
 
-Oral Arguments Flow:
-  1. get_entry -> oral arguments page for selected courts (if "oral_arguments" requested)
-  2. parse_oral_args_index -> extracts year links
-  3. parse_oral_args_videos -> extracts YouTube URLs, yields TennOralArgument
+Judges Flow::
 
-Dockets Flow:
-  1. get_entry -> navigate to pch.tncourts.gov (if "dockets" requested)
-  2. start_docket_scraping -> yields SpeculativeRequests for PCH IDs
-  3. parse_docket_page -> parses case detail, yields TennDocket
+    1. get_entry -> judges list page for selected courts (if "judges" requested)
+    2. parse_judges_list -> yields requests for each judge detail page
+    3. parse_judge_detail -> extracts profile, yields ArchiveRequest for photo
+    4. handle_judge_photo -> stores local path, yields final TennJudge
 
-Design decisions:
-- Uses restrictive checked_xpaths to catch structural changes early
-- Uses DateRange filter on date_filed/date_argued for searching
-- Uses SetFilter on court_id to select which courts to scrape
-- Uses SpeculativeID on pch_id for speculative docket scraping
-- Archives judge photos and opinion PDFs via ArchiveRequest
-- YouTube videos are not downloaded, only URLs captured
+Opinions Flow::
+
+    1. get_entry -> opinions page for selected courts (if "opinions" requested)
+    2. parse_opinions_list -> extracts opinion metadata, handles pagination
+    3. yields ArchiveRequests for PDFs
+    4. handle_opinion_download -> stores local paths, yields final clusters
+
+Oral Arguments Flow::
+
+    1. get_entry -> oral arguments page for selected courts (if "oral_arguments" requested)
+    2. parse_oral_args_index -> extracts year links
+    3. parse_oral_args_videos -> extracts YouTube URLs, yields TennOralArgument
+
+Dockets Flow::
+
+    1. get_entry -> navigate to pch.tncourts.gov (if "dockets" requested)
+    2. start_docket_scraping -> yields SpeculativeRequests for PCH IDs
+    3. parse_docket_page -> parses case detail, yields TennDocket
+
+Design decisions::
+
+    - Uses restrictive checked_xpaths to catch structural changes early
+    - Uses DateRange filter on date_filed/date_argued for searching
+    - Uses SetFilter on court_id to select which courts to scrape
+    - Uses SpeculativeID on pch_id for speculative docket scraping
+    - Archives judge photos and opinion PDFs via ArchiveRequest
+    - YouTube videos are not downloaded, only URLs captured
 """
 
 from __future__ import annotations

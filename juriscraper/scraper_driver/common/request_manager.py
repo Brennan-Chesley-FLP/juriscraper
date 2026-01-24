@@ -44,12 +44,14 @@ class SyncRequestManager:
     """Manages HTTP requests with interceptor support for synchronous drivers.
 
     This class encapsulates:
+
     - httpx.Client lifecycle
     - Interceptor chain application
     - Request resolution (URL fetching)
     - Response transformation
 
-    Example:
+    Example::
+
         manager = SyncRequestManager(
             interceptors=[cache, rate_limiter],
             ssl_context=scraper.get_ssl_context(),
@@ -177,12 +179,14 @@ class AsyncRequestManager:
     """Manages HTTP requests with interceptor support for asynchronous drivers.
 
     This class encapsulates:
+
     - httpx.AsyncClient lifecycle
     - Interceptor chain application
     - Request resolution (URL fetching)
     - Response transformation
 
-    Example:
+    Example::
+
         manager = AsyncRequestManager(
             interceptors=[cache, rate_limiter],
             ssl_context=scraper.get_ssl_context(),
@@ -321,18 +325,21 @@ class SQLBackedAsyncRequestManager(AsyncRequestManager):
     """AsyncRequestManager with SQLite-backed retry/backoff and response storage.
 
     Extends AsyncRequestManager to add:
+
     - Exponential backoff retry logic for transient errors
     - Maximum backoff time enforcement
     - Database storage of requests and responses via SQLManager
 
-    The retry algorithm uses exponential backoff:
+    The retry algorithm uses exponential backoff::
+
         next_retry_delay = base_delay * 2^retry_count
 
     Individual delays are capped at max_backoff_time / 4 to prevent
     excessively long single delays. When cumulative backoff exceeds
     max_backoff_time, the request is marked as failed.
 
-    Example:
+    Example::
+
         manager = SQLBackedAsyncRequestManager(
             sql_manager=sql_manager,
             max_backoff_time=3600.0,  # 1 hour max

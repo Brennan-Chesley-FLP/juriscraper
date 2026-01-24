@@ -4,6 +4,7 @@ This module contains the async driver that processes scraper generators
 using multiple concurrent workers.
 
 The AsyncDriver closely mirrors SyncDriver with three key differences:
+
 1. Factors out the main run loop to a worker method for concurrency
 2. Uses an async-compatible priority queue (asyncio.PriorityQueue)
 3. Takes num_workers argument to control concurrency
@@ -39,6 +40,7 @@ from juriscraper.scraper_driver.data_types import (
     ArchiveResponse,
     BaseRequest,
     BaseScraper,
+    FlowControl,
     HTTPRequestParams,
     NavigatingRequest,
     NonNavigatingRequest,
@@ -49,9 +51,6 @@ from juriscraper.scraper_driver.data_types import (
     SkipDeduplicationCheck,
     SpeculationContext,
     SpeculativeRequest,
-)
-from juriscraper.scraper_driver.driver.dev_driver.speculation import (
-    FlowControl,
 )
 
 if TYPE_CHECKING:

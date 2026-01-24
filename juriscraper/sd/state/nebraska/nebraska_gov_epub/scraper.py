@@ -3,32 +3,36 @@
 This module scrapes opinions from the Nebraska Supreme Court and
 Court of Appeals using the Nebraska Appellate Courts Online Library.
 
-Entry points:
-- Supreme Court: https://www.nebraska.gov/apps-courts-epub/public/supreme
-- Court of Appeals: https://www.nebraska.gov/apps-courts-epub/public/appeals
+Entry points::
 
-Flow:
-1. get_entry -> Volume list page URL (based on requested courts)
-2. parse_volume_list -> Parse volumes table, find expanded volumes with opinions
-3. _parse_opinion_rows -> Parse opinion data from expanded volume tables
-4. handle_opinion_download -> yields final NebraskaOpinionCluster
+    - Supreme Court: https://www.nebraska.gov/apps-courts-epub/public/supreme
+    - Court of Appeals: https://www.nebraska.gov/apps-courts-epub/public/appeals
 
-Design decisions:
-- Each court (Supreme/Appeals) has its own volume listing page
-- Volumes are expandable - clicking expands to show individual opinions
-- **Requires Playwright/browser driver**: The page uses JavaScript to expand
-  volumes. The driver must click on each volume link to expand it before
-  this scraper can parse the opinion data.
-- When expanded, opinions appear in a nested table with columns:
-  Date, Docket No., Caption, Citation, Status
-- Opinions link to direct PDF downloads via viewAdvanced endpoint
-- Uses SetFilter on court_id to select which courts to scrape
-- Uses DateRange filter on date_filed for searching
+Flow::
 
-Note: This scraper requires a Playwright/browser-based driver that will:
-1. Navigate to the volume list page
-2. Click on each volume link to expand it (or all volumes if supported)
-3. Pass the fully rendered HTML to this scraper for parsing
+    1. get_entry -> Volume list page URL (based on requested courts)
+    2. parse_volume_list -> Parse volumes table, find expanded volumes with opinions
+    3. _parse_opinion_rows -> Parse opinion data from expanded volume tables
+    4. handle_opinion_download -> yields final NebraskaOpinionCluster
+
+Design decisions::
+
+    - Each court (Supreme/Appeals) has its own volume listing page
+    - Volumes are expandable - clicking expands to show individual opinions
+    - **Requires Playwright/browser driver**: The page uses JavaScript to expand
+      volumes. The driver must click on each volume link to expand it before
+      this scraper can parse the opinion data.
+    - When expanded, opinions appear in a nested table with columns:
+      Date, Docket No., Caption, Citation, Status
+    - Opinions link to direct PDF downloads via viewAdvanced endpoint
+    - Uses SetFilter on court_id to select which courts to scrape
+    - Uses DateRange filter on date_filed for searching
+
+Note: This scraper requires a Playwright/browser-based driver that will::
+
+    1. Navigate to the volume list page
+    2. Click on each volume link to expand it (or all volumes if supported)
+    3. Pass the fully rendered HTML to this scraper for parsing
 """
 
 from __future__ import annotations

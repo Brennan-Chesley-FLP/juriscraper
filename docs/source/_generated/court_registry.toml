@@ -1,11 +1,160 @@
 [meta]
-generated = "2026-01-13"
+generated = "2026-01-23"
 description = "Auto-generated court scraper registry"
 
 [stats]
-total_scrapers = 1
+total_scrapers = 17
 total_courts_known = 2340
-total_courts_covered = 2
+total_courts_covered = 52
+
+[scrapers.AlabamaScraper]
+scraper_id = "AlabamaScraper"
+court_ids = [
+    "ala",
+    "alacrimapp",
+    "alactapp",
+]
+court_url = "https://publicportal.alappeals.gov/"
+data_types = [
+    "dockets",
+    "opinions",
+    "oral_arguments",
+]
+return_type = "AlaOpinionCluster | AlaOralArgument | AlaDocket"
+parent_model = "Audio, Docket, OpinionCluster"
+model_hierarchy = [
+    "AlaOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+    "AlaOralArgument",
+    "Audio",
+    "AlaDocket",
+    "Docket",
+]
+status = "in_development"
+version = "2026-01-21"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.alabama.publicportal_alappeals_gov.scraper"
+docstring = "Unified scraper for Alabama appellate court data.\n\n    Scrapes opinions, oral argument information, and docket information\n    from Alabama courts.\n\n    Supports Alabama Supreme Court (ala), Court of Civil Appeals (alactapp),\n    and Court of Criminal Appeals (alacrimapp).\n\n    Usage:\n        # Scrape everything (all data types, all courts)\n        scraper = AlabamaScraper()\n\n        # Scrape only opinions (disable other data types)\n        params = AlabamaScraper.params()\n        params.AlaOralArgument = None\n        params.AlaDocket = None\n        scraper = AlabamaScraper(params=params)\n\n        # Scrape only opinions from Supreme Court\n        params = AlabamaScraper.params()\n        params.AlaOralArgument = None\n        params.AlaDocket = None\n        params.AlaOpinionCluster.court_id.values = {\"ala\"}\n        scraper = AlabamaScraper(params=params)\n\n        # Filter opinions by date range\n        params = AlabamaScraper.params()\n        params.AlaOpinionCluster.date_filed.gte = date(2025, 1, 1)\n        params.AlaOpinionCluster.date_filed.lte = date(2025, 12, 31)\n        scraper = AlabamaScraper(params=params)"
+
+[scrapers.AlabamaScraper.searchability.AlaOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "case_number",
+]
+
+[scrapers.AlabamaScraper.searchability.AlaOralArgument]
+DateRange = [
+    "date_argued",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "case_number",
+]
+
+[scrapers.AlabamaScraper.searchability.AlaDocket]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "case_number",
+]
+
+[scrapers.ArizScraper]
+scraper_id = "ArizScraper"
+court_ids = [
+    "ariz",
+    "arizctapp",
+]
+court_url = "https://www.azcourts.gov/"
+data_types = [
+    "opinions",
+]
+return_type = "ArizOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "ArizOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-22"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.arizona.azcourts_gov.scraper"
+docstring = "Scraper for Arizona appellate court opinions.\n\n    Scrapes opinions from the Arizona Supreme Court and Court of Appeals\n    from the azcourts.gov website.\n\n    Usage:\n        # Scrape all opinions (both courts)\n        scraper = ArizScraper()\n\n        # Scrape only Supreme Court\n        params = ArizScraper.params()\n        params.ArizOpinionCluster.court_id.values = {\"ariz\"}\n        scraper = ArizScraper(params=params)\n\n        # Scrape only Court of Appeals\n        params = ArizScraper.params()\n        params.ArizOpinionCluster.court_id.values = {\"arizctapp\"}\n        scraper = ArizScraper(params=params)\n\n        # Filter by date range\n        params = ArizScraper.params()\n        params.ArizOpinionCluster.date_filed.gte = date(2025, 1, 1)\n        params.ArizOpinionCluster.date_filed.lte = date(2025, 12, 31)\n        scraper = ArizScraper(params=params)"
+
+[scrapers.ArizScraper.searchability.ArizOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "docket_id",
+]
+
+[scrapers.CalScraper]
+scraper_id = "CalScraper"
+court_ids = [
+    "cal",
+    "calappdeptsuper",
+    "calctapp1d",
+    "calctapp2d",
+    "calctapp3d",
+    "calctapp4d",
+    "calctapp5d",
+    "calctapp6d",
+]
+court_url = "https://www.courts.ca.gov/"
+data_types = [
+    "opinions",
+]
+return_type = "CalOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "CalOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-22"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.california.courts_ca_gov.scraper"
+docstring = "Unified scraper for California appellate court opinions.\n\n    Scrapes published and unpublished opinions from the CA Judicial Branch.\n    Supports the Supreme Court and all Districts of the Courts of Appeal.\n\n    Usage:\n        # Scrape all opinions (published and unpublished, all courts)\n        scraper = CalScraper()\n\n        # Scrape only published opinions\n        params = CalScraper.params()\n        params.CalOpinionCluster.precedential_status.values = {\"Published\"}\n        scraper = CalScraper(params=params)\n\n        # Scrape only Supreme Court opinions\n        params = CalScraper.params()\n        params.CalOpinionCluster.court_id.values = {\"cal\"}\n        scraper = CalScraper(params=params)\n\n        # Filter opinions by date range\n        params = CalScraper.params()\n        params.CalOpinionCluster.date_filed.gte = date(2025, 12, 1)\n        params.CalOpinionCluster.date_filed.lte = date(2025, 12, 31)\n        scraper = CalScraper(params=params)\n\n        # Scrape a specific case number\n        params = CalScraper.params()\n        params.CalOpinionCluster.case_number.eq = \"S275272M\"\n        scraper = CalScraper(params=params)"
+
+[scrapers.CalScraper.searchability.CalOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "case_number",
+]
 
 [scrapers.ConnScraper]
 scraper_id = "ConnScraper"
@@ -38,7 +187,7 @@ oldest_record = ""
 requires_auth = false
 msec_per_request = 1000
 module_path = "juriscraper.sd.state.connecticut.jud_ct_gov.scraper"
-docstring = "Unified scraper for Connecticut appellate court opinions, oral arguments, and dockets.\n\nScrapes opinions, oral argument audio, and docket information from the CT Judicial Branch.\nSupports both Supreme Court (conn) and Appellate Court (connappct).\n\nUsage:\n    # Scrape everything (all data types, both courts)\n    scraper = ConnScraper()\n\n    # Scrape only opinions (disable other data types)\n    params = ConnScraper.params()\n    params.ConnOralArgument = None\n    params.ConnDocket = None\n    scraper = ConnScraper(params=params)\n\n    # Scrape only oral arguments (disable other data types)\n    params = ConnScraper.params()\n    params.ConnOpinionCluster = None\n    params.ConnDocket = None\n    scraper = ConnScraper(params=params)\n\n    # Scrape only dockets starting from CRN 90000\n    params = ConnScraper.params()\n    params.ConnOpinionCluster = None\n    params.ConnOralArgument = None\n    params.ConnDocket.crn.gt = 90000\n    scraper = ConnScraper(params=params)\n\n    # Scrape a specific docket by CRN\n    params = ConnScraper.params()\n    params.ConnOpinionCluster = None\n    params.ConnOralArgument = None\n    params.ConnDocket.crn.eq = 92788\n    scraper = ConnScraper(params=params)\n\n    # Scrape only Supreme Court\n    params = ConnScraper.params()\n    params.ConnOpinionCluster.court_id.values = {\"conn\"}\n    params.ConnOralArgument.court_id.values = {\"conn\"}\n    params.ConnDocket.court_id.values = {\"conn\"}\n    scraper = ConnScraper(params=params)\n\n    # Filter opinions by date range\n    params = ConnScraper.params()\n    params.ConnOpinionCluster.date_filed.gte = date(2025, 12, 1)\n    params.ConnOpinionCluster.date_filed.lte = date(2025, 12, 31)\n    scraper = ConnScraper(params=params)\n\n    # Filter oral arguments by date range\n    params = ConnScraper.params()\n    params.ConnOralArgument.date_argued.gte = date(2025, 9, 1)\n    params.ConnOralArgument.date_argued.lte = date(2025, 9, 30)\n    scraper = ConnScraper(params=params)"
+docstring = "Unified scraper for Connecticut appellate court opinions, oral arguments, and dockets.\n\n    Scrapes opinions, oral argument audio, and docket information from the CT Judicial Branch.\n    Supports both Supreme Court (conn) and Appellate Court (connappct).\n\n    Usage:\n        # Scrape everything (all data types, both courts)\n        scraper = ConnScraper()\n\n        # Scrape only opinions (disable other data types)\n        params = ConnScraper.params()\n        params.ConnOralArgument = None\n        params.ConnDocket = None\n        scraper = ConnScraper(params=params)\n\n        # Scrape only oral arguments (disable other data types)\n        params = ConnScraper.params()\n        params.ConnOpinionCluster = None\n        params.ConnDocket = None\n        scraper = ConnScraper(params=params)\n\n        # Scrape only dockets starting from CRN 90000\n        params = ConnScraper.params()\n        params.ConnOpinionCluster = None\n        params.ConnOralArgument = None\n        params.ConnDocket.crn.gt = 90000\n        scraper = ConnScraper(params=params)\n\n        # Scrape a specific docket by CRN\n        params = ConnScraper.params()\n        params.ConnOpinionCluster = None\n        params.ConnOralArgument = None\n        params.ConnDocket.crn.eq = 92788\n        scraper = ConnScraper(params=params)\n\n        # Scrape only Supreme Court\n        params = ConnScraper.params()\n        params.ConnOpinionCluster.court_id.values = {\"conn\"}\n        params.ConnOralArgument.court_id.values = {\"conn\"}\n        params.ConnDocket.court_id.values = {\"conn\"}\n        scraper = ConnScraper(params=params)\n\n        # Filter opinions by date range\n        params = ConnScraper.params()\n        params.ConnOpinionCluster.date_filed.gte = date(2025, 12, 1)\n        params.ConnOpinionCluster.date_filed.lte = date(2025, 12, 31)\n        scraper = ConnScraper(params=params)\n\n        # Filter oral arguments by date range\n        params = ConnScraper.params()\n        params.ConnOralArgument.date_argued.gte = date(2025, 9, 1)\n        params.ConnOralArgument.date_argued.lte = date(2025, 9, 30)\n        scraper = ConnScraper(params=params)"
 
 [scrapers.ConnScraper.searchability.ConnOpinionCluster]
 DateRange = [
@@ -73,9 +222,551 @@ UniqueMatch = [
     "docket_id",
 ]
 
+[scrapers.NewJerseyScraper]
+scraper_id = "NewJerseyScraper"
+court_ids = [
+    "nj",
+    "njsuperctappdiv",
+]
+court_url = "https://www.njcourts.gov/attorneys/opinions"
+data_types = [
+    "opinions",
+]
+return_type = "NewJerseyOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "NewJerseyOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.new_jersey.njcourts_gov.scraper"
+docstring = "Scraper for New Jersey court opinions.\n\n    Scrapes published and unpublished opinions from:\n    - New Jersey Supreme Court\n    - New Jersey Superior Court Appellate Division\n\n    Usage:\n        # Scrape all opinions from all courts\n        scraper = NewJerseyScraper()\n\n        # Filter opinions by date range\n        params = NewJerseyScraper.params()\n        params.NewJerseyOpinionCluster.date_filed.gte = date(2026, 1, 1)\n        params.NewJerseyOpinionCluster.date_filed.lte = date(2026, 1, 31)\n        scraper = NewJerseyScraper(params=params)\n\n        # Scrape only Supreme Court opinions\n        params = NewJerseyScraper.params()\n        params.NewJerseyOpinionCluster.court_id.values = {\"nj\"}\n        scraper = NewJerseyScraper(params=params)\n\n        # Scrape only Appellate Division opinions\n        params = NewJerseyScraper.params()\n        params.NewJerseyOpinionCluster.court_id.values = {\"njsuperctappdiv\"}\n        scraper = NewJerseyScraper(params=params)\n\n        # Scrape specific docket number\n        params = NewJerseyScraper.params()\n        params.NewJerseyOpinionCluster.docket_id.value = \"A-45-24\"\n        scraper = NewJerseyScraper(params=params)"
+
+[scrapers.NewJerseyScraper.searchability.NewJerseyOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "docket_id",
+]
+
+[scrapers.OhioScraper]
+scraper_id = "OhioScraper"
+court_ids = [
+    "ohctapp1",
+    "ohctapp10",
+    "ohctapp11",
+    "ohctapp12",
+    "ohctapp2",
+    "ohctapp3",
+    "ohctapp4",
+    "ohctapp5",
+    "ohctapp6",
+    "ohctapp7",
+    "ohctapp8",
+    "ohctapp9",
+    "ohio",
+    "ohioctcl",
+]
+court_url = "https://www.supremecourt.ohio.gov/"
+data_types = [
+    "opinions",
+]
+return_type = "OhioOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "OhioOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.ohio.supremecourt_ohio_gov.scraper"
+docstring = "Unified scraper for Ohio appellate court opinions.\n\n    Scrapes opinions from Ohio Supreme Court and Courts of Appeals.\n\n    Usage:\n        # Scrape all courts (default)\n        scraper = OhioScraper()\n\n        # Scrape only Supreme Court\n        params = OhioScraper.params()\n        params.OhioOpinionCluster.court_id.values = {\"ohio\"}\n        scraper = OhioScraper(params=params)\n\n        # Scrape specific district courts\n        params = OhioScraper.params()\n        params.OhioOpinionCluster.court_id.values = {\"ohctapp1\", \"ohctapp8\"}\n        scraper = OhioScraper(params=params)\n\n        # Filter by date range\n        params = OhioScraper.params()\n        params.OhioOpinionCluster.date_decided.gte = date(2026, 1, 1)\n        params.OhioOpinionCluster.date_decided.lte = date(2026, 1, 31)\n        scraper = OhioScraper(params=params)\n\n        # Lookup specific webcite\n        params = OhioScraper.params()\n        params.OhioOpinionCluster.webcite.value = \"2026-Ohio-148\"\n        scraper = OhioScraper(params=params)"
+
+[scrapers.OhioScraper.searchability.OhioOpinionCluster]
+DateRange = [
+    "date_decided",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "webcite",
+]
+
+[scrapers.OklahomaScraper]
+scraper_id = "OklahomaScraper"
+court_ids = [
+    "okla",
+    "oklacivapp",
+    "oklacrimapp",
+]
+court_url = "https://www.oscn.net/"
+data_types = [
+    "opinions",
+]
+return_type = "OklahomaOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "OklahomaOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.oklahoma.oscn_net.scraper"
+docstring = "Unified scraper for Oklahoma appellate court opinions.\n\n    Scrapes opinions from Oklahoma Supreme Court, Court of Criminal Appeals,\n    and Court of Civil Appeals via the OSCN (Oklahoma State Courts Network).\n\n    Usage::\n\n        # Scrape all courts (default - Supreme Court only for efficiency)\n        scraper = OklahomaScraper()\n\n        # Scrape only Supreme Court\n        params = OklahomaScraper.params()\n        params.OklahomaOpinionCluster.court_id.values = {\"okla\"}\n        scraper = OklahomaScraper(params=params)\n\n        # Scrape all three appellate courts\n        params = OklahomaScraper.params()\n        params.OklahomaOpinionCluster.court_id.values = {\n            \"okla\", \"oklacrimapp\", \"oklacivapp\"\n        }\n        scraper = OklahomaScraper(params=params)\n\n        # Filter by date range\n        params = OklahomaScraper.params()\n        params.OklahomaOpinionCluster.date_filed.gte = date(2026, 1, 1)\n        params.OklahomaOpinionCluster.date_filed.lte = date(2026, 1, 31)\n        scraper = OklahomaScraper(params=params)\n\n        # Lookup specific CiteID\n        params = OklahomaScraper.params()\n        params.OklahomaOpinionCluster.cite_id.value = \"551118\"\n        scraper = OklahomaScraper(params=params)"
+
+[scrapers.OklahomaScraper.searchability.OklahomaOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "cite_id",
+]
+
+[scrapers.OregonScraper]
+scraper_id = "OregonScraper"
+court_ids = [
+    "or",
+    "orctapp",
+]
+court_url = "https://cdm17027.contentdm.oclc.org/"
+data_types = [
+    "opinions",
+]
+return_type = "OregonOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "OregonOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.oregon.cdm17027_contentdm_oclc_org.scraper"
+docstring = "Unified scraper for Oregon appellate court opinions.\n\n    Scrapes opinions from Oregon Supreme Court and Court of Appeals\n    via the State of Oregon Law Library's CONTENTdm digital collection.\n\n    Usage:\n        # Scrape all courts (default)\n        scraper = OregonScraper()\n\n        # Scrape only Supreme Court\n        params = OregonScraper.params()\n        params.OregonOpinionCluster.court_id.values = {\"or\"}\n        scraper = OregonScraper(params=params)\n\n        # Filter by date range\n        params = OregonScraper.params()\n        params.OregonOpinionCluster.date_decided.gte = date(2026, 1, 1)\n        params.OregonOpinionCluster.date_decided.lte = date(2026, 1, 31)\n        scraper = OregonScraper(params=params)\n\n        # Lookup specific case number\n        params = OregonScraper.params()\n        params.OregonOpinionCluster.case_number.value = \"S070647\"\n        scraper = OregonScraper(params=params)"
+
+[scrapers.OregonScraper.searchability.OregonOpinionCluster]
+DateRange = [
+    "date_decided",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "case_number",
+]
+
+[scrapers.RhodeIslandScraper]
+scraper_id = "RhodeIslandScraper"
+court_ids = [
+    "ri",
+]
+court_url = "https://www.courts.ri.gov/Courts/SupremeCourt/"
+data_types = [
+    "opinions",
+]
+return_type = "RhodeIslandOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "RhodeIslandOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.rhode_island.courts_ri_gov.scraper"
+docstring = "Scraper for Rhode Island Supreme Court published opinions.\n\n    Scrapes published opinions from the Rhode Island Supreme Court.\n\n    Usage:\n        # Scrape all opinions\n        scraper = RhodeIslandScraper()\n\n        # Filter opinions by date range\n        params = RhodeIslandScraper.params()\n        params.RhodeIslandOpinionCluster.date_filed.gte = date(2026, 1, 1)\n        params.RhodeIslandOpinionCluster.date_filed.lte = date(2026, 1, 31)\n        scraper = RhodeIslandScraper(params=params)\n\n        # Scrape specific opinion by docket number\n        params = RhodeIslandScraper.params()\n        params.RhodeIslandOpinionCluster.docket_number.value = \"2025-0021-Appeal.\"\n        scraper = RhodeIslandScraper(params=params)"
+
+[scrapers.RhodeIslandScraper.searchability.RhodeIslandOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "docket_number",
+]
+
+[scrapers.SouthCarolinaScraper]
+scraper_id = "SouthCarolinaScraper"
+court_ids = [
+    "sc",
+    "scctapp",
+]
+court_url = "https://www.sccourts.org/"
+data_types = [
+    "opinions",
+]
+return_type = "SCOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "SCOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.south_carolina.sccourts_org.scraper"
+docstring = "Unified scraper for South Carolina appellate court opinions.\n\n    Scrapes opinions from Supreme Court and Court of Appeals.\n\n    Usage:\n        # Scrape all courts (default)\n        scraper = SouthCarolinaScraper()\n\n        # Scrape only Supreme Court\n        params = SouthCarolinaScraper.params()\n        params.SCOpinionCluster.court_id.values = {\"sc\"}\n        scraper = SouthCarolinaScraper(params=params)\n\n        # Scrape only Court of Appeals\n        params = SouthCarolinaScraper.params()\n        params.SCOpinionCluster.court_id.values = {\"scctapp\"}\n        scraper = SouthCarolinaScraper(params=params)\n\n        # Filter by date range\n        params = SouthCarolinaScraper.params()\n        params.SCOpinionCluster.date_filed.gte = date(2026, 1, 1)\n        params.SCOpinionCluster.date_filed.lte = date(2026, 1, 31)\n        scraper = SouthCarolinaScraper(params=params)\n\n        # Lookup specific opinion number\n        params = SouthCarolinaScraper.params()\n        params.SCOpinionCluster.opinion_number.value = \"28309\"\n        scraper = SouthCarolinaScraper(params=params)"
+
+[scrapers.SouthCarolinaScraper.searchability.SCOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "opinion_number",
+]
+
+[scrapers.SouthDakotaScraper]
+scraper_id = "SouthDakotaScraper"
+court_ids = [
+    "sd",
+]
+court_url = "https://ujs.sd.gov/supreme-court/"
+data_types = [
+    "opinions",
+]
+return_type = "SouthDakotaOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "SouthDakotaOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.south_dakota.ujs_sd_gov.scraper"
+docstring = "Scraper for South Dakota Supreme Court opinions.\n\n    Scrapes published opinions from the South Dakota Unified Judicial System.\n\n    Usage:\n        # Scrape current year (default)\n        scraper = SouthDakotaScraper()\n\n        # Filter by date range (uses year filtering)\n        params = SouthDakotaScraper.params()\n        params.SouthDakotaOpinionCluster.date_filed.gte = date(2025, 1, 1)\n        params.SouthDakotaOpinionCluster.date_filed.lte = date(2025, 12, 31)\n        scraper = SouthDakotaScraper(params=params)\n\n        # Lookup specific citation\n        params = SouthDakotaScraper.params()\n        params.SouthDakotaOpinionCluster.citation.value = \"2026 S.D. 2\"\n        scraper = SouthDakotaScraper(params=params)"
+
+[scrapers.SouthDakotaScraper.searchability.SouthDakotaOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "citation",
+]
+
+[scrapers.TennScraper]
+scraper_id = "TennScraper"
+court_ids = [
+    "tenn",
+    "tenncrimapp",
+    "tennctapp",
+]
+court_url = "https://www.tncourts.gov/"
+data_types = [
+    "dockets",
+    "judges",
+    "opinions",
+    "oral_arguments",
+]
+return_type = "TennJudge | TennOpinionCluster | TennOralArgument | TennDocket"
+parent_model = "Audio, Docket, OpinionCluster, Person"
+model_hierarchy = [
+    "TennJudge",
+    "Person",
+    "ConsumerModel",
+    "BaseModel",
+    "TennOpinionCluster",
+    "OpinionCluster",
+    "TennOralArgument",
+    "Audio",
+    "TennDocket",
+    "Docket",
+]
+status = "in_development"
+version = "2025-01-13"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.tennessee.tncourts_gov.scraper"
+docstring = "Unified scraper for Tennessee appellate court data.\n\n    Scrapes judges, opinions, oral argument videos, and docket information\n    from Tennessee courts.\n\n    Supports Tennessee Supreme Court (tenn), Court of Appeals (tennctapp),\n    and Court of Criminal Appeals (tenncrimapp).\n\n    Usage:\n        # Scrape everything (all data types, all courts)\n        scraper = TennScraper()\n\n        # Scrape only judges (disable other data types)\n        params = TennScraper.params()\n        params.TennOpinionCluster = None\n        params.TennOralArgument = None\n        params.TennDocket = None\n        scraper = TennScraper(params=params)\n\n        # Scrape only opinions from Supreme Court\n        params = TennScraper.params()\n        params.TennJudge = None\n        params.TennOralArgument = None\n        params.TennDocket = None\n        params.TennOpinionCluster.court_id.values = {\"tenn\"}\n        scraper = TennScraper(params=params)\n\n        # Scrape dockets starting from a specific ID\n        params = TennScraper.params()\n        params.TennJudge = None\n        params.TennOpinionCluster = None\n        params.TennOralArgument = None\n        params.TennDocket.pch_id.gt = 89580\n        scraper = TennScraper(params=params)\n\n        # Scrape a specific docket by PCH ID\n        params = TennScraper.params()\n        params.TennJudge = None\n        params.TennOpinionCluster = None\n        params.TennOralArgument = None\n        params.TennDocket.pch_id.eq = 89587\n        scraper = TennScraper(params=params)\n\n        # Filter opinions by date range\n        params = TennScraper.params()\n        params.TennOpinionCluster.date_filed.gte = date(2025, 1, 1)\n        params.TennOpinionCluster.date_filed.lte = date(2025, 12, 31)\n        scraper = TennScraper(params=params)"
+
+[scrapers.TennScraper.searchability.TennJudge]
+DateRange = []
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "slug",
+]
+
+[scrapers.TennScraper.searchability.TennOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "case_number",
+]
+
+[scrapers.TennScraper.searchability.TennOralArgument]
+DateRange = [
+    "date_argued",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "case_number",
+]
+
+[scrapers.TennScraper.searchability.TennDocket]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "case_number",
+]
+
+[scrapers.TexasScraper]
+scraper_id = "TexasScraper"
+court_ids = [
+    "tex",
+    "texapp",
+    "texcrimapp",
+]
+court_url = "https://www.txcourts.gov/"
+data_types = [
+    "opinions",
+    "orders",
+]
+return_type = "TexasOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "TexasOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.texas.txcourts_gov.scraper"
+docstring = "Unified scraper for Texas appellate court opinions.\n\n    Scrapes opinions and orders from:\n    - Texas Supreme Court (tex)\n    - Court of Criminal Appeals (texcrimapp)\n    - Courts of Appeals 1-15 (texapp)\n\n    Usage:\n        # Scrape all courts (default is Supreme Court and CCA)\n        scraper = TexasScraper()\n\n        # Scrape only Court of Criminal Appeals\n        params = TexasScraper.params()\n        params.TexasOpinionCluster.court_id.values = {\"texcrimapp\"}\n        scraper = TexasScraper(params=params)\n\n        # Scrape all Courts of Appeals\n        params = TexasScraper.params()\n        params.TexasOpinionCluster.court_id.values = {\"texapp\"}\n        scraper = TexasScraper(params=params)\n\n        # Filter by date range\n        params = TexasScraper.params()\n        params.TexasOpinionCluster.date_decided.gte = date(2026, 1, 1)\n        params.TexasScraper.TexasOpinionCluster.date_decided.lte = date(2026, 1, 31)\n        scraper = TexasScraper(params=params)"
+
+[scrapers.TexasScraper.searchability.TexasOpinionCluster]
+DateRange = [
+    "date_decided",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = []
+
+[scrapers.VermontScraper]
+scraper_id = "VermontScraper"
+court_ids = [
+    "vt",
+]
+court_url = "https://www.vermontjudiciary.org/supreme-court"
+data_types = [
+    "opinions",
+]
+return_type = "VermontOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "VermontOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.vermont.vermontjudiciary_org.scraper"
+docstring = "Scraper for Vermont Supreme Court opinions.\n\n    Scrapes published and unpublished opinions from the Vermont Supreme Court\n    through the Opinions, Decisions and Order Library.\n\n    Usage:\n        # Scrape all opinions\n        scraper = VermontScraper()\n\n        # Filter opinions by date range\n        params = VermontScraper.params()\n        params.VermontOpinionCluster.date_filed.gte = date(2026, 1, 1)\n        params.VermontOpinionCluster.date_filed.lte = date(2026, 1, 31)\n        scraper = VermontScraper(params=params)\n\n        # Scrape specific opinion by docket number\n        params = VermontScraper.params()\n        params.VermontOpinionCluster.docket_id.value = \"25-AP-314\"\n        scraper = VermontScraper(params=params)"
+
+[scrapers.VermontScraper.searchability.VermontOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "docket_id",
+]
+
+[scrapers.WashingtonScraper]
+scraper_id = "WashingtonScraper"
+court_ids = [
+    "wash",
+    "washctapp",
+]
+court_url = "https://www.courts.wa.gov/"
+data_types = [
+    "opinions",
+]
+return_type = "WashingtonOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "WashingtonOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.washington.courts_wa_gov.scraper"
+docstring = "Unified scraper for Washington appellate court opinions.\n\n    Scrapes opinions from Washington Supreme Court and Court of Appeals.\n\n    Usage:\n        # Scrape all courts (default)\n        scraper = WashingtonScraper()\n\n        # Scrape only Supreme Court\n        params = WashingtonScraper.params()\n        params.WashingtonOpinionCluster.court_id.values = {\"wash\"}\n        scraper = WashingtonScraper(params=params)\n\n        # Scrape only Court of Appeals\n        params = WashingtonScraper.params()\n        params.WashingtonOpinionCluster.court_id.values = {\"washctapp\"}\n        scraper = WashingtonScraper(params=params)\n\n        # Filter by date range\n        params = WashingtonScraper.params()\n        params.WashingtonOpinionCluster.date_filed.gte = date(2026, 1, 1)\n        params.WashingtonOpinionCluster.date_filed.lte = date(2026, 1, 31)\n        scraper = WashingtonScraper(params=params)\n\n        # Lookup specific docket number\n        params = WashingtonScraper.params()\n        params.WashingtonOpinionCluster.docket_number.value = \"103,469-5\"\n        scraper = WashingtonScraper(params=params)"
+
+[scrapers.WashingtonScraper.searchability.WashingtonOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "docket_number",
+]
+
+[scrapers.WestVirginiaScraper]
+scraper_id = "WestVirginiaScraper"
+court_ids = [
+    "wva",
+    "wvactapp",
+]
+court_url = "https://www.courtswv.gov/"
+data_types = [
+    "opinions",
+]
+return_type = "WVOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "WVOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 1000
+module_path = "juriscraper.sd.state.westvirginia.courtswv_gov.scraper"
+docstring = "Unified scraper for West Virginia appellate court opinions.\n\n    Scrapes opinions from West Virginia Supreme Court of Appeals (SCA)\n    and Intermediate Court of Appeals (ICA).\n\n    Usage:\n        # Scrape both courts (default)\n        scraper = WestVirginiaScraper()\n\n        # Scrape only Supreme Court of Appeals\n        params = WestVirginiaScraper.params()\n        params.WVOpinionCluster.court_id.values = {\"wva\"}\n        scraper = WestVirginiaScraper(params=params)\n\n        # Scrape only Intermediate Court of Appeals\n        params = WestVirginiaScraper.params()\n        params.WVOpinionCluster.court_id.values = {\"wvactapp\"}\n        scraper = WestVirginiaScraper(params=params)\n\n        # Filter by date range\n        params = WestVirginiaScraper.params()\n        params.WVOpinionCluster.date_filed.gte = date(2026, 1, 1)\n        params.WVOpinionCluster.date_filed.lte = date(2026, 1, 31)\n        scraper = WestVirginiaScraper(params=params)\n\n        # Lookup specific case number\n        params = WestVirginiaScraper.params()\n        params.WVOpinionCluster.case_number.value = \"25-765\"\n        scraper = WestVirginiaScraper(params=params)"
+
+[scrapers.WestVirginiaScraper.searchability.WVOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = [
+    "court_id",
+]
+UniqueMatch = [
+    "case_number",
+]
+
+[scrapers.WyomingScraper]
+scraper_id = "WyomingScraper"
+court_ids = [
+    "wyo",
+]
+court_url = "https://www.wyocourts.gov/"
+data_types = [
+    "opinions",
+]
+return_type = "WyomingOpinionCluster"
+parent_model = "OpinionCluster"
+model_hierarchy = [
+    "WyomingOpinionCluster",
+    "OpinionCluster",
+    "ConsumerModel",
+    "BaseModel",
+]
+status = "in_development"
+version = "2026-01-23"
+last_verified = ""
+oldest_record = ""
+requires_auth = false
+msec_per_request = 2000
+module_path = "juriscraper.sd.state.wyoming.wyocourts_gov.scraper"
+docstring = "Scraper for Wyoming Supreme Court opinions.\n\n    Scrapes opinions from the Wyoming Supreme Court website.\n\n    Usage:\n        # Scrape all opinions (default - current year)\n        scraper = WyomingScraper()\n\n        # Filter by date range\n        params = WyomingScraper.params()\n        params.WyomingOpinionCluster.date_filed.gte = date(2026, 1, 1)\n        params.WyomingOpinionCluster.date_filed.lte = date(2026, 1, 31)\n        scraper = WyomingScraper(params=params)\n\n        # Lookup specific opinion ID\n        params = WyomingScraper.params()\n        params.WyomingOpinionCluster.opinion_id.value = \"2026 WY 11\"\n        scraper = WyomingScraper(params=params)"
+
+[scrapers.WyomingScraper.searchability.WyomingOpinionCluster]
+DateRange = [
+    "date_filed",
+]
+SetFilter = []
+UniqueMatch = [
+    "opinion_id",
+]
+
 [jurisdictions.AL]
 total_court_types = 30
-covered_court_types = 0
+covered_court_types = 6
 courts = [
     "ala",
     "alacirct",
@@ -88,7 +779,7 @@ courts = [
     "alaproct",
     "alascct",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.2
 
 [jurisdictions.FED]
 total_court_types = 756
@@ -371,7 +1062,7 @@ coverage_pct = 0.0
 
 [jurisdictions.AZ]
 total_court_types = 45
-covered_court_types = 0
+covered_court_types = 2
 courts = [
     "ariz",
     "arizctapp",
@@ -389,7 +1080,7 @@ courts = [
     "navajodistct",
     "navajofamct",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.044
 
 [jurisdictions.AR]
 total_court_types = 21
@@ -407,7 +1098,7 @@ coverage_pct = 0.0
 
 [jurisdictions.CA]
 total_court_types = 42
-covered_court_types = 0
+covered_court_types = 8
 courts = [
     "cal",
     "calag",
@@ -424,7 +1115,7 @@ courts = [
     "calsuppctla",
     "calsuppctsf",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.19
 
 [jurisdictions.CO]
 total_court_types = 72
@@ -1233,7 +1924,7 @@ coverage_pct = 0.0
 
 [jurisdictions.NJ]
 total_court_types = 261
-covered_court_types = 0
+covered_court_types = 2
 courts = [
     "nj",
     "njcommned",
@@ -1323,7 +2014,7 @@ courts = [
     "njsurrctwarren",
     "njtaxct",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.008
 
 [jurisdictions.NM]
 total_court_types = 6
@@ -1838,7 +2529,7 @@ coverage_pct = 0.0
 
 [jurisdictions.OH]
 total_court_types = 1494
-covered_court_types = 0
+covered_court_types = 14
 courts = [
     "ohcirctadams",
     "ohcirctallen",
@@ -2339,11 +3030,11 @@ courts = [
     "ohprobctwayne",
     "ohsuperctcinci",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.009
 
 [jurisdictions.OK]
 total_court_types = 36
-covered_court_types = 0
+covered_court_types = 3
 courts = [
     "cherokee",
     "cherokeeapp",
@@ -2358,11 +3049,11 @@ courts = [
     "sacfoxdistct",
     "sacfoxsupct",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.083
 
 [jurisdictions.OR]
 total_court_types = 132
-covered_court_types = 0
+covered_court_types = 2
 courts = [
     "coosct",
     "coquct",
@@ -2409,7 +3100,7 @@ courts = [
     "orctapp",
     "ortc",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.015
 
 [jurisdictions.PA]
 total_court_types = 300
@@ -2528,16 +3219,16 @@ coverage_pct = 0.0
 
 [jurisdictions.RI]
 total_court_types = 6
-covered_court_types = 0
+covered_court_types = 1
 courts = [
     "ri",
     "risuperct",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.167
 
 [jurisdictions.SC]
 total_court_types = 18
-covered_court_types = 0
+covered_court_types = 2
 courts = [
     "admiraltyctsc",
     "ctchansc",
@@ -2546,32 +3237,32 @@ courts = [
     "scctcompl",
     "superctsc",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.111
 
 [jurisdictions.SD]
 total_court_types = 9
-covered_court_types = 0
+covered_court_types = 1
 courts = [
     "cheyrsiouxctapp",
     "nplainsctapp",
     "sd",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.111
 
 [jurisdictions.TN]
 total_court_types = 12
-covered_court_types = 0
+covered_court_types = 9
 courts = [
     "tenn",
     "tenncrimapp",
     "tennctapp",
     "tennworkcompapp",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.75
 
 [jurisdictions.TX]
 total_court_types = 24
-covered_court_types = 0
+covered_court_types = 3
 courts = [
     "tex",
     "texag",
@@ -2582,7 +3273,7 @@ courts = [
     "texreview",
     "texrevtrib",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.125
 
 [jurisdictions.UT]
 total_court_types = 9
@@ -2596,13 +3287,13 @@ coverage_pct = 0.0
 
 [jurisdictions.VT]
 total_court_types = 9
-covered_court_types = 0
+covered_court_types = 1
 courts = [
     "vt",
     "vtdistct",
     "vtsuperct",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.111
 
 [jurisdictions.VI]
 total_court_types = 12
@@ -2751,7 +3442,7 @@ coverage_pct = 0.0
 
 [jurisdictions.WA]
 total_court_types = 36
-covered_court_types = 0
+covered_court_types = 2
 courts = [
     "chehctapp",
     "colvctapp",
@@ -2766,7 +3457,7 @@ courts = [
     "washctapp",
     "washsuperct",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.056
 
 [jurisdictions.DC]
 total_court_types = 12
@@ -2781,13 +3472,13 @@ coverage_pct = 0.0
 
 [jurisdictions.WV]
 total_court_types = 9
-covered_court_types = 0
+covered_court_types = 2
 courts = [
     "wva",
     "wvactapp",
     "wvctcl",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.222
 
 [jurisdictions.WI]
 total_court_types = 21
@@ -2805,12 +3496,12 @@ coverage_pct = 0.0
 
 [jurisdictions.WY]
 total_court_types = 6
-covered_court_types = 0
+covered_court_types = 1
 courts = [
     "shoaraphotr",
     "wyo",
 ]
-coverage_pct = 0.0
+coverage_pct = 0.167
 
 [court_names]
 alacirct = "Alabama Circuit Courts"

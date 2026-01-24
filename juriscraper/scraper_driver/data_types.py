@@ -65,6 +65,25 @@ class ScraperStatus(Enum):
     RETIRED = "retired"
 
 
+class FlowControl(Enum):
+    """Control flow decisions for speculation handling.
+
+    Used by drivers to determine how to proceed when processing
+    speculative requests.
+
+    Values:
+        CONTINUE: Continue speculation (send True to generator).
+        SKIP: Skip this request but continue iteration.
+        STOP: Stop speculation (send False to generator).
+        AWAIT_MORE_INFO: Need response to decide - park generator until response available.
+    """
+
+    CONTINUE = "continue"
+    SKIP = "skip"
+    STOP = "stop"
+    AWAIT_MORE_INFO = "await_more_info"
+
+
 @dataclass(frozen=True)
 class StepInfo:
     """Metadata about a scraper step method.
@@ -151,7 +170,8 @@ class BaseScraper(Generic[ScraperReturnType]):
         Returns:
             An ssl.SSLContext configured for this scraper, or None to use defaults.
 
-        Example:
+        Example::
+
             @classmethod
             def get_ssl_context(cls) -> ssl.SSLContext:
                 ctx = ssl.create_default_context()
@@ -165,7 +185,8 @@ class BaseScraper(Generic[ScraperReturnType]):
 
         Args:
             params: ScraperParams instance with search filters configured.
-                Build via MyScraper.params() and set filters like:
+                Build via MyScraper.params() and set filters like::
+
                     params.MyModel.date_filed.gte = date(2024, 1, 1)
                     params.MyModel.court_id.values = {"court1", "court2"}
                     params.MyModel.docket_number.value = "2024-001"
@@ -190,7 +211,8 @@ class BaseScraper(Generic[ScraperReturnType]):
         Raises:
             NotImplementedError: If the subclass doesn't override this method.
 
-        Example:
+        Example::
+
             def get_entry(self) -> Generator[NavigatingRequest, None, None]:
                 # Yield separate requests for each data type
                 if self._should_scrape_opinions():
@@ -542,14 +564,15 @@ class BaseRequest:
 
         Step 16: Also generates default deduplication_key if not provided.
         Step 18: Also deep copies permanent dict and merges permanent headers/cookies
-                 into the HTTPRequestParams.
+        into the HTTPRequestParams.
 
         When a scraper yields multiple requests from the same method, they might
         share the same accumulated_data or aux_data dicts. Without deep copy,
         mutations in one branch would affect sibling branches. This is critical
         for correctness.
 
-        Example problem without deep copy:
+        Example problem without deep copy::
+
             shared_data = {"case_name": "Ant v. Bee"}
             shared_aux = {"session_token": "abc123"}
             yield NavigatingRequest(url="/detail/1", accumulated_data=shared_data, aux_data=shared_aux)
@@ -946,11 +969,14 @@ class SpeculativeRequest(NonNavigatingRequest):
     3. Execute HTTP request
     4. If 2xx response: resume generator with True, call continuation
     5. If non-2xx response: call on_speculation_response callback to decide
+
        - Callback returns True: resume with True, call continuation
        - Callback returns False: resume with False, skip continuation
+
     6. Generator receives True/False, decides whether to yield more
 
-    Example usage:
+    Example usage::
+
         page = 1
         while True:
             should_continue = yield SpeculativeRequest(

@@ -3,24 +3,27 @@
 This module contains a scraper for opinions from the Colorado Supreme Court
 and Court of Appeals using the Colorado Judicial Branch website.
 
-Entry points:
-- Supreme Court Slip Opinions: https://www.coloradojudicial.gov/supreme-court/opinions
-- Case Law Search (both courts): https://research.coloradojudicial.gov/
+Entry points::
 
-Opinions Flow:
-  1. get_entry -> slip opinions page for Supreme Court
-  2. parse_slip_opinions_page -> parses opinions list, yields requests to detail pages
-  3. parse_opinion_detail_page -> extracts PDF URL, yields ArchiveRequest
-  4. handle_opinion_download -> yields final ColoradoOpinionCluster
+    - Supreme Court Slip Opinions: https://www.coloradojudicial.gov/supreme-court/opinions
+    - Case Law Search (both courts): https://research.coloradojudicial.gov/
 
-Design decisions:
-- Uses restrictive checked_xpaths to catch structural changes early
-- Uses DateRange filter on date_filed for searching
-- Uses SetFilter on court_id to select which courts to scrape
-- Downloads all PDFs via ArchiveRequest
-- Currently only scrapes Supreme Court slip opinions (current fiscal year)
-- Court of Appeals opinions are available via Case Law Search but require
-  additional implementation for the vLex-powered interface
+Opinions Flow::
+
+    1. get_entry -> slip opinions page for Supreme Court
+    2. parse_slip_opinions_page -> parses opinions list, yields requests to detail pages
+    3. parse_opinion_detail_page -> extracts PDF URL, yields ArchiveRequest
+    4. handle_opinion_download -> yields final ColoradoOpinionCluster
+
+Design decisions::
+
+    - Uses restrictive checked_xpaths to catch structural changes early
+    - Uses DateRange filter on date_filed for searching
+    - Uses SetFilter on court_id to select which courts to scrape
+    - Downloads all PDFs via ArchiveRequest
+    - Currently only scrapes Supreme Court slip opinions (current fiscal year)
+    - Court of Appeals opinions are available via Case Law Search but require
+      additional implementation for the vLex-powered interface
 """
 
 from __future__ import annotations
@@ -238,13 +241,16 @@ class ColoradoScraper(BaseScraper[ColoradoOpinionCluster]):
     ) -> Generator[ScraperYield[ColoradoOpinionCluster], None, None]:
         """Parse the Supreme Court slip opinions page.
 
-        The page structure is:
-        - Date headers as plain text in paragraphs (e.g., "January 12, 2026")
-        - Opinion entries in paragraphs with:
-          - Citation link (e.g., "26 CO 1" linking to /node/15606)
-          - Docket number text (e.g., ", 25SA204,")
-          - Case name in <em> tags (e.g., "In re: Interest of B.J.S.")
-        - Horizontal rules (<hr>) separate date groups
+        The page structure is::
+
+            - Date headers as plain text in paragraphs (e.g., "January 12, 2026")
+            - Opinion entries in paragraphs with:
+
+              - Citation link (e.g., "26 CO 1" linking to /node/15606)
+              - Docket number text (e.g., ", 25SA204,")
+              - Case name in <em> tags (e.g., "In re: Interest of B.J.S.")
+
+            - Horizontal rules (<hr>) separate date groups
         """
         court_id = accumulated_data.get("court_id", "colo")
         date_gte, date_lte, target_docket, _ = self._get_search_params()

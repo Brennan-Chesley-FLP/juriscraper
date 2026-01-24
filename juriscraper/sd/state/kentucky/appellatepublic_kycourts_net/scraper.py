@@ -3,28 +3,31 @@
 This module scrapes opinions from the Kentucky Supreme Court and
 Court of Appeals using the C-Track Public Access system.
 
-Entry point:
-- Opinion Search: https://appellatepublic.kycourts.net/search/opinion
+Entry point::
+
+    - Opinion Search: https://appellatepublic.kycourts.net/search/opinion
 
 IMPORTANT: This scraper REQUIRES the PlaywrightDriver due to the
 Vue.js SPA architecture of the C-Track system. The site loads data
 via JavaScript XHR requests, so static HTTP requests will not work.
 
-Flow:
-1. get_entry -> Opinion search URL with date filters
-2. parse_opinion_search -> parses search results table
-3. For each opinion with documents:
-   - Parse case number, type, subtype, description, date
-   - Yield ArchiveRequest for document PDFs
-4. handle_opinion_download -> yields final KentuckyOpinionCluster
+Flow::
 
-Design decisions:
-- Uses PlaywrightDriver for JavaScript rendering (Vue.js SPA)
-- Scrapes from opinion search results which include key metadata
-- Each opinion row may have a "Documents List" button for PDFs
-- Uses DateRange filter on date_filed for searching
-- Uses SetFilter on court_id to select which courts to scrape
-- Pagination via next page button (25 results per page)
+    1. get_entry -> Opinion search URL with date filters
+    2. parse_opinion_search -> parses search results table
+    3. For each opinion with documents:
+       - Parse case number, type, subtype, description, date
+       - Yield ArchiveRequest for document PDFs
+    4. handle_opinion_download -> yields final KentuckyOpinionCluster
+
+Design decisions::
+
+    - Uses PlaywrightDriver for JavaScript rendering (Vue.js SPA)
+    - Scrapes from opinion search results which include key metadata
+    - Each opinion row may have a "Documents List" button for PDFs
+    - Uses DateRange filter on date_filed for searching
+    - Uses SetFilter on court_id to select which courts to scrape
+    - Pagination via next page button (25 results per page)
 """
 
 from __future__ import annotations

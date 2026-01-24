@@ -25,7 +25,8 @@ class RateLimitInterceptor:
     By default, each 429 response increases the interval by 10%, which
     reduces the rate to approximately 91% of the previous rate.
 
-    Example:
+    Example::
+
         # Limit to 1 request per second
         rate_limiter = RateLimitInterceptor(requests_per_second=1.0)
 

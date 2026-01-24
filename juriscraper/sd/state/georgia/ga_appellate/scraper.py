@@ -1,16 +1,19 @@
 """Georgia Appellate Courts Opinions Scraper.
 
 This module contains a unified scraper for opinions from Georgia appellate courts:
+
 - Georgia Supreme Court (ga)
 - Georgia Court of Appeals (gactapp)
 
 Entry points:
+
 - Supreme Court: Date-based scraping from yearly opinion archives
-  URL: https://www.gasupreme.us/{YYYY}-opinions/
+  (URL: ``https://www.gasupreme.us/{YYYY}-opinions/``)
 - Court of Appeals: Date-based scraping from opinion search
-  URL: https://www.gaappeals.gov/wp-content/themes/benjamin/docket/docketdate/results_all.php
+  (URL: ``https://www.gaappeals.gov/wp-content/themes/benjamin/docket/docketdate/results_all.php``)
 
 Design decisions:
+
 - Uses date-based search for both courts (preferred over speculative ID probing)
 - Parses HTML pages for case metadata
 - Archives opinion PDFs via ArchiveRequest
@@ -314,13 +317,11 @@ class GeorgiaScraper(BaseScraper[GaOpinionCluster]):
     ) -> Generator[ScraperYield[GaOpinionCluster], None, None]:
         """Parse the Supreme Court opinions year page.
 
-        The page structure is:
-        - Multiple date sections, each with:
-          - A heading with date (e.g., "January 21, 2026—SUMMARIES...")
-          - A list of opinion links
+        The page structure has multiple date sections, each with a heading
+        containing the date (e.g., "January 21, 2026—SUMMARIES...") followed
+        by a list of opinion links.
 
-        Each opinion link has format:
-        - "S25A0994. FRANKLIN v. THE STATE"
+        Each opinion link has format: "S25A0994. FRANKLIN v. THE STATE"
         """
         date_gte = accumulated_data.get("date_gte")
         date_lte = accumulated_data.get("date_lte")
@@ -432,7 +433,8 @@ class GeorgiaScraper(BaseScraper[GaOpinionCluster]):
     ) -> Generator[ScraperYield[GaOpinionCluster], None, None]:
         """Parse the Court of Appeals opinion search results page.
 
-        The page structure is a table with columns:
+        The page structure is a table with columns::
+
         - Case Number
         - Style
         - Judgment Date

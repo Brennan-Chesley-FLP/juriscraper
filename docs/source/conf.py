@@ -3,12 +3,25 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import logging
 import os
 import sys
 
 # -- Path setup --------------------------------------------------------------
 sys.path.insert(0, os.path.abspath("../.."))
 sys.path.insert(0, os.path.abspath("_ext"))
+
+
+# Custom filter to suppress duplicate object description warnings
+class DuplicateObjectFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Suppress "duplicate object description" warnings
+        return "duplicate object description" in record.getMessage()
+
+
+# Apply filter to all Sphinx-related loggers
+for logger_name in ["sphinx", "sphinx.domains", "sphinx.domains.python"]:
+    logging.getLogger(logger_name).addFilter(DuplicateObjectFilter())
 
 # -- Project information -----------------------------------------------------
 project = "Juriscraper"
@@ -72,6 +85,10 @@ autodoc_default_options = {
 }
 autodoc_typehints = "description"
 autodoc_class_signature = "separated"
+
+# Note: Duplicate object description warnings are suppressed via the
+# DuplicateObjectFilter logging filter defined at the top of this file.
+# The suppress_warnings config option doesn't work for these warnings.
 
 # Inheritance diagram settings
 inheritance_graph_attrs = {"rankdir": "TB", "size": '"8.0, 10.0"'}

@@ -4,7 +4,8 @@ This module provides XPathObserver, a context manager that instruments
 CheckedHtmlElement to collect XPath/CSS query data. This is useful for
 debugging scrapers when HTML structure changes or XPath queries are incorrect.
 
-Usage:
+Usage::
+
     from juriscraper.scraper_driver.common.xpath_observer import XPathObserver
 
     with XPathObserver() as observer:
@@ -68,7 +69,8 @@ class SelectorQuery:
 class XPathObserver:
     """Observer that collects XPath/CSS query information.
 
-    Usage:
+    Usage::
+
         with XPathObserver() as observer:
             tree = CheckedHtmlElement(lxml_html.fromstring(content), url)
             rows = tree.checked_xpath("//tr", "table rows", min_count=1)
@@ -79,10 +81,11 @@ class XPathObserver:
             print(observer.json())  # JSON for UI highlighting
 
     Deduplication:
-        When the same selector is used multiple times with the same parent query
-        (e.g., iterating over rows and selecting the same column from each),
-        the observer deduplicates these into a single query entry. Match counts
-        and sample elements are aggregated.
+
+    When the same selector is used multiple times with the same parent query
+    (e.g., iterating over rows and selecting the same column from each),
+    the observer deduplicates these into a single query entry. Match counts
+    and sample elements are aggregated.
     """
 
     def __init__(self, max_sample_length: int = 100, max_samples: int = 3):
@@ -258,7 +261,8 @@ class XPathObserver:
         Returns:
             Formatted string showing query hierarchy with match counts.
 
-        Example output:
+        Example output::
+
             - //div[@id='mainContent']/table "Main Table" ✓ (1 match)
               - //tr "Main Table Rows" ✓ (5 matches)
                 - (//td)[2] "Important Column" ✗ (0 matches, expected 1+)

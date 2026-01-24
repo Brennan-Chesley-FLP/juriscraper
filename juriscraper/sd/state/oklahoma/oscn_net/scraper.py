@@ -77,7 +77,8 @@ class OklahomaScraper(BaseScraper[OklahomaOpinionCluster]):
     Scrapes opinions from Oklahoma Supreme Court, Court of Criminal Appeals,
     and Court of Civil Appeals via the OSCN (Oklahoma State Courts Network).
 
-    Usage:
+    Usage::
+
         # Scrape all courts (default - Supreme Court only for efficiency)
         scraper = OklahomaScraper()
 

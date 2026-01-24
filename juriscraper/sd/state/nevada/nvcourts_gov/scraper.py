@@ -3,28 +3,32 @@
 This module scrapes opinions from the Nevada Supreme Court and Court of Appeals
 using their decisions pages at nvcourts.gov.
 
-Entry points:
-- Advance Opinions: https://nvcourts.gov/supreme/decisions/advance_opinions
-- Unpublished Orders: https://nvcourts.gov/supreme/decisions/unpublished_orders
+Entry points::
 
-Flow:
-1. get_entry -> Navigate to opinions list page
-2. parse_opinions_list -> Parse table, yield ArchiveRequests for PDFs
-3. handle_opinion_download -> Yield final NevadaOpinionCluster
+    - Advance Opinions: https://nvcourts.gov/supreme/decisions/advance_opinions
+    - Unpublished Orders: https://nvcourts.gov/supreme/decisions/unpublished_orders
 
-Design decisions:
-- Parses HTML tables for opinion metadata (case number, title, date, PDF link)
-- Uses DateRange filter on date_filed for searching
-- Uses SetFilter on court_id to select which courts to scrape
-- Advance opinions are published; unpublished orders are not precedential
-- Nevada uses 5-digit case numbers (e.g., 88998)
-- Both courts share the same pages (deflective model - Supreme Court assigns
-  approximately 1/3 of cases to Court of Appeals)
+Flow::
 
-Note: The site doesn't distinguish between Supreme Court and Court of Appeals
-opinions on the list pages - both are intermixed. The court is determined
-by examining the opinion itself, which is beyond the scope of this scraper.
-For now, we assign all opinions to 'nev' (Supreme Court) as the default.
+    1. get_entry -> Navigate to opinions list page
+    2. parse_opinions_list -> Parse table, yield ArchiveRequests for PDFs
+    3. handle_opinion_download -> Yield final NevadaOpinionCluster
+
+Design decisions::
+
+    - Parses HTML tables for opinion metadata (case number, title, date, PDF link)
+    - Uses DateRange filter on date_filed for searching
+    - Uses SetFilter on court_id to select which courts to scrape
+    - Advance opinions are published; unpublished orders are not precedential
+    - Nevada uses 5-digit case numbers (e.g., 88998)
+    - Both courts share the same pages (deflective model - Supreme Court assigns
+      approximately 1/3 of cases to Court of Appeals)
+
+Note:
+    The site doesn't distinguish between Supreme Court and Court of Appeals
+    opinions on the list pages - both are intermixed. The court is determined
+    by examining the opinion itself, which is beyond the scope of this scraper.
+    For now, we assign all opinions to 'nev' (Supreme Court) as the default.
 """
 
 from __future__ import annotations

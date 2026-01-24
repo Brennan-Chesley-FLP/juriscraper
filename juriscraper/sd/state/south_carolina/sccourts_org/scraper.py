@@ -325,9 +325,11 @@ class SouthCarolinaScraper(BaseScraper[SCOpinionCluster]):
     ) -> Generator[ScraperYield[SCOpinionCluster], None, None]:
         """Parse the opinion listing page.
 
-        The page structure has:
+        The page structure has::
+
         - Date headings (h3) like "January 7, 2026"
         - Opinion entries under each date with:
+
           - Opinion number (first paragraph)
           - Case name (second paragraph)
           - Download link to PDF

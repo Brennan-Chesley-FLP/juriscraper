@@ -2,18 +2,25 @@
 
 This module contains a unified scraper for opinions, oral arguments,
 and dockets from Alabama appellate courts:
+
 - Alabama Supreme Court (ala)
 - Alabama Court of Civil Appeals (alactapp)
 - Alabama Court of Criminal Appeals (alacrimapp)
 
 Entry points:
+
 - Opinions (Release Lists/Publications):
+
   - API: https://publicportal-api.alappeals.gov/courts/cms/publications
   - Portal: https://publicportal.alappeals.gov/portal/search/publication
+
 - Dockets/Cases:
+
   - API: https://publicportal-api.alappeals.gov/courts/cms/cases
   - Portal: https://publicportal.alappeals.gov/portal/search/case
+
 - Oral Arguments (Calendar):
+
   - API: https://publicportal-api.alappeals.gov/courts/cms/events
   - Portal: https://publicportal.alappeals.gov/portal/search/calendar
 
@@ -421,34 +428,35 @@ class AlabamaScraper(
     ]:
         """Parse the publications API response and yield ArchiveRequests for PDFs.
 
-        The API returns JSON with a structure like:
-        {
-            "_embedded": {
-                "results": [
-                    {
-                        "publicationUUID": "...",
-                        "publicationNumber": "SC-RELEASE-2023-11-09",
-                        "scheduledDate": "2023-11-09T14:15:00.000+00:00",
-                        "publicationItems": [
-                            {
-                                "publicationItemUUID": "...",
-                                "caseInstanceUUID": "...",
-                                "caseNumber": "SC-2023-0123",
-                                "groupName": "Justice Smith",
-                                "title": "Case Name (Appeal from Circuit Court: CV-123)",
-                                "decision": "Affirmed.",
-                                "documents": [
-                                    {
-                                        "documentLinkUUID": "...",
-                                        "documentName": "Decision"
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ]
+        The API returns JSON with a structure like::
+
+            {
+                "_embedded": {
+                    "results": [
+                        {
+                            "publicationUUID": "...",
+                            "publicationNumber": "SC-RELEASE-2023-11-09",
+                            "scheduledDate": "2023-11-09T14:15:00.000+00:00",
+                            "publicationItems": [
+                                {
+                                    "publicationItemUUID": "...",
+                                    "caseInstanceUUID": "...",
+                                    "caseNumber": "SC-2023-0123",
+                                    "groupName": "Justice Smith",
+                                    "title": "Case Name (Appeal from Circuit Court: CV-123)",
+                                    "decision": "Affirmed.",
+                                    "documents": [
+                                        {
+                                            "documentLinkUUID": "...",
+                                            "documentName": "Decision"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
             }
-        }
         """
         court_id: str = accumulated_data.get("court_id", "")
         court_guid: str = accumulated_data.get("court_guid", "")
@@ -743,28 +751,29 @@ class AlabamaScraper(
         The API returns JSON with calendar events (oral argument sessions).
         For each event, we fetch the hearings (cases scheduled for that session).
 
-        API Response structure:
-        {
-            "_embedded": {
-                "results": [
-                    {
-                        "eventUUID": "...",
-                        "eventName": "Oral Argument",
-                        "courtID": "1",
-                        "courtAbbreviation": "Alabama Supreme Court",
-                        "courtSessionType": "Oral Argument",
-                        "startDate": "2026-02-04T06:00:00.000+00:00",
-                        "location": "Heflin-Torbert Judicial Building"
-                    }
-                ]
-            },
-            "page": {
-                "size": 100,
-                "totalElements": 3,
-                "totalPages": 1,
-                "number": 0
+        API Response structure::
+
+            {
+                "_embedded": {
+                    "results": [
+                        {
+                            "eventUUID": "...",
+                            "eventName": "Oral Argument",
+                            "courtID": "1",
+                            "courtAbbreviation": "Alabama Supreme Court",
+                            "courtSessionType": "Oral Argument",
+                            "startDate": "2026-02-04T06:00:00.000+00:00",
+                            "location": "Heflin-Torbert Judicial Building"
+                        }
+                    ]
+                },
+                "page": {
+                    "size": 100,
+                    "totalElements": 3,
+                    "totalPages": 1,
+                    "number": 0
+                }
             }
-        }
         """
         start_date = date.fromisoformat(accumulated_data["start_date"])
         end_date = date.fromisoformat(accumulated_data["end_date"])
@@ -888,24 +897,25 @@ class AlabamaScraper(
     ]:
         """Parse hearings for an oral argument event and yield AlaOralArgument objects.
 
-        API Response structure:
-        {
-            "_embedded": {
-                "results": [
-                    {
-                        "startDate": "2026-02-04T16:00:00.000+00:00",
-                        "hearingType": "Oral Argument",
-                        "hearingStatus": "Scheduled",
-                        "caseHeader": {
-                            "caseInstanceUUID": "...",
-                            "caseNumber": "SC-2024-0672",
-                            "caseTitle": "Ex parte Altonio Spencer...",
-                            "courtID": "1"
+        API Response structure::
+
+            {
+                "_embedded": {
+                    "results": [
+                        {
+                            "startDate": "2026-02-04T16:00:00.000+00:00",
+                            "hearingType": "Oral Argument",
+                            "hearingStatus": "Scheduled",
+                            "caseHeader": {
+                                "caseInstanceUUID": "...",
+                                "caseNumber": "SC-2024-0672",
+                                "caseTitle": "Ex parte Altonio Spencer...",
+                                "courtID": "1"
+                            }
                         }
-                    }
-                ]
+                    ]
+                }
             }
-        }
         """
         court_id = accumulated_data["court_id"]
         court_guid = accumulated_data["court_guid"]
@@ -1074,29 +1084,30 @@ class AlabamaScraper(
         Handles the 10,000 result limit by splitting date ranges.
         Yields requests for case details for each case found.
 
-        API Response structure:
-        {
-            "_embedded": {
-                "results": [
-                    {
-                        "caseHeader": {
-                            "caseInstanceUUID": "...",
-                            "caseNumber": "SC-2023-0123",
-                            "caseTitle": "...",
-                            "courtID": 123,
-                            "filedDate": "2023-11-09T14:15:00.000+00:00",
-                            ...
+        API Response structure::
+
+            {
+                "_embedded": {
+                    "results": [
+                        {
+                            "caseHeader": {
+                                "caseInstanceUUID": "...",
+                                "caseNumber": "SC-2023-0123",
+                                "caseTitle": "...",
+                                "courtID": 123,
+                                "filedDate": "2023-11-09T14:15:00.000+00:00",
+                                ...
+                            }
                         }
-                    }
-                ]
-            },
-            "page": {
-                "size": 50,
-                "number": 0,
-                "totalElements": 12345,
-                "totalPages": 247
+                    ]
+                },
+                "page": {
+                    "size": 50,
+                    "number": 0,
+                    "totalElements": 12345,
+                    "totalPages": 247
+                }
             }
-        }
         """
         start_date = date.fromisoformat(accumulated_data["start_date"])
         end_date = date.fromisoformat(accumulated_data["end_date"])
@@ -1255,25 +1266,25 @@ class AlabamaScraper(
     ]:
         """Parse case detail API response and fetch parties/docket entries.
 
-        API Response structure:
-        {
-            "caseHeader": {
-                "caseInstanceUUID": "...",
-                "caseNumber": "SC-2023-0123",
-                "caseTitle": "...",
-                "caseCaption": "...",
-                "closedFlag": false,
-                "caseClassification": "Appeal - Civil - Other",
-                "filedDate": "2023-11-09T14:15:00.000+00:00",
-                "originatingCourtCases": [
-                    {
-                        "originatingCourtName": "Circuit Court",
-                        "originatingCaseNumber": "CV-123"
-                    }
-                ],
-                ...
+        API Response structure::
+
+            {
+                "caseHeader": {
+                    "caseInstanceUUID": "...",
+                    "caseNumber": "SC-2023-0123",
+                    "caseTitle": "...",
+                    "caseCaption": "...",
+                    "closedFlag": false,
+                    "caseClassification": "Appeal - Civil - Other",
+                    "filedDate": "2023-11-09T14:15:00.000+00:00",
+                    "originatingCourtCases": [
+                        {
+                            "originatingCourtName": "Circuit Court",
+                            "originatingCaseNumber": "CV-123"
+                        }
+                    ]
+                }
             }
-        }
         """
         case_instance_uuid = accumulated_data["case_instance_uuid"]
         court_guid = accumulated_data["court_guid"]
@@ -1377,32 +1388,33 @@ class AlabamaScraper(
     ]:
         """Parse case parties and fetch docket entries.
 
-        API Response structure:
-        {
-            "_embedded": {
-                "results": [
-                    {
-                        "casePartyUUID": "...",
-                        "partyType": "Party",
-                        "partySubType": "Appellant",
-                        "partyStatus": "Active",
-                        "actor": {
-                            "displayName": "John Doe",
-                            "sortName": "Doe, John"
-                        },
-                        "legalRepresentations": [
-                            {
-                                "actor": {
-                                    "displayName": "Jane Attorney"
-                                },
-                                "primaryFlag": true
-                            }
-                        ],
-                        "proSeFlag": false
-                    }
-                ]
+        API Response structure::
+
+            {
+                "_embedded": {
+                    "results": [
+                        {
+                            "casePartyUUID": "...",
+                            "partyType": "Party",
+                            "partySubType": "Appellant",
+                            "partyStatus": "Active",
+                            "actor": {
+                                "displayName": "John Doe",
+                                "sortName": "Doe, John"
+                            },
+                            "legalRepresentations": [
+                                {
+                                    "actor": {
+                                        "displayName": "Jane Attorney"
+                                    },
+                                    "primaryFlag": true
+                                }
+                            ],
+                            "proSeFlag": false
+                        }
+                    ]
+                }
             }
-        }
         """
         docket: AlaDocket = accumulated_data["docket"]
 
@@ -1486,24 +1498,25 @@ class AlabamaScraper(
     ]:
         """Parse docket entries and yield the complete docket.
 
-        API Response structure:
-        {
-            "_embedded": {
-                "results": [
-                    {
-                        "docketEntryHeader": {
-                            "docketEntryUUID": "...",
-                            "docketEntryType": "Filing",
-                            "docketEntrySubType": "Notice of Appeal",
-                            "filedDate": "2023-11-09T14:15:00.000+00:00",
-                            "description": "..."
-                        },
-                        "documentCount": 1
-                    }
-                ]
-            },
-            "page": {...}
-        }
+        API Response structure::
+
+            {
+                "_embedded": {
+                    "results": [
+                        {
+                            "docketEntryHeader": {
+                                "docketEntryUUID": "...",
+                                "docketEntryType": "Filing",
+                                "docketEntrySubType": "Notice of Appeal",
+                                "filedDate": "2023-11-09T14:15:00.000+00:00",
+                                "description": "..."
+                            },
+                            "documentCount": 1
+                        }
+                    ]
+                },
+                "page": {...}
+            }
         """
         docket: AlaDocket = accumulated_data["docket"]
 

@@ -3,40 +3,45 @@
 This module contains a unified scraper for opinions, oral arguments, and dockets from
 the CT Judicial Branch website for both the Supreme Court and Appellate Court.
 
-Entry points:
-- Opinions:
-  - Supreme Court: https://www.jud.ct.gov/external/supapp/archiveAROsup.htm
-  - Appellate Court: https://www.jud.ct.gov/external/supapp/archiveAROap.htm
-- Oral Arguments:
-  - Supreme Court: https://jud.ct.gov/supremecourt/Audio/OralArgumentsAudio.aspx
-  - Appellate Court: https://jud.ct.gov/appellatecourt/Audio/OralArgumentsAudio.aspx
-- Dockets:
-  - https://appellateinquiry.jud.ct.gov/CaseDetail.aspx?CRN={crn}
+Entry points::
 
-Opinions Flow:
-  1. get_entry -> archive index pages for selected courts (if "opinions" requested)
-  2. parse_archive_index -> yields requests for each year page
-  3. parse_year_page -> parses opinions, yields ArchiveRequests for PDFs
-  4. handle_opinion_download -> stores local paths, yields final clusters
+    - Opinions:
+      - Supreme Court: https://www.jud.ct.gov/external/supapp/archiveAROsup.htm
+      - Appellate Court: https://www.jud.ct.gov/external/supapp/archiveAROap.htm
+    - Oral Arguments:
+      - Supreme Court: https://jud.ct.gov/supremecourt/Audio/OralArgumentsAudio.aspx
+      - Appellate Court: https://jud.ct.gov/appellatecourt/Audio/OralArgumentsAudio.aspx
+    - Dockets:
+      - https://appellateinquiry.jud.ct.gov/CaseDetail.aspx?CRN={crn}
 
-Oral Arguments Flow:
-  1. get_entry -> oral arguments index page for selected courts (if "oral_arguments" requested)
-  2. parse_oral_arguments_index -> yields requests for each court year
-  3. parse_court_year_page -> parses cases, yields requests to audio player pages
-  4. parse_audio_player_page -> extracts MP3 URL, yields ArchiveRequest
-  5. handle_audio_download -> yields final ConnOralArgument
+Opinions Flow::
 
-Dockets Flow:
-  1. get_entry -> navigate to appellateinquiry.jud.ct.gov (if "dockets" requested)
-  2. start_docket_scraping -> yields SpeculativeRequests for CRN IDs
-  3. parse_docket_page -> parses case detail, yields ConnDocket
+    1. get_entry -> archive index pages for selected courts (if "opinions" requested)
+    2. parse_archive_index -> yields requests for each year page
+    3. parse_year_page -> parses opinions, yields ArchiveRequests for PDFs
+    4. handle_opinion_download -> stores local paths, yields final clusters
+
+Oral Arguments Flow::
+
+    1. get_entry -> oral arguments index page for selected courts (if "oral_arguments" requested)
+    2. parse_oral_arguments_index -> yields requests for each court year
+    3. parse_court_year_page -> parses cases, yields requests to audio player pages
+    4. parse_audio_player_page -> extracts MP3 URL, yields ArchiveRequest
+    5. handle_audio_download -> yields final ConnOralArgument
+
+Dockets Flow::
+
+    1. get_entry -> navigate to appellateinquiry.jud.ct.gov (if "dockets" requested)
+    2. start_docket_scraping -> yields SpeculativeRequests for CRN IDs
+    3. parse_docket_page -> parses case detail, yields ConnDocket
 
 Design decisions:
-- Uses restrictive checked_xpaths to catch structural changes early
-- Uses DateRange filter on date_argued/date_filed for searching
-- Uses SetFilter on court_id to select which courts to scrape
-- Uses SpeculativeID on crn for speculative docket scraping
-- Downloads all files via ArchiveRequest
+
+    - Uses restrictive checked_xpaths to catch structural changes early
+    - Uses DateRange filter on date_argued/date_filed for searching
+    - Uses SetFilter on court_id to select which courts to scrape
+    - Uses SpeculativeID on crn for speculative docket scraping
+    - Downloads all files via ArchiveRequest
 """
 
 from __future__ import annotations

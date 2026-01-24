@@ -8,18 +8,21 @@ Entry points:
 - Supreme Court: https://legacy.utcourts.gov/opinions/supopin/
 - Court of Appeals: https://legacy.utcourts.gov/opinions/appopin/
 
-Opinion listing format:
-Each opinion appears as a paragraph with structure:
+Opinion listing format::
+
+  Each opinion appears as a paragraph with structure:
   <a href="{filename}.pdf">{Case Name}</a>, Case No. {case_number}, Filed {date}, {citation}
 
-Example:
+Example::
+
   <a href="State v. Macbeth20260115_20230512_3.pdf">State v. Macbeth</a>,
   Case No. 20230512-CA, Filed January 15, 2026, 2026 UT App 3
 
-PDF URL pattern:
-- {base_url}/{court_path}/{filename}.pdf
-  - court_path: "supopin" for Supreme Court, "appopin" for Court of Appeals
-  - filename: e.g., "State v. Macbeth20260115_20230512_3"
+PDF URL pattern::
+
+  - {base_url}/{court_path}/{filename}.pdf
+    - court_path: "supopin" for Supreme Court, "appopin" for Court of Appeals
+    - filename: e.g., "State v. Macbeth20260115_20230512_3"
 
 Flow:
   1. get_entry -> opinion listing page for selected courts
@@ -281,7 +284,9 @@ class UtahScraper(BaseScraper[UtahOpinionCluster]):
         ArchiveRequests for each opinion PDF.
 
         Page structure:
+
         - Opinions listed as <p> elements containing:
+
           - <a href="{filename}.pdf">{Case Name}</a>
           - Text: ", Case No. {case_number}, Filed {date}, {citation}"
         """

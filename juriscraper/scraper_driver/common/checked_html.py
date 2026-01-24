@@ -90,7 +90,8 @@ class CheckedHtmlElement:
         Raises:
             HTMLStructuralAssumptionException: If count doesn't match expectations.
 
-        Example:
+        Example::
+
             tree = CheckedHtmlElement(lxml.html.fromstring(html))
             # Get elements (default)
             cases = tree.checked_xpath("//tr[@class='case']", "cases")
@@ -173,7 +174,8 @@ class CheckedHtmlElement:
         Raises:
             HTMLStructuralAssumptionException: If count doesn't match expectations.
 
-        Example:
+        Example::
+
             tree = CheckedHtmlElement(lxml.html.fromstring(html))
             # Expect exactly 1 case name
             case_name = tree.checked_css("h1.case-name", "case name")

@@ -13,4 +13,5 @@ Court Coverage
 Scrapers
 --------
 
-*No scrapers available for this jurisdiction.*
+.. scraper-info:: WashingtonScraper
+

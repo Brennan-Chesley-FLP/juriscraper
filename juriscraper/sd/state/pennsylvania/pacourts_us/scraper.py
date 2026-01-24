@@ -1,37 +1,38 @@
 """Pennsylvania Appellate Courts Opinion Scraper.
 
 This module contains a unified scraper for opinions from Pennsylvania courts:
+
 - Supreme Court of Pennsylvania (pa)
 - Superior Court of Pennsylvania (pasuperct)
 - Commonwealth Court of Pennsylvania (pacommwct)
 
-Entry point:
-- RSS Feeds:
-  - Supreme Court: https://www.pacourts.us/Rss/Opinions/Supreme/
-  - Superior Court: https://www.pacourts.us/Rss/Opinions/Superior/
-  - Commonwealth Court: https://www.pacourts.us/Rss/Opinions/Commonwealth/
+Entry point - RSS Feeds:
 
-RSS Feed structure:
-- <item> elements contain:
-  - <title>: Case name + docket number (e.g., "Com. v. Woodall, J. No. 876 WDA 2024")
-  - <link>: Direct PDF URL
-  - <guid>: PDF URL (for deduplication)
-  - <pubDate>: Publication date in RFC 822 format
-  - <dc:creator>: Author/judge name or "Per Curiam"
-  - <description>: Empty CDATA (no abstract available)
+- Supreme Court: ``https://www.pacourts.us/Rss/Opinions/Supreme/``
+- Superior Court: ``https://www.pacourts.us/Rss/Opinions/Superior/``
+- Commonwealth Court: ``https://www.pacourts.us/Rss/Opinions/Commonwealth/``
 
-PDF URL pattern:
-- https://www.pacourts.us/assets/opinions/{Court}/out/{filename}.pdf
-  - Court: "Supreme", "Superior", "Commonwealth"
-  - filename: varies by court and opinion type
+RSS Feed structure - each ``<item>`` element contains:
+
+- ``<title>``: Case name + docket number (e.g., "Com. v. Woodall, J. No. 876 WDA 2024")
+- ``<link>``: Direct PDF URL
+- ``<guid>``: PDF URL (for deduplication)
+- ``<pubDate>``: Publication date in RFC 822 format
+- ``<dc:creator>``: Author/judge name or "Per Curiam"
+- ``<description>``: Empty CDATA (no abstract available)
+
+PDF URL pattern: ``https://www.pacourts.us/assets/opinions/{Court}/out/{filename}.pdf``
+where Court is "Supreme", "Superior", or "Commonwealth" and filename varies.
 
 Flow:
-  1. get_entry -> RSS feed URLs for selected courts (if "opinions" requested)
-  2. parse_rss_feed -> extracts opinion metadata from RSS items
-  3. yields ArchiveRequests for PDFs
-  4. handle_opinion_download -> stores local paths, yields final clusters
+
+1. get_entry -> RSS feed URLs for selected courts (if "opinions" requested)
+2. parse_rss_feed -> extracts opinion metadata from RSS items
+3. yields ArchiveRequests for PDFs
+4. handle_opinion_download -> stores local paths, yields final clusters
 
 Design decisions:
+
 - Uses RSS feeds as primary data source for reliability and efficiency
 - RSS feeds provide case name, docket number, date, author, and PDF URL
 - Uses DateRange filter on date_filed for searching

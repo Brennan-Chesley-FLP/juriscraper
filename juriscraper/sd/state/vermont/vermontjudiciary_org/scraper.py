@@ -12,7 +12,8 @@ Flow:
 3. handle_opinion_download -> yields final VermontOpinionCluster
 
 Design decisions:
-- Uses the Supreme Court filter (court_division_opinions_library_:7)
+
+- Uses the Supreme Court filter (``court_division_opinions_library_:7``)
 - Each result shows case name, date, docket number, and link to PDF
 - Docket format: YY-AP-NNN (e.g., 25-AP-314)
 - Date format: MM/DD/YYYY

@@ -6,7 +6,8 @@ on_data parameter for side effects like persistence, logging, and monitoring.
 Step 7 introduces the on_data callback system, allowing users to define custom
 behavior when ParsedData is yielded without subclassing the driver.
 
-Example:
+Example::
+
     from juriscraper.scraper_driver.driver.callbacks import save_to_jsonl_file
     from juriscraper.scraper_driver.driver.sync_driver import SyncDriver
 
@@ -34,7 +35,8 @@ def save_to_jsonl_file(file_handle: TextIO) -> Callable[[dict], None]:
     Returns:
         A callback function that can be passed to driver's on_data parameter.
 
-    Example:
+    Example::
+
         with open("output.jsonl", "w") as f:
             driver = SyncDriver(scraper, on_data=save_to_jsonl_file(f))
             results = driver.run()
@@ -65,7 +67,8 @@ def save_to_jsonl_path(file_path: Path | str) -> Callable[[dict], None]:
     Returns:
         A callback function that can be passed to driver's on_data parameter.
 
-    Example:
+    Example::
+
         driver = SyncDriver(scraper, on_data=save_to_jsonl_path("output.jsonl"))
         results = driver.run()
         # File contains one JSON object per line
@@ -97,7 +100,8 @@ def print_data(prefix: str = "") -> Callable[[dict], None]:
     Returns:
         A callback function that can be passed to driver's on_data parameter.
 
-    Example:
+    Example::
+
         driver = SyncDriver(scraper, on_data=print_data("SCRAPED: "))
         results = driver.run()
         # Prints: SCRAPED: {"docket": "...", ...}
@@ -123,7 +127,8 @@ def count_data(counter: list[int] | None = None) -> Callable[[dict], None]:
         A callback function that can be passed to driver's on_data parameter.
         The counter list is also returned indirectly (if you created it).
 
-    Example:
+    Example::
+
         count = [0]  # Mutable container
         driver = SyncDriver(scraper, on_data=count_data(count))
         results = driver.run()
@@ -152,7 +157,8 @@ def combine_callbacks(
     Returns:
         A single callback function that invokes all provided callbacks.
 
-    Example:
+    Example::
+
         driver = SyncDriver(
             scraper,
             on_data=combine_callbacks(
@@ -188,7 +194,8 @@ def validate_data(
     Returns:
         A callback function that can be passed to driver's on_data parameter.
 
-    Example:
+    Example::
+
         def is_complete(data: dict) -> bool:
             return "docket" in data and "case_name" in data
 

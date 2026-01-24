@@ -16,19 +16,21 @@ Opinion types:
 - Court of Appeals: Published opinions (since May 2, 1995)
 - Court of Appeals: Unpublished opinions (since March 5, 2002)
 
-URL patterns:
-- Supreme Court opinions: https://www.vacourts.gov/scndex
-  (redirects to https://webdev.vacourts.gov/dynamic/scndex.htm)
-- Court of Appeals published: https://www.vacourts.gov/wpcap
-  (redirects to https://webdev.vacourts.gov/dynamic/wpcap.htm)
-- Court of Appeals unpublished: https://www.vacourts.gov/wpcau
-  (redirects to https://webdev.vacourts.gov/dynamic/wpcau.htm)
+URL patterns::
 
-PDF URL patterns:
-- Supreme Court: https://www.vacourts.gov/opinions/opnscvwp/1{case_number}.pdf
-  (6-digit case number prefixed with 1, e.g., 1240736.pdf for case 240736)
-- Court of Appeals: https://www.vacourts.gov/opinions/opncavwp/{case_number}.pdf
-  (7-digit case number, e.g., 0350251.pdf)
+  - Supreme Court opinions: https://www.vacourts.gov/scndex
+    (redirects to https://webdev.vacourts.gov/dynamic/scndex.htm)
+  - Court of Appeals published: https://www.vacourts.gov/wpcap
+    (redirects to https://webdev.vacourts.gov/dynamic/wpcap.htm)
+  - Court of Appeals unpublished: https://www.vacourts.gov/wpcau
+    (redirects to https://webdev.vacourts.gov/dynamic/wpcau.htm)
+
+PDF URL patterns::
+
+  - Supreme Court: https://www.vacourts.gov/opinions/opnscvwp/1{case_number}.pdf
+    (6-digit case number prefixed with 1, e.g., 1240736.pdf for case 240736)
+  - Court of Appeals: https://www.vacourts.gov/opinions/opncavwp/{case_number}.pdf
+    (7-digit case number, e.g., 0350251.pdf)
 """
 
 from __future__ import annotations

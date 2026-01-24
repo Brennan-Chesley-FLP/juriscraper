@@ -1,35 +1,33 @@
 """Ohio Appellate Courts Opinion Scraper.
 
 This module contains a unified scraper for opinions from Ohio courts:
+
 - Ohio Supreme Court (ohio)
 - First through Twelfth District Courts of Appeals (ohctapp1-12)
 - Court of Claims (ohioctcl)
 
-Entry point:
-- https://www.supremecourt.ohio.gov/Rod/docs/Default.aspx
+Entry point: ``https://www.supremecourt.ohio.gov/Rod/docs/Default.aspx``
 
 Opinion Search URL patterns:
-- Base URL: https://www.supremecourt.ohio.gov/Rod/docs/Default.aspx
-- With source filter: ?source={N} where N is:
-  - 0 = Supreme Court of Ohio
-  - 1-12 = District Courts of Appeals
-  - 13 = Court of Claims
-  - 15 = All Sources
-  - 16 = All District Courts
 
-PDF URL pattern:
-- https://www.supremecourt.ohio.gov/rod/docs/pdf/{district}/{year}/{webcite}.pdf
-  - district: 0 for Supreme Court, 1-12 for Courts of Appeals
-  - year: 4-digit year
-  - webcite: e.g., "2026-Ohio-148"
+- Base URL: ``https://www.supremecourt.ohio.gov/Rod/docs/Default.aspx``
+- With source filter: ``?source={N}`` where N is 0 (Supreme Court),
+  1-12 (District Courts of Appeals), 13 (Court of Claims),
+  15 (All Sources), or 16 (All District Courts)
+
+PDF URL pattern: ``https://www.supremecourt.ohio.gov/rod/docs/pdf/{district}/{year}/{webcite}.pdf``
+where district is 0 for Supreme Court or 1-12 for Courts of Appeals,
+year is 4-digit, and webcite is e.g. "2026-Ohio-148".
 
 Flow:
-  1. get_entry -> opinion search page for selected courts (if "opinions" requested)
-  2. parse_opinion_search -> extracts opinion metadata from results table
-  3. yields ArchiveRequests for PDFs
-  4. handle_opinion_download -> stores local paths, yields final clusters
+
+1. get_entry -> opinion search page for selected courts (if "opinions" requested)
+2. parse_opinion_search -> extracts opinion metadata from results table
+3. yields ArchiveRequests for PDFs
+4. handle_opinion_download -> stores local paths, yields final clusters
 
 Design decisions:
+
 - Uses restrictive checked_xpaths to catch structural changes early
 - Uses DateRange filter on date_decided for searching
 - Uses SetFilter on court_id to select which courts to scrape

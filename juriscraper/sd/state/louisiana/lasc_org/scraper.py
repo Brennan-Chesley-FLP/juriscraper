@@ -3,18 +3,22 @@
 This module scrapes opinions from the Louisiana Supreme Court website.
 
 Entry points:
-- Court Actions: https://www.lasc.org/CourtActions/{year}
-  - Actions: https://www.lasc.org/Actions?p={year}-{number}
-  - Opinions: https://www.lasc.org/Opinions?p={year}-{number}
-  - Rehearings: https://www.lasc.org/Rehearings?p={year}-{number}
+
+- Court Actions: ``https://www.lasc.org/CourtActions/{year}``
+
+  - Actions: ``https://www.lasc.org/Actions?p={year}-{number}``
+  - Opinions: ``https://www.lasc.org/Opinions?p={year}-{number}``
+  - Rehearings: ``https://www.lasc.org/Rehearings?p={year}-{number}``
 
 Flow:
+
 1. get_entry -> Court Actions year page URL (if "opinions" requested)
 2. parse_court_actions_year -> parses table of releases, yields NavigatingRequests
 3. parse_release_page -> parses individual release, yields ArchiveRequests for PDFs
 4. handle_opinion_download -> yields final LouisianaOpinionCluster
 
 Design decisions:
+
 - Scrapes from Court Actions pages which list all releases
 - Each release can be Actions (writ dispositions), Opinions (full opinions),
   or Rehearings (rehearing decisions)

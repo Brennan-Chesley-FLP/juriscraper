@@ -27,6 +27,7 @@ from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     BaseRequest,
     BaseScraper,
+    FlowControl,
     HttpMethod,
     HTTPRequestParams,
     NavigatingRequest,
@@ -39,9 +40,6 @@ from juriscraper.scraper_driver.data_types import (
 from juriscraper.scraper_driver.driver.async_driver import AsyncDriver
 from juriscraper.scraper_driver.driver.dev_driver.schema import (
     init_database,
-)
-from juriscraper.scraper_driver.driver.dev_driver.speculation import (
-    FlowControl,
 )
 from juriscraper.scraper_driver.driver.dev_driver.sql_manager import (
     Page,

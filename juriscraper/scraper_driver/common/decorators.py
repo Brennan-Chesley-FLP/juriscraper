@@ -6,6 +6,7 @@ decorators for each content type (lxml, json, text, etc.), a single decorator
 inspects the function signature and injects values based on parameter names.
 
 Supported parameter names:
+
 - response: The Response object
 - request: The current BaseRequest
 - previous_request: The parent request from the chain
@@ -18,6 +19,7 @@ Supported parameter names:
 - speculative_id: Starting ID for speculative steps (from params.speculative.{step_name})
 
 The decorator also handles:
+
 - Attaching priority metadata to functions
 - Attaching encoding and xsd metadata for drivers to optionally use
 - Auto-resolving Callable continuations to string names
@@ -202,7 +204,8 @@ def step(
     - text: Response content as string
     - local_filepath: Local file path from ArchiveResponse (None otherwise)
 
-    Example:
+    Example::
+
         @step
         def parse_page(self, lxml_tree: CheckedHtmlElement, response: Response):
             # lxml_tree and response are automatically injected

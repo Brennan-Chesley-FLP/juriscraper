@@ -294,7 +294,8 @@ class SQLManager:
     standalone class that can be used independently for testing, inspection,
     and programmatic access to the SQLite database.
 
-    Example:
+    Example::
+
         # Standalone usage for inspection
         async with SQLManager.open(db_path) as manager:
             stats = await manager.get_stats()
@@ -331,7 +332,8 @@ class SQLManager:
         Yields:
             SQLManager instance.
 
-        Example:
+        Example::
+
             async with SQLManager.open(db_path) as manager:
                 stats = await manager.get_stats()
         """
@@ -979,8 +981,8 @@ class SQLManager:
 
         Returns:
             Dictionary with response data if found, None otherwise.
-            Keys: id, request_id, status_code, headers_json, url,
-                  content_compressed, compression_dict_id, created_at, method
+            Contains keys: id, request_id, status_code, headers_json, url,
+            content_compressed, compression_dict_id, created_at, method.
         """
         cursor = await self._db.execute(
             SQL.SELECT_CACHED_RESPONSE_BY_KEY, (cache_key,)

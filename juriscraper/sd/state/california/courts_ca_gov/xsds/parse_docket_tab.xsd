@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for California Appellate Court Docket (Register of Actions) Tab
+  URL: https://appellatecases.courtinfo.ca.gov/search/case/dockets.cfm
+
+  Step: parse_docket_tab
+
+  This schema documents the expected HTML structure of the California
+  appellate courts docket tab showing the register of actions.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The docket tab displays the register of actions (docket entries) for a case.
+
+      Structure:
+      - h2: "Docket (Register of Actions)"
+      - Case caption and division
+      - Case number link (back to summary)
+      - Table with docket entries:
+        - Header: Date | Description | Notes
+        - Rows: Date | Event description | Additional notes
+
+      Scraper XPath Assertions
+      ========================
+      1. DOCKET_ENTRIES: //table//tr[td]
+         - Description: "docket entry rows"
+         - min_count: 0
+         - Each row contains: date, description, notes (optional)
+
+      Table Structure
+      ===============
+      | Date       | Description                                    | Notes                    |
+      |------------|------------------------------------------------|--------------------------|
+      | 06/10/2022 | Petition for writ filed                        | Petitioner: John Doe     |
+      | 06/10/2022 | Exhibit(s) lodged                              | In support of petition   |
+      | 06/13/2022 | Transferred to CA 2                            | Detailed order text...   |
+
+      Date Format
+      ===========
+      MM/DD/YYYY (e.g., 06/10/2022)
+
+      Example Extracted Data
+      ======================
+      Entry:
+        Date: 2022-06-10
+        Description: Petition for writ of mandate/prohibition with request for stay filed
+        Notes: Petitioner: Mark K. Friedman, Pro Per
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="docket-tab-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="case-info">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="case-caption" type="xs:string"/>
+              <xs:element name="division" type="xs:string" minOccurs="0"/>
+              <xs:element name="case-number" type="xs:string"/>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="docket-entries">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="entry" maxOccurs="unbounded" minOccurs="0">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="entry-date" type="xs:date"/>
+                    <xs:element name="description" type="xs:string"/>
+                    <xs:element name="notes" type="xs:string" minOccurs="0"/>
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

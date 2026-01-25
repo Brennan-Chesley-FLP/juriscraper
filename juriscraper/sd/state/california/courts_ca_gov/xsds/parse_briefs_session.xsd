@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for California Supreme Court Briefs Session Page
+  URL: https://supreme.courts.ca.gov/case-information/briefs-argued-cases/{session-slug}
+  Example: https://supreme.courts.ca.gov/case-information/briefs-argued-cases/
+           february-4-2026-oral-argument-cases
+
+  Step: parse_briefs_session
+
+  This schema documents the expected HTML structure of a California
+  Supreme Court briefs session page, which lists cases and their briefs
+  for a specific oral argument date.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The briefs session page displays cases scheduled for a specific oral
+      argument date, with all briefs filed for each case.
+
+      Structure:
+      - main > article > div
+        - h1: "February 4, 2026 Oral Argument Cases"
+        - For each case:
+          - h2: "S289430 - IN RE Z.G."
+          - p > em: Consolidated case info (optional)
+          - p > em: Assigned justice info (optional)
+          - ul: List of briefs
+            - li: Brief entry with PDF link and filed date
+
+      Scraper XPath Assertions
+      ========================
+      1. CASE_HEADINGS: //h2[contains(text(), 'S') and contains(text(), ' - ')]
+         - Description: "case headings"
+         - min_count: 0 (some sessions may have no cases)
+         - Expected: "S289430 - IN RE Z.G."
+
+      2. BRIEF_LIST (relative to heading):
+         following-sibling::ul[contains(@class, 'jcc-list') or
+                               .//a[contains(@href, '.pdf')]][1]
+         - Description: "briefs list"
+         - min_count: 0
+         - Expected: ul containing brief entries
+
+      3. PDF_LINK (within brief list item):
+         .//a[contains(@href, '.pdf')]
+         - Description: "brief PDF link"
+         - min_count: 1 per brief item
+         - Expected: URL like /sites/default/files/supremecourt/default/documents/...
+
+      Case Heading Format
+      ===================
+      Format: "S[digits] - [CASE NAME]"
+      Examples:
+        - "S289430 - IN RE Z.G."
+        - "S277910 - KOWALCZYK (GERALD JOHN) ON H.C."
+        - "S284751 - PEOPLE v. MORRIS"
+        - "S112146 - PEOPLE v. STAYNER (CARY ANTHONY)"
+
+      Consolidated Cases
+      ==================
+      Following paragraphs may contain:
+        - em: "(Consolidated case with S289441 - G. (A.) ON H.C.)"
+      Pattern: "Consolidated case with S[digits] - [NAME]"
+
+      Assigned Justice
+      ================
+      Following paragraphs may contain:
+        - em: "(Baltodano, J., assigned justice pro tempore)"
+      Pattern: "([Name], J., assigned justice pro tempore)"
+
+      Brief Entry Format
+      ==================
+      Structure:
+        li
+          a.jcc-list__link[href=".pdf"]: Brief description
+          text: "Filed on February 24, 2025"
+
+      Brief Types (categorized from description):
+        - petition: "Petition for Review", "Petitioner's Petition for Review"
+        - opening: "Opening Brief on the Merits", "Appellant's Opening Brief"
+        - answer: "Answer Brief on the Merits", "Respondent's Answer Brief"
+        - reply: "Reply Brief on the Merits", "Petitioner's Reply Brief"
+        - amicus: "Amicus Curiae Brief of [Organization]"
+        - supplemental: "Supplemental Brief"
+        - response: "Response to Amicus Curiae Brief"
+        - traverse: "Petitioner's Traverse"
+        - habeas: "Petition for Writ of Habeas Corpus"
+        - focus_issues: "Focus Issues Letter"
+        - other: Any other brief type
+
+      PDF URL Format
+      ==============
+      /sites/default/files/supremecourt/default/documents/
+      [seq]-[filing_num]-s[case_num]-[brief_type_abbrev]-[date].pdf
+
+      Example:
+      /sites/default/files/supremecourt/default/documents/
+      1-20-s289430-app-pet-rev-022425.pdf
+
+      Example Extracted Data
+      ======================
+      Case Number: S289430
+      Case Name: IN RE Z.G.
+      Oral Argument Date: 2026-02-04
+      Consolidated With: [S289441]
+      Assigned Justice: Baltodano, J., assigned justice pro tempore
+
+      Briefs:
+        1. Description: Appellant's Petition for Review
+           Date Filed: 2025-02-24
+           Type: petition
+           PDF URL: /sites/default/files/supremecourt/default/documents/
+                    1-20-s289430-app-pet-rev-022425.pdf
+
+        2. Description: Appellant's Opening Brief on the Merits
+           Date Filed: 2025-08-06
+           Type: opening
+           PDF URL: /sites/default/files/supremecourt/default/documents/
+                    2-150-s289430-app-opening-brief-merits-080625.pdf
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing a briefs session page -->
+  <xs:element name="briefs-session-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="session-date" type="xs:date"/>
+        <xs:element name="case" maxOccurs="unbounded" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="case-number" type="xs:string"/>
+              <!-- e.g., "S289430" -->
+              <xs:element name="case-name" type="xs:string"/>
+              <xs:element name="assigned-justice" type="xs:string" minOccurs="0"/>
+              <xs:element name="consolidated-with" minOccurs="0">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="case-number" type="xs:string" maxOccurs="unbounded"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="brief" maxOccurs="unbounded" minOccurs="0">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="description" type="xs:string"/>
+                    <xs:element name="date-filed" type="xs:date"/>
+                    <xs:element name="brief-type" type="xs:string"/>
+                    <xs:element name="pdf-url" type="xs:anyURI"/>
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

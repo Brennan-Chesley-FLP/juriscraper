@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for California Appellate Court Briefs Tab
+  URL: https://appellatecases.courtinfo.ca.gov/search/case/briefing.cfm
+
+  Step: parse_briefs_tab
+
+  This schema documents the expected HTML structure of the California
+  appellate courts briefs tab showing brief filings.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The briefs tab displays brief filings and deadlines for a case.
+
+      Structure:
+      - h2: "Briefs"
+      - Case caption and division
+      - Case number link (back to summary)
+      - Table with brief entries or "No information found."
+        - Header: Brief Type | Filing Party | Date Filed | Date Due | Pages
+        - Rows: Brief details
+
+      Scraper XPath Assertions
+      ========================
+      1. BRIEF_ENTRIES: //table//tr[td]
+         - Description: "brief entry rows"
+         - min_count: 0
+         - Many cases have no briefs ("No information found.")
+
+      Table Structure
+      ===============
+      | Brief Type      | Filing Party | Date Filed | Date Due   | Pages |
+      |-----------------|--------------|------------|------------|-------|
+      | Opening Brief   | Appellant    | 01/15/2024 | 01/30/2024 | 45    |
+      | Reply Brief     | Respondent   | 02/15/2024 | 02/28/2024 | 30    |
+
+      No Data Case
+      ============
+      Many cases, especially older ones or those resolved quickly,
+      display "No information found." instead of a table.
+
+      Example Extracted Data
+      ======================
+      Brief:
+        Brief Type: Appellant's Opening Brief
+        Filing Party: Appellant
+        Date Filed: 2024-01-15
+        Date Due: 2024-01-30
+        Pages: 45
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="briefs-tab-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="case-info">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="case-caption" type="xs:string"/>
+              <xs:element name="division" type="xs:string" minOccurs="0"/>
+              <xs:element name="case-number" type="xs:string"/>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="briefs">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="brief" maxOccurs="unbounded" minOccurs="0">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="brief-type" type="xs:string"/>
+                    <xs:element name="filing-party" type="xs:string" minOccurs="0"/>
+                    <xs:element name="date-filed" type="xs:date" minOccurs="0"/>
+                    <xs:element name="date-due" type="xs:date" minOccurs="0"/>
+                    <xs:element name="pages" type="xs:integer" minOccurs="0"/>
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

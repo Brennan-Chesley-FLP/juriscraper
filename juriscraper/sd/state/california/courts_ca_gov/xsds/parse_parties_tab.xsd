@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for California Appellate Court Parties and Attorneys Tab
+  URL: https://appellatecases.courtinfo.ca.gov/search/case/partiesAndAttorneys.cfm
+
+  Step: parse_parties_tab
+
+  This schema documents the expected HTML structure of the California
+  appellate courts parties and attorneys tab.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The parties and attorneys tab displays party information with attorneys.
+
+      Structure:
+      - h2: "Parties and Attorneys"
+      - Case caption and division
+      - Case number link (back to summary)
+      - Table with party entries:
+        - Header: Party | Attorney
+        - Rows: Party info (name, type, address) | Attorney info
+
+      Scraper XPath Assertions
+      ========================
+      1. PARTY_ROWS: //table//tr[td]
+         - Description: "party rows"
+         - min_count: 0
+         - Each row contains party info and attorney info
+
+      Table Structure
+      ===============
+      | Party                                    | Attorney                              |
+      |------------------------------------------|---------------------------------------|
+      | Mark K. Friedman : Petitioner            | Pro Per                               |
+      | 11990 San Vicente Blvd., Suite 300       |                                       |
+      | Los Angeles, CA 90049                    |                                       |
+      |------------------------------------------|---------------------------------------|
+      | Superior Court of LA : Respondent        | Frederick Bennett                     |
+      |                                          | S.C.L.A.                              |
+      |                                          | 111 North Hill Street, Room 546       |
+      |                                          | Los Angeles, CA 90012                 |
+
+      Party Format
+      ============
+      "Name : Party Type"
+      Address on subsequent lines within same cell
+
+      Attorney Format
+      ===============
+      Name on first line
+      Firm name (if applicable)
+      Address on subsequent lines
+      "Pro Per" if self-represented
+
+      Party Types
+      ===========
+      - Petitioner
+      - Respondent
+      - Appellant
+      - Real Party in Interest
+      - Amicus Curiae
+
+      Example Extracted Data
+      ======================
+      Party:
+        Name: Mark K. Friedman
+        Party Type: Petitioner
+        Address: 11990 San Vicente Blvd., Suite 300, Los Angeles, CA 90049
+        Attorneys: [Pro Per]
+
+      Party:
+        Name: Superior Court of Los Angeles County
+        Party Type: Respondent
+        Attorneys:
+          - Frederick Bennett, S.C.L.A., 111 North Hill Street, Room 546
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="parties-tab-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="case-info">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="case-caption" type="xs:string"/>
+              <xs:element name="division" type="xs:string" minOccurs="0"/>
+              <xs:element name="case-number" type="xs:string"/>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="parties">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="party" maxOccurs="unbounded" minOccurs="0">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="name" type="xs:string"/>
+                    <xs:element name="party-type" type="xs:string"/>
+                    <xs:element name="address" type="xs:string" minOccurs="0"/>
+                    <xs:element name="attorneys" minOccurs="0">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="attorney" type="xs:string" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

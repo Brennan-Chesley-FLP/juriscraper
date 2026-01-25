@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for California Appellate Court Case Summary Page
+  URL: https://appellatecases.courtinfo.ca.gov/search/case/mainCaseScreen.cfm
+
+  Step: parse_docket_search
+
+  This schema documents the expected HTML structure of the California
+  appellate courts case summary page from appellatecases.courtinfo.ca.gov.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The case summary page displays key case information with navigation tabs.
+
+      Navigation Tabs:
+      - Case Summary (mainCaseScreen.cfm) - Current page
+      - Docket (dockets.cfm)
+      - Briefs (briefing.cfm)
+      - Scheduled Actions (scheduledActions.cfm) - CoA only
+      - Disposition (disposition.cfm)
+      - Parties and Attorneys (partiesAndAttorneys.cfm)
+      - Lower Court / Trial Court (trialCourt.cfm)
+
+      Case Summary Structure:
+      - h2: Court name (e.g., "Supreme Court", "1st Appellate District")
+      - Court dropdown selector
+      - Navigation buttons for tabs
+      - h2: "Case Summary"
+      - div pairs: Label + Value
+        - Trial Court Case / Supreme Court Case
+        - Court of Appeal Case(s)
+        - Division
+        - Case Caption
+        - Case Type / Case Category
+        - Filing Date / Start Date
+        - Completion Date
+        - Case Status
+        - Issues
+        - Disposition Date
+        - Case Citation
+        - Oral Argument Date/Time
+      - Cross Referenced Cases section
+      - Email notification link
+
+      Scraper XPath Assertions
+      ========================
+      1. SESSION_EXPIRED_CHECK: //*[contains(text(), 'session has expired')]
+         - Description: "session expired message"
+         - min_count: 0
+         - If found, the page is invalid
+
+      2. SEARCH_RESULTS_CHECK: //table[contains(@class, 'searchResults')]//tr
+         - Description: "search results rows"
+         - min_count: 0
+         - If found, multiple results returned (not a case page)
+
+      3. CASE_LABELS: //*[contains(text(), 'Case Caption')]
+         - Description: "case caption label"
+         - min_count: 0 (may be on case page or search results)
+
+      4. CROSS_REF_LINKS: //a[contains(@href, 'mainCaseScreen')]
+         - Description: "cross-referenced case links"
+         - min_count: 0
+
+      URL Parameters
+      ==============
+      - dist: District ID (0=Supreme, 1-6=Districts, 41-43=4th District Divs)
+      - doc_id: Internal document ID
+      - doc_no: Case number (e.g., S275000, A170000)
+      - request_token: Session token (required)
+
+      Example URL
+      ===========
+      https://appellatecases.courtinfo.ca.gov/search/case/mainCaseScreen.cfm
+        ?dist=0&amp;doc_id=2384930&amp;doc_no=S275000
+        &amp;request_token=NiIwLSEnPkw%2BW1BZSCNdXENJUFw0UDxTJCNORzpTMCAgCg%3D%3D
+
+      Example Extracted Data (Supreme Court)
+      ======================================
+      Supreme Court Case: S275000
+      Court of Appeal Case(s): No Data Found
+      Case Caption: FRIEDMAN v. S.C. (CONQUEST CAPITAL PARTNERS)
+      Case Category: Original Proceeding - Civil
+      Start Date: 06/10/2022
+      Case Status: case closed
+      Issues: none
+      Disposition Date: 06/13/2022
+      Case Citation: none
+
+      Example Extracted Data (Court of Appeal)
+      ========================================
+      Trial Court Case: FDV19814465
+      Court of Appeal Case: A170000
+      Division: 4
+      Case Caption: C.T. v. K.W.
+      Case Type: CV
+      Filing Date: 03/14/2024
+      Completion Date: 05/16/2025
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="case-summary-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="court-heading" type="xs:string"/>
+        <xs:element name="case-info">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="case-number" type="xs:string"/>
+              <xs:element name="case-caption" type="xs:string"/>
+              <xs:element name="case-type" type="xs:string" minOccurs="0"/>
+              <xs:element name="case-category" type="xs:string" minOccurs="0"/>
+              <xs:element name="division" type="xs:string" minOccurs="0"/>
+              <xs:element name="filing-date" type="xs:date" minOccurs="0"/>
+              <xs:element name="completion-date" type="xs:date" minOccurs="0"/>
+              <xs:element name="case-status" type="xs:string" minOccurs="0"/>
+              <xs:element name="disposition-date" type="xs:date" minOccurs="0"/>
+              <xs:element name="case-citation" type="xs:string" minOccurs="0"/>
+              <xs:element name="trial-court-case" type="xs:string" minOccurs="0"/>
+              <xs:element name="court-of-appeal-case" type="xs:string" minOccurs="0"/>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="cross-referenced-cases" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="case-number" type="xs:string" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for California Appellate Court Trial Court / Lower Court Tab
+  URL: https://appellatecases.courtinfo.ca.gov/search/case/trialCourt.cfm
+
+  Step: parse_trial_court_tab
+
+  This schema documents the expected HTML structure of the California
+  appellate courts trial court tab (or "Lower Court" for Supreme Court).
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The trial court tab displays information about the lower court case.
+
+      For Court of Appeal cases: Shows trial court information
+      For Supreme Court cases: Shows Court of Appeal information (if any)
+
+      Structure:
+      - h2: "Lower Court" (Supreme) or "Trial Court" (Court of Appeal)
+      - Case caption and division
+      - Case number link (back to summary)
+      - Trial court information or "No Court of Appeal data found."
+        - Trial Court Case number
+        - Trial Court name
+        - Trial Judge
+        - Judgment Date
+
+      Scraper XPath Assertions
+      ========================
+      1. NO_DATA: //*[contains(text(), 'No') and contains(text(), 'data found')]
+         - Description: "no data message"
+         - min_count: 0
+         - If found, no trial court info available
+
+      2. TRIAL_COURT_INFO: //*[contains(text(), 'Trial Court')]
+         - Description: "trial court label"
+         - min_count: 0
+
+      Tab Title Variations
+      ====================
+      - "Lower Court" (Supreme Court cases)
+      - "Trial Court" (Court of Appeal cases)
+
+      No Data Cases
+      =============
+      Supreme Court cases that are original proceedings may display:
+      "No Court of Appeal data found."
+
+      Court of Appeal cases that didn't come from trial court may display:
+      "No Trial Court data found."
+
+      Example Extracted Data (Court of Appeal)
+      ========================================
+      Trial Court Case: NA105246
+      Trial Court: Superior Court of Los Angeles County
+      Trial Judge: Hon. John Smith
+      Judgment Date: 2022-03-15
+
+      Example Extracted Data (Supreme Court - Original Proceeding)
+      ============================================================
+      No Court of Appeal data found.
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="trial-court-tab-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="case-info">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="case-caption" type="xs:string"/>
+              <xs:element name="division" type="xs:string" minOccurs="0"/>
+              <xs:element name="case-number" type="xs:string"/>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="trial-court-info" minOccurs="0">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="trial-court-case" type="xs:string" minOccurs="0"/>
+              <xs:element name="trial-court-name" type="xs:string" minOccurs="0"/>
+              <xs:element name="trial-judge" type="xs:string" minOccurs="0"/>
+              <xs:element name="judgment-date" type="xs:date" minOccurs="0"/>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

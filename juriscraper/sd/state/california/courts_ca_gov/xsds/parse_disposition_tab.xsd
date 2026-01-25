@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for California Appellate Court Disposition Tab
+  URL: https://appellatecases.courtinfo.ca.gov/search/case/disposition.cfm
+
+  Step: parse_disposition_tab
+
+  This schema documents the expected HTML structure of the California
+  appellate courts disposition tab showing case dispositions.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The disposition tab displays case dispositions and the case citation.
+
+      Structure:
+      - h2: "Disposition"
+      - Case caption and division
+      - Case number link (back to summary)
+      - Note about what dispositions are displayed
+      - Case Citation field
+      - Table with disposition entries:
+        - Header: Date | Description
+        - Rows: Disposition date and description
+
+      Scraper XPath Assertions
+      ========================
+      1. DISPOSITION_ENTRIES: //table//tr[td]
+         - Description: "disposition entry rows"
+         - min_count: 0
+
+      2. CASE_CITATION: //*[contains(text(), 'Case Citation')]
+         - Description: "case citation element"
+         - min_count: 0
+
+      Table Structure
+      ===============
+      | Date       | Description                        |
+      |------------|------------------------------------|
+      | 06/13/2022 | Administrative Transfer to CA 2    |
+      | 08/15/2022 | Opinion Filed                      |
+
+      Citation Format
+      ===============
+      If published: "123 Cal.App.5th 456"
+      If not published: "none"
+
+      Disposition Types
+      =================
+      - Orders Denying Petitions
+      - Orders Granting Rehearing
+      - Opinions
+      - Administrative Transfers
+      - (Other orders are in Docket tab, not here)
+
+      Example Extracted Data
+      ======================
+      Disposition:
+        Date: 2022-06-13
+        Description: Administrative Transfer to CA 2
+      Citation: none
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="disposition-tab-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="case-info">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="case-caption" type="xs:string"/>
+              <xs:element name="division" type="xs:string" minOccurs="0"/>
+              <xs:element name="case-number" type="xs:string"/>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="case-citation" type="xs:string" minOccurs="0"/>
+        <xs:element name="dispositions">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="disposition" maxOccurs="unbounded" minOccurs="0">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="disposition-date" type="xs:date"/>
+                    <xs:element name="description" type="xs:string"/>
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

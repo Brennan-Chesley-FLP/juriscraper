@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for California Supreme Court Webcast Library Page
+  URL: https://supreme.courts.ca.gov/case-information/oral-arguments/webcast-library
+
+  Step: parse_webcast_library
+
+  This schema documents the expected HTML structure of the California
+  Supreme Court oral arguments webcast library page.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The webcast library page displays oral argument webcasts organized
+      by year, with an iframe for upcoming webcasts and accordion sections
+      for archived webcasts.
+
+      Structure:
+      - main > article > div
+        - h1: "Webcast Library"
+        - h2: "Upcoming and Archived Webcasts"
+        - Introductory paragraph
+        - iframe: Granicus upcoming webcasts widget
+        - Accordion sections for archived years:
+          - h3.usa-accordion__heading > button: "2025 Oral Argument Webcasts"
+          - table within accordion content:
+            - thead > tr: Headers (Cases, Date Argued, Opinion)
+            - tbody > tr: Webcast entries
+
+      Scraper XPath Assertions
+      ========================
+      1. WEBCAST_ROWS: //tr[.//a[contains(@href, 'granicus.com/player')]]
+         - Description: "webcast table rows"
+         - min_count: 0
+         - Expected: Table rows containing Granicus player links
+
+      2. GRANICUS_LINK (within row): .//a[contains(@href, 'granicus.com/player')]
+         - Description: "Granicus player link"
+         - min_count: 1 per webcast row
+         - Expected: URL like https://jcc.granicus.com/player/clip/6749?meta_id=137757
+
+      3. DATE_CELL (within row): .//td[2]
+         - Description: "date argued cell"
+         - Expected: "12/03/2025"
+
+      4. OPINION_LINK (within row): .//td[3]//a[contains(@href, '.PDF')]
+         - Description: "opinion PDF link"
+         - min_count: 0 (not all webcasts have opinions yet)
+         - Expected: URL like https://www4.courts.ca.gov/opinions/documents/S282937.PDF
+
+      Granicus URL Format
+      ===================
+      https://jcc.granicus.com/player/clip/{clip_id}?meta_id={meta_id}
+
+      Components:
+        - clip_id: Identifies the video clip (entire session)
+        - meta_id: Identifies the specific case within the session
+
+      Embed URL Format:
+        //jcc.granicus.com/player/clip/{clip_id}?meta_id={meta_id}&embed=1
+
+      Video Download (from Granicus player):
+        https://archive-video.granicus.com/jcc/jcc_{uuid}.mp4
+
+      Case Link Text Format
+      =====================
+      Examples:
+        - "People v. Morgan (Henry), S286493"
+        - "Sellers (Davonyae) v. Superior Court..., S287164 (Streeter, J., ...)"
+        - "People v. Demolle (Alex), [Automatic Appeal], S159120"
+        - "City of Gilroy v. Superior Court..., S282937, and Law Foundation...,
+           S282950 (consolidated cases) (Stratton, P. J., ...)"
+
+      Components:
+        - Case name
+        - [Automatic Appeal] flag (for death penalty cases)
+        - Case number (S followed by digits)
+        - Additional case numbers for consolidated cases
+        - (Assigned justice info)
+
+      Date Argued Format
+      ==================
+      MM/DD/YYYY (e.g., "12/03/2025", "11/04/2025")
+
+      Year Sections
+      =============
+      Accordion sections from current year back to 2016:
+        - 2026 Oral Argument Webcasts
+        - 2025 Oral Argument Webcasts
+        - ...
+        - 2016 Oral Argument Webcasts
+
+      Table Structure
+      ===============
+      Headers: Cases | Date Argued | Opinion
+
+      Row columns:
+        td[1]: Case name link (to Granicus player)
+        td[2]: Date argued (MM/DD/YYYY)
+        td[3]: Opinion PDF link (if available)
+
+      Example Extracted Data
+      ======================
+      Case Number: S286493
+      Case Name: People v. Morgan (Henry)
+      Date Argued: 2025-12-03
+      Granicus URL: https://jcc.granicus.com/player/clip/6749?meta_id=137757
+      Embed URL: //jcc.granicus.com/player/clip/6749?meta_id=137757&embed=1
+      Clip ID: 6749
+      Meta ID: 137757
+      Opinion PDF URL: (none - not yet decided)
+      Assigned Justice: (none listed)
+      Is Automatic Appeal: false
+      Consolidated Cases: []
+
+      Example with consolidated cases:
+      Case Number: S282937
+      Case Name: City of Gilroy v. Superior Court of Santa Clara County...
+      Date Argued: 2025-11-04
+      Assigned Justice: Stratton, P. J., assigned justice pro tempore
+      Consolidated Cases: [S282950]
+      Opinion PDF URL: https://www4.courts.ca.gov/opinions/documents/S282937.PDF
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the webcast library page -->
+  <xs:element name="webcast-library-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="year-section" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="year" type="xs:integer"/>
+              <xs:element name="webcast" maxOccurs="unbounded" minOccurs="0">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="case-number" type="xs:string"/>
+                    <!-- Primary case number -->
+                    <xs:element name="case-name" type="xs:string"/>
+                    <xs:element name="date-argued" type="xs:date"/>
+                    <xs:element name="granicus-url" type="xs:anyURI"/>
+                    <xs:element name="embed-url" type="xs:anyURI" minOccurs="0"/>
+                    <xs:element name="clip-id" type="xs:string" minOccurs="0"/>
+                    <xs:element name="meta-id" type="xs:string" minOccurs="0"/>
+                    <xs:element name="opinion-pdf-url" type="xs:anyURI" minOccurs="0"/>
+                    <xs:element name="assigned-justice" type="xs:string" minOccurs="0"/>
+                    <xs:element name="is-automatic-appeal" type="xs:boolean"/>
+                    <xs:element name="consolidated-cases" minOccurs="0">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="case-number" type="xs:string" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

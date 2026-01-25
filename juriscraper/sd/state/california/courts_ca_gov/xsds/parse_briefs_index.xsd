@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for California Supreme Court Briefs Index Page
+  URL: https://supreme.courts.ca.gov/case-information/briefs-argued-cases
+
+  Step: parse_briefs_index
+
+  This schema documents the expected HTML structure of the California
+  Supreme Court briefs index page, which lists oral argument sessions
+  with links to session detail pages.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The briefs index page displays an accordion of years, each containing
+      links to individual oral argument session pages.
+
+      Structure:
+      - main > article > div
+        - h1: "Briefs of Argued Cases"
+        - Introductory text about briefs availability
+        - Accordion sections for each year:
+          - h2.usa-accordion__heading > button: Year label
+          - div.usa-accordion__content: Session links
+            - ul > li > a: Link to session page
+
+      Scraper XPath Assertions
+      ========================
+      1. SESSION_LINKS: //div[contains(@class, 'usa-accordion__content')]//a[
+                        contains(@href, 'oral-argument-cases')]
+         - Description: "session page links"
+         - min_count: 1
+         - Expected: Links to session pages like
+                     "/case-information/briefs-argued-cases/february-4-2026-oral-argument-cases"
+
+      Session Link Format
+      ===================
+      Link Text: "February 4, 2026 Oral Argument Cases"
+                 "June 4 and 5, 2025 Oral Argument Cases" (multi-day sessions)
+      Link URL:  /case-information/briefs-argued-cases/{month}-{day}-{year}-oral-argument-cases
+
+      Year Sections
+      =============
+      - Current Year (expanded by default)
+      - 2025, 2024, 2023, ... back to 2010
+      - Each year section is collapsed by default (except current)
+
+      Date Extraction
+      ===============
+      The session date is extracted from the link text using regex:
+      Pattern: (Month) (Day)[and Day], (Year)
+      Examples:
+        - "February 4, 2026" -> date(2026, 2, 4)
+        - "June 4 and 5, 2025" -> date(2025, 6, 4) (first day)
+        - "May 21 and 22, 2025" -> date(2025, 5, 21) (first day)
+
+      Example Extracted Data
+      ======================
+      Session Date: 2026-02-04
+      Session URL: https://supreme.courts.ca.gov/case-information/briefs-argued-cases/
+                   february-4-2026-oral-argument-cases
+
+      Coverage
+      ========
+      - Briefs available since 2010
+      - New briefs posted same day cases are set for oral argument
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the briefs index page -->
+  <xs:element name="briefs-index-page">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="year-section" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="year" type="xs:integer"/>
+              <xs:element name="session" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="session-date" type="xs:date"/>
+                    <xs:element name="session-url" type="xs:anyURI"/>
+                    <xs:element name="link-text" type="xs:string"/>
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

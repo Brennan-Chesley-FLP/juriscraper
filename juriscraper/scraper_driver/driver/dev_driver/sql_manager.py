@@ -396,28 +396,29 @@ class SQLManager:
             speculation_config: Optional dict mapping continuation name to
                 {"threshold": int, "speculation": int} for speculative handling.
         """
-        cursor = await self._db.execute(SQL.SELECT_RUN_METADATA_BY_ID)
-        row = await cursor.fetchone()
+        async with self._lock:
+            cursor = await self._db.execute(SQL.SELECT_RUN_METADATA_BY_ID)
+            row = await cursor.fetchone()
 
-        speculation_config_json = (
-            json.dumps(speculation_config) if speculation_config else None
-        )
-
-        if row is None:
-            # base_delay and jitter kept for schema compatibility but not used
-            await self._db.execute(
-                SQL.INSERT_RUN_METADATA,
-                (
-                    scraper_name,
-                    scraper_version,
-                    0.0,  # base_delay (deprecated)
-                    0.0,  # jitter (deprecated)
-                    num_workers,
-                    max_backoff_time,
-                    speculation_config_json,
-                ),
+            speculation_config_json = (
+                json.dumps(speculation_config) if speculation_config else None
             )
-            await self._db.commit()
+
+            if row is None:
+                # base_delay and jitter kept for schema compatibility but not used
+                await self._db.execute(
+                    SQL.INSERT_RUN_METADATA,
+                    (
+                        scraper_name,
+                        scraper_version,
+                        0.0,  # base_delay (deprecated)
+                        0.0,  # jitter (deprecated)
+                        num_workers,
+                        max_backoff_time,
+                        speculation_config_json,
+                    ),
+                )
+                await self._db.commit()
 
     async def get_speculation_config(self) -> dict[str, dict[str, int]] | None:
         """Get the speculation configuration from run metadata.
@@ -440,10 +441,11 @@ class SQLManager:
         Args:
             config: Dict mapping continuation name to {"threshold": int, "speculation": int}.
         """
-        await self._db.execute(
-            SQL.UPDATE_SPECULATION_CONFIG, (json.dumps(config),)
-        )
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(
+                SQL.UPDATE_SPECULATION_CONFIG, (json.dumps(config),)
+            )
+            await self._db.commit()
 
     async def restore_queue(self) -> int:
         """Restore pending requests from database on startup.
@@ -453,29 +455,32 @@ class SQLManager:
         Returns:
             Number of pending requests after restoration.
         """
-        await self._db.execute(SQL.RESET_IN_PROGRESS_TO_PENDING)
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(SQL.RESET_IN_PROGRESS_TO_PENDING)
+            await self._db.commit()
 
-        cursor = await self._db.execute(SQL.COUNT_PENDING_REQUESTS)
-        row = await cursor.fetchone()
-        return row[0] if row else 0
+            cursor = await self._db.execute(SQL.COUNT_PENDING_REQUESTS)
+            row = await cursor.fetchone()
+            return row[0] if row else 0
 
     async def close_run(self) -> None:
         """Clean up database state on driver close.
 
         Resets in_progress requests to pending and updates run status.
         """
-        try:
-            await self._db.execute(SQL.RESET_IN_PROGRESS_TO_PENDING)
-            await self._db.execute(SQL.UPDATE_RUN_STATUS_ON_CLOSE)
-            await self._db.commit()
-        except Exception as e:
-            logger.warning(f"Failed to update state on close: {e}")
+        async with self._lock:
+            try:
+                await self._db.execute(SQL.RESET_IN_PROGRESS_TO_PENDING)
+                await self._db.execute(SQL.UPDATE_RUN_STATUS_ON_CLOSE)
+                await self._db.commit()
+            except Exception as e:
+                logger.warning(f"Failed to update state on close: {e}")
 
     async def update_run_status_running(self) -> None:
         """Mark run as running."""
-        await self._db.execute(SQL.UPDATE_RUN_STATUS_RUNNING)
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(SQL.UPDATE_RUN_STATUS_RUNNING)
+            await self._db.commit()
 
     async def update_run_status_final(
         self, status: str, error: str | None
@@ -486,8 +491,11 @@ class SQLManager:
             status: Final status (completed, error, interrupted).
             error: Error message if status is error.
         """
-        await self._db.execute(SQL.UPDATE_RUN_STATUS_FINAL, (status, error))
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(
+                SQL.UPDATE_RUN_STATUS_FINAL, (status, error)
+            )
+            await self._db.commit()
 
     async def update_run_status(self, status: str) -> None:
         """Update run status.
@@ -1094,9 +1102,12 @@ class SQLManager:
         Returns:
             Number of requests marked as held.
         """
-        cursor = await self._db.execute(SQL.UPDATE_PAUSE_STEP, (continuation,))
-        await self._db.commit()
-        return cursor.rowcount
+        async with self._lock:
+            cursor = await self._db.execute(
+                SQL.UPDATE_PAUSE_STEP, (continuation,)
+            )
+            await self._db.commit()
+            return cursor.rowcount
 
     async def resume_step(self, continuation: str) -> int:
         """Resume processing of held requests.
@@ -1107,11 +1118,12 @@ class SQLManager:
         Returns:
             Number of requests restored to pending.
         """
-        cursor = await self._db.execute(
-            SQL.UPDATE_RESUME_STEP, (continuation,)
-        )
-        await self._db.commit()
-        return cursor.rowcount
+        async with self._lock:
+            cursor = await self._db.execute(
+                SQL.UPDATE_RESUME_STEP, (continuation,)
+            )
+            await self._db.commit()
+            return cursor.rowcount
 
     async def get_held_count(self, continuation: str | None = None) -> int:
         """Get count of held requests.
@@ -1187,6 +1199,45 @@ class SQLManager:
         Returns:
             The ID of the newly inserted request.
         """
+        async with self._lock:
+            return await self._insert_requeue_request_unlocked(
+                priority=priority,
+                method=method,
+                url=url,
+                headers_json=headers_json,
+                cookies_json=cookies_json,
+                body=body,
+                continuation=continuation,
+                current_location=current_location,
+                accumulated_data_json=accumulated_data_json,
+                aux_data_json=aux_data_json,
+                permanent_json=permanent_json,
+                original_request_id=original_request_id,
+                request_type=request_type,
+                expected_type=expected_type,
+            )
+
+    async def _insert_requeue_request_unlocked(
+        self,
+        priority: int,
+        method: str,
+        url: str,
+        headers_json: str | None,
+        cookies_json: str | None,
+        body: bytes | None,
+        continuation: str,
+        current_location: str,
+        accumulated_data_json: str | None,
+        aux_data_json: str | None,
+        permanent_json: str | None,
+        original_request_id: int,
+        request_type: str = "navigating",
+        expected_type: str | None = None,
+    ) -> int:
+        """Internal unlocked version of insert_requeue_request.
+
+        Must be called while holding self._lock.
+        """
         queue_counter = await get_next_queue_counter(self._db)
         created_at_ns = time.monotonic_ns()
 
@@ -1237,36 +1288,37 @@ class SQLManager:
         """
         import json
 
-        queue_counter = await get_next_queue_counter(self._db)
-        created_at_ns = time.monotonic_ns()
+        async with self._lock:
+            queue_counter = await get_next_queue_counter(self._db)
+            created_at_ns = time.monotonic_ns()
 
-        cursor = await self._db.execute(
-            SQL.INSERT_REQUEST,
-            (
-                priority,
-                queue_counter,
-                "resume",  # Special request type
-                "GET",  # Dummy method
-                "",  # Empty URL
-                None,  # No headers
-                None,  # No cookies
-                None,  # No body
-                continuation,  # Store continuation for reference
-                "",  # No current_location
-                None,  # No accumulated_data
-                None,  # No aux_data
-                json.dumps(
-                    {"predicate_result": predicate_result}
-                ),  # Store result in permanent_json
-                resume_id,  # Store resume_id in expected_type
-                None,  # No dedup_key
-                None,  # No parent_id
-                created_at_ns,  # Nanosecond timestamp
-                None,  # No cache_key for resume requests
-            ),
-        )
-        await self._db.commit()
-        return cursor.lastrowid or 0
+            cursor = await self._db.execute(
+                SQL.INSERT_REQUEST,
+                (
+                    priority,
+                    queue_counter,
+                    "resume",  # Special request type
+                    "GET",  # Dummy method
+                    "",  # Empty URL
+                    None,  # No headers
+                    None,  # No cookies
+                    None,  # No body
+                    continuation,  # Store continuation for reference
+                    "",  # No current_location
+                    None,  # No accumulated_data
+                    None,  # No aux_data
+                    json.dumps(
+                        {"predicate_result": predicate_result}
+                    ),  # Store result in permanent_json
+                    resume_id,  # Store resume_id in expected_type
+                    None,  # No dedup_key
+                    None,  # No parent_id
+                    created_at_ns,  # Nanosecond timestamp
+                    None,  # No cache_key for resume requests
+                ),
+            )
+            await self._db.commit()
+            return cursor.lastrowid or 0
 
     async def get_errors_for_requeue(
         self,
@@ -1382,17 +1434,18 @@ class SQLManager:
 
         # Mark all errors as resolved
         if error_ids:
-            placeholders = ",".join("?" * len(error_ids))
-            await self._db.execute(
-                f"""
-                UPDATE errors
-                SET is_resolved = 1, resolved_at = CURRENT_TIMESTAMP,
-                    resolution_notes = 'Batch requeued'
-                WHERE id IN ({placeholders})
-                """,
-                error_ids,
-            )
-            await self._db.commit()
+            async with self._lock:
+                placeholders = ",".join("?" * len(error_ids))
+                await self._db.execute(
+                    f"""
+                    UPDATE errors
+                    SET is_resolved = 1, resolved_at = CURRENT_TIMESTAMP,
+                        resolution_notes = 'Batch requeued'
+                    WHERE id IN ({placeholders})
+                    """,
+                    error_ids,
+                )
+                await self._db.commit()
 
         return new_request_ids
 
@@ -1454,10 +1507,11 @@ class SQLManager:
             step_name: The name of the speculative step method.
             starting_id: The speculative_id to start from.
         """
-        await self._db.execute(
-            SQL.UPSERT_SPECULATIVE_START_ID, (step_name, starting_id)
-        )
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(
+                SQL.UPSERT_SPECULATIVE_START_ID, (step_name, starting_id)
+            )
+            await self._db.commit()
 
     async def get_speculative_start_ids(self) -> dict[str, int]:
         """Get all speculative starting IDs.
@@ -1477,16 +1531,20 @@ class SQLManager:
         Args:
             step_name: The name of the speculative step method.
         """
-        await self._db.execute(SQL.DELETE_SPECULATIVE_START_ID, (step_name,))
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(
+                SQL.DELETE_SPECULATIVE_START_ID, (step_name,)
+            )
+            await self._db.commit()
 
     async def clear_all_speculative_start_ids(self) -> None:
         """Clear all speculative starting IDs.
 
         Called after the driver has applied all starting IDs.
         """
-        await self._db.execute(SQL.DELETE_ALL_SPECULATIVE_START_IDS)
-        await self._db.commit()
+        async with self._lock:
+            await self._db.execute(SQL.DELETE_ALL_SPECULATIVE_START_IDS)
+            await self._db.commit()
 
     # --- Request Cancellation ---
 
@@ -1501,12 +1559,13 @@ class SQLManager:
         Returns:
             True if cancelled, False if not found or not cancellable.
         """
-        completed_at_ns = time.monotonic_ns()
-        cursor = await self._db.execute(
-            SQL.UPDATE_CANCEL_REQUEST, (completed_at_ns, request_id)
-        )
-        await self._db.commit()
-        return cursor.rowcount > 0
+        async with self._lock:
+            completed_at_ns = time.monotonic_ns()
+            cursor = await self._db.execute(
+                SQL.UPDATE_CANCEL_REQUEST, (completed_at_ns, request_id)
+            )
+            await self._db.commit()
+            return cursor.rowcount > 0
 
     async def cancel_requests_by_continuation(self, continuation: str) -> int:
         """Cancel all pending/held requests for a continuation.
@@ -1517,12 +1576,14 @@ class SQLManager:
         Returns:
             Number of requests cancelled.
         """
-        completed_at_ns = time.monotonic_ns()
-        cursor = await self._db.execute(
-            SQL.UPDATE_CANCEL_BY_CONTINUATION, (completed_at_ns, continuation)
-        )
-        await self._db.commit()
-        return cursor.rowcount
+        async with self._lock:
+            completed_at_ns = time.monotonic_ns()
+            cursor = await self._db.execute(
+                SQL.UPDATE_CANCEL_BY_CONTINUATION,
+                (completed_at_ns, continuation),
+            )
+            await self._db.commit()
+            return cursor.rowcount
 
     async def requeue_requests_by_continuation(
         self, continuation: str, status: str
@@ -2387,7 +2448,7 @@ class SQLManager:
                     expected_type,
                 ) = row
 
-                new_request_id = await self.insert_requeue_request(
+                new_request_id = await self._insert_requeue_request_unlocked(
                     priority=priority or 0,
                     method=method,
                     url=url,
@@ -2558,13 +2619,14 @@ class SQLManager:
 
         # Mark error as resolved if requested and not a dry run
         if mark_resolved and not dry_run and result.requeued_request_ids:
-            new_request_id = result.requeued_request_ids[0]
-            await self._db.execute(
-                SQL.UPDATE_RESOLVE_ERROR,
-                (f"Requeued as request {new_request_id}", error_id),
-            )
-            await self._db.commit()
-            result.resolved_error_ids = [error_id]
+            async with self._lock:
+                new_request_id = result.requeued_request_ids[0]
+                await self._db.execute(
+                    SQL.UPDATE_RESOLVE_ERROR,
+                    (f"Requeued as request {new_request_id}", error_id),
+                )
+                await self._db.commit()
+                result.resolved_error_ids = [error_id]
 
         return result
 
@@ -2678,18 +2740,19 @@ class SQLManager:
             error_ids = [row[0] for row in error_rows]
 
             if error_ids:
-                placeholders = ",".join("?" * len(error_ids))
-                await self._db.execute(
-                    f"""
-                    UPDATE errors
-                    SET is_resolved = 1,
-                        resolved_at = CURRENT_TIMESTAMP,
-                        resolution_notes = 'Bulk requeued via continuation'
-                    WHERE id IN ({placeholders})
-                    """,
-                    error_ids,
-                )
-                await self._db.commit()
-                result.resolved_error_ids = error_ids
+                async with self._lock:
+                    placeholders = ",".join("?" * len(error_ids))
+                    await self._db.execute(
+                        f"""
+                        UPDATE errors
+                        SET is_resolved = 1,
+                            resolved_at = CURRENT_TIMESTAMP,
+                            resolution_notes = 'Bulk requeued via continuation'
+                        WHERE id IN ({placeholders})
+                        """,
+                        error_ids,
+                    )
+                    await self._db.commit()
+                    result.resolved_error_ids = error_ids
 
         return result

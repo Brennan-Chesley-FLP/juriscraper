@@ -149,12 +149,14 @@ class SQL:
     INSERT_REQUEUE_REQUEST = """
         INSERT INTO requests (
             status, priority, queue_counter,
+            request_type, expected_type,
             method, url, headers_json, cookies_json, body,
             continuation, current_location,
             accumulated_data_json, aux_data_json, permanent_json,
             parent_request_id, created_at_ns
         ) VALUES (
             'pending', ?, ?,
+            ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?,
             ?, ?, ?,
@@ -287,7 +289,8 @@ class SQL:
     SELECT_ERROR_WITH_REQUEST = """
         SELECT e.id, e.request_id, e.is_resolved, r.method, r.url, r.headers_json,
                r.cookies_json, r.body, r.continuation, r.current_location,
-               r.accumulated_data_json, r.aux_data_json, r.permanent_json, r.priority
+               r.accumulated_data_json, r.aux_data_json, r.permanent_json, r.priority,
+               r.request_type, r.expected_type
         FROM errors e
         LEFT JOIN requests r ON e.request_id = r.id
         WHERE e.id = ?
@@ -298,7 +301,8 @@ class SQL:
     SELECT_ERRORS_FOR_REQUEUE = """
         SELECT e.id, e.request_id, r.method, r.url, r.headers_json,
                r.cookies_json, r.body, r.continuation, r.current_location,
-               r.accumulated_data_json, r.aux_data_json, r.permanent_json, r.priority
+               r.accumulated_data_json, r.aux_data_json, r.permanent_json, r.priority,
+               r.request_type, r.expected_type
         FROM errors e
         JOIN requests r ON e.request_id = r.id
         WHERE {where_clause}
@@ -669,7 +673,8 @@ class SQL:
     SELECT_ERROR_FOR_CLI_REQUEUE = """
         SELECT e.id, e.request_id, e.is_resolved, r.method, r.url, r.headers_json,
                r.cookies_json, r.body, r.continuation, r.current_location,
-               r.accumulated_data_json, r.aux_data_json, r.permanent_json, r.priority
+               r.accumulated_data_json, r.aux_data_json, r.permanent_json, r.priority,
+               r.request_type, r.expected_type
         FROM errors e
         LEFT JOIN requests r ON e.request_id = r.id
         WHERE e.id = ?
@@ -678,7 +683,8 @@ class SQL:
     SELECT_ERRORS_BY_TYPE_FOR_CLI_REQUEUE = """
         SELECT e.id, e.request_id, r.method, r.url, r.headers_json,
                r.cookies_json, r.body, r.continuation, r.current_location,
-               r.accumulated_data_json, r.aux_data_json, r.permanent_json, r.priority
+               r.accumulated_data_json, r.aux_data_json, r.permanent_json, r.priority,
+               r.request_type, r.expected_type
         FROM errors e
         JOIN requests r ON e.request_id = r.id
         WHERE e.is_resolved = 0 AND e.error_type = ?
@@ -723,7 +729,7 @@ class SQL:
         SELECT e.id, e.request_id, r.method, r.url, r.continuation,
                r.priority, r.headers_json, r.cookies_json, r.body,
                r.current_location, r.accumulated_data_json, r.aux_data_json,
-               r.permanent_json
+               r.permanent_json, r.request_type, r.expected_type
         FROM errors e
         LEFT JOIN requests r ON e.request_id = r.id
         WHERE e.id = ?
@@ -873,7 +879,7 @@ class SQL:
         SELECT id, method, url, continuation, priority,
                headers_json, cookies_json, body,
                current_location, accumulated_data_json, aux_data_json,
-               permanent_json
+               permanent_json, request_type, expected_type
         FROM requests
         WHERE id = ?
     """
@@ -889,7 +895,7 @@ class SQL:
         SELECT id, method, url, continuation, priority,
                headers_json, cookies_json, body,
                current_location, accumulated_data_json, aux_data_json,
-               permanent_json
+               permanent_json, request_type, expected_type
         FROM requests
         WHERE continuation = ? AND status = ?
     """

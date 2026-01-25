@@ -501,5 +501,207 @@ class TestMultipleSpeculativeYields:
         ]
 
 
+class TestFailsSuccessfully:
+    """Test fails_successfully feature for detecting hidden errors in 2xx responses."""
+
+    def test_default_fails_successfully_returns_true(self):
+        """Default fails_successfully() should return True for all responses."""
+        scraper = SimpleSpeculativeScraper()
+        collected_data: list[dict] = []
+
+        def collect(data: dict) -> None:
+            collected_data.append(data)
+
+        # All requests return 200
+        responses = {
+            "https://example.com/start": create_mock_response(200),
+            "https://example.com/page/1": create_mock_response(200),
+            "https://example.com/page/2": create_mock_response(200),
+        }
+
+        driver = SyncDriver(scraper, on_data=collect)
+        driver.request_manager._client = MagicMock()
+        driver.request_manager._client.request.side_effect = (
+            lambda **kwargs: responses.get(
+                kwargs["url"], create_mock_response(404)
+            )
+        )
+
+        driver.run()
+
+        # All speculative requests should return True (default behavior)
+        assert scraper.speculative_results == [True, True, False]
+        # All pages should be processed
+        assert scraper.pages_processed == [1, 2]
+        # Data should be collected for each page
+        assert len(collected_data) == 2
+
+    def test_fails_successfully_override_returns_false_sets_555(self):
+        """Scraper overriding fails_successfully to return False should set status_code to 555."""
+
+        class FailingSuccessfullyScraper(BaseScraper[dict]):
+            """Scraper that detects hidden errors in successful responses."""
+
+            def __init__(self) -> None:
+                self.speculative_results: list[bool] = []
+                self.continuation_called: list[int] = []
+                self._params = ScraperParams()
+
+            def fails_successfully(self, response: Response) -> bool:
+                """Detect 'No results' page."""
+                # Page 2 has hidden error
+                return "page/2" not in response.url
+
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/start"
+                    ),
+                    continuation="parse_start",
+                )
+
+            @step(speculative=True)
+            def parse_start(
+                self, response: Response, speculative_id: int = 1
+            ) -> Generator[ScraperYield, bool | None, None]:
+                """Yield speculative requests."""
+                for page in [1, 2, 3]:
+                    should_continue = yield SpeculativeRequest(
+                        request=HTTPRequestParams(
+                            method=HttpMethod.GET,
+                            url=f"https://example.com/page/{page}",
+                        ),
+                        continuation="parse_page",
+                        speculative_id=page,
+                    )
+                    self.speculative_results.append(
+                        should_continue
+                        if should_continue is not None
+                        else False
+                    )
+                    if not should_continue:
+                        break
+
+            @step
+            def parse_page(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                """Parse a page."""
+                page_num = int(response.url.split("/")[-1])
+                self.continuation_called.append(page_num)
+                yield ParsedData({"page": page_num})
+
+        scraper = FailingSuccessfullyScraper()
+        collected_data: list[dict] = []
+
+        def collect(data: dict) -> None:
+            collected_data.append(data)
+
+        # All requests return 200
+        responses = {
+            "https://example.com/start": create_mock_response(200),
+            "https://example.com/page/1": create_mock_response(200),
+            "https://example.com/page/2": create_mock_response(
+                200
+            ),  # Hidden error
+            "https://example.com/page/3": create_mock_response(200),
+        }
+
+        driver = SyncDriver(scraper, on_data=collect)
+        driver.request_manager._client = MagicMock()
+        driver.request_manager._client.request.side_effect = (
+            lambda **kwargs: responses.get(
+                kwargs["url"], create_mock_response(404)
+            )
+        )
+
+        driver.run()
+
+        # Page 1: True (200), Page 2: False (555), loop stops
+        assert scraper.speculative_results == [True, False]
+        # Only page 1 processed (page 2 treated as failure)
+        assert scraper.continuation_called == [1]
+        assert len(collected_data) == 1
+
+    def test_fails_successfully_called_before_on_speculation_response(self):
+        """Verify status_code is set to 555 before on_speculation_response is called."""
+
+        class HiddenErrorScraper(BaseScraper[dict]):
+            """Scraper that detects hidden errors."""
+
+            def __init__(self) -> None:
+                self._params = ScraperParams()
+
+            def fails_successfully(self, response: Response) -> bool:
+                """Detect 'No results' in page 1."""
+                return "page/1" not in response.url
+
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/start"
+                    ),
+                    continuation="parse_start",
+                )
+
+            @step(speculative=True)
+            def parse_start(
+                self, response: Response, speculative_id: int = 1
+            ) -> Generator[ScraperYield, bool | None, None]:
+                """Yield speculative requests."""
+                yield SpeculativeRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url="https://example.com/page/1"
+                    ),
+                    continuation="parse_page",
+                    speculative_id=1,
+                )
+
+            @step
+            def parse_page(
+                self, response: Response
+            ) -> Generator[ScraperYield, bool | None, None]:
+                """Parse a page."""
+                yield ParsedData({"page": 1})
+
+        scraper = HiddenErrorScraper()
+        callback_status_codes: list[int] = []
+
+        def speculation_callback(
+            response: Response | None,
+            continuation_name: str,
+            speculative_id: int,
+        ) -> FlowControl:
+            if response is None:
+                return FlowControl.AWAIT_MORE_INFO
+            # Record the status code seen by the callback
+            callback_status_codes.append(response.status_code)
+            return FlowControl.STOP
+
+        # Page 1 returns 200 but fails_successfully returns False
+        responses = {
+            "https://example.com/start": create_mock_response(200),
+            "https://example.com/page/1": create_mock_response(
+                200
+            ),  # Will be changed to 555
+        }
+
+        driver = SyncDriver(
+            scraper,
+            on_speculation_response=speculation_callback,
+        )
+        driver.request_manager._client = MagicMock()
+        driver.request_manager._client.request.side_effect = (
+            lambda **kwargs: responses.get(
+                kwargs["url"], create_mock_response(404)
+            )
+        )
+
+        driver.run()
+
+        # Callback should see status_code 555, not 200
+        assert callback_status_codes == [555]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -47,6 +47,7 @@ import importlib
 import json
 import logging
 import sys
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -313,11 +314,14 @@ async def cmd_requeue_error(args: argparse.Namespace) -> int:
 
     # Create new pending request
     queue_counter = await get_next_queue_counter(db)
+    created_at_ns = time.monotonic_ns()
     cursor = await db.execute(
         SQL.INSERT_REQUEUE_REQUEST,
         (
             row[13] or 9,  # priority
             queue_counter,
+            row[14] or "navigating",  # request_type
+            row[15],  # expected_type
             row[3],  # method
             row[4],  # url
             row[5],  # headers_json
@@ -329,6 +333,7 @@ async def cmd_requeue_error(args: argparse.Namespace) -> int:
             row[11],  # aux_data_json
             row[12],  # permanent_json
             row[1],  # parent_request_id
+            created_at_ns,
         ),
     )
     new_request_id = cursor.lastrowid
@@ -373,11 +378,14 @@ async def cmd_requeue_errors(args: argparse.Namespace) -> int:
         error_id, request_id = row[0], row[1]
 
         queue_counter = await get_next_queue_counter(db)
+        created_at_ns = time.monotonic_ns()
         cursor = await db.execute(
             SQL.INSERT_REQUEUE_REQUEST,
             (
                 row[12] or 9,  # priority
                 queue_counter,
+                row[13] or "navigating",  # request_type
+                row[14],  # expected_type
                 row[2],  # method
                 row[3],  # url
                 row[4],  # headers_json
@@ -389,6 +397,7 @@ async def cmd_requeue_errors(args: argparse.Namespace) -> int:
                 row[10],  # aux_data_json
                 row[11],  # permanent_json
                 request_id,
+                created_at_ns,
             ),
         )
         new_request_id = cursor.lastrowid

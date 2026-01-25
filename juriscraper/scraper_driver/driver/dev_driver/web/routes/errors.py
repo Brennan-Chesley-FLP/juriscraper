@@ -397,12 +397,15 @@ async def requeue_error(
 
     # Create new request
     queue_counter = await get_next_queue_counter(db)
+    created_at_ns = time.monotonic_ns()
 
     await db.execute(
         SQL.INSERT_REQUEUE_REQUEST,
         (
             row[5],  # priority
             queue_counter,
+            row[13] or "navigating",  # request_type
+            row[14],  # expected_type
             row[2],  # method
             row[3],  # url
             row[6],  # headers_json
@@ -414,6 +417,7 @@ async def requeue_error(
             row[11],  # aux_data_json
             row[12],  # permanent_json
             row[1],  # parent_request_id (original request)
+            created_at_ns,
         ),
     )
 
@@ -489,7 +493,7 @@ async def batch_requeue(
         SELECT e.id, e.request_id, r.method, r.url, r.continuation,
                r.priority, r.headers_json, r.cookies_json, r.body,
                r.current_location, r.accumulated_data_json, r.aux_data_json,
-               r.permanent_json
+               r.permanent_json, r.request_type, r.expected_type
         FROM errors e
         {join_clause}
         {where_clause}
@@ -517,6 +521,8 @@ async def batch_requeue(
             (
                 row[5],  # priority
                 queue_counter,
+                row[13] or "navigating",  # request_type
+                row[14],  # expected_type
                 row[2],  # method
                 row[3],  # url
                 row[6],  # headers_json

@@ -409,6 +409,8 @@ async def requeue_request(
         aux_data_json=row[10],
         permanent_json=row[11],
         original_request_id=row[0],
+        request_type=row[12] or "navigating",
+        expected_type=row[13],
     )
 
     return RequeueResponse(

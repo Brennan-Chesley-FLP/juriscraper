@@ -1138,6 +1138,8 @@ class SQLManager:
         aux_data_json: str | None,
         permanent_json: str | None,
         original_request_id: int,
+        request_type: str = "navigating",
+        expected_type: str | None = None,
     ) -> int:
         """Insert a requeued request.
 
@@ -1154,6 +1156,8 @@ class SQLManager:
             aux_data_json: JSON-encoded aux data.
             permanent_json: JSON-encoded permanent data.
             original_request_id: ID of the original failed request.
+            request_type: Request type (default: "navigating").
+            expected_type: Expected response type (optional).
 
         Returns:
             The ID of the newly inserted request.
@@ -1166,6 +1170,8 @@ class SQLManager:
             (
                 priority,
                 queue_counter,
+                request_type,
+                expected_type,
                 method,
                 url,
                 headers_json,
@@ -1284,7 +1290,8 @@ class SQLManager:
 
         # Unpack row: id, request_id, is_resolved, method, url, headers_json,
         #            cookies_json, body, continuation, current_location,
-        #            accumulated_data_json, aux_data_json, permanent_json, priority
+        #            accumulated_data_json, aux_data_json, permanent_json, priority,
+        #            request_type, expected_type
         (
             _error_id,
             request_id,
@@ -1300,6 +1307,8 @@ class SQLManager:
             aux_data_json,
             permanent_json,
             priority,
+            request_type,
+            expected_type,
         ) = row
 
         if is_resolved:
@@ -1321,6 +1330,8 @@ class SQLManager:
             aux_data_json=aux_data_json,
             permanent_json=permanent_json,
             original_request_id=request_id,
+            request_type=request_type or "navigating",
+            expected_type=expected_type,
         )
 
         # Mark error as resolved
@@ -1374,7 +1385,8 @@ class SQLManager:
         for row in rows:
             # Unpack row: id, request_id, method, url, headers_json,
             #            cookies_json, body, continuation, current_location,
-            #            accumulated_data_json, aux_data_json, permanent_json, priority
+            #            accumulated_data_json, aux_data_json, permanent_json, priority,
+            #            request_type, expected_type
             (
                 error_id,
                 request_id,
@@ -1389,6 +1401,8 @@ class SQLManager:
                 aux_data_json,
                 permanent_json,
                 priority,
+                request_type,
+                expected_type,
             ) = row
 
             new_request_id = await self.insert_requeue_request(
@@ -1404,6 +1418,8 @@ class SQLManager:
                 aux_data_json=aux_data_json,
                 permanent_json=permanent_json,
                 original_request_id=request_id,
+                request_type=request_type or "navigating",
+                expected_type=expected_type,
             )
             new_request_ids.append(new_request_id)
             error_ids.append(error_id)
@@ -1581,7 +1597,7 @@ class SQLManager:
             # row: id, method, url, continuation, priority,
             #      headers_json, cookies_json, body,
             #      current_location, accumulated_data_json, aux_data_json,
-            #      permanent_json
+            #      permanent_json, request_type, expected_type
             await self.insert_requeue_request(
                 priority=row[4],
                 method=row[1],
@@ -1595,6 +1611,8 @@ class SQLManager:
                 aux_data_json=row[10],
                 permanent_json=row[11],
                 original_request_id=row[0],
+                request_type=row[12] or "navigating",
+                expected_type=row[13],
             )
             requeued_count += 1
 

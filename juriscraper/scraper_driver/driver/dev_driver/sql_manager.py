@@ -116,6 +116,31 @@ class Page(Generic[T]):
         return json.dumps(self.to_dict())
 
 
+class RequeueResult(BaseModel):
+    """Result of a requeue operation.
+
+    Reports what was affected by a requeue operation including created
+    requests, cleared responses, downstream artifacts, and resolved errors.
+
+    Attributes:
+        requeued_request_ids: List of new request IDs created.
+        cleared_response_ids: List of response IDs deleted.
+        cleared_downstream_request_ids: List of downstream request IDs deleted.
+        cleared_result_ids: List of result IDs deleted.
+        cleared_error_ids: List of error IDs deleted.
+        resolved_error_ids: List of error IDs marked as resolved.
+        dry_run: Boolean indicating if this was a dry run.
+    """
+
+    requeued_request_ids: list[int] = []
+    cleared_response_ids: list[int] = []
+    cleared_downstream_request_ids: list[int] = []
+    cleared_result_ids: list[int] = []
+    cleared_error_ids: list[int] = []
+    resolved_error_ids: list[int] = []
+    dry_run: bool = False
+
+
 @dataclass
 class RequestRecord:
     """Request record from database.
@@ -1274,75 +1299,6 @@ class SQLManager:
         )
         return await cursor.fetchall()
 
-    async def requeue_error(self, error_id: int) -> int | None:
-        """Requeue a single error by creating a new pending request.
-
-        Args:
-            error_id: The database ID of the error.
-
-        Returns:
-            The new request ID, or None if error not found or already resolved.
-        """
-        # Get error and request data
-        row = await self.get_error_with_request(error_id)
-        if row is None:
-            return None
-
-        # Unpack row: id, request_id, is_resolved, method, url, headers_json,
-        #            cookies_json, body, continuation, current_location,
-        #            accumulated_data_json, aux_data_json, permanent_json, priority,
-        #            request_type, expected_type
-        (
-            _error_id,
-            request_id,
-            is_resolved,
-            method,
-            url,
-            headers_json,
-            cookies_json,
-            body,
-            continuation,
-            current_location,
-            accumulated_data_json,
-            aux_data_json,
-            permanent_json,
-            priority,
-            request_type,
-            expected_type,
-        ) = row
-
-        if is_resolved:
-            return None
-        if request_id is None:
-            return None
-
-        # Create new request
-        new_request_id = await self.insert_requeue_request(
-            priority=priority or 0,
-            method=method,
-            url=url,
-            headers_json=headers_json,
-            cookies_json=cookies_json,
-            body=body,
-            continuation=continuation,
-            current_location=current_location,
-            accumulated_data_json=accumulated_data_json,
-            aux_data_json=aux_data_json,
-            permanent_json=permanent_json,
-            original_request_id=request_id,
-            request_type=request_type or "navigating",
-            expected_type=expected_type,
-        )
-
-        # Mark error as resolved
-        await self._db.execute(
-            SQL.UPDATE_RESOLVE_ERROR,
-            (f"Requeued as request {new_request_id}", error_id),
-        )
-        await self._db.commit()
-
-        return new_request_id
-
     async def get_error_info_for_progress(self, error_id: int) -> dict | None:
         """Get error info for progress events.
 
@@ -2273,3 +2229,467 @@ class SQLManager:
                 invalid_request_ids.append(request_id)
 
         return invalid_request_ids
+
+    # --- Enhanced Requeue Operations ---
+
+    async def requeue_requests(
+        self,
+        request_ids: list[int],
+        *,
+        clear_responses: bool = False,
+        clear_downstream: bool = False,
+        dry_run: bool = False,
+    ) -> RequeueResult:
+        """Requeue a list of requests with configurable cleanup behavior.
+
+        Creates new pending requests with the same parameters as the originals.
+        Optionally clears responses (forcing re-fetch) and/or downstream artifacts
+        (child requests, results, errors).
+
+        Args:
+            request_ids: List of request IDs to requeue.
+            clear_responses: If True, delete responses for the requeued requests
+                (and downstream if clear_downstream=True).
+            clear_downstream: If True, recursively delete child requests and all
+                their artifacts (results, errors, responses if clear_responses=True).
+            dry_run: If True, report what would happen without making changes.
+
+        Returns:
+            RequeueResult with lists of affected IDs and dry_run flag.
+
+        Example::
+
+            # Basic requeue (keep all data)
+            result = await manager.requeue_requests([1, 2, 3])
+
+            # Requeue and force re-fetch
+            result = await manager.requeue_requests([1], clear_responses=True)
+
+            # Requeue and clear entire downstream tree
+            result = await manager.requeue_requests(
+                [1], clear_responses=True, clear_downstream=True
+            )
+
+            # Preview what would be affected
+            result = await manager.requeue_requests(
+                [1], clear_downstream=True, dry_run=True
+            )
+        """
+        result = RequeueResult(dry_run=dry_run)
+
+        if not request_ids:
+            return result
+
+        # Get original request data for all request_ids
+        placeholders = ",".join("?" * len(request_ids))
+        cursor = await self._db.execute(
+            f"""
+            SELECT id, method, url, continuation, priority,
+                   headers_json, cookies_json, body,
+                   current_location, accumulated_data_json, aux_data_json,
+                   permanent_json, request_type, expected_type
+            FROM requests
+            WHERE id IN ({placeholders})
+            """,
+            request_ids,
+        )
+        rows = await cursor.fetchall()
+
+        if not rows:
+            return result
+
+        # Build set of all request IDs to affect (including downstream if requested)
+        all_affected_request_ids = set(request_ids)
+
+        if clear_downstream:
+            # For each original request, find all downstream requests recursively
+            for request_id in request_ids:
+                downstream_cursor = await self._db.execute(
+                    SQL.SELECT_DOWNSTREAM_REQUEST_IDS, (request_id,)
+                )
+                downstream_rows = await downstream_cursor.fetchall()
+                downstream_ids = [row[0] for row in downstream_rows]
+                all_affected_request_ids.update(downstream_ids)
+
+        # Track what we'll clear
+        affected_list = list(all_affected_request_ids)
+
+        if clear_responses and affected_list:
+            # Find response IDs to delete
+            placeholders = ",".join("?" * len(affected_list))
+            cursor = await self._db.execute(
+                SQL.SELECT_RESPONSE_IDS_BY_REQUEST_IDS.format(
+                    placeholders=placeholders
+                ),
+                affected_list,
+            )
+            response_rows = await cursor.fetchall()
+            result.cleared_response_ids = [row[0] for row in response_rows]
+
+        if clear_downstream:
+            # Find downstream request IDs (excluding original request_ids)
+            downstream_request_ids = [
+                rid
+                for rid in all_affected_request_ids
+                if rid not in request_ids
+            ]
+            result.cleared_downstream_request_ids = downstream_request_ids
+
+            # Find result IDs to delete (from all affected requests)
+            if affected_list:
+                placeholders = ",".join("?" * len(affected_list))
+                cursor = await self._db.execute(
+                    SQL.SELECT_RESULT_IDS_BY_REQUEST_IDS.format(
+                        placeholders=placeholders
+                    ),
+                    affected_list,
+                )
+                result_rows = await cursor.fetchall()
+                result.cleared_result_ids = [row[0] for row in result_rows]
+
+                # Find error IDs to delete (from all affected requests)
+                cursor = await self._db.execute(
+                    SQL.SELECT_ERROR_IDS_BY_REQUEST_IDS.format(
+                        placeholders=placeholders
+                    ),
+                    affected_list,
+                )
+                error_rows = await cursor.fetchall()
+                result.cleared_error_ids = [row[0] for row in error_rows]
+
+        if dry_run:
+            # Don't make any changes, just return what would be affected
+            # Still need to calculate requeued_request_ids
+            result.requeued_request_ids = list(
+                range(1, len(rows) + 1)
+            )  # Placeholder IDs
+            return result
+
+        # Execute the requeue and cleanup operations
+        async with self._lock:
+            # Create new pending requests
+            new_request_ids = []
+            for row in rows:
+                (
+                    original_id,
+                    method,
+                    url,
+                    continuation,
+                    priority,
+                    headers_json,
+                    cookies_json,
+                    body,
+                    current_location,
+                    accumulated_data_json,
+                    aux_data_json,
+                    permanent_json,
+                    request_type,
+                    expected_type,
+                ) = row
+
+                new_request_id = await self.insert_requeue_request(
+                    priority=priority or 0,
+                    method=method,
+                    url=url,
+                    headers_json=headers_json,
+                    cookies_json=cookies_json,
+                    body=body,
+                    continuation=continuation,
+                    current_location=current_location,
+                    accumulated_data_json=accumulated_data_json,
+                    aux_data_json=aux_data_json,
+                    permanent_json=permanent_json,
+                    original_request_id=original_id,
+                    request_type=request_type or "navigating",
+                    expected_type=expected_type,
+                )
+                new_request_ids.append(new_request_id)
+
+            result.requeued_request_ids = new_request_ids
+
+            # Clear responses if requested
+            if clear_responses and result.cleared_response_ids:
+                placeholders = ",".join("?" * len(result.cleared_response_ids))
+                await self._db.execute(
+                    f"DELETE FROM responses WHERE id IN ({placeholders})",
+                    result.cleared_response_ids,
+                )
+
+            # Clear downstream artifacts if requested
+            if clear_downstream:
+                # Delete results
+                if result.cleared_result_ids:
+                    placeholders = ",".join(
+                        "?" * len(result.cleared_result_ids)
+                    )
+                    await self._db.execute(
+                        f"DELETE FROM results WHERE id IN ({placeholders})",
+                        result.cleared_result_ids,
+                    )
+
+                # Delete errors
+                if result.cleared_error_ids:
+                    placeholders = ",".join(
+                        "?" * len(result.cleared_error_ids)
+                    )
+                    await self._db.execute(
+                        f"DELETE FROM errors WHERE id IN ({placeholders})",
+                        result.cleared_error_ids,
+                    )
+
+                # Delete downstream requests
+                if result.cleared_downstream_request_ids:
+                    placeholders = ",".join(
+                        "?" * len(result.cleared_downstream_request_ids)
+                    )
+                    await self._db.execute(
+                        f"DELETE FROM requests WHERE id IN ({placeholders})",
+                        result.cleared_downstream_request_ids,
+                    )
+
+            await self._db.commit()
+
+        return result
+
+    async def requeue_response(
+        self,
+        response_id: int,
+        *,
+        clear_responses: bool = False,
+        clear_downstream: bool = False,
+        dry_run: bool = False,
+    ) -> RequeueResult:
+        """Requeue the request associated with a response.
+
+        Convenience helper that looks up the request_id from a response_id
+        and delegates to requeue_requests().
+
+        Args:
+            response_id: The database ID of the response.
+            clear_responses: If True, delete responses for the requeued request.
+            clear_downstream: If True, recursively delete downstream artifacts.
+            dry_run: If True, report what would happen without making changes.
+
+        Returns:
+            RequeueResult with lists of affected IDs and dry_run flag.
+            Returns empty result if response not found.
+
+        Example::
+
+            # Requeue from a response
+            result = await manager.requeue_response(42)
+
+            # Requeue and clear to force re-fetch
+            result = await manager.requeue_response(
+                42, clear_responses=True
+            )
+        """
+        # Look up request_id from response_id
+        cursor = await self._db.execute(
+            SQL.SELECT_REQUEST_ID_BY_RESPONSE, (response_id,)
+        )
+        row = await cursor.fetchone()
+
+        if row is None:
+            return RequeueResult(dry_run=dry_run)
+
+        request_id = row[0]
+        return await self.requeue_requests(
+            [request_id],
+            clear_responses=clear_responses,
+            clear_downstream=clear_downstream,
+            dry_run=dry_run,
+        )
+
+    async def requeue_error(
+        self,
+        error_id: int,
+        *,
+        mark_resolved: bool = True,
+        clear_responses: bool = False,
+        clear_downstream: bool = False,
+        dry_run: bool = False,
+    ) -> RequeueResult:
+        """Requeue from an error with optional resolution marking.
+
+        Looks up the request associated with an error and requeues it.
+        By default, marks the error as resolved with a note indicating it was requeued.
+
+        Args:
+            error_id: The database ID of the error.
+            mark_resolved: If True, mark error as resolved after requeuing.
+            clear_responses: If True, delete responses for the requeued request.
+            clear_downstream: If True, recursively delete downstream artifacts.
+            dry_run: If True, report what would happen without making changes.
+
+        Returns:
+            RequeueResult with lists of affected IDs and dry_run flag.
+            Returns empty result if error not found or has no associated request.
+
+        Example::
+
+            # Requeue from error and mark resolved
+            result = await manager.requeue_error(5)
+
+            # Requeue but keep error unresolved
+            result = await manager.requeue_error(5, mark_resolved=False)
+        """
+        # Get error and associated request_id
+        cursor = await self._db.execute(
+            "SELECT id, request_id FROM errors WHERE id = ?", (error_id,)
+        )
+        row = await cursor.fetchone()
+
+        if row is None:
+            return RequeueResult(dry_run=dry_run)
+
+        _, request_id = row
+
+        if request_id is None:
+            return RequeueResult(dry_run=dry_run)
+
+        # Requeue the request
+        result = await self.requeue_requests(
+            [request_id],
+            clear_responses=clear_responses,
+            clear_downstream=clear_downstream,
+            dry_run=dry_run,
+        )
+
+        # Mark error as resolved if requested and not a dry run
+        if mark_resolved and not dry_run and result.requeued_request_ids:
+            new_request_id = result.requeued_request_ids[0]
+            await self._db.execute(
+                SQL.UPDATE_RESOLVE_ERROR,
+                (f"Requeued as request {new_request_id}", error_id),
+            )
+            await self._db.commit()
+            result.resolved_error_ids = [error_id]
+
+        return result
+
+    async def requeue_continuation(
+        self,
+        continuation: str,
+        *,
+        error_type: str | None = None,
+        traceback_contains: str | None = None,
+        clear_responses: bool = False,
+        clear_downstream: bool = False,
+        dry_run: bool = False,
+    ) -> RequeueResult:
+        """Bulk requeue requests by continuation with optional error filtering.
+
+        Requeues all completed requests for a continuation, optionally filtering
+        to only those with specific types of errors.
+
+        Args:
+            continuation: The continuation method name to filter by.
+            error_type: Optional error type filter (e.g., "structural", "validation").
+            traceback_contains: Optional substring to match in error tracebacks.
+            clear_responses: If True, delete responses for the requeued requests.
+            clear_downstream: If True, recursively delete downstream artifacts.
+            dry_run: If True, report what would happen without making changes.
+
+        Returns:
+            RequeueResult with lists of affected IDs and dry_run flag.
+
+        Example::
+
+            # Requeue all completed requests for a continuation
+            result = await manager.requeue_continuation("parse_results")
+
+            # Requeue only requests with structural errors
+            result = await manager.requeue_continuation(
+                "parse_results", error_type="structural"
+            )
+
+            # Requeue requests with KeyError in traceback
+            result = await manager.requeue_continuation(
+                "parse_results", traceback_contains="KeyError"
+            )
+
+            # Combined filters
+            result = await manager.requeue_continuation(
+                "parse_results",
+                error_type="validation",
+                traceback_contains="expected str"
+            )
+        """
+        # Build query based on filters
+        if error_type or traceback_contains:
+            # Filter by errors
+            conditions = ["e.is_resolved = 0", "r.continuation = ?"]
+            params: list[Any] = [continuation]
+
+            if error_type:
+                conditions.append("e.error_type = ?")
+                params.append(error_type)
+
+            if traceback_contains:
+                conditions.append("e.traceback LIKE ?")
+                params.append(f"%{traceback_contains}%")
+
+            where_clause = " AND ".join(conditions)
+            query = f"""
+                SELECT DISTINCT r.id
+                FROM requests r
+                INNER JOIN errors e ON e.request_id = r.id
+                WHERE {where_clause}
+            """
+        else:
+            # No error filtering, get all completed requests for continuation
+            query = """
+                SELECT id
+                FROM requests
+                WHERE continuation = ? AND status = 'completed'
+            """
+            params = [continuation]
+
+        cursor = await self._db.execute(query, params)
+        rows = await cursor.fetchall()
+        request_ids = [row[0] for row in rows]
+
+        if not request_ids:
+            return RequeueResult(dry_run=dry_run)
+
+        # Delegate to requeue_requests
+        result = await self.requeue_requests(
+            request_ids,
+            clear_responses=clear_responses,
+            clear_downstream=clear_downstream,
+            dry_run=dry_run,
+        )
+
+        # If we filtered by errors and not a dry run, mark those errors as resolved
+        if (error_type or traceback_contains) and not dry_run and request_ids:
+            # Get error IDs for the requeued requests
+            placeholders = ",".join("?" * len(request_ids))
+            cursor = await self._db.execute(
+                f"""
+                SELECT e.id
+                FROM errors e
+                WHERE e.request_id IN ({placeholders})
+                  AND e.is_resolved = 0
+                """,
+                request_ids,
+            )
+            error_rows = await cursor.fetchall()
+            error_ids = [row[0] for row in error_rows]
+
+            if error_ids:
+                placeholders = ",".join("?" * len(error_ids))
+                await self._db.execute(
+                    f"""
+                    UPDATE errors
+                    SET is_resolved = 1,
+                        resolved_at = CURRENT_TIMESTAMP,
+                        resolution_notes = 'Bulk requeued via continuation'
+                    WHERE id IN ({placeholders})
+                    """,
+                    error_ids,
+                )
+                await self._db.commit()
+                result.resolved_error_ids = error_ids
+
+        return result

@@ -10,7 +10,6 @@ This module provides endpoints for:
 
 from __future__ import annotations
 
-import time
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -75,17 +74,23 @@ class ResolveRequest(BaseModel):
 class RequeueResponse(BaseModel):
     """Response model for requeue operations."""
 
-    requeued_count: int
-    new_request_ids: list[int]
+    requeued_request_ids: list[int]
+    cleared_response_ids: list[int] = []
+    cleared_downstream_request_ids: list[int] = []
+    cleared_result_ids: list[int] = []
+    cleared_error_ids: list[int] = []
+    resolved_error_ids: list[int] = []
+    dry_run: bool = False
     message: str
 
 
 class BatchRequeueRequest(BaseModel):
     """Request model for batch requeue."""
 
+    continuation: str = Field(..., description="Continuation to filter by")
     error_type: str | None = Field(None, description="Filter by error type")
-    continuation: str | None = Field(
-        None, description="Filter by continuation"
+    traceback_contains: str | None = Field(
+        None, description="Filter by traceback substring"
     )
 
 
@@ -356,87 +361,84 @@ async def requeue_error(
     run_id: str,
     error_id: int,
     manager: Annotated[RunManager, Depends(get_run_manager)],
+    mark_resolved: bool = Query(True, description="Mark error as resolved"),
+    clear_responses: bool = Query(
+        False, description="Clear responses to force re-fetch"
+    ),
+    clear_downstream: bool = Query(
+        False, description="Clear all downstream artifacts"
+    ),
+    dry_run: bool = Query(
+        False, description="Preview changes without executing"
+    ),
 ) -> RequeueResponse:
     """Requeue the request that caused this error.
 
     Creates a new pending request with the same parameters as the
-    original request, and marks the error as resolved.
+    original request. By default, marks the error as resolved.
 
     Args:
         run_id: The run identifier.
         error_id: The error ID.
+        mark_resolved: If True, mark error as resolved after requeuing.
+        clear_responses: If True, delete responses to force re-fetch.
+        clear_downstream: If True, recursively delete downstream artifacts.
+        dry_run: If True, report what would happen without making changes.
 
     Returns:
-        Requeue result with new request ID.
+        Requeue result with affected IDs.
 
     Raises:
         HTTPException: 404 if error not found or has no linked request.
     """
-    from juriscraper.scraper_driver.driver.dev_driver.schema import (
-        get_next_queue_counter,
-    )
-
     sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
 
-    # Get error and linked request
-    cursor = await db.execute(SQL.SELECT_ERROR_FOR_WEB_REQUEUE, (error_id,))
-    row = await cursor.fetchone()
-
-    if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Error {error_id} not found",
-        )
-
-    if row[1] is None or row[2] is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error {error_id} has no linked request to requeue",
-        )
-
-    # Create new request
-    queue_counter = await get_next_queue_counter(db)
-    created_at_ns = time.monotonic_ns()
-
-    await db.execute(
-        SQL.INSERT_REQUEUE_REQUEST,
-        (
-            row[5],  # priority
-            queue_counter,
-            row[13] or "navigating",  # request_type
-            row[14],  # expected_type
-            row[2],  # method
-            row[3],  # url
-            row[6],  # headers_json
-            row[7],  # cookies_json
-            row[8],  # body
-            row[4],  # continuation
-            row[9],  # current_location
-            row[10],  # accumulated_data_json
-            row[11],  # aux_data_json
-            row[12],  # permanent_json
-            row[1],  # parent_request_id (original request)
-            created_at_ns,
-        ),
+    # Use new requeue_error method
+    result = await sql_manager.requeue_error(
+        error_id,
+        mark_resolved=mark_resolved,
+        clear_responses=clear_responses,
+        clear_downstream=clear_downstream,
+        dry_run=dry_run,
     )
 
-    cursor = await db.execute(SQL.SELECT_LAST_INSERT_ROWID)
-    new_id_row = await cursor.fetchone()
-    new_request_id = new_id_row[0]
+    if not result.requeued_request_ids:
+        # Error not found or has no linked request
+        db = sql_manager.db
+        cursor = await db.execute(
+            "SELECT id, request_id FROM errors WHERE id = ?", (error_id,)
+        )
+        row = await cursor.fetchone()
 
-    # Mark error as resolved
-    await db.execute(
-        SQL.UPDATE_RESOLVE_ERROR_FOR_WEB,
-        (f"Requeued as request {new_request_id}", error_id),
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Error {error_id} not found",
+            )
+        if row[1] is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error {error_id} has no linked request to requeue",
+            )
+
+    new_request_id = (
+        result.requeued_request_ids[0] if result.requeued_request_ids else None
     )
-
-    await db.commit()
+    message = f"Requeued error {error_id}"
+    if new_request_id:
+        message += f" as request {new_request_id}"
+    if dry_run:
+        message = f"[DRY RUN] {message}"
 
     return RequeueResponse(
-        requeued_count=1,
-        new_request_ids=[new_request_id],
-        message=f"Requeued error {error_id} as request {new_request_id}",
+        requeued_request_ids=result.requeued_request_ids,
+        cleared_response_ids=result.cleared_response_ids,
+        cleared_downstream_request_ids=result.cleared_downstream_request_ids,
+        cleared_result_ids=result.cleared_result_ids,
+        cleared_error_ids=result.cleared_error_ids,
+        resolved_error_ids=result.resolved_error_ids,
+        dry_run=result.dry_run,
+        message=message,
     )
 
 
@@ -445,121 +447,63 @@ async def batch_requeue(
     run_id: str,
     request: BatchRequeueRequest,
     manager: Annotated[RunManager, Depends(get_run_manager)],
+    clear_responses: bool = Query(
+        False, description="Clear responses to force re-fetch"
+    ),
+    clear_downstream: bool = Query(
+        False, description="Clear all downstream artifacts"
+    ),
+    dry_run: bool = Query(
+        False, description="Preview changes without executing"
+    ),
 ) -> RequeueResponse:
-    """Batch requeue errors by type or continuation.
+    """Batch requeue errors by continuation with optional filtering.
+
+    Requeues all completed requests for a continuation, optionally filtering
+    to only those with specific types of errors or traceback content.
 
     Args:
         run_id: The run identifier.
-        request: Filter criteria for errors to requeue.
+        request: Filter criteria (continuation required, error_type and traceback_contains optional).
+        clear_responses: If True, delete responses to force re-fetch.
+        clear_downstream: If True, recursively delete downstream artifacts.
+        dry_run: If True, report what would happen without making changes.
 
     Returns:
-        Requeue result with all new request IDs.
-
-    Raises:
-        HTTPException: 400 if no filter criteria provided.
+        Requeue result with affected IDs.
     """
-    if not request.error_type and not request.continuation:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Must specify error_type or continuation filter",
-        )
-
-    from juriscraper.scraper_driver.driver.dev_driver.schema import (
-        get_next_queue_counter,
-    )
-
     sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
 
-    # Build conditions for finding errors
-    conditions = ["is_resolved = FALSE", "request_id IS NOT NULL"]
-    params: list = []
+    # Use new requeue_continuation method with optional error filtering
+    result = await sql_manager.requeue_continuation(
+        request.continuation,
+        error_type=request.error_type,
+        traceback_contains=request.traceback_contains,
+        clear_responses=clear_responses,
+        clear_downstream=clear_downstream,
+        dry_run=dry_run,
+    )
 
+    filters = []
     if request.error_type:
-        conditions.append("e.error_type = ?")
-        params.append(request.error_type)
+        filters.append(f"error_type={request.error_type}")
+    if request.traceback_contains:
+        filters.append(f"traceback contains '{request.traceback_contains}'")
 
-    # For continuation filter, need to join with requests
-    join_clause = "LEFT JOIN requests r ON e.request_id = r.id"
-    if request.continuation:
-        conditions.append("r.continuation = ?")
-        params.append(request.continuation)
-
-    where_clause = f"WHERE {' AND '.join(conditions)}"
-
-    # Get all matching errors with their request data
-    cursor = await db.execute(
-        f"""
-        SELECT e.id, e.request_id, r.method, r.url, r.continuation,
-               r.priority, r.headers_json, r.cookies_json, r.body,
-               r.current_location, r.accumulated_data_json, r.aux_data_json,
-               r.permanent_json, r.request_type, r.expected_type
-        FROM errors e
-        {join_clause}
-        {where_clause}
-        """,
-        params,
-    )
-    rows = await cursor.fetchall()
-
-    if not rows:
-        return RequeueResponse(
-            requeued_count=0,
-            new_request_ids=[],
-            message="No matching errors to requeue",
-        )
-
-    new_request_ids = []
-    error_ids = []
-
-    for row in rows:
-        queue_counter = await get_next_queue_counter(db)
-        created_at_ns = time.monotonic_ns()
-
-        await db.execute(
-            SQL.INSERT_REQUEUE_REQUEST,
-            (
-                row[5],  # priority
-                queue_counter,
-                row[13] or "navigating",  # request_type
-                row[14],  # expected_type
-                row[2],  # method
-                row[3],  # url
-                row[6],  # headers_json
-                row[7],  # cookies_json
-                row[8],  # body
-                row[4],  # continuation
-                row[9],  # current_location
-                row[10],  # accumulated_data_json
-                row[11],  # aux_data_json
-                row[12],  # permanent_json
-                row[1],  # parent_request_id
-                created_at_ns,
-            ),
-        )
-
-        cursor = await db.execute(SQL.SELECT_LAST_INSERT_ROWID)
-        new_id_row = await cursor.fetchone()
-        new_request_ids.append(new_id_row[0])
-        error_ids.append(row[0])
-
-    # Mark all errors as resolved
-    placeholders = ",".join("?" * len(error_ids))
-    await db.execute(
-        f"""
-        UPDATE errors
-        SET is_resolved = TRUE,
-            resolved_at = CURRENT_TIMESTAMP,
-            resolution_notes = 'Batch requeued'
-        WHERE id IN ({placeholders})
-        """,
-        error_ids,
-    )
-
-    await db.commit()
+    message = f"Batch requeued {len(result.requeued_request_ids)} requests"
+    message += f" with continuation '{request.continuation}'"
+    if filters:
+        message += f" (filters: {', '.join(filters)})"
+    if dry_run:
+        message = f"[DRY RUN] {message}"
 
     return RequeueResponse(
-        requeued_count=len(new_request_ids),
-        new_request_ids=new_request_ids,
-        message=f"Batch requeued {len(new_request_ids)} errors",
+        requeued_request_ids=result.requeued_request_ids,
+        cleared_response_ids=result.cleared_response_ids,
+        cleared_downstream_request_ids=result.cleared_downstream_request_ids,
+        cleared_result_ids=result.cleared_result_ids,
+        cleared_error_ids=result.cleared_error_ids,
+        resolved_error_ids=result.resolved_error_ids,
+        dry_run=result.dry_run,
+        message=message,
     )

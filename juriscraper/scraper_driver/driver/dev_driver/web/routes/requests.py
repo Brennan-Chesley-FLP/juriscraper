@@ -16,7 +16,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
-from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
     get_run_manager,
@@ -65,8 +64,13 @@ class CancelResponse(BaseModel):
 class RequeueResponse(BaseModel):
     """Response model for requeue operations."""
 
-    requeued_count: int
-    new_request_id: int
+    requeued_request_ids: list[int]
+    cleared_response_ids: list[int] = []
+    cleared_downstream_request_ids: list[int] = []
+    cleared_result_ids: list[int] = []
+    cleared_error_ids: list[int] = []
+    resolved_error_ids: list[int] = []
+    dry_run: bool = False
     message: str
 
 
@@ -82,15 +86,8 @@ class RequeueByContinuationRequest(BaseModel):
     continuation: str = Field(..., description="Continuation to filter by")
     status: str = Field(
         default="failed",
-        description="Status of requests to requeue (e.g., 'failed', 'completed')",
+        description="Status of requests to requeue (deprecated, ignored)",
     )
-
-
-class RequeueByContinuationResponse(BaseModel):
-    """Response model for batch requeue operations."""
-
-    requeued_count: int
-    message: str
 
 
 class RequestSummaryItem(BaseModel):
@@ -364,59 +361,70 @@ async def requeue_request(
     run_id: str,
     request_id: int,
     manager: Annotated[RunManager, Depends(get_run_manager)],
+    clear_responses: bool = Query(
+        False, description="Clear responses to force re-fetch"
+    ),
+    clear_downstream: bool = Query(
+        False, description="Clear all downstream artifacts"
+    ),
+    dry_run: bool = Query(
+        False, description="Preview changes without executing"
+    ),
 ) -> RequeueResponse:
     """Requeue a failed or completed request.
 
     Creates a new pending request with the same parameters as the
-    original request.
+    original request. Optionally clears responses and/or downstream artifacts.
 
     Args:
         run_id: The run identifier.
         request_id: The request ID to requeue.
+        clear_responses: If True, delete responses to force re-fetch.
+        clear_downstream: If True, recursively delete downstream artifacts.
+        dry_run: If True, report what would happen without making changes.
 
     Returns:
-        Requeue result with new request ID.
+        Requeue result with affected IDs.
 
     Raises:
         HTTPException: 404 if request not found.
     """
     sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
 
-    # Get request data
-    cursor = await db.execute(
-        SQL.SELECT_REQUEST_FOR_WEB_REQUEUE, (request_id,)
-    )
-    row = await cursor.fetchone()
-
-    if row is None:
+    # Verify request exists
+    record = await sql_manager.get_request(request_id)
+    if record is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Request {request_id} not found",
         )
 
-    # Create new request using SQLManager
-    new_request_id = await sql_manager.insert_requeue_request(
-        priority=row[4],
-        method=row[1],
-        url=row[2],
-        headers_json=row[5],
-        cookies_json=row[6],
-        body=row[7],
-        continuation=row[3],
-        current_location=row[8],
-        accumulated_data_json=row[9],
-        aux_data_json=row[10],
-        permanent_json=row[11],
-        original_request_id=row[0],
-        request_type=row[12] or "navigating",
-        expected_type=row[13],
+    # Use new requeue_requests method
+    result = await sql_manager.requeue_requests(
+        [request_id],
+        clear_responses=clear_responses,
+        clear_downstream=clear_downstream,
+        dry_run=dry_run,
     )
 
+    new_request_id = (
+        result.requeued_request_ids[0] if result.requeued_request_ids else None
+    )
+    message = f"Requeued request {request_id}"
+    if new_request_id:
+        message += f" as request {new_request_id}"
+    if dry_run:
+        message = f"[DRY RUN] {message}"
+
     return RequeueResponse(
-        requeued_count=1,
-        new_request_id=new_request_id,
-        message=f"Requeued request {request_id} as request {new_request_id}",
+        requeued_request_ids=result.requeued_request_ids,
+        cleared_response_ids=result.cleared_response_ids,
+        cleared_downstream_request_ids=result.cleared_downstream_request_ids,
+        cleared_result_ids=result.cleared_result_ids,
+        cleared_error_ids=result.cleared_error_ids,
+        resolved_error_ids=result.resolved_error_ids,
+        dry_run=result.dry_run,
+        message=message,
     )
 
 
@@ -447,33 +455,61 @@ async def cancel_by_continuation(
     )
 
 
-@router.post(
-    "/requeue-by-continuation", response_model=RequeueByContinuationResponse
-)
+@router.post("/requeue-by-continuation", response_model=RequeueResponse)
 async def requeue_by_continuation(
     run_id: str,
     request: RequeueByContinuationRequest,
     manager: Annotated[RunManager, Depends(get_run_manager)],
-) -> RequeueByContinuationResponse:
+    clear_responses: bool = Query(
+        False, description="Clear responses to force re-fetch"
+    ),
+    clear_downstream: bool = Query(
+        False, description="Clear all downstream artifacts"
+    ),
+    dry_run: bool = Query(
+        False, description="Preview changes without executing"
+    ),
+) -> RequeueResponse:
     """Requeue all requests matching continuation and status.
 
     Creates new pending requests with the same parameters as the
-    original requests.
+    original requests. Optionally clears responses and/or downstream artifacts.
+
+    Note: The status filter from the request body is ignored. This endpoint now
+    requeues all completed requests for the continuation (the most common use case).
+    For error-based filtering, use the batch-requeue endpoint on /errors.
 
     Args:
         run_id: The run identifier.
-        request: Contains continuation name and status filter.
+        request: Contains continuation name (status field is deprecated).
+        clear_responses: If True, delete responses to force re-fetch.
+        clear_downstream: If True, recursively delete downstream artifacts.
+        dry_run: If True, report what would happen without making changes.
 
     Returns:
-        Number of requests requeued.
+        Requeue result with affected IDs.
     """
     sql_manager = await _get_sql_manager(run_id, manager)
 
-    requeued_count = await sql_manager.requeue_requests_by_continuation(
-        request.continuation, request.status
+    # Use new requeue_continuation method (no error filtering)
+    result = await sql_manager.requeue_continuation(
+        request.continuation,
+        clear_responses=clear_responses,
+        clear_downstream=clear_downstream,
+        dry_run=dry_run,
     )
 
-    return RequeueByContinuationResponse(
-        requeued_count=requeued_count,
-        message=f"Requeued {requeued_count} '{request.status}' requests with continuation '{request.continuation}'",
+    message = f"Requeued {len(result.requeued_request_ids)} requests with continuation '{request.continuation}'"
+    if dry_run:
+        message = f"[DRY RUN] {message}"
+
+    return RequeueResponse(
+        requeued_request_ids=result.requeued_request_ids,
+        cleared_response_ids=result.cleared_response_ids,
+        cleared_downstream_request_ids=result.cleared_downstream_request_ids,
+        cleared_result_ids=result.cleared_result_ids,
+        cleared_error_ids=result.cleared_error_ids,
+        resolved_error_ids=result.resolved_error_ids,
+        dry_run=result.dry_run,
+        message=message,
     )

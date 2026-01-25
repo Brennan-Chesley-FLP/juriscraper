@@ -4432,10 +4432,16 @@ class TestRequeueErroredRequests:
             error_id, is_resolved = error_row
             assert is_resolved == 0, "Error should not be resolved initially"
 
-            # Requeue the error
-            new_request_id = await driver.requeue_request(error_id)
+            # Requeue the error using the new requeue method
+            result = await driver.db.requeue_error(error_id)
 
-            assert new_request_id is not None, "Should return new request ID"
+            assert len(result.requeued_request_ids) == 1, (
+                "Should create one request"
+            )
+            assert error_id in result.resolved_error_ids, (
+                "Should resolve the error"
+            )
+            new_request_id = result.requeued_request_ids[0]
 
             # Check new request was created
             cursor = await driver.db.db.execute(

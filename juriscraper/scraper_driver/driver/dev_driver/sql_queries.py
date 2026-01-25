@@ -1053,3 +1053,66 @@ class SQL:
             updated_at = CURRENT_TIMESTAMP
         WHERE id = 1
     """
+
+    # =========================================================================
+    # Enhanced Requeue Queries
+    # =========================================================================
+
+    # Recursive CTE to find all downstream requests via parent_request_id
+    # Parameter: request_id (the root request ID to start traversal from)
+    SELECT_DOWNSTREAM_REQUEST_IDS = """
+        WITH RECURSIVE downstream AS (
+            SELECT id FROM requests WHERE parent_request_id = ?
+            UNION ALL
+            SELECT r.id FROM requests r
+            INNER JOIN downstream d ON r.parent_request_id = d.id
+        )
+        SELECT id FROM downstream
+    """
+
+    # Get request_id from a response_id
+    SELECT_REQUEST_ID_BY_RESPONSE = """
+        SELECT request_id FROM responses WHERE id = ?
+    """
+
+    # Delete responses by request IDs
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    DELETE_RESPONSES_BY_REQUEST_IDS = """
+        DELETE FROM responses WHERE request_id IN ({placeholders})
+    """
+
+    # Delete results by request IDs
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    DELETE_RESULTS_BY_REQUEST_IDS = """
+        DELETE FROM results WHERE request_id IN ({placeholders})
+    """
+
+    # Delete errors by request IDs
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    DELETE_ERRORS_BY_REQUEST_IDS = """
+        DELETE FROM errors WHERE request_id IN ({placeholders})
+    """
+
+    # Delete requests by IDs
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    DELETE_REQUESTS_BY_IDS = """
+        DELETE FROM requests WHERE id IN ({placeholders})
+    """
+
+    # Select response IDs by request IDs (for tracking what will be deleted)
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    SELECT_RESPONSE_IDS_BY_REQUEST_IDS = """
+        SELECT id FROM responses WHERE request_id IN ({placeholders})
+    """
+
+    # Select result IDs by request IDs (for tracking what will be deleted)
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    SELECT_RESULT_IDS_BY_REQUEST_IDS = """
+        SELECT id FROM results WHERE request_id IN ({placeholders})
+    """
+
+    # Select error IDs by request IDs (for tracking what will be deleted)
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    SELECT_ERROR_IDS_BY_REQUEST_IDS = """
+        SELECT id FROM errors WHERE request_id IN ({placeholders})
+    """

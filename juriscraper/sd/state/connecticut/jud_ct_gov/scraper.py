@@ -75,6 +75,7 @@ from .models import (
     DOCKET_PREFIX_TO_COURT,
     ConnDocket,
     ConnDocketEntry,
+    ConnDocketUnavailable,
     ConnOpinion,
     ConnOpinionCluster,
     ConnOralArgument,
@@ -127,7 +128,12 @@ DOCKET_CONFIG = {
 
 
 class ConnScraper(
-    BaseScraper[ConnOpinionCluster | ConnOralArgument | ConnDocket]
+    BaseScraper[
+        ConnOpinionCluster
+        | ConnOralArgument
+        | ConnDocket
+        | ConnDocketUnavailable
+    ]
 ):
     """Unified scraper for Connecticut appellate court opinions, oral arguments, and dockets.
 
@@ -1346,7 +1352,12 @@ class ConnScraper(
         response: Response,  # noqa: ARG002
         speculative_id: int,
     ) -> Generator[
-        ScraperYield[ConnOpinionCluster | ConnOralArgument | ConnDocket],
+        ScraperYield[
+            ConnOpinionCluster
+            | ConnOralArgument
+            | ConnDocket
+            | ConnDocketUnavailable
+        ],
         bool | None,
         None,
     ]:
@@ -1424,7 +1435,12 @@ class ConnScraper(
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
-        ScraperYield[ConnOpinionCluster | ConnOralArgument | ConnDocket],
+        ScraperYield[
+            ConnOpinionCluster
+            | ConnOralArgument
+            | ConnDocket
+            | ConnDocketUnavailable
+        ],
         bool | None,
         None,
     ]:
@@ -1477,16 +1493,14 @@ class ConnScraper(
                 if court_ids_filter and court_id not in court_ids_filter:
                     return
 
-                # Yield a minimal unavailable docket
+                # Yield a ConnDocketUnavailable for unavailable cases
                 yield ParsedData(
-                    ConnDocket(
+                    ConnDocketUnavailable(
                         crn=crn,
                         docket_id=docket_id,
                         court_id=court_id,
-                        case_name="Unavailable",
-                        status="Unavailable",
                         source_url=response.url,
-                        unavailable=True,
+                        message=not_available_text,
                     )
                 )
             return

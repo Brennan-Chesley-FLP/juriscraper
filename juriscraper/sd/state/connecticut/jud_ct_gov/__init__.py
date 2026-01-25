@@ -8,6 +8,7 @@ Contains a unified scraper for opinions, oral arguments, and dockets from:
 from .models import (
     ConnDocket,
     ConnDocketEntry,
+    ConnDocketUnavailable,
     ConnOpinion,
     ConnOpinionCluster,
     ConnOralArgument,
@@ -20,6 +21,7 @@ __all__ = [
     # Models
     "ConnDocket",
     "ConnDocketEntry",
+    "ConnDocketUnavailable",
     "ConnOpinion",
     "ConnOpinionCluster",
     "ConnOralArgument",

@@ -266,6 +266,35 @@ class ConnDocketEntry(DocketEntry):
     """Whether this is a paperless filing"""
 
 
+class ConnDocketUnavailable(Docket):
+    """Represents an unavailable docket from Connecticut appellate courts.
+
+    These are cases that exist in the system but are not available for
+    public viewing. The CaseDetail page shows a message like:
+    "AC 48093 - This case is not available at this time."
+
+    This is a distinct model from ConnDocket because these pages contain
+    minimal information - just the docket number and an unavailable message.
+    """
+
+    # === Searchable fields ===
+    crn: Annotated[int, SpeculativeID()]  # Required, searchable
+    """Case Record Number - internal monotonically increasing ID used by CT courts"""
+
+    docket_id: Annotated[str, UniqueMatch()]  # Required, searchable
+    """Docket number (e.g., 'AC 48343' for Appellate, 'SC 21125' for Supreme)"""
+
+    court_id: Annotated[str, SetFilter()]  # Required, searchable
+    """Court identifier: 'conn' (Supreme Court) or 'connappct' (Appellate Court)"""
+
+    # === Source tracking ===
+    source_url: str | None = None
+    """URL of the CaseDetail page"""
+
+    message: str | None = None
+    """The unavailable message text from the page"""
+
+
 class ConnDocket(Docket):
     """A docket from Connecticut appellate courts.
 
@@ -367,9 +396,6 @@ class ConnDocket(Docket):
 
     is_efiled: bool = False
     """Whether the case was e-filed"""
-
-    unavailable: bool = False
-    """Whether the case is marked as 'not available at this time' (unpublished)"""
 
 
 # Backwards compatibility aliases

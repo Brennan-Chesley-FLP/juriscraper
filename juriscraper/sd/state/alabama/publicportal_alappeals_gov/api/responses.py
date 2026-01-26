@@ -2,11 +2,15 @@
 
 These models validate the structure of JSON API responses from the
 Alabama appellate courts public portal API.
+
+IMPORTANT: These models use extra="forbid" to detect when the API
+starts returning new fields. If validation fails due to unexpected
+fields, update the models to include the new fields.
 """
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 # =============================================================================
 # Common Models (shared across multiple endpoints)
@@ -16,7 +20,7 @@ from pydantic import BaseModel, ConfigDict
 class PageInfo(BaseModel):
     """Pagination information included in paginated responses."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     size: int
     totalElements: int
@@ -24,72 +28,41 @@ class PageInfo(BaseModel):
     number: int
 
 
-class Link(BaseModel):
-    """HAL-style link."""
-
-    model_config = ConfigDict(extra="allow")
-
-    href: str
-
-
-class Links(BaseModel):
-    """HAL-style links collection."""
-
-    model_config = ConfigDict(extra="allow")
-
-    self: Link | None = None
-    first: Link | None = None
-    last: Link | None = None
-    next: Link | None = None
-    prev: Link | None = None
-
-
 # =============================================================================
 # Publications API Models (parse_publications_list)
 # =============================================================================
 
 
-class PublicationDocument(BaseModel):
-    """Document attached to a publication item."""
-
-    model_config = ConfigDict(extra="allow")
-
-    documentLinkUUID: str
-    documentName: str | None = None
-    documentType: str | None = None
-
-
 class PublicationItem(BaseModel):
-    """Individual case/opinion within a publication."""
+    """Individual case/opinion within a publication.
 
-    model_config = ConfigDict(extra="allow")
+    Note: The list endpoint only returns caseNumber. Additional fields
+    like title, decision, documents would come from a detail endpoint.
+    """
 
-    publicationItemUUID: str | None = None
-    caseInstanceUUID: str
+    model_config = ConfigDict(extra="forbid")
+
     caseNumber: str
-    groupName: str | None = None
-    title: str
-    decision: str | None = None
-    documents: list[PublicationDocument] = []
 
 
 class Publication(BaseModel):
     """A publication (release list) containing multiple items."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     publicationUUID: str
-    courtID: str | None = None
-    courtAbbreviation: str | None = None
-    publicationNumber: str | None = None
-    scheduledDate: str
+    courtID: str
+    courtAbbreviation: str
+    publicationNumber: str
+    publicationName: str
+    publicationDate: str
     publicationItems: list[PublicationItem] = []
 
 
 class PublicationsEmbedded(BaseModel):
     """Embedded results for publications endpoint."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     results: list[Publication] = []
 
@@ -100,10 +73,11 @@ class PublicationsListResponse(BaseModel):
     Endpoint: /courts/cms/publications
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    _embedded: PublicationsEmbedded | None = None
-    _links: Links | None = None
+    embedded: PublicationsEmbedded | None = Field(
+        default=None, alias="_embedded"
+    )
     page: PageInfo | None = None
 
 
@@ -115,7 +89,7 @@ class PublicationsListResponse(BaseModel):
 class Event(BaseModel):
     """A calendar event (oral argument session)."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     eventUUID: str
     eventName: str | None = None
@@ -132,7 +106,7 @@ class Event(BaseModel):
 class EventsEmbedded(BaseModel):
     """Embedded results for events endpoint."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     results: list[Event] = []
 
@@ -143,10 +117,9 @@ class EventsListResponse(BaseModel):
     Endpoint: /courts/cms/events
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    _embedded: EventsEmbedded | None = None
-    _links: Links | None = None
+    embedded: EventsEmbedded | None = Field(default=None, alias="_embedded")
     page: PageInfo | None = None
 
 
@@ -158,7 +131,7 @@ class EventsListResponse(BaseModel):
 class HearingCaseHeader(BaseModel):
     """Case header within a hearing."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     caseInstanceUUID: str
     caseNumber: str
@@ -169,7 +142,7 @@ class HearingCaseHeader(BaseModel):
 class HearingEvent(BaseModel):
     """Event reference within a hearing."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     panelFlag: bool | None = None
 
@@ -177,7 +150,7 @@ class HearingEvent(BaseModel):
 class Hearing(BaseModel):
     """A hearing (case scheduled for an oral argument session)."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     startDate: str | None = None
     hearingType: str | None = None
@@ -190,7 +163,7 @@ class Hearing(BaseModel):
 class HearingsEmbedded(BaseModel):
     """Embedded results for hearings endpoint."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     results: list[Hearing] = []
 
@@ -201,10 +174,9 @@ class EventHearingsResponse(BaseModel):
     Endpoint: /courts/{court-guid}/cms/events/{event-uuid}/hearings
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    _embedded: HearingsEmbedded | None = None
-    _links: Links | None = None
+    embedded: HearingsEmbedded | None = Field(default=None, alias="_embedded")
     page: PageInfo | None = None
 
 
@@ -213,26 +185,36 @@ class EventHearingsResponse(BaseModel):
 # =============================================================================
 
 
+class SearchOriginatingCourtCase(BaseModel):
+    """Lower court case information in search results."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    originatingCourtName: str | None = None
+    originatingCaseNumber: str | None = None
+
+
 class SearchCaseHeader(BaseModel):
     """Case header in search results."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     caseInstanceUUID: str
     caseNumber: str | None = None
     caseTitle: str | None = None
-    caseCaption: str | None = None
     courtID: int
     courtAbbreviation: str | None = None
     filedDate: str | None = None
     caseClassification: str | None = None
+    caseClassificationID: str | None = None
     closedFlag: bool | None = None
+    originatingCourtCases: list[SearchOriginatingCourtCase] = []
 
 
 class SearchResult(BaseModel):
     """A single case in search results."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     caseHeader: SearchCaseHeader
 
@@ -240,7 +222,7 @@ class SearchResult(BaseModel):
 class SearchEmbedded(BaseModel):
     """Embedded results for dockets search endpoint."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     results: list[SearchResult] = []
 
@@ -251,10 +233,9 @@ class DocketsSearchResponse(BaseModel):
     Endpoint: /courts/cms/cases
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    _embedded: SearchEmbedded | None = None
-    _links: Links | None = None
+    embedded: SearchEmbedded | None = Field(default=None, alias="_embedded")
     page: PageInfo | None = None
 
 
@@ -266,7 +247,7 @@ class DocketsSearchResponse(BaseModel):
 class OriginatingCourtCase(BaseModel):
     """Lower court case information."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     originatingCourtName: str | None = None
     originatingCaseNumber: str | None = None
@@ -275,17 +256,24 @@ class OriginatingCourtCase(BaseModel):
 class DetailCaseHeader(BaseModel):
     """Case header in detail response."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     caseInstanceUUID: str
     caseNumber: str
     caseTitle: str | None = None
     caseCaption: str | None = None
     courtID: int | None = None
-    courtAbbreviation: str | None = None
     filedDate: str | None = None
     caseClassification: str | None = None
+    caseClassificationID: str | None = None
+    caseClassGroupType: str | None = None
+    caseClassGroupTypeID: str | None = None
+    caseGroupFlag: bool | None = None
+    caseGroupPublicFlag: bool | None = None
     closedFlag: bool | None = None
+    location: str | None = None
+    locationID: str | None = None
+    panelFlag: bool | None = None
     originatingCourtCases: list[OriginatingCourtCase] = []
 
 
@@ -295,7 +283,7 @@ class CaseDetailResponse(BaseModel):
     Endpoint: /courts/{court-guid}/cms/cases/{case-uuid}
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     caseHeader: DetailCaseHeader
 
@@ -305,45 +293,82 @@ class CaseDetailResponse(BaseModel):
 # =============================================================================
 
 
-class Actor(BaseModel):
-    """Person or entity actor."""
+class PartyActorInstance(BaseModel):
+    """Person or entity actor instance."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     displayName: str
     sortName: str | None = None
 
 
+class PartyHeader(BaseModel):
+    """Party header containing party details."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    casePartyUUID: str | None = None
+    partyType: str | None = None
+    partyTypeID: str | None = None
+    partySubType: str | None = None
+    partySubTypeID: str | None = None
+    partyStatus: str | None = None
+    partyStatusID: str | None = None
+    partyActorInstance: PartyActorInstance | None = None
+
+
+class AttorneyPartyHeader(BaseModel):
+    """Attorney party header."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    casePartyUUID: str | None = None
+    partyActorInstance: PartyActorInstance | None = None
+
+
+class LegalOrganizationPartyHeader(BaseModel):
+    """Legal organization party header (e.g., law firms, AG office)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    casePartyUUID: str | None = None
+    partyActorInstance: PartyActorInstance | None = None
+
+
 class LegalRepresentation(BaseModel):
     """Attorney representation for a party."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
-    legalRepresentationUUID: str | None = None
+    attorneyPartyHeader: AttorneyPartyHeader | None = None
+    legalOrganizationPartyHeader: LegalOrganizationPartyHeader | None = None
     primaryFlag: bool | None = None
-    actor: Actor | None = None
+
+
+class PartyCaseHeader(BaseModel):
+    """Empty case header in party results."""
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class Party(BaseModel):
     """A party in a case."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
-    casePartyUUID: str | None = None
-    partyType: str | None = None
-    partySubType: str | None = None
-    partyStatus: str | None = None
+    partyHeader: PartyHeader
     proSeFlag: bool | None = None
-    actor: Actor | None = None
-    legalRepresentations: list[LegalRepresentation] = []
     orderBy: int | None = None
     partyNumber: int | None = None
+    legalRepresentations: list[LegalRepresentation] = []
+    involvementTypeID: str | None = None
+    caseHeader: PartyCaseHeader | None = None
 
 
 class PartiesEmbedded(BaseModel):
     """Embedded results for parties endpoint."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     results: list[Party] = []
 
@@ -354,10 +379,9 @@ class CasePartiesResponse(BaseModel):
     Endpoint: /courts/{court-guid}/cms/cases/{case-uuid}/parties
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    _embedded: PartiesEmbedded | None = None
-    _links: Links | None = None
+    embedded: PartiesEmbedded | None = Field(default=None, alias="_embedded")
     page: PageInfo | None = None
 
 
@@ -369,29 +393,80 @@ class CasePartiesResponse(BaseModel):
 class DocketEntryHeader(BaseModel):
     """Header information for a docket entry."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     docketEntryUUID: str | None = None
     docketEntryType: str | None = None
+    docketEntryTypeID: str | None = None
     docketEntrySubType: str | None = None
+    docketEntrySubTypeID: str | None = None
+    docketEntryName: str | None = None
+    docketEntryDescription: str | None = None
+    docketEntryStatus: str | None = None
+    docketEntryStatusID: str | None = None
     filedDate: str | None = None
-    description: str | None = None
+    submittedDate: str | None = None
+    official: bool | None = None
+    securedDocument: bool | None = None
+    security1: bool | None = None
+    security2: bool | None = None
+    security3: bool | None = None
+    security4: bool | None = None
+    security5: bool | None = None
+    compositeSecurity: bool | None = None
     documentCount: int | None = None
+    outcomeStatus: str | None = None
+    outcomeStatusID: str | None = None
+
+
+class SubmittedByPartyActorInstance(BaseModel):
+    """Actor instance for submittedBy party."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    sortName: str | None = None
+    displayName: str | None = None
+
+
+class SubmittedByParty(BaseModel):
+    """Party info in submittedBy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    partyActorInstance: SubmittedByPartyActorInstance | None = None
+
+
+class SubmittedByAttorney(BaseModel):
+    """Attorney info in submittedBy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    partyActorInstance: SubmittedByPartyActorInstance | None = None
+
+
+class SubmittedByEntry(BaseModel):
+    """Entry in the submittedBy array."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    party: SubmittedByParty | None = None
+    attorney: SubmittedByAttorney | None = None
 
 
 class DocketEntry(BaseModel):
     """A single docket entry."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     docketEntryHeader: DocketEntryHeader
-    documentCount: int | None = None
+    submittedBy: list[SubmittedByEntry] = []
+    otherSubmitter: str | None = None
 
 
 class DocketEntriesEmbedded(BaseModel):
     """Embedded results for docket entries endpoint."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     results: list[DocketEntry] = []
 
@@ -402,8 +477,9 @@ class DocketEntriesResponse(BaseModel):
     Endpoint: /courts/{court-guid}/cms/cases/{case-uuid}/docketentries
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    _embedded: DocketEntriesEmbedded | None = None
-    _links: Links | None = None
+    embedded: DocketEntriesEmbedded | None = Field(
+        default=None, alias="_embedded"
+    )
     page: PageInfo | None = None

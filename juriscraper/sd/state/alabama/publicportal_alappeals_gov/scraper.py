@@ -351,7 +351,6 @@ class AlabamaScraper(
     # Entry Point
     # =========================================================================
 
-    @step()
     def get_entry(
         self,
     ) -> Generator[NavigatingRequest, None, None]:
@@ -1222,18 +1221,22 @@ class AlabamaScraper(
             mid_date + timedelta(days=1), end_date
         )
 
-    def _get_court_guid_from_id(self, court_id_num: int) -> str | None:
-        """Map numeric court ID to court GUID.
+    def _get_court_guid_from_id(self, court_id: int | str) -> str | None:
+        """Map court ID to court GUID.
 
-        The API returns numeric IDs but we need GUIDs for detail requests.
+        The API returns court IDs as strings ("1", "2", "3") in case search
+        results. We need GUIDs for detail requests.
         """
+        # Convert to string for consistent lookup
+        court_id_str = str(court_id)
+
         # Mapping discovered from API responses
         court_id_to_guid = {
-            68: COURT_CONFIG["ala"]["court_guid"],  # Supreme Court
-            69: COURT_CONFIG["alactapp"]["court_guid"],  # Civil Appeals
-            70: COURT_CONFIG["alacrimapp"]["court_guid"],  # Criminal Appeals
+            "1": COURT_CONFIG["ala"]["court_guid"],  # Supreme Court
+            "2": COURT_CONFIG["alacrimapp"]["court_guid"],  # Criminal Appeals
+            "3": COURT_CONFIG["alactapp"]["court_guid"],  # Civil Appeals
         }
-        return court_id_to_guid.get(court_id_num)
+        return court_id_to_guid.get(court_id_str)
 
     def _get_court_id_from_guid(self, court_guid: str) -> str | None:
         """Map court GUID to our court_id string."""
@@ -1357,7 +1360,7 @@ class AlabamaScraper(
             ),
             continuation=self.parse_case_parties,
             accumulated_data={
-                "docket": docket,
+                "docket_data": docket.model_dump(mode="json"),
             },
         )
 
@@ -1404,26 +1407,31 @@ class AlabamaScraper(
                 }
             }
         """
-        docket: AlaDocket = accumulated_data["docket"]
+        docket = AlaDocket.model_validate(accumulated_data["docket_data"])
 
         embedded = json_content.get("_embedded", {})
         results = embedded.get("results", [])
 
         parties = []
         for party_data in results:
-            party_type = party_data.get("partyType", "")
-            party_subtype = party_data.get("partySubType", "")
-            party_status = party_data.get("partyStatus", "")
+            # Party info is nested under partyHeader
+            party_header = party_data.get("partyHeader", {})
+            party_type = party_header.get("partyType", "")
+            party_subtype = party_header.get("partySubType", "")
+            party_status = party_header.get("partyStatus", "")
             pro_se = party_data.get("proSeFlag", False)
 
-            actor = party_data.get("actor", {})
+            # Actor info is under partyHeader.partyActorInstance
+            actor = party_header.get("partyActorInstance", {})
             display_name = actor.get("displayName", "")
 
             # Get legal representations (attorneys)
             attorneys = []
             legal_reps = party_data.get("legalRepresentations", [])
             for rep in legal_reps:
-                rep_actor = rep.get("actor", {})
+                # Attorney info is under attorneyPartyHeader.partyActorInstance
+                attorney_header = rep.get("attorneyPartyHeader", {})
+                rep_actor = attorney_header.get("partyActorInstance", {})
                 attorney_name = rep_actor.get("displayName", "")
                 is_primary = rep.get("primaryFlag", False)
                 if attorney_name:
@@ -1464,7 +1472,7 @@ class AlabamaScraper(
             ),
             continuation=self.parse_docket_entries,
             accumulated_data={
-                "docket": docket,
+                "docket_data": docket.model_dump(mode="json"),
             },
         )
 
@@ -1503,7 +1511,7 @@ class AlabamaScraper(
                 "page": {...}
             }
         """
-        docket: AlaDocket = accumulated_data["docket"]
+        docket = AlaDocket.model_validate(accumulated_data["docket_data"])
 
         embedded = json_content.get("_embedded", {})
         results = embedded.get("results", [])
@@ -1521,7 +1529,8 @@ class AlabamaScraper(
             entry_type = header.get("docketEntryType", "")
             entry_subtype = header.get("docketEntrySubType", "")
             filed_date_str = header.get("filedDate", "")
-            description = header.get("description", "")
+            # Field is named docketEntryDescription in the API
+            description = header.get("docketEntryDescription", "")
 
             filed_date = self._parse_date(filed_date_str)
 
@@ -1555,7 +1564,7 @@ class AlabamaScraper(
                 ),
                 continuation=self.parse_docket_entries,
                 accumulated_data={
-                    "docket": docket,
+                    "docket_data": docket.model_dump(mode="json"),
                 },
             )
         else:

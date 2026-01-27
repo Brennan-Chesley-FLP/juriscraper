@@ -319,13 +319,13 @@ class ScraperRegistry:
             List of SpeculativeStepSchema objects.
         """
         from juriscraper.scraper_driver.common.searchable import (
-            _find_speculative_steps,
+            _find_speculate_functions,
         )
 
         speculative_steps: list[SpeculativeStepSchema] = []
 
         try:
-            step_names = _find_speculative_steps(scraper_class)
+            step_names = _find_speculate_functions(scraper_class)
             for step_name in sorted(step_names):
                 speculative_steps.append(
                     SpeculativeStepSchema(

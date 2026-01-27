@@ -417,15 +417,6 @@
           }
           break;
 
-        case 'SpeculativeRequest':
-          details = `
-            <div class="output-item-detail">
-              <strong>continuation:</strong> ${this.escapeHtml(item.continuation || 'N/A')}<br>
-              <strong>speculative_id:</strong> ${item.speculative_id !== null ? item.speculative_id : 'N/A'}
-            </div>
-          `;
-          break;
-
         case 'NavigatingRequest':
         case 'NonNavigatingRequest':
           details = `

@@ -18,6 +18,10 @@ BaseScraper[T]
     ├── get_entry() -> NavigatingRequest
     |       Creates initial request to start scraping
     |
+    ├── @speculate decorator
+    |    Decorate a function to turn an int into a NavigatingRequest.
+    |    These function as potentially infinite entry points for enumerating cases that could exist
+    |
     └── @step decorated methods
             Generator functions that:
             - Receive Response (auto-parsed as lxml_tree, json_content, etc.)
@@ -25,7 +29,6 @@ BaseScraper[T]
             - Yield NavigatingRequest (follow links)
             - Yield NonNavigatingRequest (API calls without location change)
             - Yield ArchiveRequest (download files)
-            - Yield SpeculativeRequest (pagination probing)
 ```
 
 ### Early Branching in get_entry()
@@ -368,23 +371,6 @@ class MyScraper(BaseScraper[MyCase]):
 
 ## Common Patterns
 
-### Pagination with SpeculativeRequest
-
-```python
-@step
-def parse_results(self, lxml_tree, response):
-    page = 1
-    while True:
-        should_continue = yield SpeculativeRequest(
-            request=HTTPRequestParams(url=f"/search?page={page}"),
-            continuation=self.parse_page,
-            accumulated_data={'speculative_id': {'Case': {'internal_id': page}}}
-        )
-        if not should_continue:
-            break
-        page += 1
-```
-
 ### Form Submission
 
 ```python
@@ -544,7 +530,6 @@ These patterns are documented in `docs/source/scraper_driver/design/`.
 | `NavigatingRequest` | Standard page fetch | Following links, loading detail pages |
 | `NonNavigatingRequest` | API calls | AJAX/JSON endpoints that don't change "location" |
 | `ArchiveRequest` | File downloads | PDFs, audio files - content saved to disk |
-| `SpeculativeRequest` | Pagination probing | When you don't know if more pages exist |
 
 ### Data Flow Patterns
 
@@ -626,109 +611,6 @@ def parse_first(self, response):
 def parse_second(self, response):
     yield ParsedData(...)
 ```
-
-### SpeculativeRequest
-
-For **unbounded pagination** where you don't know if pages exist before requesting:
-
-```python
-@step
-def parse_list(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
-    page = 1
-    while True:
-        should_continue = yield SpeculativeRequest(
-            request=HTTPRequestParams(url=f"/cases?page={page}"),
-            continuation=self.parse_page,
-            accumulated_data={'speculative_id': {'Case': {'internal_id': page}}}
-        )
-
-        if not should_continue:
-            break  # Driver said stop (e.g., 404 received)
-
-        page += 1
-```
-
-**How it works:**
-1. Scraper yields `SpeculativeRequest` with URL and continuation
-2. Driver fetches URL and checks response:
-   - **2xx**: Returns `True` to generator, calls continuation
-   - **Non-2xx**: Returns `False` to generator (by default)
-3. Generator resumes with boolean result
-
-**Note:** Generator signature is bidirectional - `Generator[YieldType, bool | None, None]`
-
-The driver captures the speculative_ids from accumulated data for future invocation of the scraper to look for more data.
-
-#### SpeculativeRequest Rules
-
-**Rule 1: A step that yields SpeculativeRequests should ONLY yield SpeculativeRequests.**
-
-Don't mix SpeculativeRequest with other request types in the same step:
-
-```python
-# BAD: Mixing request types
-@step
-def bad_step(self, lxml_tree):
-    yield NavigatingRequest(...)  # Regular request
-    yield SpeculativeRequest(...) # Speculative - don't mix!
-
-# GOOD: Separate steps
-@step
-def entry_step(self, lxml_tree):
-    yield NavigatingRequest(
-        url="/start",
-        continuation=self.speculative_step,
-    )
-
-@step
-def speculative_step(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
-    id = 1
-    while True:
-        should_continue = yield SpeculativeRequest(...)
-        if not should_continue:
-            break
-        id += 1
-```
-
-**Rule 2: Prefer date-based search over speculative ID probing.**
-
-When exploring a site, look for date-based search/filter options first:
-
-```python
-# PREFERRED: Date-based search (predictable, efficient)
-@step
-def search_by_date(self, lxml_tree):
-    yield NavigatingRequest(
-        url=f"/search?from={start_date}&to={end_date}",
-        continuation=self.parse_results,
-    )
-
-# FALLBACK: Speculative ID probing (when no date search exists)
-# Use this when resources have auto-incremented IDs like:
-#   /case/12345, /opinion/67890, /document?id=111
-@step
-def probe_by_id(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
-    case_id = starting_id
-    while True:
-        should_continue = yield SpeculativeRequest(
-            request=HTTPRequestParams(url=f"/case/{case_id}"),
-            continuation=self.parse_case,
-            accumulated_data={'speculative_id': {'Case': {'id': case_id}}}
-        )
-        if not should_continue:
-            break
-        case_id += 1
-```
-
-**When to use SpeculativeRequest:**
-- Resources at URLs with auto-incremented IDs (e.g., `/case/12345`)
-- No date-based search or filtering available
-- Need to discover the full range of available records
-
-**When NOT to use SpeculativeRequest:**
-- Site has date-based search (use that instead)
-- Site has pagination with "next page" links (use NavigatingRequest)
-- Site has an index/list page you can parse
 
 ### CheckedHtmlElement
 
@@ -863,3 +745,95 @@ def handle_download(self, response: ArchiveResponse, accumulated_data):
 - [ ] Tested with LocalDevDriver
 - [ ] **Created XSD files for each HTML page type in `xsds/` directory**
 - [ ] **Added `xsd="xsds/..."` annotations to `@step` decorators**
+
+## Coverage
+
+The goal of every scraper is **complete coverage**—we want to collect all available opinions, oral arguments, dockets, etc. from a court site. The approach depends on what the site offers.
+
+### Preferred: Date-Based Search
+
+When a site offers date-based search or filtering, use it. This is the most reliable way to ensure complete coverage:
+
+```python
+@step
+def search_by_date_range(self, lxml_tree):
+    """Search for all records within the configured date range."""
+    start_date, end_date = self._get_date_range()
+
+    yield NavigatingRequest(
+        request=HTTPRequestParams(
+            url=f"/search?from={start_date}&to={end_date}",
+        ),
+        continuation=self.parse_results,
+    )
+```
+
+**Why date-based is preferred:**
+- Deterministic—you know exactly what date range you're covering
+- Efficient—no wasted requests probing for non-existent records
+- Resumable—easy to pick up where you left off by adjusting the date range
+- Complete—if the site has records for those dates, you'll get them
+
+### Fallback: The @speculate Decorator
+
+Some sites only allow search by docket number or case ID, with no date-based filtering. When that's the case, use the `@speculate` decorator to enumerate potential cases:
+
+```python
+from juriscraper.scraper_driver.common.decorators import speculate
+
+class MyScraper(BaseScraper[MyCase]):
+
+    @speculate(highest_observed=50000, largest_observed_gap=100)
+    def fetch_case(self, case_id: int) -> NavigatingRequest:
+        """Probe for a case by ID.
+
+        The driver will call this with sequential IDs, tracking successes
+        and failures to determine when to stop probing.
+        """
+        return NavigatingRequest(
+            request=HTTPRequestParams(
+                url=f"/case/{case_id}",
+            ),
+            continuation=self.parse_case,
+        )
+```
+
+**How @speculate works:**
+1. The driver calls the decorated function with incrementing integer IDs
+2. For each ID, it makes the request and checks the response
+3. It tracks the highest successful ID and consecutive failures
+4. When failures exceed `largest_observed_gap`, it stops probing
+
+**@speculate parameters:**
+- `highest_observed`: The highest ID known to exist (starting point for probing)
+- `largest_observed_gap`: How many consecutive failures before stopping
+- `observation_date`: When these values were last verified (for documentation)
+
+**When to use @speculate:**
+- Site only offers search by case/docket number
+- Resources have sequential integer IDs (e.g., `/case/12345`, `/opinion/67890`)
+- No date-based search or index page available
+
+**When NOT to use @speculate:**
+- Site has date-based search (use that instead)
+- Site has pagination with "next page" links (use regular `NavigatingRequest`)
+- Site has a complete index or listing page you can parse
+
+### Coverage Checklist
+
+When exploring a new site, determine your coverage strategy:
+
+1. **Look for date-based search first**
+   - Search forms with date pickers
+   - URL parameters like `?from=...&to=...` or `?date=...`
+   - "Recent opinions" pages that can be parameterized
+
+2. **Check for complete listings**
+   - Archive pages by year/month
+   - "All opinions" or "All cases" indexes
+   - Sitemaps
+
+3. **Fall back to @speculate only when necessary**
+   - Identify the URL pattern (e.g., `/case/{id}`)
+   - Determine the current highest ID (probe manually or check recent records)
+   - Estimate the largest gap between IDs (some sites skip numbers)

@@ -51,14 +51,36 @@ def speculate_docket(self, docket_id: int) -> NavigatingRequest:
 
 **Alternative considered**: Keep generators but add metadata via decorator arguments. Rejected because generators add complexity and tight coupling.
 
-### Decision 2: Speculative Request Identification via Boolean Field
+### Decision 2: Speculative Request Identification via Fields
 
-Instead of a separate `SpeculativeRequest` type, add `is_speculative: bool = False` to `BaseRequest`. The request returned by a `@speculate` function gets this flag set automatically.
+Instead of a separate `SpeculativeRequest` type, add two fields to `BaseRequest`:
+- `is_speculative: bool = False` - marks the request as speculative
+- `speculation_id: tuple[str, int] | None = None` - identifies which @speculate function and ID generated this request
+
+The `speculation_id` tuple contains `(function_name, integer_id)`, enabling drivers to track speculation state without relying on accumulated_data lookups.
 
 **Rationale**:
 - Simplifies type hierarchy (fewer types to dispatch on)
 - The request still flows through NavigatingRequest processing
-- Drivers can identify speculative requests for tracking
+- Drivers can directly identify which @speculate function generated a request
+- The integer ID enables tracking `highest_successful_id` efficiently
+
+### Decision 2a: speculative() Method on NavigatingRequest
+
+`NavigatingRequest` provides a `speculative(func_name: str, id: int)` method that:
+1. Creates a shallow copy of the request
+2. Sets `is_speculative=True`
+3. Sets `speculation_id=(func_name, id)`
+
+`BaseRequest` provides a `speculative()` method that raises `NotImplementedError` with a message explaining only NavigatingRequest can be speculative. This prevents accidental misuse with NonNavigatingRequest or ArchiveRequest.
+
+The `@speculate` decorator calls this method on the returned NavigatingRequest, using the decorated function's name and the integer ID parameter.
+
+**Rationale**:
+- Encapsulates the speculation setup logic in one place
+- Makes the decorator implementation cleaner
+- Provides a clear error if someone tries to make non-navigating requests speculative
+- Enables testing the speculation setup independent of the decorator
 
 ### Decision 3: Params Interface Changes
 
@@ -76,14 +98,15 @@ Drivers become responsible for:
 1. Discovering `@speculate` functions on scrapers
 2. Reading params configuration
 3. Calling the function for each ID in `definite_range` during initialization
-4. Enqueuing returned requests with `is_speculative=True`
+4. Enqueuing returned requests (decorator automatically sets `is_speculative=True` and `speculation_id`)
 5. Tracking `highest_successful_id` per @speculate function as responses complete
-6. Dynamically extending the queue when speculation succeeds near the ceiling
-7. Stopping when `plus` consecutive failures occur beyond `highest_successful_id`
+6. Using `speculation_id` tuple to identify which function/ID a completed request belongs to
+7. Dynamically extending the queue when speculation succeeds near the ceiling
+8. Stopping when `plus` consecutive failures occur beyond `highest_successful_id`
 
 **No external callbacks** - speculation policy is entirely configuration-driven.
 
-**Rationale**: This inverts control - drivers know about speculation policy, scrapers just define the URL pattern. Removing callbacks simplifies the driver interface and makes behavior predictable.
+**Rationale**: This inverts control - drivers know about speculation policy, scrapers just define the URL pattern. Using `speculation_id` instead of accumulated_data lookups makes tracking explicit and efficient. Removing callbacks simplifies the driver interface and makes behavior predictable.
 
 ### Decision 5: Distinguishing @step and @speculate
 

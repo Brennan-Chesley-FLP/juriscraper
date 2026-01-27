@@ -9,7 +9,7 @@ Entry points:
 - COA Hand Down List: https://courts.ms.gov/Images/HDList/COA{MM-DD-YYYY}.html
 
 Flow:
-1. get_entry -> probe hand down list pages by date (SpeculativeRequest)
+1. get_entry -> probe hand down list pages by date
 2. parse_hand_down_list -> parses table, yields ArchiveRequests for PDFs
 3. handle_opinion_download -> yields final MississippiOpinionCluster
 
@@ -36,10 +36,10 @@ from juriscraper.scraper_driver.data_types import (
     BaseScraper,
     HttpMethod,
     HTTPRequestParams,
+    NavigatingRequest,
     ParsedData,
     Response,
     ScraperStatus,
-    SpeculativeRequest,
 )
 
 from .models import (
@@ -325,7 +325,7 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
         end_date: date,
         docket_number: str | None,
     ) -> Generator[ScraperYield[MississippiOpinionCluster], bool | None, None]:
-        """Probe dates for a specific court using SpeculativeRequest.
+        """Probe dates for a specific court speculatively
 
         Args:
             court_prefix: 'SCT' or 'COA'
@@ -344,7 +344,7 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
             date_str = current_date.strftime("%m-%d-%Y")
             url = url_template.format(date=date_str)
 
-            should_continue = yield SpeculativeRequest(
+            should_continue = yield NavigatingRequest(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
                     url=url,
@@ -360,6 +360,7 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
                     "hand_down_date": current_date.isoformat(),
                     "target_docket": docket_number,
                 },
+                is_speculative=True,
             )
 
             if not should_continue:

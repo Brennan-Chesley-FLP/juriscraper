@@ -16,7 +16,6 @@ Supported parameter names:
 - lxml_tree: Response content parsed as CheckedHtmlElement
 - text: Response content as string
 - local_filepath: Local file path from ArchiveResponse (None if not archive)
-- speculative_id: Starting ID for speculative steps (from params.speculative.{step_name})
 
 The decorator also handles:
 
@@ -24,12 +23,12 @@ The decorator also handles:
 - Attaching encoding, xsd, and json_model metadata for drivers to optionally use
 - Auto-resolving Callable continuations to string names
 - Automatic yielding from wrapped generators
-- Validating that speculative=True steps have a speculative_id parameter
 """
 
 import inspect
 import json
 from collections.abc import Callable, Generator
+from datetime import date
 from functools import wraps
 from typing import Any, TypeVar
 
@@ -44,7 +43,6 @@ from juriscraper.scraper_driver.data_types import (
     BaseRequest,
     Response,
     ScraperYield,
-    SpeculativeRequest,
 )
 
 T = TypeVar("T")
@@ -58,8 +56,6 @@ class StepMetadata:
         encoding: Character encoding for text/HTML decoding.
         xsd: Optional path to XSD schema file for structural validation hints.
         json_model: Optional dotted path to Pydantic model for JSON response validation.
-        speculative: Whether this step handles speculative requests. When True,
-            consumers can configure the maximum speculative ID for this step.
     """
 
     def __init__(
@@ -68,13 +64,31 @@ class StepMetadata:
         encoding: str = "utf-8",
         xsd: str | None = None,
         json_model: str | None = None,
-        speculative: bool = False,
     ):
         self.priority = priority
         self.encoding = encoding
         self.xsd = xsd
         self.json_model = json_model
-        self.speculative = speculative
+
+
+class SpeculateMetadata:
+    """Metadata attached to scraper methods by @speculate decorator.
+
+    Attributes:
+        observation_date: Date when metadata was last updated (e.g., when gap was observed).
+        highest_observed: The highest ID observed to exist.
+        largest_observed_gap: The largest gap observed in the sequence.
+    """
+
+    def __init__(
+        self,
+        observation_date: date | None = None,
+        highest_observed: int = 1,
+        largest_observed_gap: int = 10,
+    ):
+        self.observation_date = observation_date
+        self.highest_observed = highest_observed
+        self.largest_observed_gap = largest_observed_gap
 
 
 def _parse_json(response: Response) -> Any:
@@ -191,7 +205,6 @@ def step(
     encoding: str = "utf-8",
     xsd: str | None = None,
     json_model: str | None = None,
-    speculative: bool = False,
 ) -> Any:
     """Decorator for scraper step methods with automatic argument injection.
 
@@ -243,20 +256,6 @@ def step(
             # to optionally use for post-hoc validation
             ...
 
-        @step(speculative=True)
-        def parse_case(self, lxml_tree: CheckedHtmlElement, speculative_id: int):
-            # Marks this step as handling speculative requests.
-            # speculative_id is injected from params.speculative.parse_case
-            # Consumers configure starting ID via: params.speculative.parse_case = 100
-            for case_id in range(speculative_id, speculative_id + 1000):
-                should_continue = yield SpeculativeRequest(
-                    url=f"/case/{case_id}",
-                    continuation=self.parse_case_detail,
-                    speculative_id=case_id,
-                )
-                if not should_continue:
-                    break
-
     Args:
         func: The scraper step method to decorate (when used without parens).
         priority: Priority hint for queue ordering (lower = higher priority).
@@ -266,9 +265,6 @@ def step(
         json_model: Optional dotted path to Pydantic model (e.g.,
             "api.publications.PublicationsResponse"). Resolved relative to
             scraper package. Drivers may use this for post-hoc validation.
-        speculative: Whether this step handles speculative requests. When True,
-            consumers can configure the maximum speculative ID for this step
-            via the params system.
 
     Returns:
         Decorated function with automatic argument injection.
@@ -284,21 +280,12 @@ def step(
         sig = inspect.signature(fn)
         param_names = [p.name for p in sig.parameters.values()]
 
-        # Validate: speculative=True requires speculative_id parameter
-        if speculative and "speculative_id" not in param_names:
-            raise TypeError(
-                f"Step '{fn.__name__}' is marked speculative=True but does not "
-                f"accept a 'speculative_id' parameter. Add 'speculative_id: int' "
-                f"to the function signature."
-            )
-
         # Create metadata
         metadata = StepMetadata(
             priority=priority,
             encoding=encoding,
             xsd=xsd,
             json_model=json_model,
-            speculative=speculative,
         )
 
         @wraps(fn)
@@ -350,66 +337,13 @@ def step(
                 else:
                     injected_kwargs["local_filepath"] = None
 
-            # Inject speculative_id with precedence:
-            # 1. Value from params.speculative.{step_name} (if configured)
-            # 2. Function's default parameter value (if specified)
-            # 3. Fall back to 1
-            if "speculative_id" in param_names:
-                speculative_id_value: int | None = None
-
-                # Try to get from params first
-                params = scraper_self.get_params()
-                if params is not None:
-                    try:
-                        speculative_id_value = getattr(
-                            params.speculative, fn.__name__
-                        )
-                    except AttributeError:
-                        pass
-
-                # If not in params, try function's default
-                if speculative_id_value is None:
-                    param = sig.parameters.get("speculative_id")
-                    if (
-                        param is not None
-                        and param.default is not inspect.Parameter.empty
-                    ):
-                        speculative_id_value = param.default
-
-                # Fall back to 1
-                if speculative_id_value is None:
-                    speculative_id_value = 1
-
-                injected_kwargs["speculative_id"] = speculative_id_value
-
             # Call the original function with injected kwargs
             gen = fn(scraper_self, *args, **injected_kwargs, **kwargs)
 
             # Yield from the generator, processing requests to resolve Callables
-            # Use .send() pattern to support bidirectional generators for
-            # SpeculativeRequest - values sent to us get passed through to
-            # the underlying generator
-            send_value: bool | None = None
-            while True:
-                try:
-                    yielded = gen.send(send_value)
-
-                    # Validate: non-speculative steps cannot yield SpeculativeRequest
-                    is_speculative_request = isinstance(
-                        yielded, SpeculativeRequest
-                    )
-                    if not speculative and is_speculative_request:
-                        raise TypeError(
-                            f"Step '{fn.__name__}' yielded SpeculativeRequest "
-                            f"but is not marked speculative=True. Add "
-                            f"@step(speculative=True) to the decorator."
-                        )
-
-                    processed = _process_yielded_request(yielded)
-                    # Capture value sent to us and pass through on next iteration
-                    send_value = yield processed
-                except StopIteration:
-                    break
+            for yielded in gen:
+                processed = _process_yielded_request(yielded)
+                yield processed
 
         # Attach metadata to the wrapper
         wrapper._step_metadata = metadata  # type: ignore[attr-defined]
@@ -443,3 +377,127 @@ def is_step(func: Callable[..., Any]) -> bool:
         True if the method has step decorator metadata.
     """
     return get_step_metadata(func) is not None
+
+
+def speculate(
+    func: Callable[[Any, int], BaseRequest] | None = None,
+    *,
+    observation_date: date | None = None,
+    highest_observed: int = 1,
+    largest_observed_gap: int = 10,
+) -> Any:
+    """Decorator for functions that generate speculative requests from sequential IDs.
+
+    The @speculate decorator marks functions that generate speculative requests.
+    These functions accept a single integer parameter (the ID) and return a
+    NavigatingRequest with is_speculative=True.
+
+    Drivers use these functions to seed their initial queues and track which
+    IDs have been successfully fetched.
+
+    Example::
+
+        @speculate(highest_observed=500, largest_observed_gap=20)
+        def fetch_case(self, case_id: int) -> NavigatingRequest:
+            return NavigatingRequest(
+                url=f"/case/{case_id}",
+                continuation=self.parse_case
+            )
+
+    Args:
+        func: The function to decorate (when used without parens).
+        observation_date: Date when metadata was last updated.
+        highest_observed: The highest ID observed to exist (defaults to 1).
+        largest_observed_gap: The largest gap observed in the sequence (defaults to 10).
+
+    Returns:
+        Decorated function with SpeculateMetadata attached.
+    """
+
+    def decorator(
+        fn: Callable[[Any, int], BaseRequest],
+    ) -> Callable[[Any, int], BaseRequest]:
+        # Inspect the function signature
+        sig = inspect.signature(fn)
+        params = list(sig.parameters.values())
+
+        # Validate: function should have exactly one parameter (besides self)
+        # The first parameter should be 'self' for instance methods
+        if len(params) < 1:
+            raise TypeError(
+                f"Speculate function '{fn.__name__}' must accept at least one parameter "
+                f"(the ID). Signature: {sig}"
+            )
+
+        # For instance methods, we expect (self, id)
+        # For standalone functions, we expect (id,)
+        if len(params) == 1:
+            # Standalone function - single ID parameter
+            pass
+        elif len(params) == 2:
+            # Instance method - self + ID parameter
+            pass
+        else:
+            raise TypeError(
+                f"Speculate function '{fn.__name__}' must accept exactly one parameter "
+                f"(the ID) in addition to self. Got {len(params) - 1} parameters. "
+                f"Signature: {sig}"
+            )
+
+        # Create metadata
+        metadata = SpeculateMetadata(
+            observation_date=observation_date,
+            highest_observed=highest_observed,
+            largest_observed_gap=largest_observed_gap,
+        )
+
+        @wraps(fn)
+        def wrapper(scraper_self: Any, id_value: int) -> BaseRequest:
+            # Call the original function
+            request = fn(scraper_self, id_value)
+
+            # Ensure the returned value is a BaseRequest
+            if not isinstance(request, BaseRequest):
+                raise TypeError(
+                    f"Speculate function '{fn.__name__}' must return a BaseRequest, "
+                    f"got {type(request).__name__}"
+                )
+
+            # Use the speculative() method to create a copy with speculation fields set
+            # This sets is_speculative=True and speculation_id=(func_name, id_value)
+            return request.speculative(fn.__name__, id_value)
+
+        # Attach metadata to the wrapper
+        wrapper._speculate_metadata = metadata  # type: ignore[attr-defined]
+        return wrapper
+
+    # Support both @speculate and @speculate(...) syntax
+    if func is not None:
+        return decorator(func)
+    return decorator
+
+
+def get_speculate_metadata(
+    func: Callable[..., Any],
+) -> SpeculateMetadata | None:
+    """Get speculate metadata from a decorated function.
+
+    Args:
+        func: A potentially decorated speculate function.
+
+    Returns:
+        SpeculateMetadata if the function is decorated, None otherwise.
+    """
+    return getattr(func, "_speculate_metadata", None)
+
+
+def is_speculate(func: Callable[..., Any]) -> bool:
+    """Check if a method is a decorated speculate function.
+
+    Args:
+        func: A method to check.
+
+    Returns:
+        True if the method has speculate decorator metadata.
+    """
+    return get_speculate_metadata(func) is not None

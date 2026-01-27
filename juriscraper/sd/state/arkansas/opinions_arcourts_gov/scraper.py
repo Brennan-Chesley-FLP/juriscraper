@@ -12,7 +12,7 @@ Entry points:
 - PDF URLs: https://opinions.arcourts.gov/ark/{court}/en/{id}/1/document.do
 
 Design decisions:
-- Uses SpeculativeRequest to probe item IDs (sequential integers)
+- Uses speculation to probe item IDs (sequential integers)
 - Parses HTML pages for case metadata (no API available)
 - Archives opinion PDFs via ArchiveRequest
 - Filters syllabi (weekly summaries) by checking title prefix
@@ -33,10 +33,10 @@ from juriscraper.scraper_driver.data_types import (
     BaseScraper,
     HttpMethod,
     HTTPRequestParams,
+    NavigatingRequest,
     ParsedData,
     Response,
     ScraperStatus,
-    SpeculativeRequest,
 )
 
 from .models import (
@@ -229,8 +229,7 @@ class ArkansasScraper(BaseScraper[ArkOpinionCluster]):
     ) -> Generator[ScraperYield[ArkOpinionCluster], bool | None, None]:
         """Yield speculative requests to probe for opinions.
 
-        Uses SpeculativeRequest to probe item IDs. The Lexum platform
-        uses sequential integer IDs, so we probe incrementally.
+        The Lexum platform uses sequential integer IDs, so we probe incrementally.
         """
         target_courts = self._get_target_courts()
         _, _, start_id, _ = self._get_search_params()
@@ -248,7 +247,7 @@ class ArkansasScraper(BaseScraper[ArkOpinionCluster]):
             while True:
                 item_url = f"{BASE_URL}{BASE_PATH}/{url_path}/en/item/{probe_id}/index.do"
 
-                should_continue = yield SpeculativeRequest(
+                should_continue = yield NavigatingRequest(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
                         url=item_url,
@@ -261,6 +260,7 @@ class ArkansasScraper(BaseScraper[ArkOpinionCluster]):
                             "ArkOpinionCluster": {"item_id": probe_id}
                         },
                     },
+                    is_speculative=True,
                 )
 
                 if not should_continue:

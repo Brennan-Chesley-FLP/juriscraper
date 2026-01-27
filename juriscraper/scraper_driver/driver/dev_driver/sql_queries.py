@@ -985,6 +985,41 @@ class SQL:
         DELETE FROM speculative_start_ids
     """
 
+    # --- Speculation Tracking (new @speculate pattern) ---
+
+    UPSERT_SPECULATION_TRACKING = """
+        INSERT INTO speculation_tracking (
+            func_name, highest_successful_id, consecutive_failures,
+            current_ceiling, stopped, updated_at
+        ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(func_name) DO UPDATE SET
+            highest_successful_id = excluded.highest_successful_id,
+            consecutive_failures = excluded.consecutive_failures,
+            current_ceiling = excluded.current_ceiling,
+            stopped = excluded.stopped,
+            updated_at = CURRENT_TIMESTAMP
+    """
+
+    SELECT_SPECULATION_TRACKING = """
+        SELECT func_name, highest_successful_id, consecutive_failures,
+               current_ceiling, stopped, updated_at
+        FROM speculation_tracking WHERE func_name = ?
+    """
+
+    SELECT_ALL_SPECULATION_TRACKING = """
+        SELECT func_name, highest_successful_id, consecutive_failures,
+               current_ceiling, stopped, updated_at
+        FROM speculation_tracking
+    """
+
+    DELETE_SPECULATION_TRACKING = """
+        DELETE FROM speculation_tracking WHERE func_name = ?
+    """
+
+    DELETE_ALL_SPECULATION_TRACKING = """
+        DELETE FROM speculation_tracking
+    """
+
     # =========================================================================
     # ATB Rate Limiter State
     # =========================================================================

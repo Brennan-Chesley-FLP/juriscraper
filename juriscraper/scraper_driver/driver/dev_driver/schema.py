@@ -4,7 +4,7 @@ This module defines the database schema for the LocalDevDriver, which provides
 persistent storage for request queuing, response archival, compression
 dictionaries, results, and error tracking.
 
-The schema consists of 9 tables:
+The schema consists of 10 tables:
 - requests: HTTP request queue with status tracking and retry logic
 - responses: Compressed HTTP responses with dictionary references
 - compression_dicts: Versioned zstd dictionaries per-continuation
@@ -13,7 +13,8 @@ The schema consists of 9 tables:
 - run_metadata: Single-row configuration and state
 - errors: Detailed error tracking with type-specific fields
 - rate_bucket: Token bucket state for pyrate_limiter
-- speculative_progress: Tracks latest speculative_id per step for recovery
+- speculative_progress: Tracks latest speculative_id per step for recovery (legacy)
+- speculation_tracking: Tracks @speculate function state for the new pattern
 """
 
 from pathlib import Path
@@ -21,7 +22,7 @@ from pathlib import Path
 import aiosqlite
 
 # Schema version for migrations
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 # SQL statements for creating tables
 _CREATE_REQUESTS = """
@@ -319,6 +320,23 @@ CREATE TABLE IF NOT EXISTS rate_limiter_state (
 )
 """
 
+# Table for tracking @speculate function state
+_CREATE_SPECULATION_TRACKING = """
+CREATE TABLE IF NOT EXISTS speculation_tracking (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    func_name TEXT NOT NULL UNIQUE,          -- Name of the @speculate decorated function
+    highest_successful_id INTEGER NOT NULL DEFAULT 0,  -- Highest ID that returned 2xx
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,   -- Failures beyond highest_successful_id
+    current_ceiling INTEGER NOT NULL DEFAULT 0,        -- Current upper bound of seeded IDs
+    stopped BOOLEAN NOT NULL DEFAULT FALSE,  -- Whether speculation has stopped for this function
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+"""
+
+_CREATE_SPECULATION_TRACKING_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_speculation_tracking_func ON speculation_tracking(func_name)",
+]
+
 # Schema metadata table for versioning
 _CREATE_SCHEMA_INFO = """
 CREATE TABLE IF NOT EXISTS schema_info (
@@ -362,6 +380,7 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     await db.execute(_CREATE_SPECULATIVE_PROGRESS)
     await db.execute(_CREATE_SPECULATIVE_START_IDS)
     await db.execute(_CREATE_RATE_LIMITER_STATE)
+    await db.execute(_CREATE_SPECULATION_TRACKING)
 
     # Run migrations BEFORE creating indexes
     # This ensures columns added by migrations exist when their indexes are created
@@ -383,6 +402,8 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     for index_sql in _CREATE_RATE_ITEMS_INDEXES:
         await db.execute(index_sql)
     for index_sql in _CREATE_SPECULATIVE_PROGRESS_INDEXES:
+        await db.execute(index_sql)
+    for index_sql in _CREATE_SPECULATION_TRACKING_INDEXES:
         await db.execute(index_sql)
 
     await db.commit()
@@ -514,6 +535,18 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT INTO schema_info (version) VALUES (?)",
             (8,),
+        )
+        current_version = 8
+
+    # Migration 8 -> 9: Add speculation_tracking table for @speculate pattern
+    if current_version < 9:
+        # Create the table if it doesn't exist
+        await db.execute(_CREATE_SPECULATION_TRACKING)
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (9,),
         )
 
     # Record initial schema version if not present

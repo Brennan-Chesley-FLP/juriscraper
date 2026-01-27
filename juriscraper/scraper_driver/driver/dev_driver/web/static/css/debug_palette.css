@@ -346,10 +346,6 @@
   border-left-color: #3b82f6;
 }
 
-.output-item.SpeculativeRequest {
-  border-left-color: #8b5cf6;
-}
-
 .output-item.ArchiveRequest {
   border-left-color: #f59e0b;
 }

@@ -14,16 +14,39 @@
 
 ### Requirement: Speculative Request Identification
 
-The system SHALL identify speculative requests via an `is_speculative` boolean field on `BaseRequest`.
+The system SHALL identify speculative requests via an `is_speculative` boolean field and a `speculation_id` tuple on `BaseRequest`.
 
 #### Scenario: Speculative flag on request
 - **WHEN** a driver calls a `@speculate` function
 - **THEN** the returned request SHALL have `is_speculative=True`
-- **AND** this flag SHALL be preserved through URL resolution and enqueuing
+- **AND** the request SHALL have a `speculation_id` tuple of `(function_name, integer_id)`
+- **AND** these fields SHALL be preserved through URL resolution and enqueuing
 
 #### Scenario: Non-speculative requests default
 - **WHEN** a request is created without explicit `is_speculative` flag
 - **THEN** `is_speculative` SHALL default to `False`
+- **AND** `speculation_id` SHALL default to `None`
+
+#### Scenario: Speculation ID structure
+- **WHEN** a speculative request is created
+- **THEN** `speculation_id` SHALL be a tuple of `(str, int)`
+- **AND** the first element SHALL be the name of the `@speculate` function
+- **AND** the second element SHALL be the integer ID passed to the function
+
+### Requirement: Speculative Method on Request Types
+
+The system SHALL provide a `speculative()` method for creating speculative copies of requests.
+
+#### Scenario: NavigatingRequest.speculative() method
+- **WHEN** `speculative(func_name: str, id: int)` is called on a `NavigatingRequest`
+- **THEN** a shallow copy of the request SHALL be returned
+- **AND** the copy SHALL have `is_speculative=True`
+- **AND** the copy SHALL have `speculation_id=(func_name, id)`
+
+#### Scenario: BaseRequest.speculative() raises NotImplementedError
+- **WHEN** `speculative()` is called on a `NonNavigatingRequest` or `ArchiveRequest`
+- **THEN** a `NotImplementedError` SHALL be raised
+- **AND** the error message SHALL explain that only `NavigatingRequest` can be speculative
 
 ### Requirement: Speculate Decorator for Request Factories
 
@@ -33,7 +56,9 @@ The system SHALL provide a `@speculate` decorator for marking functions that gen
 - **WHEN** a method is decorated with `@speculate`
 - **THEN** the method SHALL accept a single integer parameter
 - **AND** return a single `NavigatingRequest` object
-- **AND** the returned request SHALL automatically have `is_speculative=True`
+- **AND** the decorator SHALL call `request.speculative(func_name, id)` on the returned request
+- **AND** the returned request SHALL have `is_speculative=True`
+- **AND** the returned request SHALL have `speculation_id=(func_name, id)`
 
 #### Scenario: Speculate metadata attachment
 - **WHEN** `@speculate(observation_date=date, highest_observed=int, largest_observed_gap=int)` is applied

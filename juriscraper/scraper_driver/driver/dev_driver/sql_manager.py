@@ -1546,6 +1546,105 @@ class SQLManager:
             await self._db.execute(SQL.DELETE_ALL_SPECULATIVE_START_IDS)
             await self._db.commit()
 
+    # --- Speculation Tracking (new @speculate pattern) ---
+
+    async def save_speculation_state(
+        self,
+        func_name: str,
+        highest_successful_id: int,
+        consecutive_failures: int,
+        current_ceiling: int,
+        stopped: bool,
+    ) -> None:
+        """Save or update speculation tracking state for a @speculate function.
+
+        This is used to persist speculation state for run resumption.
+
+        Args:
+            func_name: Name of the @speculate decorated function.
+            highest_successful_id: Highest ID that returned 2xx.
+            consecutive_failures: Count of failures beyond highest_successful_id.
+            current_ceiling: Current upper bound of seeded IDs.
+            stopped: Whether speculation has stopped for this function.
+        """
+        async with self._lock:
+            await self._db.execute(
+                SQL.UPSERT_SPECULATION_TRACKING,
+                (
+                    func_name,
+                    highest_successful_id,
+                    consecutive_failures,
+                    current_ceiling,
+                    stopped,
+                ),
+            )
+            await self._db.commit()
+
+    async def load_speculation_state(
+        self, func_name: str
+    ) -> dict[str, int | bool] | None:
+        """Load speculation tracking state for a @speculate function.
+
+        Args:
+            func_name: Name of the @speculate decorated function.
+
+        Returns:
+            Dict with keys: highest_successful_id, consecutive_failures,
+            current_ceiling, stopped. Returns None if no state exists.
+        """
+        cursor = await self._db.execute(
+            SQL.SELECT_SPECULATION_TRACKING, (func_name,)
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return {
+            "func_name": row[0],
+            "highest_successful_id": row[1],
+            "consecutive_failures": row[2],
+            "current_ceiling": row[3],
+            "stopped": bool(row[4]),
+        }
+
+    async def load_all_speculation_states(
+        self,
+    ) -> dict[str, dict[str, int | bool]]:
+        """Load all speculation tracking states.
+
+        Returns:
+            Dict mapping func_name to their state dict with keys:
+            highest_successful_id, consecutive_failures, current_ceiling, stopped.
+        """
+        cursor = await self._db.execute(SQL.SELECT_ALL_SPECULATION_TRACKING)
+        rows = await cursor.fetchall()
+        return {
+            row[0]: {
+                "highest_successful_id": row[1],
+                "consecutive_failures": row[2],
+                "current_ceiling": row[3],
+                "stopped": bool(row[4]),
+            }
+            for row in rows
+        }
+
+    async def clear_speculation_state(self, func_name: str) -> None:
+        """Clear speculation tracking state for a @speculate function.
+
+        Args:
+            func_name: Name of the @speculate decorated function.
+        """
+        async with self._lock:
+            await self._db.execute(
+                SQL.DELETE_SPECULATION_TRACKING, (func_name,)
+            )
+            await self._db.commit()
+
+    async def clear_all_speculation_states(self) -> None:
+        """Clear all speculation tracking states."""
+        async with self._lock:
+            await self._db.execute(SQL.DELETE_ALL_SPECULATION_TRACKING)
+            await self._db.commit()
+
     # --- Request Cancellation ---
 
     async def cancel_request(self, request_id: int) -> bool:

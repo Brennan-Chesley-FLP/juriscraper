@@ -233,24 +233,12 @@ class RunManager:
             )
             await request_manager.initialize()
 
-            # Create speculation handler if config provided
-            on_speculation_response = None
-            if speculation_config:
-                from juriscraper.scraper_driver.driver.dev_driver.speculation import (
-                    create_speculation_handler,
-                )
-
-                on_speculation_response = create_speculation_handler(
-                    speculation_config
-                )
-
             # Create driver with SQLManager and request manager
             driver = LocalDevDriver(
                 scraper=scraper,
                 db=sql_manager,
                 storage_dir=storage_dir,
                 request_manager=request_manager,
-                on_speculation_response=on_speculation_response,
                 **driver_kwargs,
             )
 
@@ -368,17 +356,6 @@ class RunManager:
             )
             await request_manager.initialize()
 
-            # Create speculation handler if config available
-            on_speculation_response = None
-            if speculation_config:
-                from juriscraper.scraper_driver.driver.dev_driver.speculation import (
-                    create_speculation_handler,
-                )
-
-                on_speculation_response = create_speculation_handler(
-                    speculation_config
-                )
-
             # Load driver with resume=True and custom archive handler
             driver = LocalDevDriver(
                 scraper=scraper,
@@ -386,7 +363,6 @@ class RunManager:
                 storage_dir=storage_dir,
                 resume=True,
                 request_manager=request_manager,
-                on_speculation_response=on_speculation_response,
                 **driver_kwargs,
             )
 

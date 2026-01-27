@@ -70,7 +70,7 @@
 
       PCH ID:
       - Monotonically increasing integer
-      - Used for speculative scraping via SpeculativeRequest
+      - Used for speculative scraping
       - ID 89587 is a known valid case (used in testing)
     </xs:documentation>
   </xs:annotation>

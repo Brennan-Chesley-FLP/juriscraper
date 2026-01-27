@@ -132,13 +132,13 @@ class SelectorInfo(BaseModel):
 class OutputYield(BaseModel):
     """A single item yielded by a continuation."""
 
-    type: str  # "ParsedData", "NavigatingRequest", "SpeculativeRequest", etc.
+    type: str  # "ParsedData", "NavigatingRequest", etc.
     data_type: str | None = None  # For ParsedData: the model class name
     preview: str | None = None  # For ParsedData: truncated string repr
     url: str | None = None  # For request types
     method: str | None = None  # For request types
     continuation: str | None = None  # For request types
-    speculative_id: int | None = None  # For SpeculativeRequest
+    speculative_id: int | None = None  # For speculative requests
     expected_type: str | None = None  # For ArchiveRequest
 
 
@@ -491,7 +491,6 @@ def _describe_yield_for_output(item: Any) -> OutputYield:
         NavigatingRequest,
         NonNavigatingRequest,
         ParsedData,
-        SpeculativeRequest,
     )
 
     if isinstance(item, ParsedData):
@@ -503,22 +502,6 @@ def _describe_yield_for_output(item: Any) -> OutputYield:
             preview=data_str[:500] + "..."
             if len(data_str) > 500
             else data_str,
-        )
-    elif isinstance(item, SpeculativeRequest):
-        # Extract speculative_id from aux_data if present
-        speculative_id = None
-        if item.aux_data and "speculative_id" in item.aux_data:
-            speculative_id = item.aux_data["speculative_id"]
-        return OutputYield(
-            type="SpeculativeRequest",
-            url=item.request.url,
-            method=item.request.method.value,
-            continuation=(
-                item.continuation
-                if isinstance(item.continuation, str)
-                else item.continuation.__name__
-            ),
-            speculative_id=speculative_id,
         )
     elif isinstance(item, NavigatingRequest):
         return OutputYield(
@@ -619,7 +602,6 @@ async def get_response_output(
         HttpMethod,
         HTTPRequestParams,
         NavigatingRequest,
-        SpeculativeRequest,
     )
     from juriscraper.scraper_driver.data_types import (
         Response as ScraperResponse,
@@ -724,7 +706,6 @@ async def get_response_output(
             )
             gen = continuation_method(response)
 
-            speculation_count = 0
             for item in gen:
                 yield_info = _describe_yield_for_output(item)
                 yields.append(yield_info)
@@ -733,12 +714,6 @@ async def get_response_output(
                 yield_summary[yield_info.type] = (
                     yield_summary.get(yield_info.type, 0) + 1
                 )
-
-                # Stop after first SpeculativeRequest to prevent infinite generation
-                if isinstance(item, SpeculativeRequest):
-                    speculation_count += 1
-                    if speculation_count >= 1:
-                        break
 
         except Exception as e:
             import traceback

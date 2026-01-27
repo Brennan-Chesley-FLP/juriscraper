@@ -11,8 +11,13 @@ The current speculation architecture requires scraper authors to manually create
 - **BREAKING**: Remove bidirectional generator pattern for speculation (no more `should_continue = yield ...`)
 - Add `@speculate` decorator for marking functions that generate speculative requests
 - Add `is_speculative: bool` field to `BaseRequest` to identify speculative requests
+- Add `speculation_id: tuple[str, int] | None` field to `BaseRequest` to track (function_name, integer_id)
+- Add `speculative(func_name, id)` method to `NavigatingRequest` to create speculative copies
+- Add `speculative()` method to `BaseRequest` that raises `NotImplementedError` (only NavigatingRequest can be speculative)
+- Update `@speculate` decorator to call `request.speculative(func_name, id)` on returned requests
 - Update `ScraperParams.speculative` interface to expose `definite_range` and `plus` configuration
 - Drivers now responsible for calling `@speculate` functions to seed initial queues
+- Drivers use `speculation_id` tuple for tracking instead of accumulated_data lookups
 - LocalDevDriver removes generator tracking, adds metadata persistence in DB
 
 ## Impact

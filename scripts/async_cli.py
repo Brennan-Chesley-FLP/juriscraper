@@ -400,7 +400,6 @@ async def run_scraper(
             on_data=on_data,
             stop_event=stop_event,
             num_workers=1,
-            on_speculation_response=on_speculation_response,
         )
 
         await driver.run()

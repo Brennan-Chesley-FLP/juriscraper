@@ -67,7 +67,7 @@ async def diagnose_response(
         default=3,
         ge=0,
         le=10,
-        description="Maximum SpeculativeRequests to follow",
+        description="Maximum speculative requests to follow",
     ),
 ) -> DiagnoseResponse:
     """Re-run a continuation against a stored response with XPath observation.
@@ -82,7 +82,7 @@ async def diagnose_response(
     Args:
         run_id: The run identifier.
         response_id: The database ID of the response to diagnose.
-        speculation_cap: Maximum SpeculativeRequests to follow (default 3).
+        speculation_cap: Maximum speculative requests to follow (default 3).
 
     Returns:
         Diagnosis results including yields and XPath observation data.

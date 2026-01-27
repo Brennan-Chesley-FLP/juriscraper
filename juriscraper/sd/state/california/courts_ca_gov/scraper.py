@@ -31,14 +31,13 @@ Oral Arguments Flow:
   2. parse_webcast_library -> parses table rows, yields OralArgument objects
 
 Docket Flow:
-  1. get_entry -> search page for each court
-  2. docket_search_{court_id} -> generates SpeculativeRequests for case numbers
-  3. parse_docket_search -> parses Case Summary, yields requests for other tabs
-  4. parse_docket_tab -> parses Docket (Register of Actions)
-  5. parse_briefs_tab -> parses Briefs
-  6. parse_disposition_tab -> parses Disposition
-  7. parse_parties_tab -> parses Parties and Attorneys
-  8. parse_trial_court_tab -> parses Trial Court, yields final CalAppellateDocket
+  1. @speculate fetch_docket_{court_id} -> generates requests for case numbers (seeded by driver)
+  2. parse_docket_search -> parses Case Summary, yields requests for other tabs
+  3. parse_docket_tab -> parses Docket (Register of Actions)
+  4. parse_briefs_tab -> parses Briefs
+  5. parse_disposition_tab -> parses Disposition
+  6. parse_parties_tab -> parses Parties and Attorneys
+  7. parse_trial_court_tab -> parses Trial Court, yields final CalAppellateDocket
 
 Design decisions:
 - Uses restrictive checked_xpaths to catch structural changes early
@@ -46,7 +45,7 @@ Design decisions:
 - Uses SetFilter on court_id to select which courts to scrape
 - Downloads all PDFs via ArchiveRequest
 - Supports both published (120-day rolling) and unpublished (60-day rolling)
-- Docket scraper uses SpeculativeRequests for case number enumeration
+- Docket scraper uses @speculate fetch_docket_{court_id} for case number enumeration
 - Session tokens required for docket access (obtained through search form)
 """
 
@@ -58,7 +57,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import parse_qs, urljoin, urlparse
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import speculate, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -69,7 +68,6 @@ from juriscraper.scraper_driver.data_types import (
     ParsedData,
     Response,
     ScraperStatus,
-    SpeculativeRequest,
 )
 
 from .models import (
@@ -1568,306 +1566,106 @@ class CalDocketScraper(BaseScraper[CalAppellateDocket]):
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial requests for docket scraping.
 
-        For each target court, yields a NavigatingRequest to the search page
-        which will then generate SpeculativeRequests for case numbers.
+        Dockets are handled by @speculate fetch_docket_{court_id} functions.
+        The driver discovers these functions and seeds the queue directly.
+        No entry requests needed - the speculate functions generate requests
+        for case numbers.
+
+        To scrape a specific case, configure params.speculative:
+            params.speculative.fetch_docket_cal.definite_range = (275000, 275000)
         """
-        case_number, _, _ = self._get_search_params()
-
-        # If specific case number requested, only scrape that
-        if case_number:
-            case_match = self.CASE_NUMBER_PATTERN.match(case_number)
-            if case_match:
-                prefix = case_match.group(1)
-                case_num = int(case_match.group(2))
-
-                # Find the config for this prefix
-                for config_key, config in DOCKET_COURT_CONFIG.items():
-                    if config["case_prefix"] == prefix:
-                        yield NavigatingRequest(
-                            request=HTTPRequestParams(
-                                method=HttpMethod.GET,
-                                url=f"{DOCKET_SEARCH_BASE_URL}?dist={config['district_id']}",
-                            ),
-                            continuation=self._get_court_step(config_key),
-                            accumulated_data={
-                                "court_config_key": config_key,
-                                "target_case_num": case_num,
-                                "single_case_mode": True,
-                            },
-                        )
-                        return
-            return
-
-        # Otherwise, scrape all target courts
-        target_courts = self._get_target_courts()
-
-        for config_key in target_courts:
-            config = DOCKET_COURT_CONFIG[config_key]
-            yield NavigatingRequest(
-                request=HTTPRequestParams(
-                    method=HttpMethod.GET,
-                    url=f"{DOCKET_SEARCH_BASE_URL}?dist={config['district_id']}",
-                ),
-                continuation=self._get_court_step(config_key),
-                accumulated_data={
-                    "court_config_key": config_key,
-                },
-            )
-
-    def _get_court_step(self, config_key: str):
-        """Get the step function for a specific court."""
-        step_map = {
-            "cal": self.docket_search_cal,
-            "calctapp1d": self.docket_search_calctapp1d,
-            "calctapp2d": self.docket_search_calctapp2d,
-            "calctapp3d": self.docket_search_calctapp3d,
-            "calctapp4d_div1": self.docket_search_calctapp4d_div1,
-            "calctapp4d_div2": self.docket_search_calctapp4d_div2,
-            "calctapp4d_div3": self.docket_search_calctapp4d_div3,
-            "calctapp5d": self.docket_search_calctapp5d,
-            "calctapp6d": self.docket_search_calctapp6d,
-        }
-        return step_map[config_key]
+        # Speculate functions handle all seeding - no entry requests needed
+        return
+        yield  # Make this a generator
 
     # =========================================================================
-    # Court-Specific Speculative Step Functions
+    # Court-Specific Speculative Functions
     # =========================================================================
 
-    @step(speculative=True)
-    def docket_search_cal(
-        self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
-        accumulated_data: dict,
-        speculative_id: int,
-    ) -> Generator[ScraperYield[CalAppellateDocket], bool | None, None]:
-        """Generate SpeculativeRequests for California Supreme Court (S prefix).
+    def _create_docket_request(
+        self, config_key: str, case_num: int
+    ) -> NavigatingRequest:
+        """Create a speculative request for a docket by case number.
 
-        Suggested speculation threshold: S275000
-        """
-        yield from self._generate_speculative_requests(
-            "cal", lxml_tree, response, accumulated_data, speculative_id
-        )
+        Args:
+            config_key: Court configuration key (e.g., "cal", "calctapp1d").
+            case_num: The case number (integer part only).
 
-    @step(speculative=True)
-    def docket_search_calctapp1d(
-        self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
-        accumulated_data: dict,
-        speculative_id: int,
-    ) -> Generator[ScraperYield[CalAppellateDocket], bool | None, None]:
-        """Generate SpeculativeRequests for 1st District Court of Appeal (A prefix).
-
-        Suggested speculation threshold: A170000
-        """
-        yield from self._generate_speculative_requests(
-            "calctapp1d", lxml_tree, response, accumulated_data, speculative_id
-        )
-
-    @step(speculative=True)
-    def docket_search_calctapp2d(
-        self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
-        accumulated_data: dict,
-        speculative_id: int,
-    ) -> Generator[ScraperYield[CalAppellateDocket], bool | None, None]:
-        """Generate SpeculativeRequests for 2nd District Court of Appeal (B prefix).
-
-        Suggested speculation threshold: B330000
-        """
-        yield from self._generate_speculative_requests(
-            "calctapp2d", lxml_tree, response, accumulated_data, speculative_id
-        )
-
-    @step(speculative=True)
-    def docket_search_calctapp3d(
-        self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
-        accumulated_data: dict,
-        speculative_id: int,
-    ) -> Generator[ScraperYield[CalAppellateDocket], bool | None, None]:
-        """Generate SpeculativeRequests for 3rd District Court of Appeal (C prefix).
-
-        Suggested speculation threshold: C100000
-        """
-        yield from self._generate_speculative_requests(
-            "calctapp3d", lxml_tree, response, accumulated_data, speculative_id
-        )
-
-    @step(speculative=True)
-    def docket_search_calctapp4d_div1(
-        self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
-        accumulated_data: dict,
-        speculative_id: int,
-    ) -> Generator[ScraperYield[CalAppellateDocket], bool | None, None]:
-        """Generate SpeculativeRequests for 4th District, Division 1 (D prefix).
-
-        Suggested speculation threshold: D085000
-        """
-        yield from self._generate_speculative_requests(
-            "calctapp4d_div1",
-            lxml_tree,
-            response,
-            accumulated_data,
-            speculative_id,
-        )
-
-    @step(speculative=True)
-    def docket_search_calctapp4d_div2(
-        self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
-        accumulated_data: dict,
-        speculative_id: int,
-    ) -> Generator[ScraperYield[CalAppellateDocket], bool | None, None]:
-        """Generate SpeculativeRequests for 4th District, Division 2 (E prefix).
-
-        Suggested speculation threshold: E085000
-        """
-        yield from self._generate_speculative_requests(
-            "calctapp4d_div2",
-            lxml_tree,
-            response,
-            accumulated_data,
-            speculative_id,
-        )
-
-    @step(speculative=True)
-    def docket_search_calctapp4d_div3(
-        self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
-        accumulated_data: dict,
-        speculative_id: int,
-    ) -> Generator[ScraperYield[CalAppellateDocket], bool | None, None]:
-        """Generate SpeculativeRequests for 4th District, Division 3 (G prefix).
-
-        Suggested speculation threshold: G065000
-        """
-        yield from self._generate_speculative_requests(
-            "calctapp4d_div3",
-            lxml_tree,
-            response,
-            accumulated_data,
-            speculative_id,
-        )
-
-    @step(speculative=True)
-    def docket_search_calctapp5d(
-        self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
-        accumulated_data: dict,
-        speculative_id: int,
-    ) -> Generator[ScraperYield[CalAppellateDocket], bool | None, None]:
-        """Generate SpeculativeRequests for 5th District Court of Appeal (F prefix).
-
-        Suggested speculation threshold: F090000
-        """
-        yield from self._generate_speculative_requests(
-            "calctapp5d", lxml_tree, response, accumulated_data, speculative_id
-        )
-
-    @step(speculative=True)
-    def docket_search_calctapp6d(
-        self,
-        lxml_tree: CheckedHtmlElement,
-        response: Response,
-        accumulated_data: dict,
-        speculative_id: int,
-    ) -> Generator[ScraperYield[CalAppellateDocket], bool | None, None]:
-        """Generate SpeculativeRequests for 6th District Court of Appeal (H prefix).
-
-        Suggested speculation threshold: H055000
-        """
-        yield from self._generate_speculative_requests(
-            "calctapp6d", lxml_tree, response, accumulated_data, speculative_id
-        )
-
-    # =========================================================================
-    # Speculative Request Generation
-    # =========================================================================
-
-    def _generate_speculative_requests(
-        self,
-        config_key: str,
-        lxml_tree: CheckedHtmlElement,  # noqa: ARG002
-        response: Response,
-        accumulated_data: dict,
-        speculative_id: int,
-    ) -> Generator[ScraperYield[CalAppellateDocket], bool | None, None]:
-        """Generate SpeculativeRequests for a court.
-
-        This method generates case numbers and yields SpeculativeRequests
-        for the search form submission. The driver will handle form submission
-        via the continuation.
+        Returns:
+            NavigatingRequest configured for the search form POST.
         """
         config = DOCKET_COURT_CONFIG[config_key]
         case_prefix = config["case_prefix"]
         district_id = config["district_id"]
+        case_number = f"{case_prefix}{case_num}"
 
-        # Get starting point
-        _, speculative_gt, _ = self._get_search_params()
-        single_case_mode = accumulated_data.get("single_case_mode", False)
-        target_case_num = accumulated_data.get("target_case_num")
-
-        if single_case_mode and target_case_num:
-            # Single case mode - just fetch one case
-            case_number = f"{case_prefix}{target_case_num}"
-            yield SpeculativeRequest(
-                request=HTTPRequestParams(
-                    method=HttpMethod.POST,
-                    url=response.url,
-                    data={
-                        "query_caseNumber": case_number,
-                        "caseSearch": "number",
-                    },
-                ),
-                continuation=self.parse_docket_search,
-                accumulated_data={
-                    "court_config_key": config_key,
-                    "case_number": case_number,
-                    "case_num": target_case_num,
-                    "district_id": district_id,
+        return NavigatingRequest(
+            request=HTTPRequestParams(
+                method=HttpMethod.POST,
+                url=f"{DOCKET_SEARCH_BASE_URL}?dist={district_id}",
+                data={
+                    "query_caseNumber": case_number,
+                    "caseSearch": "number",
                 },
-                speculative_id=target_case_num,
-            )
-            return
+            ),
+            continuation=self.parse_docket_search,
+            accumulated_data={
+                "court_config_key": config_key,
+                "case_number": case_number,
+                "case_num": case_num,
+                "district_id": district_id,
+            },
+        )
 
-        # Speculative enumeration mode
-        start_num = speculative_id or speculative_gt or 1
+    @speculate(highest_observed=275000, largest_observed_gap=20)
+    def fetch_docket_cal(self, case_num: int) -> NavigatingRequest:
+        """Generate a speculative request for California Supreme Court (S prefix).
 
-        while True:
-            case_number = f"{case_prefix}{start_num}"
+        Configure via params.speculative.fetch_docket_cal:
+            - definite_range = (start, end) to specify exact range
+            - plus = N to probe N IDs beyond highest successful
+        """
+        return self._create_docket_request("cal", case_num)
 
-            should_continue = yield SpeculativeRequest(
-                request=HTTPRequestParams(
-                    method=HttpMethod.POST,
-                    url=response.url,
-                    data={
-                        "query_caseNumber": case_number,
-                        "caseSearch": "number",
-                    },
-                ),
-                continuation=self.parse_docket_search,
-                accumulated_data={
-                    "court_config_key": config_key,
-                    "case_number": case_number,
-                    "case_num": start_num,
-                    "district_id": district_id,
-                },
-                speculative_id=start_num,
-            )
+    @speculate(highest_observed=170000, largest_observed_gap=20)
+    def fetch_docket_calctapp1d(self, case_num: int) -> NavigatingRequest:
+        """Generate a speculative request for 1st District Court of Appeal (A prefix)."""
+        return self._create_docket_request("calctapp1d", case_num)
 
-            if not should_continue:
-                break
+    @speculate(highest_observed=330000, largest_observed_gap=20)
+    def fetch_docket_calctapp2d(self, case_num: int) -> NavigatingRequest:
+        """Generate a speculative request for 2nd District Court of Appeal (B prefix)."""
+        return self._create_docket_request("calctapp2d", case_num)
 
-            start_num += 1
+    @speculate(highest_observed=100000, largest_observed_gap=20)
+    def fetch_docket_calctapp3d(self, case_num: int) -> NavigatingRequest:
+        """Generate a speculative request for 3rd District Court of Appeal (C prefix)."""
+        return self._create_docket_request("calctapp3d", case_num)
+
+    @speculate(highest_observed=85000, largest_observed_gap=20)
+    def fetch_docket_calctapp4d_div1(self, case_num: int) -> NavigatingRequest:
+        """Generate a speculative request for 4th District, Division 1 (D prefix)."""
+        return self._create_docket_request("calctapp4d_div1", case_num)
+
+    @speculate(highest_observed=85000, largest_observed_gap=20)
+    def fetch_docket_calctapp4d_div2(self, case_num: int) -> NavigatingRequest:
+        """Generate a speculative request for 4th District, Division 2 (E prefix)."""
+        return self._create_docket_request("calctapp4d_div2", case_num)
+
+    @speculate(highest_observed=65000, largest_observed_gap=20)
+    def fetch_docket_calctapp4d_div3(self, case_num: int) -> NavigatingRequest:
+        """Generate a speculative request for 4th District, Division 3 (G prefix)."""
+        return self._create_docket_request("calctapp4d_div3", case_num)
+
+    @speculate(highest_observed=90000, largest_observed_gap=20)
+    def fetch_docket_calctapp5d(self, case_num: int) -> NavigatingRequest:
+        """Generate a speculative request for 5th District Court of Appeal (F prefix)."""
+        return self._create_docket_request("calctapp5d", case_num)
+
+    @speculate(highest_observed=55000, largest_observed_gap=20)
+    def fetch_docket_calctapp6d(self, case_num: int) -> NavigatingRequest:
+        """Generate a speculative request for 6th District Court of Appeal (H prefix)."""
+        return self._create_docket_request("calctapp6d", case_num)
 
     # =========================================================================
     # Common Parsing Steps

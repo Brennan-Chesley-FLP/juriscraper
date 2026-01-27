@@ -494,71 +494,172 @@ class ModelProxy:
 
 
 # =============================================================================
-# Speculative Steps Proxy (for configuring starting IDs)
+# Speculative Function Config (per-function configuration)
 # =============================================================================
 
 
-class SpeculativeStepsProxy:
-    """Proxy for configuring speculative step starting IDs.
+@dataclass
+class SpeculateFunctionConfig:
+    """Configuration for a single @speculate function.
 
-    When a step is marked with @step(speculative=True), consumers can
-    configure the starting ID for that step via this proxy.
+    Holds the definite_range and plus settings for a speculate function.
+    These control how far the driver will speculate beyond known IDs.
+
+    Attributes:
+        definite_range: Tuple (start, end) of IDs to fetch with certainty.
+            Defaults to (1, highest_observed) from decorator metadata.
+        plus: Number of consecutive failures to tolerate beyond highest_successful_id.
+            Defaults to largest_observed_gap from decorator metadata.
+    """
+
+    definite_range: tuple[int, int] | None = None
+    plus: int | None = None
+
+
+class SpeculateFunctionProxy:
+    """Proxy for configuring a single speculate function.
+
+    Provides attribute-style access to definite_range and plus settings
+    for an individual @speculate function.
+
+    Example:
+        params.speculative.fetch_case.definite_range = 100
+        params.speculative.fetch_case.plus = 20
+    """
+
+    def __init__(self, func_name: str) -> None:
+        """Initialize the proxy for a speculate function.
+
+        Args:
+            func_name: Name of the @speculate function.
+        """
+        self._func_name = func_name
+        self._config = SpeculateFunctionConfig()
+
+    @property
+    def func_name(self) -> str:
+        """Return the function name."""
+        return self._func_name
+
+    @property
+    def definite_range(self) -> tuple[int, int] | None:
+        """Get the definite range for this speculate function.
+
+        When set, the driver will fetch IDs from start to end (inclusive).
+
+        Returns:
+            Tuple (start, end) of IDs to fetch, or None if not set.
+        """
+        return self._config.definite_range
+
+    @definite_range.setter
+    def definite_range(self, value: tuple[int, int] | None) -> None:
+        """Set the definite range for this speculate function.
+
+        Args:
+            value: Tuple (start, end) of IDs to fetch, or None to unset.
+        """
+        if value is not None:
+            if not isinstance(value, tuple) or len(value) != 2:
+                raise TypeError(
+                    f"definite_range must be a tuple of (start, end) or None (got {type(value).__name__})"
+                )
+            start, end = value
+            if not isinstance(start, int) or not isinstance(end, int):
+                raise TypeError(
+                    "definite_range start and end must be integers"
+                )
+            if start < 1:
+                raise ValueError("definite_range start must be at least 1")
+            if end < start:
+                raise ValueError("definite_range end must be >= start")
+        self._config.definite_range = value
+
+    @property
+    def plus(self) -> int | None:
+        """Get the plus value for this speculate function.
+
+        When set, the driver will probe this many additional IDs beyond
+        the definite range, stopping on consecutive failures.
+
+        Returns:
+            The plus value, or None if not set.
+        """
+        return self._config.plus
+
+    @plus.setter
+    def plus(self, value: int | None) -> None:
+        """Set the plus value for this speculate function.
+
+        Args:
+            value: The plus value, or None to unset.
+        """
+        if value is not None and not isinstance(value, int):
+            raise TypeError(
+                f"plus must be an integer or None (got {type(value).__name__})"
+            )
+        if value is not None and value < 0:
+            raise ValueError("plus must be non-negative")
+        self._config.plus = value
+
+    def get_config(self) -> SpeculateFunctionConfig:
+        """Return the configuration for this function."""
+        return self._config
+
+
+# =============================================================================
+# Speculative Functions Proxy (for configuring @speculate functions)
+# =============================================================================
+
+
+class SpeculativeFunctionsProxy:
+    """Proxy for configuring @speculate functions.
+
+    When a method is decorated with @speculate, consumers can
+    configure its definite_range and plus settings via this proxy.
 
     Example:
         params = MyScraper.params()
-        params.speculative.parse_case = 100  # Start from ID 100
+        params.speculative.fetch_case.definite_range = 100
+        params.speculative.fetch_case.plus = 20
 
-    The default starting ID is 1 for all speculative steps.
+    The default values are None (use defaults from decorator metadata).
     """
 
-    def __init__(self, speculative_steps: set[str]) -> None:
-        """Initialize with the set of speculative step names.
+    def __init__(self, speculate_functions: set[str]) -> None:
+        """Initialize with the set of speculate function names.
 
         Args:
-            speculative_steps: Set of step names marked as speculative.
+            speculate_functions: Set of function names decorated with @speculate.
         """
-        self._speculative_steps = speculative_steps
-        self._starting_ids: dict[str, int] = dict.fromkeys(
-            speculative_steps, 1
-        )
+        self._speculate_functions = speculate_functions
+        self._function_proxies: dict[str, SpeculateFunctionProxy] = {
+            name: SpeculateFunctionProxy(name) for name in speculate_functions
+        }
 
-    def __getattr__(self, name: str) -> int:
-        """Get the starting ID for a speculative step."""
+    def __getattr__(self, name: str) -> SpeculateFunctionProxy:
+        """Get the configuration proxy for a speculate function."""
         if name.startswith("_"):
             raise AttributeError(
                 f"'{type(self).__name__}' has no attribute '{name}'"
             )
-        if name in self._starting_ids:
-            return self._starting_ids[name]
+        if name in self._function_proxies:
+            return self._function_proxies[name]
         raise AttributeError(
-            f"'{name}' is not a speculative step. "
-            f"Available: {', '.join(self._speculative_steps) or 'none'}"
+            f"'{name}' is not a speculate function. "
+            f"Available: {', '.join(self._speculate_functions) or 'none'}"
         )
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Set the starting ID for a speculative step."""
-        if name.startswith("_"):
-            object.__setattr__(self, name, value)
-            return
-        if name in self._starting_ids:
-            if not isinstance(value, int):
-                raise TypeError(
-                    f"Starting ID must be an integer (got {type(value).__name__})"
-                )
-            self._starting_ids[name] = value
-        else:
-            raise AttributeError(
-                f"'{name}' is not a speculative step. "
-                f"Available: {', '.join(self._speculative_steps) or 'none'}"
-            )
+    def get_speculate_functions(self) -> set[str]:
+        """Return the set of speculate function names."""
+        return self._speculate_functions.copy()
 
-    def get_starting_ids(self) -> dict[str, int]:
-        """Return all speculative step starting IDs."""
-        return self._starting_ids.copy()
-
-    def get_speculative_steps(self) -> set[str]:
-        """Return the set of speculative step names."""
-        return self._speculative_steps.copy()
+    def get_configs(self) -> dict[str, SpeculateFunctionConfig]:
+        """Return all function configurations."""
+        return {
+            name: proxy.get_config()
+            for name, proxy in self._function_proxies.items()
+        }
 
 
 # =============================================================================
@@ -570,44 +671,49 @@ class ScraperParams:
     """Container for scraper parameters built from data model annotations.
 
     Provides attribute-style access to filter parameters for each data type
-    a scraper can return, plus configuration for speculative steps.
+    a scraper can return, plus configuration for speculative functions.
 
     Example:
         params = MyScraper.params()
         params.CaseData.date_filed.gte = date(2024, 1, 1)
         params.OralArgumentData = None  # Don't return this type
-        params.speculative.parse_case = 100  # Start speculative scraping from ID 100
+
+        # Configure @speculate functions
+        params.speculative.fetch_case.definite_range = 100
+        params.speculative.fetch_case.plus = 20
     """
 
     def __init__(self) -> None:
         self._models: dict[str, ModelProxy] = {}
-        self._speculative: SpeculativeStepsProxy | None = None
+        self._speculative_functions: SpeculativeFunctionsProxy | None = None
 
     def _add_model(self, model_class: type[BaseModel]) -> None:
         """Add a data model to the params container."""
         self._models[model_class.__name__] = ModelProxy(model_class)
 
-    def _set_speculative_steps(self, speculative_steps: set[str]) -> None:
-        """Set the speculative steps proxy.
+    def _set_speculate_functions(self, speculate_functions: set[str]) -> None:
+        """Set the speculative functions proxy.
 
         Args:
-            speculative_steps: Set of step names marked as speculative.
+            speculate_functions: Set of function names decorated with @speculate.
         """
-        self._speculative = SpeculativeStepsProxy(speculative_steps)
+        self._speculative_functions = SpeculativeFunctionsProxy(
+            speculate_functions
+        )
 
     @property
-    def speculative(self) -> SpeculativeStepsProxy:
-        """Access speculative step configuration.
+    def speculative(self) -> SpeculativeFunctionsProxy:
+        """Access speculative function configuration.
 
         Returns:
-            Proxy for configuring speculative step starting IDs.
+            Proxy for configuring speculative functions.
 
         Raises:
-            AttributeError: If no speculative steps are defined.
+            AttributeError: If no speculative functions are defined.
         """
-        if self._speculative is None:
-            raise AttributeError("Scraper has no speculative steps defined")
-        return self._speculative
+        if self._speculative_functions is not None:
+            return self._speculative_functions
+        raise AttributeError("Scraper has no speculative functions defined")
 
     def __getattr__(self, name: str) -> ModelProxy:
         """Get a model proxy by class name."""
@@ -688,31 +794,33 @@ def _extract_union_args(type_hint: Any) -> list[type]:
     return [type_hint]
 
 
-def _find_speculative_steps(scraper_class: type) -> set[str]:
-    """Find all speculative steps defined on a scraper class.
+def _find_speculate_functions(scraper_class: type) -> set[str]:
+    """Find all speculate functions defined on a scraper class.
 
     Args:
         scraper_class: A scraper class that inherits from BaseScraper[T]
 
     Returns:
-        Set of step names that are marked as speculative.
+        Set of function names that are decorated with @speculate.
     """
-    from juriscraper.scraper_driver.common.decorators import get_step_metadata
+    from juriscraper.scraper_driver.common.decorators import (
+        get_speculate_metadata,
+    )
 
-    speculative_steps: set[str] = set()
+    speculate_functions: set[str] = set()
 
     for name in dir(scraper_class):
         if name.startswith("_"):
             continue
         try:
             method = getattr(scraper_class, name)
-            metadata = get_step_metadata(method)
-            if metadata is not None and metadata.speculative:
-                speculative_steps.add(name)
+            metadata = get_speculate_metadata(method)
+            if metadata is not None:
+                speculate_functions.add(name)
         except Exception:
             continue
 
-    return speculative_steps
+    return speculate_functions
 
 
 def build_params_for_scraper(scraper_class: type) -> ScraperParams:
@@ -720,7 +828,7 @@ def build_params_for_scraper(scraper_class: type) -> ScraperParams:
 
     Introspects the scraper's generic type parameter to find data models,
     then builds proxies for each model's searchable fields. Also discovers
-    speculative steps for starting ID configuration.
+    speculative functions (@speculate) for configuration.
 
     Args:
         scraper_class: A scraper class that inherits from BaseScraper[T]
@@ -751,9 +859,9 @@ def build_params_for_scraper(scraper_class: type) -> ScraperParams:
                 if isinstance(t, type) and issubclass(t, BaseModel):
                     params._add_model(t)
 
-    # Find and add speculative steps
-    speculative_steps = _find_speculative_steps(scraper_class)
-    if speculative_steps:
-        params._set_speculative_steps(speculative_steps)
+    # Find and add @speculate functions
+    speculate_functions = _find_speculate_functions(scraper_class)
+    if speculate_functions:
+        params._set_speculate_functions(speculate_functions)
 
     return params

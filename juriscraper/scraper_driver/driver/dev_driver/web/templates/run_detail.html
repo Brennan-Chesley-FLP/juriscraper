@@ -38,12 +38,6 @@
         </div>
     </section>
 
-    <!-- Speculative Progress -->
-    <section class="speculative-section" id="speculative-section" style="display:none;">
-        <h2>Speculative Progress</h2>
-        <div id="speculative-progress">Loading...</div>
-    </section>
-
     <!-- Compression by Continuation -->
     <section class="compression-section">
         <h2>Compression by Continuation</h2>
@@ -139,47 +133,6 @@
     </div>
 </div>
 
-<!-- Restart Speculative Modal -->
-<div id="restart-speculative-modal" class="modal">
-    <div class="modal-content" style="max-width: 500px;">
-        <div class="modal-header">
-            <h2>Restart Speculative Scraping</h2>
-            <button class="close-btn" onclick="closeRestartSpeculativeModal()">&times;</button>
-        </div>
-        <div class="modal-body" style="padding: 1.5rem;">
-            <form id="restart-speculative-form">
-                <input type="hidden" id="restart-step-name" name="step_name">
-
-                <div class="form-group">
-                    <label>Step Name</label>
-                    <div id="restart-step-display" class="step-name-display"></div>
-                </div>
-
-                <div class="form-group">
-                    <label for="restart-speculative-id">Starting ID</label>
-                    <input type="number" id="restart-speculative-id" name="speculative_id" min="1" required>
-                    <small>ID to begin scanning from</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="restart-threshold">Threshold (optional)</label>
-                    <input type="number" id="restart-threshold" name="threshold" min="0">
-                    <small>IDs ≤ threshold always continue. Leave blank to keep current.</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="restart-speculation">Speculation Limit (optional)</label>
-                    <input type="number" id="restart-speculation" name="speculation" min="1">
-                    <small>Failed attempts above threshold before stopping. Leave blank to keep current.</small>
-                </div>
-            </form>
-        </div>
-        <div class="form-actions">
-            <button type="button" class="btn btn-secondary" onclick="closeRestartSpeculativeModal()">Cancel</button>
-            <button type="button" class="btn btn-primary" onclick="submitRestartSpeculative()">Restart</button>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -1162,126 +1115,6 @@ async function loadThroughputStats() {
     }
 }
 
-// Speculative Progress
-let currentSpeculativeData = null;
-
-async function loadSpeculativeProgress() {
-    try {
-        const response = await fetch(`/api/runs/${runId}/speculative-progress`);
-        if (!response.ok) {
-            // Run might not be loaded, hide section
-            document.getElementById('speculative-section').style.display = 'none';
-            return;
-        }
-        const data = await response.json();
-        currentSpeculativeData = data;
-
-        if (data.steps.length === 0) {
-            document.getElementById('speculative-section').style.display = 'none';
-            return;
-        }
-
-        // Show section and build table
-        document.getElementById('speculative-section').style.display = 'block';
-
-        let html = `
-            <table class="summary-table speculative-table">
-                <thead>
-                    <tr>
-                        <th>Step Name</th>
-                        <th>Latest ID</th>
-                        <th>Threshold</th>
-                        <th>Speculation</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-
-        for (const step of data.steps) {
-            const config = data.speculation_config?.[step.step_name] || {};
-            html += `
-                <tr>
-                    <td class="continuation-name">${escapeHtml(step.step_name)}</td>
-                    <td class="count-cell">${step.latest_id}</td>
-                    <td class="count-cell">${config.threshold !== undefined ? config.threshold : '-'}</td>
-                    <td class="count-cell">${config.speculation !== undefined ? config.speculation : '-'}</td>
-                    <td class="actions-cell">
-                        <button class="btn btn-sm btn-primary" onclick="openRestartSpeculativeModal('${escapeHtml(step.step_name)}', ${step.suggested_restart_id}, ${config.threshold || 0}, ${config.speculation || 5})">
-                            Restart
-                        </button>
-                    </td>
-                </tr>
-            `;
-        }
-
-        html += '</tbody></table>';
-        document.getElementById('speculative-progress').innerHTML = html;
-
-    } catch (error) {
-        console.error('Failed to load speculative progress:', error);
-        document.getElementById('speculative-section').style.display = 'none';
-    }
-}
-
-function openRestartSpeculativeModal(stepName, suggestedId, threshold, speculation) {
-    document.getElementById('restart-step-name').value = stepName;
-    document.getElementById('restart-step-display').textContent = stepName;
-    document.getElementById('restart-speculative-id').value = suggestedId;
-    document.getElementById('restart-threshold').value = threshold || '';
-    document.getElementById('restart-speculation').value = speculation || '';
-    document.getElementById('restart-speculative-modal').classList.add('active');
-}
-
-function closeRestartSpeculativeModal() {
-    document.getElementById('restart-speculative-modal').classList.remove('active');
-}
-
-async function submitRestartSpeculative() {
-    const stepName = document.getElementById('restart-step-name').value;
-    const speculativeId = parseInt(document.getElementById('restart-speculative-id').value);
-    const threshold = document.getElementById('restart-threshold').value;
-    const speculation = document.getElementById('restart-speculation').value;
-
-    if (!stepName || !speculativeId || speculativeId < 1) {
-        alert('Please enter a valid speculative ID (must be >= 1)');
-        return;
-    }
-
-    const body = {
-        step_name: stepName,
-        speculative_id: speculativeId
-    };
-
-    // Only include speculation_config if either value is provided
-    if (threshold || speculation) {
-        body.speculation_config = {};
-        if (threshold) body.speculation_config.threshold = parseInt(threshold);
-        if (speculation) body.speculation_config.speculation = parseInt(speculation);
-    }
-
-    try {
-        const response = await fetch(`/api/runs/${runId}/restart-speculative`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            addEvent('speculative', result.message);
-            closeRestartSpeculativeModal();
-            loadSpeculativeProgress();
-            alert(result.message);
-        } else {
-            const data = await response.json();
-            alert('Failed to restart speculative: ' + (data.detail || 'Unknown error'));
-        }
-    } catch (error) {
-        alert('Failed to restart speculative: ' + error.message);
-    }
-}
-
 // Actions
 async function resumeRun() {
     try {
@@ -1349,13 +1182,6 @@ document.getElementById('results-modal').addEventListener('click', (e) => {
     }
 });
 
-// Close restart speculative modal on outside click
-document.getElementById('restart-speculative-modal').addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal')) {
-        closeRestartSpeculativeModal();
-    }
-});
-
 // Initial load
 loadRunDetails();
 loadRequestSummary();  // Start with summary view
@@ -1364,7 +1190,6 @@ loadCompressionStats();
 loadCompressionDetails();
 loadDataStats();
 loadThroughputStats();
-loadSpeculativeProgress();
 
 // Auto-refresh every 5 seconds
 setInterval(() => {
@@ -1380,7 +1205,6 @@ setInterval(() => {
     loadCompressionDetails();
     loadDataStats();
     loadThroughputStats();
-    loadSpeculativeProgress();
 }, 5000);
 </script>
 {% endblock %}

@@ -18,24 +18,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
+from juriscraper.scraper_driver.common.decorators import (
+    get_speculate_metadata,
+)
 from juriscraper.scraper_driver.common.exceptions import (
     RequestFailedHalt,
     RequestFailedSkip,
     TransientException,
 )
+from juriscraper.scraper_driver.common.searchable import (
+    SpeculateFunctionConfig,
+)
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     BaseRequest,
     BaseScraper,
-    FlowControl,
     HttpMethod,
     HTTPRequestParams,
     NavigatingRequest,
     NonNavigatingRequest,
     Response,
     ScraperYield,
-    SpeculationContext,
-    SpeculativeRequest,
 )
 from juriscraper.scraper_driver.driver.async_driver import AsyncDriver
 from juriscraper.scraper_driver.driver.dev_driver.schema import (
@@ -48,6 +51,7 @@ from juriscraper.scraper_driver.driver.dev_driver.sql_manager import (
     ResultRecord,
     SQLManager,
 )
+from juriscraper.scraper_driver.driver.sync_driver import SpeculationState
 
 # Re-export for public API
 __all__ = [
@@ -64,17 +68,6 @@ from juriscraper.scraper_driver.driver.dev_driver.stats import DevDriverStats
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable, Generator
-
-    # Type alias for speculation response callback (async version)
-    # Called when a SpeculativeRequest is yielded or receives a response.
-    # Args: (response, continuation_name, speculative_id)
-    #   - response is None for early check (before HTTP), or Response after HTTP
-    #   - continuation_name is the originating step name
-    #   - speculative_id is the ID from SpeculativeRequest
-    # Returns FlowControl: CONTINUE, STOP, or AWAIT_MORE_INFO
-    OnSpeculationResponseAsync = Callable[
-        [Response | None, str, int], Awaitable[FlowControl]
-    ]
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +176,6 @@ class LocalDevDriver(
         max_workers: int = 10,
         resume: bool = True,
         max_backoff_time: float = 3600.0,
-        on_speculation_response: OnSpeculationResponseAsync | None = None,
         request_manager: Any | None = None,
         enable_monitor: bool = True,
     ) -> None:
@@ -199,10 +191,6 @@ class LocalDevDriver(
             max_workers: Maximum workers for dynamic scaling.
             resume: If True, resume from existing queue state.
             max_backoff_time: Maximum total backoff time before marking failed.
-            on_speculation_response: Optional async callback invoked when a SpeculativeRequest
-                receives a non-2xx response. Receives (response, continuation_name) and should
-                return True to resume the generator with True (continue speculation) or False to
-                resume with False (stop speculation). Not called for 2xx responses.
             request_manager: AsyncRequestManager for handling HTTP requests.
             enable_monitor: If True (default), start the worker monitor for dynamic scaling.
                 Set to False for tests that need the driver to exit quickly.
@@ -218,7 +206,6 @@ class LocalDevDriver(
         self.resume = resume
         self.max_backoff_time = max_backoff_time
         self.max_workers = max_workers
-        self.on_speculation_response = on_speculation_response
         self.enable_monitor = enable_monitor
 
         self.db = db
@@ -235,11 +222,10 @@ class LocalDevDriver(
         self._next_worker_id: int = 0
         self._monitor_task: asyncio.Task[None] | None = None
 
-        # Parked generator storage for speculative requests
-        # Maps unique speculation ID -> SpeculationContext
-        # These are stored in memory since generators can't be serialized
-        self._parked_generators: dict[str, SpeculationContext] = {}
-        self._speculation_counter: int = 0
+        # Speculation state - populated by _discover_speculate_functions (new @speculate pattern)
+        self._speculation_state: dict[str, SpeculationState] = {}
+        # Lock for speculation state updates from concurrent workers
+        self._speculation_lock = asyncio.Lock()
 
     @classmethod
     @asynccontextmanager
@@ -337,9 +323,272 @@ class LocalDevDriver(
         so they can be resumed on next startup. Also mark run as interrupted
         if it was running.
         """
+        # Persist speculation state before closing
+        for func_name, spec_state in self._speculation_state.items():
+            await self.db.save_speculation_state(
+                func_name=func_name,
+                highest_successful_id=spec_state.highest_successful_id,
+                consecutive_failures=spec_state.consecutive_failures,
+                current_ceiling=spec_state.current_ceiling,
+                stopped=spec_state.stopped,
+            )
+
         if self.db:
             await self.db.close_run()
             await self.db.db.close()
+
+    # --- Speculation Support (new @speculate pattern) ---
+
+    def _discover_speculate_functions(self) -> dict[str, SpeculationState]:
+        """Discover @speculate functions on the scraper and initialize tracking state.
+
+        Returns:
+            Dictionary mapping function names to their SpeculationState.
+        """
+        from juriscraper.scraper_driver.common.searchable import (
+            SpeculativeFunctionsProxy,
+        )
+
+        state: dict[str, SpeculationState] = {}
+        params = self.scraper.get_params()
+
+        for name in dir(self.scraper):
+            if name.startswith("_"):
+                continue
+            func = getattr(self.scraper, name, None)
+            if func is None:
+                continue
+            metadata = get_speculate_metadata(func)
+            if metadata is None:
+                continue
+
+            # Get config from params (or use empty config)
+            config = SpeculateFunctionConfig()
+            if params is not None:
+                try:
+                    if isinstance(
+                        params.speculative, SpeculativeFunctionsProxy
+                    ):
+                        proxy = getattr(params.speculative, name, None)
+                        if proxy is not None:
+                            config = proxy.get_config()
+                except AttributeError:
+                    pass
+
+            state[name] = SpeculationState(
+                func_name=name,
+                metadata=metadata,
+                config=config,
+            )
+
+        return state
+
+    async def _load_speculation_state_from_db(self) -> None:
+        """Load persisted speculation state from DB for resumption.
+
+        Updates self._speculation_state with any persisted state.
+        """
+        saved_states = await self.db.load_all_speculation_states()
+
+        for func_name, saved in saved_states.items():
+            if func_name in self._speculation_state:
+                spec_state = self._speculation_state[func_name]
+                spec_state.highest_successful_id = saved[
+                    "highest_successful_id"
+                ]
+                spec_state.consecutive_failures = saved["consecutive_failures"]
+                spec_state.current_ceiling = saved["current_ceiling"]
+                spec_state.stopped = bool(saved["stopped"])
+
+    async def _seed_speculative_queue(self) -> None:
+        """Seed the queue with initial speculative requests based on params config.
+
+        For each @speculate function:
+        - If definite_range is configured, use that range
+        - Otherwise, use (1, highest_observed) from decorator metadata
+        - Enqueue requests for all IDs in the range
+
+        When resuming, skips IDs that have already been processed (based on
+        current_ceiling from persisted state).
+        """
+        for func_name, spec_state in self._speculation_state.items():
+            if spec_state.stopped:
+                # Speculation was stopped in previous run, skip
+                continue
+
+            # Get the speculate function
+            func = getattr(self.scraper, func_name)
+
+            # Determine the range
+            if spec_state.config.definite_range is not None:
+                start, end = spec_state.config.definite_range
+            else:
+                # Use defaults from decorator metadata
+                start = 1
+                end = spec_state.metadata.highest_observed
+
+            # If resuming, start from current_ceiling + 1
+            if spec_state.current_ceiling > 0:
+                start = max(start, spec_state.current_ceiling + 1)
+                if start > end:
+                    # Already processed all IDs in range
+                    continue
+
+            # Seed the queue
+            for id_value in range(start, end + 1):
+                # The @speculate decorator sets is_speculative=True and
+                # speculation_id=(func_name, id_value) automatically
+                request = func(id_value)
+
+                # Serialize and enqueue via DB
+                request_data = self._serialize_request(request)
+                await self.db.insert_request(
+                    priority=request.priority,
+                    request_type=request_data["request_type"],
+                    method=request_data["method"],
+                    url=request_data["url"],
+                    headers_json=request_data["headers_json"],
+                    cookies_json=request_data["cookies_json"],
+                    body=request_data["body"],
+                    continuation=request_data["continuation"],
+                    current_location=request_data["current_location"],
+                    accumulated_data_json=request_data[
+                        "accumulated_data_json"
+                    ],
+                    aux_data_json=request_data["aux_data_json"],
+                    permanent_json=request_data["permanent_json"],
+                    expected_type=request_data["expected_type"],
+                    dedup_key=None,
+                    parent_id=None,
+                )
+
+            # Update current_ceiling to the highest seeded ID
+            spec_state.current_ceiling = end
+
+    async def _extend_speculation(self, func_name: str) -> None:
+        """Extend speculation for a function when approaching the ceiling.
+
+        Called when a speculative request succeeds. If highest_successful_id
+        approaches current_ceiling and we haven't hit plus consecutive failures,
+        seed additional IDs.
+
+        Args:
+            func_name: Name of the @speculate function to extend.
+        """
+        spec_state = self._speculation_state.get(func_name)
+        if spec_state is None or spec_state.stopped:
+            return
+
+        # Determine plus threshold
+        if spec_state.config.plus is not None:
+            plus = spec_state.config.plus
+        else:
+            plus = spec_state.metadata.largest_observed_gap
+
+        # If consecutive failures >= plus, stop extending
+        if spec_state.consecutive_failures >= plus:
+            spec_state.stopped = True
+            return
+
+        # Extend if highest_successful_id is near the ceiling
+        # We extend when within 'plus' of the ceiling
+        if (
+            spec_state.highest_successful_id
+            >= spec_state.current_ceiling - plus
+        ):
+            # Get the speculate function
+            func = getattr(self.scraper, func_name)
+
+            # Seed additional IDs up to ceiling + plus
+            new_ceiling = spec_state.current_ceiling + plus
+            for id_value in range(
+                spec_state.current_ceiling + 1, new_ceiling + 1
+            ):
+                # The @speculate decorator sets is_speculative=True and
+                # speculation_id=(func_name, id_value) automatically
+                request = func(id_value)
+
+                # Serialize and enqueue via DB
+                request_data = self._serialize_request(request)
+                await self.db.insert_request(
+                    priority=request.priority,
+                    request_type=request_data["request_type"],
+                    method=request_data["method"],
+                    url=request_data["url"],
+                    headers_json=request_data["headers_json"],
+                    cookies_json=request_data["cookies_json"],
+                    body=request_data["body"],
+                    continuation=request_data["continuation"],
+                    current_location=request_data["current_location"],
+                    accumulated_data_json=request_data[
+                        "accumulated_data_json"
+                    ],
+                    aux_data_json=request_data["aux_data_json"],
+                    permanent_json=request_data["permanent_json"],
+                    expected_type=request_data["expected_type"],
+                    dedup_key=None,
+                    parent_id=None,
+                )
+
+            spec_state.current_ceiling = new_ceiling
+
+    async def _track_speculation_outcome(
+        self, request: BaseRequest, response: Response
+    ) -> None:
+        """Track the outcome of a speculative request.
+
+        Updates highest_successful_id and consecutive_failures based on response.
+        Persists state to DB after update.
+
+        Args:
+            request: The speculative request.
+            response: The HTTP response.
+        """
+        if not request.is_speculative or request.speculation_id is None:
+            return
+
+        # Extract function name and ID from speculation_id tuple
+        func_name, speculative_id = request.speculation_id
+
+        # Find the spec_state for this function
+        spec_state = self._speculation_state.get(func_name)
+        if spec_state is None:
+            return
+
+        is_success = 200 <= response.status_code < 300
+        if is_success and not self.scraper.fails_successfully(response):
+            # Soft 404 - treat as failure
+            is_success = False
+
+        async with self._speculation_lock:
+            if is_success:
+                # Success - update highest_successful_id and reset failures
+                if speculative_id > spec_state.highest_successful_id:
+                    spec_state.highest_successful_id = speculative_id
+                spec_state.consecutive_failures = 0
+                # Extend speculation if needed
+                await self._extend_speculation(spec_state.func_name)
+            else:
+                # Failure - increment consecutive_failures if beyond highest_successful_id
+                if speculative_id > spec_state.highest_successful_id:
+                    spec_state.consecutive_failures += 1
+                    # Check if we should stop
+                    plus = (
+                        spec_state.config.plus
+                        if spec_state.config.plus is not None
+                        else spec_state.metadata.largest_observed_gap
+                    )
+                    if spec_state.consecutive_failures >= plus:
+                        spec_state.stopped = True
+
+            # Persist state to DB
+            await self.db.save_speculation_state(
+                func_name=spec_state.func_name,
+                highest_successful_id=spec_state.highest_successful_id,
+                consecutive_failures=spec_state.consecutive_failures,
+                current_ceiling=spec_state.current_ceiling,
+                stopped=spec_state.stopped,
+            )
 
     # --- Queue Operations (DB-backed) ---
 
@@ -349,11 +598,6 @@ class LocalDevDriver(
         """Enqueue a new request to the database.
 
         Overrides AsyncDriver.enqueue_request to persist to SQLite.
-
-        For SpeculativeRequest with speculation_context:
-        - Parks the generator in memory (generators can't be serialized)
-        - Stores a speculation_id in the DB to link back to the parked generator
-        - If deduplicated, enqueues a ResumeStep with False instead of dropping
 
         Args:
             new_request: The new request to enqueue.
@@ -370,44 +614,11 @@ class LocalDevDriver(
 
         # Check if this dedup_key already exists
         if dedup_key and await self.db.check_dedup_key_exists(dedup_key):
-            # Duplicate found - for SpeculativeRequest, we still need to
-            # resume the parked generator with False
-            if (
-                isinstance(resolved_request, SpeculativeRequest)
-                and resolved_request.speculation_context
-            ):
-                await self._enqueue_resume_step(
-                    resolved_request.speculation_context, False
-                )
+            # Duplicate found - skip
             return
 
-        # Handle SpeculativeRequest with context - park the generator
-        speculation_id: str | None = None
-        originating_step: str | None = None
-        speculative_id_value: int | None = None
-        if (
-            isinstance(resolved_request, SpeculativeRequest)
-            and resolved_request.speculation_context
-        ):
-            # Generate unique ID and park the generator
-            self._speculation_counter += 1
-            speculation_id = f"spec_{self._speculation_counter}"
-            self._parked_generators[speculation_id] = (
-                resolved_request.speculation_context
-            )
-            # Track the originating step and speculative_id for recovery
-            originating_step = (
-                resolved_request.speculation_context.originating_continuation
-            )
-            speculative_id_value = resolved_request.speculative_id
-
         # Serialize request data
-        request_data = self._serialize_request(
-            resolved_request,
-            speculation_id,
-            originating_step,
-            speculative_id_value,
-        )
+        request_data = self._serialize_request(resolved_request)
 
         # Get parent request ID if context is a Response
         parent_id: int | None = None
@@ -445,48 +656,14 @@ class LocalDevDriver(
             },
         )
 
-    async def _enqueue_resume_step(
-        self, ctx: SpeculationContext, predicate_result: bool
-    ) -> None:
-        """Enqueue a ResumeStep to resume a parked generator.
-
-        ResumeStep is an in-memory control flow marker, not a DB request.
-        We store it in the parked_generators dict and enqueue a special
-        request type that will trigger the resume.
-
-        Args:
-            ctx: The speculation context containing the parked generator.
-            predicate_result: The value to send to the generator (True/False).
-        """
-        # Generate unique ID for this resume
-        self._speculation_counter += 1
-        resume_id = f"resume_{self._speculation_counter}"
-
-        # Store the context with the result
-        self._parked_generators[resume_id] = ctx
-
-        # Insert a special "resume" request type
-        await self.db.insert_resume_request(
-            priority=ctx.parent_request.priority,
-            continuation=ctx.originating_continuation,
-            resume_id=resume_id,
-            predicate_result=predicate_result,
-        )
-
     def _serialize_request(
         self,
         request: BaseRequest,
-        speculation_id: str | None = None,
-        originating_step: str | None = None,
-        speculative_id_value: int | None = None,
     ) -> dict[str, Any]:
         """Serialize a BaseRequest to dictionary for DB storage.
 
         Args:
             request: The request to serialize.
-            speculation_id: Optional ID for tracking parked generator (for SpeculativeRequest).
-            originating_step: For SpeculativeRequest, the step that yielded this request.
-            speculative_id_value: For SpeculativeRequest, the speculative_id value for recovery.
 
         Returns:
             Dictionary with serialized request data.
@@ -502,11 +679,6 @@ class LocalDevDriver(
         if isinstance(request, ArchiveRequest):
             request_type = "archive"
             expected_type = request.expected_type
-        elif isinstance(request, SpeculativeRequest):
-            request_type = "speculative"
-            expected_type = (
-                speculation_id  # Store speculation_id in expected_type field
-            )
         elif isinstance(request, NonNavigatingRequest):
             request_type = "non_navigating"
             expected_type = None
@@ -514,11 +686,8 @@ class LocalDevDriver(
             request_type = "navigating"
             expected_type = None
 
-        # Build permanent data - include speculative metadata for recovery
+        # Build permanent data
         permanent_data = dict(request.permanent) if request.permanent else {}
-        if originating_step and speculative_id_value is not None:
-            permanent_data["_speculative_step"] = originating_step
-            permanent_data["_speculative_id"] = speculative_id_value
 
         return {
             "request_type": request_type,
@@ -551,15 +720,11 @@ class LocalDevDriver(
             "expected_type": expected_type,
         }
 
-    async def _get_next_request(
-        self,
-    ) -> tuple[int, BaseRequest | tuple[BaseRequest, str]] | None:
+    async def _get_next_request(self) -> tuple[int, BaseRequest] | None:
         """Get the next pending request from the database.
 
         Returns:
-            Tuple of (request_id, deserialized) or None if queue is empty.
-            deserialized is either a BaseRequest or a tuple of (request, speculation_id)
-            for speculative/resume requests.
+            Tuple of (request_id, request) or None if queue is empty.
 
         Notes:
             - Skips 'held' status requests
@@ -581,9 +746,7 @@ class LocalDevDriver(
         request = self._deserialize_request(row)
         return (request_id, request)
 
-    def _deserialize_request(
-        self, row: tuple[Any, ...]
-    ) -> BaseRequest | tuple[BaseRequest, str]:
+    def _deserialize_request(self, row: tuple[Any, ...]) -> BaseRequest:
         """Deserialize a database row to a BaseRequest.
 
         Args:
@@ -591,8 +754,7 @@ class LocalDevDriver(
 
         Returns:
             Reconstructed BaseRequest (NavigatingRequest, NonNavigatingRequest,
-            ArchiveRequest, or SpeculativeRequest depending on request_type).
-            For SpeculativeRequest, returns tuple of (request, speculation_id).
+            or ArchiveRequest depending on request_type).
         """
         (
             _id,
@@ -655,38 +817,6 @@ class LocalDevDriver(
                 priority=priority,
                 expected_type=expected_type,
             )
-        elif request_type == "speculative":
-            # expected_type stores the speculation_id (internal tracking ID)
-            speculation_id = expected_type
-            # Extract speculative_id (user-provided ID) from permanent data
-            speculative_id_value = (
-                permanent.get("_speculative_id", 1) if permanent else 1
-            )
-            spec_request = SpeculativeRequest(
-                request=http_params,
-                continuation=continuation,
-                current_location=current_location,
-                accumulated_data=accumulated_data,
-                aux_data=aux_data,
-                permanent=permanent,
-                priority=priority,
-                speculative_id=speculative_id_value,
-            )
-            return (spec_request, speculation_id)
-        elif request_type == "resume":
-            # Resume request - expected_type stores the resume_id
-            # Return a dummy request with the resume_id
-            resume_id = expected_type
-            resume_request = NavigatingRequest(
-                request=http_params,
-                continuation=continuation,
-                current_location=current_location,
-                accumulated_data=accumulated_data,
-                aux_data=aux_data,
-                permanent=permanent,
-                priority=priority,
-            )
-            return (resume_request, resume_id)
         elif request_type == "non_navigating":
             return NonNavigatingRequest(
                 request=http_params,
@@ -1143,6 +1273,14 @@ class LocalDevDriver(
                         dedup_key=dedup_key,
                     )
 
+            # Discover @speculate functions and seed the queue
+            self._speculation_state = self._discover_speculate_functions()
+            if self._speculation_state:
+                # Load any persisted state from previous run
+                await self._load_speculation_state_from_db()
+                # Seed the queue with speculative requests
+                await self._seed_speculative_queue()
+
             # Start initial workers
             logger.info(
                 f"Starting {self.num_workers} initial workers (max: {self.max_workers})"
@@ -1335,10 +1473,8 @@ class LocalDevDriver(
     async def _db_worker(self, worker_id: int) -> None:
         """Worker that processes requests from the database queue.
 
-        Handles:
-        - Regular requests (NavigatingRequest, NonNavigatingRequest, ArchiveRequest)
-        - SpeculativeRequest: execute HTTP, determine success, enqueue resume, call continuation
-        - ResumeStep: resume parked generator with True/False
+        Handles regular requests (NavigatingRequest, NonNavigatingRequest, ArchiveRequest).
+        Speculative requests are handled via the new @speculate decorator pattern.
 
         Args:
             worker_id: Identifier for this worker.
@@ -1441,27 +1577,10 @@ class LocalDevDriver(
                         )
                         break
 
-            request_id, deserialized = result
+            request_id, request = result
             logger.debug(f"[W{worker_id}] Dequeued request {request_id}")
 
-            # Handle tuple return for SpeculativeRequest
-            speculation_id: str | None = None
-            if isinstance(deserialized, tuple):
-                request, speculation_id = deserialized
-            else:
-                request = deserialized
-
             try:
-                # Check for ResumeStep (stored as "resume" request type)
-                # This is detected by checking the request type in the DB row
-                # Since _deserialize_request returns the row data, we need to check
-                # if this is a resume by looking at speculation_id pattern
-                if speculation_id and speculation_id.startswith("resume_"):
-                    await self._execute_resume_with_storage(
-                        request_id, speculation_id
-                    )
-                    continue
-
                 await self._emit_progress(
                     "request_started",
                     {
@@ -1478,32 +1597,16 @@ class LocalDevDriver(
                     else request.continuation.__name__
                 )
 
-                # Handle SpeculativeRequest with parked generator
-                if speculation_id and speculation_id.startswith("spec_"):
-                    # request is SpeculativeRequest when speculation_id starts with "spec_"
-                    assert isinstance(request, SpeculativeRequest)
-                    spec_start = time_module.time()
-                    await self._resolve_speculative_with_storage(
-                        request_id, request, speculation_id, continuation_name
-                    )
-                    spec_time = time_module.time() - spec_start
-                    loop_time = time_module.time() - loop_start
-                    requests_processed += 1
-                    logger.info(
-                        f"[W{worker_id}] Completed speculative {request_id} in {spec_time * 1000:.1f}ms (loop={loop_time * 1000:.1f}ms, total={requests_processed})"
-                    )
-                    continue
-
-                # Regular request flow
-                reg_start = time_module.time()
+                # Process the request
+                req_start = time_module.time()
                 await self._process_regular_request(
                     request_id, request, continuation_name
                 )
-                reg_time = time_module.time() - reg_start
+                req_time = time_module.time() - req_start
                 loop_time = time_module.time() - loop_start
                 requests_processed += 1
                 logger.info(
-                    f"[W{worker_id}] Completed regular {request_id} in {reg_time * 1000:.1f}ms (loop={loop_time * 1000:.1f}ms, total={requests_processed})"
+                    f"[W{worker_id}] Completed request {request_id} in {req_time * 1000:.1f}ms (loop={loop_time * 1000:.1f}ms, total={requests_processed})"
                 )
 
             except RequestFailedHalt:
@@ -1634,6 +1737,10 @@ class LocalDevDriver(
             f"Request {request_id}: HTTP fetch complete, status={response.status_code}"
         )
 
+        # Track speculation outcome for @speculate requests
+        if request.is_speculative and self._speculation_state:
+            await self._track_speculation_outcome(request, response)
+
         # Verify ArchiveResponse for ArchiveRequest
         if isinstance(request, ArchiveRequest) and not isinstance(
             response, ArchiveResponse
@@ -1672,16 +1779,9 @@ class LocalDevDriver(
         continuation_name: str,
         request_id: int,
     ) -> None:
-        """Process generator with DB storage, parking on SpeculativeRequest.
+        """Process generator with DB storage.
 
-        Uses simple iteration (for item in gen). Values are only sent to
-        generators via _execute_resume() when processing a ResumeStep.
-
-        For SpeculativeRequests, uses early-continue optimization:
-        - First calls on_speculation_response with response=None
-        - If CONTINUE: enqueue request and immediately resume generator with True
-        - If AWAIT_MORE_INFO: park generator, enqueue request with context
-        - If STOP: immediately resume generator with False (no HTTP request)
+        Uses simple iteration (for item in gen).
 
         Args:
             gen: The generator from the continuation method.
@@ -1702,73 +1802,6 @@ class LocalDevDriver(
         try:
             for item in gen:
                 match item:
-                    case SpeculativeRequest():
-                        # Early-continue optimization: check if we can decide without HTTP
-                        if self.on_speculation_response:
-                            flow = await self.on_speculation_response(
-                                None, continuation_name, item.speculative_id
-                            )
-                            if flow == FlowControl.CONTINUE:
-                                # Can continue without waiting for response
-                                # Enqueue with context (pre_approved=True) so request
-                                # still goes through _resolve_speculative_with_storage
-                                # which respects the 2xx check for calling continuation
-                                ctx = SpeculationContext(
-                                    parked_generator=gen,
-                                    parent_request=parent_request,
-                                    original_response=response,
-                                    originating_continuation=continuation_name,
-                                    pre_approved=True,
-                                )
-                                await self.enqueue_request(
-                                    item.with_context(ctx), response
-                                )
-                                # Immediately resume generator with True
-                                # (the HTTP request will be processed later, but
-                                # we already know speculation should continue)
-                                try:
-                                    next_item = gen.send(True)
-                                    # Continue processing with the new item
-                                    await self._handle_yield_and_continue_with_storage(
-                                        gen,
-                                        next_item,
-                                        response,
-                                        parent_request,
-                                        continuation_name,
-                                        request_id,
-                                    )
-                                except StopIteration:
-                                    pass
-                                return
-                            elif flow == FlowControl.STOP:
-                                # Stop speculation without HTTP request
-                                try:
-                                    next_item = gen.send(False)
-                                    await self._handle_yield_and_continue_with_storage(
-                                        gen,
-                                        next_item,
-                                        response,
-                                        parent_request,
-                                        continuation_name,
-                                        request_id,
-                                    )
-                                except StopIteration:
-                                    pass
-                                return
-                            # AWAIT_MORE_INFO: fall through to park generator
-
-                        # Park the generator and enqueue with context
-                        ctx = SpeculationContext(
-                            parked_generator=gen,
-                            parent_request=parent_request,
-                            original_response=response,
-                            originating_continuation=continuation_name,
-                        )
-                        await self.enqueue_request(
-                            item.with_context(ctx), response
-                        )
-                        return  # Generator parked - stop processing
-
                     case ParsedData():
                         raw_data = item.unwrap()
                         # Handle deferred validation
@@ -1800,327 +1833,6 @@ class LocalDevDriver(
 
                     case None:
                         pass
-
-        except HTMLStructuralAssumptionException as e:
-            if self.on_structural_error:
-                should_continue = await self.on_structural_error(e)
-                if not should_continue:
-                    return
-            else:
-                raise
-
-    async def _resolve_speculative_with_storage(
-        self,
-        request_id: int,
-        request: SpeculativeRequest,
-        speculation_id: str,
-        continuation_name: str,
-    ) -> None:
-        """Execute speculative request with DB storage, determine success, enqueue resume.
-
-        Flow:
-        - 2xx response: always success (True), call continuation
-        - Non-2xx response: call on_speculation_response callback to decide
-
-        Args:
-            request_id: Database ID of the request.
-            request: The SpeculativeRequest to process.
-            speculation_id: ID linking to the parked generator.
-            continuation_name: Name of the continuation method.
-        """
-
-        # Extract speculative metadata from permanent data for progress tracking
-        speculative_step: str | None = None
-        speculative_id_value: int | None = None
-        if request.permanent:
-            speculative_step = request.permanent.get("_speculative_step")
-            speculative_id_value = request.permanent.get("_speculative_id")
-
-        import time as time_module
-
-        # Get the parked generator context
-        ctx = self._parked_generators.get(speculation_id)
-        context_lost = ctx is None
-
-        if context_lost:
-            logger.warning(
-                f"Speculation context {speculation_id} not found - "
-                "generator may have been lost on restart. Will still fetch data."
-            )
-            # Don't return early - still make the HTTP request for data collection
-            # We just won't be able to continue the generator chain
-
-        # Execute HTTP request
-        http_start = time_module.time()
-        try:
-            response = await self.resolve_request(request)
-            http_time = time_module.time() - http_start
-            logger.debug(
-                f"Request {request_id}: HTTP completed in {http_time * 1000:.1f}ms, status={response.status_code}"
-            )
-        except TransientException as e:
-            if self.on_transient_exception:
-                should_continue = await self.on_transient_exception(e)
-                if not should_continue:
-                    # Clean up parked generator if it exists
-                    if not context_lost:
-                        del self._parked_generators[speculation_id]
-                    await self._mark_request_failed(request_id, str(e))
-                    return
-                # Enqueue resume with False - transient error means don't continue
-                if not context_lost and ctx is not None:
-                    await self._enqueue_resume_step(ctx, False)
-                    del self._parked_generators[speculation_id]
-                await self._mark_request_completed(request_id)
-                return
-            else:
-                raise
-
-        # Check for hidden failures in successful responses
-        # If fails_successfully returns False, treat as status 555
-        if (
-            200 <= response.status_code < 300
-            and not self.scraper.fails_successfully(response)
-        ):
-            response.status_code = 555
-
-        # Determine success based on status code
-        is_success_status = 200 <= response.status_code < 300
-
-        if is_success_status:
-            # 2xx response: always continue
-            should_continue = True
-        elif not context_lost and ctx is not None and ctx.pre_approved:
-            # Early-continue optimization already approved this request.
-            # Don't call the handler again, but still respect that non-2xx
-            # means the continuation should not be called.
-            should_continue = True
-        elif self.on_speculation_response:
-            # Non-2xx: let callback decide with the actual response
-            # Use the originating step name (speculative_step) not the continuation name
-            # This matches the config keys which are named after the @step(speculative=True) method
-            step_for_config = speculative_step or continuation_name
-            flow = await self.on_speculation_response(
-                response, step_for_config, request.speculative_id
-            )
-            should_continue = flow == FlowControl.CONTINUE
-        else:
-            # Non-2xx with no callback: don't continue
-            should_continue = False
-
-        # Determine speculation outcome for tracking
-        # 'success' = will process continuation, 'stopped' = will not continue
-        speculation_outcome = "success" if should_continue else "stopped"
-
-        # Store response with speculation outcome
-        await self._store_response(
-            request_id, response, continuation_name, speculation_outcome
-        )
-
-        # Update speculative progress tracking
-        if speculative_step and speculative_id_value is not None:
-            await self._update_speculative_progress(
-                speculative_step, speculative_id_value
-            )
-
-        # For pre_approved requests, the generator was already resumed in the
-        # early-continue optimization path. Skip the ResumeStep.
-        # Also skip if context was lost (generator is gone anyway)
-        if not context_lost and ctx is not None and not ctx.pre_approved:
-            # Enqueue ResumeStep FIRST (before processing continuation)
-            await self._enqueue_resume_step(ctx, should_continue)
-
-            # Clean up parked generator reference (it's now tracked by resume_id)
-            del self._parked_generators[speculation_id]
-        elif not context_lost and ctx is not None and ctx.pre_approved:
-            # pre_approved: generator already resumed, just clean up reference
-            pass  # Don't delete - was already handled in early-continue path
-
-        # THEN process continuation if approved AND response was successful
-        # Skip continuation processing if context was lost (can't continue generator chain)
-        if should_continue and is_success_status and not context_lost:
-            continuation = self.scraper.get_continuation(continuation_name)
-            gen = continuation(response)
-            await self._process_generator_with_storage(
-                gen, response, request, continuation_name, request_id
-            )
-
-        await self._mark_request_completed(request_id)
-        await self._emit_progress(
-            "request_completed",
-            {
-                "request_id": request_id,
-                "url": request.request.url,
-            },
-        )
-
-    async def _execute_resume_with_storage(
-        self, request_id: int, resume_id: str
-    ) -> None:
-        """Execute a ResumeStep: resume the parked generator with the result.
-
-        Args:
-            request_id: Database ID of the resume request.
-            resume_id: ID linking to the parked generator.
-        """
-        # Get the parked generator context
-        ctx = self._parked_generators.get(resume_id)
-        if ctx is None:
-            logger.warning(
-                f"Resume context {resume_id} not found - "
-                "generator may have been lost on restart"
-            )
-            await self._mark_request_completed(request_id)
-            return
-
-        # Get the predicate_result from the DB (stored in permanent_json)
-        predicate_result = await self.db.get_predicate_result(request_id)
-
-        # Clean up
-        del self._parked_generators[resume_id]
-
-        gen = ctx.parked_generator
-        response = ctx.original_response
-        parent_request = ctx.parent_request
-        continuation_name = ctx.originating_continuation
-
-        # Send the value and continue processing remaining yields
-        try:
-            item = gen.send(predicate_result)
-        except StopIteration:
-            await self._mark_request_completed(request_id)
-            return
-
-        # Handle the first item after resume, then loop for rest
-        await self._handle_yield_and_continue_with_storage(
-            gen, item, response, parent_request, continuation_name, request_id
-        )
-
-        await self._mark_request_completed(request_id)
-
-    async def _handle_yield_and_continue_with_storage(
-        self,
-        gen: Generator[ScraperYield, bool | None, None],
-        item: ScraperYield,
-        response: Response,
-        parent_request: BaseRequest,
-        continuation_name: str,
-        request_id: int,
-    ) -> None:
-        """Handle a yield and continue processing the generator with DB storage.
-
-        Called after _execute_resume_with_storage sends a value. Processes the
-        first yielded item, then continues with simple iteration for remaining items.
-
-        For SpeculativeRequests, uses early-continue optimization:
-        - First calls on_speculation_response with response=None
-        - If CONTINUE: enqueue request and immediately resume generator with True
-        - If AWAIT_MORE_INFO: park generator, enqueue request with context
-        - If STOP: immediately resume generator with False (no HTTP request)
-
-        Args:
-            gen: The generator to continue processing.
-            item: The first item yielded after send().
-            response: The original response for context.
-            parent_request: The parent request for context.
-            continuation_name: The continuation name for context.
-            request_id: Database ID for result storage.
-        """
-        from juriscraper.scraper_driver.common.deferred_validation import (
-            DeferredValidation,
-        )
-        from juriscraper.scraper_driver.common.exceptions import (
-            DataFormatAssumptionException,
-            HTMLStructuralAssumptionException,
-        )
-        from juriscraper.scraper_driver.data_types import ParsedData
-
-        try:
-            while True:
-                match item:
-                    case SpeculativeRequest():
-                        # Early-continue optimization: check if we can decide without HTTP
-                        if self.on_speculation_response:
-                            flow = await self.on_speculation_response(
-                                None, continuation_name, item.speculative_id
-                            )
-                            if flow == FlowControl.CONTINUE:
-                                # Can continue without waiting for response
-                                # Enqueue with context (pre_approved=True) so request
-                                # still goes through _resolve_speculative_with_storage
-                                # which respects the 2xx check for calling continuation
-                                ctx = SpeculationContext(
-                                    parked_generator=gen,
-                                    parent_request=parent_request,
-                                    original_response=response,
-                                    originating_continuation=continuation_name,
-                                    pre_approved=True,
-                                )
-                                await self.enqueue_request(
-                                    item.with_context(ctx), response
-                                )
-                                # Immediately resume generator with True
-                                try:
-                                    item = gen.send(True)
-                                    continue  # Process the new item in next iteration
-                                except StopIteration:
-                                    return
-                            elif flow == FlowControl.STOP:
-                                # Stop speculation without HTTP request
-                                try:
-                                    item = gen.send(False)
-                                    continue  # Process the new item in next iteration
-                                except StopIteration:
-                                    return
-                            # AWAIT_MORE_INFO: fall through to park generator
-
-                        # Park again
-                        ctx = SpeculationContext(
-                            parked_generator=gen,
-                            parent_request=parent_request,
-                            original_response=response,
-                            originating_continuation=continuation_name,
-                        )
-                        await self.enqueue_request(
-                            item.with_context(ctx), response
-                        )
-                        return
-
-                    case ParsedData():
-                        raw_data = item.unwrap()
-                        if isinstance(raw_data, DeferredValidation):
-                            try:
-                                validated_data = raw_data.confirm()
-                                await self._store_result(
-                                    request_id, validated_data
-                                )
-                                await self.handle_data(validated_data)
-                            except DataFormatAssumptionException as e:
-                                await self._store_result(
-                                    request_id,
-                                    e.failed_doc,
-                                    is_valid=False,
-                                    validation_errors=e.errors,
-                                )
-                                if self.on_invalid_data:
-                                    await self.on_invalid_data(raw_data)
-                        else:
-                            await self._store_result(request_id, raw_data)
-                            await self.handle_data(raw_data)
-
-                    case NavigatingRequest():
-                        await self.enqueue_request(item, response)
-
-                    case NonNavigatingRequest() | ArchiveRequest():
-                        await self.enqueue_request(item, parent_request)
-
-                    case None:
-                        pass
-
-                try:
-                    item = next(gen)  # Simple iteration after the initial send
-                except StopIteration:
-                    break
 
         except HTMLStructuralAssumptionException as e:
             if self.on_structural_error:
@@ -2428,7 +2140,7 @@ class LocalDevDriver(
     async def diagnose(
         self,
         response_id: int,
-        speculation_cap: int = 3,
+        speculation_cap: int = 3,  # Deprecated, kept for backwards compatibility
     ) -> DiagnoseResult:
         """Re-run a continuation against a stored response with XPath observation.
 
@@ -2441,8 +2153,7 @@ class LocalDevDriver(
 
         Args:
             response_id: The database ID of the response to diagnose.
-            speculation_cap: Maximum number of SpeculativeRequests to follow
-                (prevents infinite loops). Default 3.
+            speculation_cap: Deprecated, no longer used.
 
         Returns:
             DiagnoseResult with yields, observation tree, and any errors.
@@ -2543,22 +2254,9 @@ class LocalDevDriver(
                 )
                 gen = continuation_method(response)
 
-                speculation_count = 0
                 for item in gen:
                     yield_info = self._describe_yield(item)
                     yields.append(yield_info)
-
-                    # Track speculation count
-                    if isinstance(item, SpeculativeRequest):
-                        speculation_count += 1
-                        if speculation_count >= speculation_cap:
-                            yields.append(
-                                {
-                                    "type": "_speculation_cap_reached",
-                                    "message": f"Stopped after {speculation_cap} SpeculativeRequests",
-                                }
-                            )
-                            break
 
             except Exception as e:
                 import traceback
@@ -2591,17 +2289,6 @@ class LocalDevDriver(
         elif isinstance(item, NavigatingRequest):
             return {
                 "type": "NavigatingRequest",
-                "url": item.request.url,
-                "method": item.request.method.value,
-                "continuation": (
-                    item.continuation
-                    if isinstance(item.continuation, str)
-                    else item.continuation.__name__
-                ),
-            }
-        elif isinstance(item, SpeculativeRequest):
-            return {
-                "type": "SpeculativeRequest",
                 "url": item.request.url,
                 "method": item.request.method.value,
                 "continuation": (

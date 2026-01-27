@@ -5,36 +5,42 @@ Step 22: Speculative Request
 The Problem
 -----------
 
-Some scrapers take advantage of expected sequential ids to gather data.
-Generally, we don't know if an id exists before we request the page for it, so we need a way of potentially handling
-an unbounded number of potential pages, and deciding when to stop checking ids.
+Some scrapers take advantage of expected sequential IDs to gather data.
+Generally, we don't know if an ID exists before we request the page for it, so we need a way of potentially handling
+an unbounded number of potential pages, and deciding when to stop checking IDs.
 
 
 The Solution
 ------------
 
-**SpeculativeRequest** enables scrapers to yield requests that may or may not exist,
-with the driver determining whether to continue based on the responses for missed requests:
+The **@speculate decorator** enables scrapers to define functions that generate requests for sequential IDs.
+The driver calls these functions with incrementing IDs, tracking successes and failures to determine when to stop:
 
 .. code-block:: python
 
-    @step(speculative=True)
-    def parse_list(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
-        page = 1
-        while True:
-            should_continue = yield SpeculativeRequest(
-                request=HTTPRequestParams(url=f"/cases?page={page}"),
-                continuation="parse_page",
-                speculative_id=page,  # Track progress for resumption
+    from juriscraper.scraper_driver.common.decorators import speculate
+
+    class MyScraper(BaseScraper[CaseData]):
+        @speculate(highest_observed=500, largest_observed_gap=20)
+        def fetch_case(self, case_id: int) -> NavigatingRequest:
+            """Probe for a case by ID.
+
+            The driver calls this with sequential IDs, tracking successes
+            and failures to determine when to stop probing.
+            """
+            return NavigatingRequest(
+                request=HTTPRequestParams(url=f"/case/{case_id}"),
+                continuation=self.parse_case,
             )
 
-            if not should_continue:
-                break  # Driver said stop (e.g., 404 received)
+        @step
+        def parse_case(self, lxml_tree) -> Generator[ScraperYield, None, None]:
+            # Parse the case page and yield data
+            yield ParsedData(data=CaseData(...))
 
-            page += 1
-
-The scraper yields a ``SpeculativeRequest``, then receives ``True`` or ``False``
-back indicating whether to continue.
+The scraper defines a function that takes an integer ID and returns a request.
+The driver handles the rest—calling the function with sequential IDs, making requests,
+and deciding when to stop based on response patterns.
 
 
 How It Works
@@ -42,405 +48,281 @@ How It Works
 
 The flow is:
 
-1. Scraper yields ``SpeculativeRequest`` with URL and continuation name
-2. Driver **parks the generator** (stores its state) and enqueues the request
-3. Request flows through normal pipeline (queue, interceptors, deduplication)
-4. Driver fetches the URL and checks the response status:
-
-   - **2xx response**: Returns ``True`` to generator, calls continuation with response
-   - **Non-2xx response**: Calls ``on_speculation_response`` callback (if provided)
-
-     - Callback returns ``True``: Returns ``True`` to generator, but skips continuation
-     - Callback returns ``False``: Returns ``False`` to generator, skips continuation
-     - No callback configured: Returns ``False`` to generator, skips continuation
-
-5. Generator resumes and receives the boolean result
+1. **Discovery**: Driver introspects the scraper class using ``list_speculators()`` to find all ``@speculate`` decorated functions
+2. **Configuration**: Driver reads decorator metadata (``highest_observed``, ``largest_observed_gap``) and optional consumer params (``definite_range``, ``plus``)
+3. **Request Generation**: Driver calls the speculate function with sequential IDs to generate requests
+4. **Request Execution**: Requests flow through normal pipeline (queue, interceptors, deduplication)
+5. **Success Tracking**: Driver tracks which IDs succeed (2xx responses) vs fail (non-2xx or deduplication)
+6. **Stopping Criteria**: Driver stops when consecutive failures exceed the configured gap threshold
 
 
-Key Types
----------
+Key Decorator
+-------------
 
-SpeculativeRequest
-^^^^^^^^^^^^^^^^^^
-
-A request that returns ``True/False`` to the yielding generator:
-
-.. code-block:: python
-
-    @dataclass(frozen=True)
-    class SpeculativeRequest(NonNavigatingRequest):
-        """Request that returns True/False to the yielding generator."""
-        speculative_id: int = 1  # Track which ID is being fetched
-        speculation_context: SpeculationContext | None = None
-
-The ``speculative_id`` field tracks which sequential ID is being fetched. Consumers
-can configure the starting ID for each speculative step via params (see below).
-
-SpeculationContext
-^^^^^^^^^^^^^^^^^^
-
-Mutable container holding the parked generator state:
-
-.. code-block:: python
-
-    @dataclass
-    class SpeculationContext:
-        parked_generator: Generator[ScraperYield, bool | None, None]
-        parent_request: BaseRequest
-        original_response: Response
-        originating_continuation: str
-
-ResumeStep
+@speculate
 ^^^^^^^^^^
 
-A queue item that resumes a parked generator. This ensures proper priority ordering
-for requests in the queue and we don't blow up memory:
+Marks a function as generating speculative requests from sequential IDs:
 
 .. code-block:: python
 
-    @dataclass(frozen=True)
-    class ResumeStep(BaseRequest):
-        """Queued item to resume a parked generator."""
-        speculation_context: SpeculationContext | None = None
-        predicate_result: bool = True
+    @speculate(
+        highest_observed=500,        # Highest ID known to exist
+        largest_observed_gap=20,     # Max consecutive failures before stopping
+        observation_date=date(2025, 1, 15)  # When values were last verified (optional)
+    )
+    def fetch_case(self, case_id: int) -> NavigatingRequest:
+        return NavigatingRequest(
+            request=HTTPRequestParams(url=f"/case/{case_id}"),
+            continuation=self.parse_case,
+        )
+
+**Parameters:**
+
+- ``highest_observed``: The highest ID observed to exist (defaults to 1)
+- ``largest_observed_gap``: Max consecutive failures to tolerate (defaults to 10)
+- ``observation_date``: Date when metadata was last updated (optional, for documentation)
+
+**Function signature:**
+
+- Must accept exactly one parameter (the ID) in addition to ``self``
+- Must return a ``NavigatingRequest`` or ``NonNavigatingRequest``
+- The decorator automatically sets ``is_speculative=True`` on returned requests
+
+
+Consumer Configuration
+----------------------
+
+Consumers can configure speculative functions via the params interface:
+
+definite_range
+^^^^^^^^^^^^^^
+
+Specify an exact range of IDs to fetch (start, end inclusive):
+
+.. code-block:: python
+
+    params = MyScraper.params()
+    params.speculative.fetch_case.definite_range = (100, 200)
+
+    # Fetch a single ID
+    params.speculative.fetch_case.definite_range = (12345, 12345)
+
+When ``definite_range`` is set, the driver fetches all IDs in the range regardless of failures.
+This is useful for:
+
+- Fetching a specific case by ID
+- Resuming from a known checkpoint
+- Filling gaps in previously scraped data
+
+plus
+^^^^
+
+Control how many consecutive failures to tolerate beyond the highest successful ID:
+
+.. code-block:: python
+
+    params = MyScraper.params()
+    params.speculative.fetch_case.plus = 50  # Override decorator's largest_observed_gap
+
+When ``plus`` is set, it overrides the ``largest_observed_gap`` from the decorator.
+Set to 0 to stop immediately after the first failure beyond the definite range.
 
 
 Driver Integration
 ------------------
 
-Callback Configuration
-^^^^^^^^^^^^^^^^^^^^^^
+Discovering Speculate Functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The driver accepts an optional callback to decide continuation for non-2xx responses:
-
-.. code-block:: python
-
-    def track_consecutive_404s(response: Response, continuation_name: str) -> bool:
-        """Stop after 3 consecutive 404s."""
-        if response.status_code == 404:
-            consecutive_404s += 1
-            return consecutive_404s < 3
-        consecutive_404s = 0
-        return True
-
-    driver = SyncDriver(
-        scraper,
-        on_speculation_response=track_consecutive_404s,
-    )
-
-For async drivers, the callback can be async:
+Drivers use ``list_speculators()`` to discover all ``@speculate`` decorated functions:
 
 .. code-block:: python
 
-    async def async_callback(response: Response, continuation_name: str) -> bool:
-        await log_response(response)
-        return response.status_code < 500
+    speculators = MyScraper.list_speculators()
+    # Returns: [('fetch_case', 500, None, 20)]
+    #           (name, highest_observed, observation_date, largest_observed_gap)
 
-    driver = AsyncDriver(
-        scraper,
-        on_speculation_response=async_callback,
-    )
+This enables drivers to automatically seed their queues with speculative requests
+without requiring explicit entry points.
 
-This way, the driver can easily decide how much speculation it wants to do.
-Our callback might cap speculation at 3 failures, or it might cap it at 1 more than the largest gap it's seen,
-or any other criteria we'd like.
+Seeding the Queue
+^^^^^^^^^^^^^^^^^
 
-Bidirectional Generators
-------------------------
-
-This feature changes the generator signature from unidirectional to bidirectional:
+The driver calls each speculate function with sequential IDs based on configuration:
 
 .. code-block:: python
 
-    # Before: Generator[YieldType, None, None]
-    # After:  Generator[YieldType, bool | None, None]
-    #                              ^^^^^^^^^^^^
-    #                              Send type (what driver sends back)
+    # Get configuration from params (or use decorator defaults)
+    definite_range = params.speculative.fetch_case.definite_range or (1, highest_observed)
+    plus = params.speculative.fetch_case.plus or largest_observed_gap
 
-The ``@step`` decorator handles this transparently - values sent to the wrapper
-generator are passed through to the underlying scraper generator.
+    # Generate requests for definite range
+    for id in range(definite_range[0], definite_range[1] + 1):
+        request = scraper.fetch_case(id)
+        queue.add(request)
+
+    # Continue probing beyond definite range until 'plus' consecutive failures
+    current_id = definite_range[1] + 1
+    consecutive_failures = 0
+    while consecutive_failures < plus:
+        request = scraper.fetch_case(current_id)
+        queue.add(request)
+
+        # Track success/failure after execution
+        if request_succeeded:
+            consecutive_failures = 0
+        else:
+            consecutive_failures += 1
+
+        current_id += 1
+
+Behavior
+^^^^^^^^
+
+The driver determines success/failure purely based on HTTP response status codes:
+
+- **2xx response**: Success, calls continuation with response, will check a fails_successfully handler if present.
+- **Non-2xx response**: Failure, skips continuation, increments failure counter
+- **Deduplicated**: Treated as failure (prevents infinite loops)
 
 
 Implementation Details
 ----------------------
 
-Queue-Based Resumption
-^^^^^^^^^^^^^^^^^^^^^^
+Request Marking
+^^^^^^^^^^^^^^^
 
-When a generator yields ``SpeculativeRequest``:
+The ``@speculate`` decorator automatically marks requests as speculative:
 
-1. Driver creates ``SpeculationContext`` with the generator reference
-2. Attaches context to request via ``with_context()``
-3. Enqueues request normally
+.. code-block:: python
 
-When the request is processed:
+    @wraps(fn)
+    def wrapper(scraper_self: Any, id_value: int) -> BaseRequest:
+        request = fn(scraper_self, id_value)
+        # Set is_speculative=True on the request
+        object.__setattr__(request, "is_speculative", True)
+        return request
 
-1. Driver executes HTTP, determines success
-2. Creates ``ResumeStep`` with the result
-3. Enqueues ``ResumeStep`` (inherits priority from parent request)
-4. If success, processes continuation inline
-
-When ``ResumeStep`` is popped:
-
-1. Driver retrieves parked generator from context
-2. Calls ``generator.send(predicate_result)``
-3. Continues processing any further yields
+This enables drivers to identify and track speculative requests separately from
+regular navigation requests.
 
 Deduplication Handling
 ^^^^^^^^^^^^^^^^^^^^^^
 
-When a ``SpeculativeRequest`` is deduplicated (URL already seen):
+When a speculative request is deduplicated (URL already seen):
 
-- Driver still creates a ``ResumeStep`` with ``predicate_result=False``
-- Generator resumes and receives ``False``
+- Driver treats it as a failure
+- Increments consecutive failure counter
+- Does not call the continuation
 - This prevents infinite loops on duplicate URLs
+
+Queue Priority
+^^^^^^^^^^^^^^
+
+Speculative requests inherit priority from their continuation step's ``@step`` decorator.
+This ensures proper queue ordering in A*/depth-first traversal.
 
 
 Usage Examples
 --------------
 
-Infinite Pagination
-^^^^^^^^^^^^^^^^^^^
+Basic Sequential ID Probing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
-    class InfinitePaginationScraper(BaseScraper[CaseData]):
-        @step(speculative=True)
-        def parse_list(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
-            page = 1
-            while True:
-                should_continue = yield SpeculativeRequest(
-                    request=HTTPRequestParams(url=f"/cases?page={page}"),
-                    continuation="parse_page",
-                    speculative_id=page,
-                )
-
-                if not should_continue:
-                    break
-
-                page += 1
-
-        @step
-        def parse_page(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
-            for case in lxml_tree.checked_xpath("//div[@class='case']", "cases"):
-                yield ParsedData(data={"title": case.text_content()})
-
-Sequential Speculative Requests
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Multiple speculative requests work naturally - each parks the generator,
-resolves, resumes, then continues to the next:
-
-.. code-block:: python
-
-    @step(speculative=True)
-    def parse_sections(self, response) -> Generator[ScraperYield, bool | None, None]:
-        for section_id in range(1, 100):
-            has_section = yield SpeculativeRequest(
-                request=HTTPRequestParams(url=f"/doc/{doc_id}/section/{section_id}"),
-                continuation="parse_section",
-                speculative_id=section_id,
+    class CaseScraper(BaseScraper[CaseData]):
+        @speculate(highest_observed=50000, largest_observed_gap=100)
+        def fetch_case(self, case_id: int) -> NavigatingRequest:
+            """Probe for a case by ID."""
+            return NavigatingRequest(
+                request=HTTPRequestParams(url=f"/case/{case_id}"),
+                continuation=self.parse_case,
             )
-            if not has_section:
-                break  # No more sections
-
-Tracking Speculative IDs with accumulated_data
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-For resumable scraping, pass the last successfully processed ID through
-``accumulated_data``. This allows consumers to resume from where they left off:
-
-.. code-block:: python
-
-    from typing import Annotated
-    from juriscraper.scraper_driver.common.searchable import SpeculativeID
-
-    class CaseData(ScrapedData):
-        """Case data with speculative ID for resumable scraping."""
-        case_id: Annotated[str, SpeculativeID()]
-        case_name: str
-
-    class ResumableScraper(BaseScraper[CaseData]):
-        @step
-        def parse_list(
-            self, lxml_tree, accumulated_data: dict
-        ) -> Generator[ScraperYield, bool | None, None]:
-            # Get starting ID from params (if resuming)
-            start_id = accumulated_data.get("speculative_id", {}).get(
-                "CaseData", {}
-            ).get("case_id", 0)
-
-            current_id = start_id + 1
-            while True:
-                should_continue = yield SpeculativeRequest(
-                    request=HTTPRequestParams(url=f"/cases/{current_id}"),
-                    continuation="parse_case",
-                    # Pass the current ID so parse_case can track progress
-                    accumulated_data={
-                        "speculative_id": {
-                            "CaseData": {"case_id": current_id}
-                        }
-                    },
-                )
-
-                if not should_continue:
-                    break
-
-                current_id += 1
 
         @step
-        def parse_case(
-            self, lxml_tree, accumulated_data: dict
-        ) -> Generator[ScraperYield, bool | None, None]:
-            current_id = accumulated_data["speculative_id"]["CaseData"]["case_id"]
+        def parse_case(self, lxml_tree) -> Generator[ScraperYield, None, None]:
             case_name = lxml_tree.checked_xpath("//h1/text()", "case name")[0]
+            yield ParsedData(data=CaseData(case_id=..., case_name=case_name))
 
-            yield ParsedData(
-                data=CaseData(case_id=str(current_id), case_name=case_name)
+Multiple Speculate Functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A scraper can have multiple ``@speculate`` functions for different ID sequences:
+
+.. code-block:: python
+
+    class MultiCourtScraper(BaseScraper[CaseData]):
+        @speculate(highest_observed=275000, largest_observed_gap=20)
+        def fetch_supreme_court_case(self, case_id: int) -> NavigatingRequest:
+            return NavigatingRequest(
+                request=HTTPRequestParams(url=f"/supreme/{case_id}"),
+                continuation=self.parse_case,
             )
 
-**Consuming with params:**
-
-.. code-block:: python
-
-    # Resume from a specific ID
-    params = ResumableScraper.params()
-    params.CaseData.case_id.gt = "12345"  # Start after ID 12345
-
-    # Or fetch a specific ID
-    params.CaseData.case_id.eq = "12346"  # Only fetch this ID
-
-The ``SpeculativeID`` marker (see :doc:`20_search_and_standardization`) provides
-``.gt`` for greater-than filtering and ``.eq`` for exact match, enabling
-consumers to resume scraping from a known checkpoint.
-
-
-Configuring Starting IDs via Params
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Steps marked with ``@step(speculative=True)`` can have their starting ID
-configured by consumers via params. This enables resumable scraping:
-
-.. code-block:: python
-
-    class CaseIDScraper(BaseScraper[CaseData]):
-        @step(speculative=True)
-        def parse_cases(self, lxml_tree) -> Generator[ScraperYield, bool | None, None]:
-            # Get starting ID from params (defaults to 1)
-            params = self.params()
-            start_id = params.speculative.parse_cases
-
-            case_id = start_id
-            while True:
-                should_continue = yield SpeculativeRequest(
-                    request=HTTPRequestParams(url=f"/cases/{case_id}"),
-                    continuation="parse_case",
-                    speculative_id=case_id,
-                )
-
-                if not should_continue:
-                    break
-
-                case_id += 1
-
-**Consumer configuration:**
-
-.. code-block:: python
-
-    # Resume from a specific ID
-    params = CaseIDScraper.params()
-    params.speculative.parse_cases = 12345  # Start from ID 12345
-
-    # Multiple speculative steps can be configured independently
-    params.speculative.parse_cases = 100
-    params.speculative.parse_details = 50
-
-Tracking Speculative IDs with accumulated_data
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-For more complex scenarios, pass the current ID through ``accumulated_data``.
-This allows child steps to access the current speculative ID:
-
-.. code-block:: python
-
-    from typing import Annotated
-    from juriscraper.scraper_driver.common.searchable import SpeculativeID
-
-    class CaseData(ScrapedData):
-        """Case data with speculative ID for resumable scraping."""
-        case_id: Annotated[str, SpeculativeID()]
-        case_name: str
-
-    class ResumableScraper(BaseScraper[CaseData]):
-        @step(speculative=True)
-        def parse_list(
-            self, lxml_tree, accumulated_data: dict
-        ) -> Generator[ScraperYield, bool | None, None]:
-            # Get starting ID from params
-            params = self.params()
-            current_id = params.speculative.parse_list
-
-            while True:
-                should_continue = yield SpeculativeRequest(
-                    request=HTTPRequestParams(url=f"/cases/{current_id}"),
-                    continuation="parse_case",
-                    speculative_id=current_id,
-                    # Pass the current ID so parse_case can track progress
-                    accumulated_data={
-                        "speculative_id": {
-                            "CaseData": {"case_id": current_id}
-                        }
-                    },
-                )
-
-                if not should_continue:
-                    break
-
-                current_id += 1
+        @speculate(highest_observed=170000, largest_observed_gap=20)
+        def fetch_appeals_case(self, case_id: int) -> NavigatingRequest:
+            return NavigatingRequest(
+                request=HTTPRequestParams(url=f"/appeals/{case_id}"),
+                continuation=self.parse_case,
+            )
 
         @step
-        def parse_case(
-            self, lxml_tree, accumulated_data: dict
-        ) -> Generator[ScraperYield, bool | None, None]:
-            current_id = accumulated_data["speculative_id"]["CaseData"]["case_id"]
-            case_name = lxml_tree.checked_xpath("//h1/text()", "case name")[0]
+        def parse_case(self, lxml_tree) -> Generator[ScraperYield, None, None]:
+            yield ParsedData(data=CaseData(...))
 
-            yield ParsedData(
-                data=CaseData(case_id=str(current_id), case_name=case_name)
-            )
-
-**Consuming with field params:**
+Consumers can configure each function independently:
 
 .. code-block:: python
 
-    # Configure starting ID via speculative step
-    params = ResumableScraper.params()
-    params.speculative.parse_list = 12345  # Start from ID 12345
+    params = MultiCourtScraper.params()
+    params.speculative.fetch_supreme_court_case.definite_range = (275000, 275100)
+    params.speculative.fetch_appeals_case.plus = 50
 
-    # Or filter results by ID using SpeculativeID marker
-    params.CaseData.case_id.gt = "12345"  # Only return cases after ID 12345
-    params.CaseData.case_id.eq = "12346"  # Only return this specific case
+Fetching a Specific Case
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``SpeculativeID`` marker (see :doc:`20_search_and_standardization`) provides
-``.gt`` for greater-than filtering and ``.eq`` for exact match on result data,
-while ``params.speculative`` controls where scraping starts.
+Use ``definite_range`` to fetch a single case by ID:
+
+.. code-block:: python
+
+    params = CaseScraper.params()
+    params.speculative.fetch_case.definite_range = (12345, 12345)
+    params.speculative.fetch_case.plus = 0  # Don't probe beyond this ID
+
+    scraper = CaseScraper(params=params)
+    driver = SyncDriver(scraper)
+    results = driver.scrape()
+
+Resuming from a Checkpoint
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``definite_range`` to resume from a known checkpoint:
+
+.. code-block:: python
+
+    # Resume from ID 10000, probe 100 IDs beyond highest successful
+    params = CaseScraper.params()
+    params.speculative.fetch_case.definite_range = (10000, 50000)
+    params.speculative.fetch_case.plus = 100
+
+    scraper = CaseScraper(params=params)
 
 
 Design Decisions
 ----------------
 
-**Queue-based resumption**: Using ``ResumeStep`` ensures generators resume in
-proper priority order, maintaining A*/depth-first traversal semantics.
+**Function-based approach**: Using simple functions (``int → Request``) instead of
+generators makes the pattern more explicit and easier to understand.
 
-**Limited serializability**: We aren't pickling the generator state, so we've effectively
-chosen to pin the generator to a thread here. If we decide on more complex deployment procedures that involve
-shipping the queue around, we'll need to rethink this. If we make a multithreaded driver (not just async) we'll
-have to take special care. Both of these options seem unlikely at this time.
+**Automatic discovery**: Drivers can introspect scrapers using ``list_speculators()``
+to find all speculative entry points without requiring explicit registration.
 
+**Declarative configuration**: Consumers control behavior via params (``definite_range``, ``plus``)
+instead of implementing custom callbacks. This makes common use cases simpler while
+remaining flexible.
 
-Next Steps
-----------
+**Status-based success**: Determining success/failure purely from HTTP status codes
+simplifies the driver implementation and makes behavior more predictable.
 
-In :doc:`23_playwright_driver`, we introduce a browser-based driver that uses
-Playwright for HTTP execution. This enables JavaScript rendering, session
-management, and handling of sites that require a real browser environment.

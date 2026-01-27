@@ -40,16 +40,15 @@ Oral Arguments Flow::
 
 Dockets Flow::
 
-    1. get_entry -> navigate to pch.tncourts.gov (if "dockets" requested)
-    2. start_docket_scraping -> yields SpeculativeRequests for PCH IDs
-    3. parse_docket_page -> parses case detail, yields TennDocket
+    1. @speculate fetch_docket -> generates requests for PCH IDs (seeded by driver)
+    2. parse_docket_page -> parses case detail, yields TennDocket
 
 Design decisions::
 
     - Uses restrictive checked_xpaths to catch structural changes early
     - Uses DateRange filter on date_filed/date_argued for searching
     - Uses SetFilter on court_id to select which courts to scrape
-    - Uses SpeculativeID on pch_id for speculative docket scraping
+    - Uses @speculate fetch_docket for speculative docket scraping
     - Archives judge photos and opinion PDFs via ArchiveRequest
     - YouTube videos are not downloaded, only URLs captured
 """
@@ -62,7 +61,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import speculate, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -73,7 +72,6 @@ from juriscraper.scraper_driver.data_types import (
     ParsedData,
     Response,
     ScraperStatus,
-    SpeculativeRequest,
 )
 
 from .models import (
@@ -422,8 +420,8 @@ class TennScraper(
         if "oral_arguments" in requested:
             yield from self._get_oral_args_entry()
 
-        if "dockets" in requested:
-            yield self._get_dockets_entry()
+        # Dockets are handled by @speculate fetch_docket - no entry request needed
+        # The driver discovers fetch_docket and seeds the queue directly
 
     # =========================================================================
     # Judges Scraping Steps
@@ -1232,77 +1230,31 @@ class TennScraper(
     # Dockets Scraping Steps (Speculative)
     # =========================================================================
 
-    def _get_dockets_entry(self) -> NavigatingRequest:
-        """Create initial request for dockets scraping.
+    @speculate(highest_observed=1000, largest_observed_gap=20)
+    def fetch_docket(self, pch_id: int) -> NavigatingRequest:
+        """Generate a speculative request for a docket by PCH ID.
 
-        Navigate to PCH homepage first, then start speculative scraping.
+        The driver calls this function for each ID in the speculative range.
+        Configure the range via params.speculative.fetch_docket:
+            - definite_range = (start, end) to specify exact range
+            - plus = N to probe N IDs beyond highest successful
+
+        The request is processed by parse_docket_page.
         """
+        # Get court_ids filter from params (if set)
+        _, _, court_ids = self._get_docket_search_params()
+
         return NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
-                url=DOCKET_CONFIG["base_url"],
+                url=f"{DOCKET_CONFIG['case_detail_url']}?id={pch_id}",
             ),
-            continuation=self.start_docket_scraping,
+            continuation=self.parse_docket_page,
+            accumulated_data={
+                "pch_id": pch_id,
+                "court_ids": list(court_ids) if court_ids else None,
+            },
         )
-
-    @step(speculative=True)
-    def start_docket_scraping(
-        self, speculative_id: int = 1
-    ) -> Generator[
-        ScraperYield[
-            TennJudge | TennOpinionCluster | TennOralArgument | TennDocket
-        ],
-        bool | None,
-        None,
-    ]:
-        """Start speculative scraping of docket pages by PCH ID.
-
-        Yields SpeculativeRequests for each PCH ID, starting from:
-        - pch_id.eq if set (single docket)
-        - pch_id.gt + 1 if set (resume from checkpoint)
-        - 1 if neither is set (full scrape from beginning)
-
-        The driver returns True if the page exists (2xx response) or False
-        if it doesn't (404/redirect to error page). We continue until we
-        get False.
-        """
-        _, pch_id_eq, court_ids = self._get_docket_search_params()
-
-        # If .eq is set, just fetch that single docket
-        if pch_id_eq is not None:
-            url = f"{DOCKET_CONFIG['case_detail_url']}?id={pch_id_eq}"
-            yield SpeculativeRequest(
-                request=HTTPRequestParams(
-                    method=HttpMethod.GET,
-                    url=url,
-                ),
-                continuation=self.parse_docket_page,
-                accumulated_data={
-                    "speculative_id": {"TennDocket": {"pch_id": pch_id_eq}},
-                    "pch_id": pch_id_eq,
-                    "court_ids": list(court_ids) if court_ids else None,
-                },
-            )
-        else:
-            while True:
-                url = f"{DOCKET_CONFIG['case_detail_url']}?id={speculative_id}"
-                should_continue = yield SpeculativeRequest(
-                    request=HTTPRequestParams(
-                        method=HttpMethod.GET,
-                        url=url,
-                    ),
-                    continuation=self.parse_docket_page,
-                    accumulated_data={
-                        "pch_id": speculative_id,
-                        "court_ids": list(court_ids) if court_ids else None,
-                    },
-                    speculative_id=speculative_id,
-                )
-
-                if not should_continue:
-                    break  # Page doesn't exist or was already processed
-
-                speculative_id += 1
 
     @step(xsd="xsds/parse_docket_page.xsd")
     def parse_docket_page(

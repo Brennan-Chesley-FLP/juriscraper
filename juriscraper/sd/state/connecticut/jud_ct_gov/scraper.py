@@ -31,16 +31,15 @@ Oral Arguments Flow::
 
 Dockets Flow::
 
-    1. get_entry -> navigate to appellateinquiry.jud.ct.gov (if "dockets" requested)
-    2. start_docket_scraping -> yields SpeculativeRequests for CRN IDs
-    3. parse_docket_page -> parses case detail, yields ConnDocket
+    1. @speculate fetch_docket -> generates requests for CRN IDs (seeded by driver)
+    2. parse_docket_page -> parses case detail, yields ConnDocket
 
 Design decisions:
 
     - Uses restrictive checked_xpaths to catch structural changes early
     - Uses DateRange filter on date_argued/date_filed for searching
     - Uses SetFilter on court_id to select which courts to scrape
-    - Uses SpeculativeID on crn for speculative docket scraping
+    - Uses @speculate fetch_docket for speculative docket scraping
     - Downloads all files via ArchiveRequest
 """
 
@@ -48,13 +47,12 @@ from __future__ import annotations
 
 import re
 import ssl
-from asyncio.log import logger
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import speculate, step
 from juriscraper.scraper_driver.common.exceptions import (
     HTMLStructuralAssumptionException,
 )
@@ -68,7 +66,6 @@ from juriscraper.scraper_driver.data_types import (
     ParsedData,
     Response,
     ScraperStatus,
-    SpeculativeRequest,
 )
 
 from .models import (
@@ -530,8 +527,8 @@ class ConnScraper(
         if "oral_arguments" in requested:
             yield from self._get_oral_arguments_entry()
 
-        if "dockets" in requested:
-            yield self._get_dockets_entry()
+        # Dockets are handled by @speculate fetch_docket - no entry request needed
+        # The driver discovers fetch_docket and seeds the queue directly
 
     def _get_opinions_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial request for opinions scraping."""
@@ -1331,92 +1328,31 @@ class ConnScraper(
     # Dockets Scraping Steps
     # =========================================================================
 
-    def _get_dockets_entry(self) -> NavigatingRequest:
-        """Create initial request for dockets scraping.
+    @speculate(highest_observed=1000, largest_observed_gap=20)
+    def fetch_docket(self, crn: int) -> NavigatingRequest:
+        """Generate a speculative request for a docket by CRN.
 
-        Navigate to the appellate inquiry homepage first, then start
-        speculative scraping of docket pages by CRN.
+        The driver calls this function for each CRN in the speculative range.
+        Configure the range via params.speculative.fetch_docket:
+            - definite_range = (start, end) to specify exact range
+            - plus = N to probe N IDs beyond highest successful
+
+        The request is processed by parse_docket_page.
         """
+        # Get court_ids filter from params (if set)
+        _, _, court_ids = self._get_docket_search_params()
+
         return NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
-                url=DOCKET_CONFIG["base_url"],
+                url=f"{DOCKET_CONFIG['case_detail_url']}?CRN={crn}",
             ),
-            continuation=self.start_docket_scraping,
+            continuation=self.parse_docket_page,
+            accumulated_data={
+                "crn": crn,
+                "court_ids": list(court_ids) if court_ids else None,
+            },
         )
-
-    @step(speculative=True)
-    def start_docket_scraping(
-        self,
-        lxml_tree: CheckedHtmlElement,  # noqa: ARG002
-        response: Response,  # noqa: ARG002
-        speculative_id: int,
-    ) -> Generator[
-        ScraperYield[
-            ConnOpinionCluster
-            | ConnOralArgument
-            | ConnDocket
-            | ConnDocketUnavailable
-        ],
-        bool | None,
-        None,
-    ]:
-        """Start speculative scraping of docket pages by CRN.
-
-        Yields SpeculativeRequests for each CRN, starting from:
-        - crn.eq if set (single docket)
-        - crn.gt + 1 if set (resume from checkpoint)
-        - 1 if neither is set (full scrape from beginning)
-
-        The driver returns True if the page exists (2xx response) or False
-        if it doesn't (404/redirect to error page). We continue until we
-        get False.
-        """
-        _, crn_eq, court_ids = self._get_docket_search_params()
-
-        # If .eq is set, just fetch that single docket
-        if crn_eq is not None:
-            url = f"{DOCKET_CONFIG['case_detail_url']}?CRN={crn_eq}"
-            yield NavigatingRequest(
-                request=HTTPRequestParams(
-                    method=HttpMethod.GET,
-                    url=url,
-                ),
-                continuation=self.parse_docket_page,
-                accumulated_data={
-                    "crn": speculative_id,
-                    "court_ids": list(court_ids) if court_ids else None,
-                },
-            )
-            # Single docket mode - don't continue regardless of result
-        else:
-            # Start from crn_gt + 1 or 1 if not set
-            speculative_id = speculative_id or 1
-
-            while True:
-                url = (
-                    f"{DOCKET_CONFIG['case_detail_url']}?CRN={speculative_id}"
-                )
-                should_continue = yield SpeculativeRequest(
-                    request=HTTPRequestParams(
-                        method=HttpMethod.GET,
-                        url=url,
-                    ),
-                    continuation=self.parse_docket_page,
-                    accumulated_data={
-                        "crn": speculative_id,
-                        "court_ids": list(court_ids) if court_ids else None,
-                    },
-                    speculative_id=speculative_id,
-                )
-
-                if not should_continue:
-                    logger.warning(
-                        "Speculation ended on id %s", speculative_id
-                    )
-                    break  # Page doesn't exist or was already processed
-
-                speculative_id += 1
 
     # XPath patterns for docket page elements
     # Note: The appellate case number (SC/AC format) is in lblAppealNo,

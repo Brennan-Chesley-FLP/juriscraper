@@ -656,11 +656,453 @@ class TestErrorHandling:
             assert "None" in str(e)
 
 
-class TestSpeculativeStepsProxy:
-    """Tests for speculative step configuration via params.speculative."""
+class TestPerFunctionDefiniteRangeAndPlus:
+    """Tests for per-function definite_range and plus via params.speculative.{func}.
 
-    def test_speculative_property_raises_without_steps(self) -> None:
-        """Accessing speculative on scraper without speculative steps raises."""
+    These properties are configured per @speculate function, not at the root level.
+    """
+
+    def test_definite_range_defaults_to_none(self) -> None:
+        """The definite_range property shall default to None."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        assert params.speculative.fetch_case.definite_range is None
+
+    def test_definite_range_can_be_set(self) -> None:
+        """The definite_range property shall be settable to a tuple (start, end)."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        params.speculative.fetch_case.definite_range = (1, 100)
+        assert params.speculative.fetch_case.definite_range == (1, 100)
+
+    def test_definite_range_can_be_set_to_none(self) -> None:
+        """The definite_range property shall be settable to None."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        params.speculative.fetch_case.definite_range = (1, 100)
+        params.speculative.fetch_case.definite_range = None
+        assert params.speculative.fetch_case.definite_range is None
+
+    def test_definite_range_validates_type(self) -> None:
+        """The definite_range property shall reject non-tuple values."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        with pytest.raises(TypeError, match="must be a tuple"):
+            params.speculative.fetch_case.definite_range = "100"  # type: ignore[assignment]
+
+    def test_definite_range_validates_start_at_least_1(self) -> None:
+        """The definite_range start must be at least 1."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        with pytest.raises(ValueError, match="start must be at least 1"):
+            params.speculative.fetch_case.definite_range = (0, 100)
+
+    def test_definite_range_validates_end_ge_start(self) -> None:
+        """The definite_range end must be >= start."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        with pytest.raises(ValueError, match="end must be >= start"):
+            params.speculative.fetch_case.definite_range = (100, 50)
+
+    def test_plus_defaults_to_none(self) -> None:
+        """The plus property shall default to None."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        assert params.speculative.fetch_case.plus is None
+
+    def test_plus_can_be_set(self) -> None:
+        """The plus property shall be settable to an integer."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        params.speculative.fetch_case.plus = 50
+        assert params.speculative.fetch_case.plus == 50
+
+    def test_plus_can_be_set_to_none(self) -> None:
+        """The plus property shall be settable to None."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        params.speculative.fetch_case.plus = 50
+        params.speculative.fetch_case.plus = None
+        assert params.speculative.fetch_case.plus is None
+
+    def test_plus_validates_type(self) -> None:
+        """The plus property shall reject non-integer values."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        with pytest.raises(TypeError, match="must be an integer or None"):
+            params.speculative.fetch_case.plus = "50"  # type: ignore[assignment]
+
+    def test_plus_validates_non_negative(self) -> None:
+        """The plus property shall reject negative values."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        with pytest.raises(ValueError, match="must be non-negative"):
+            params.speculative.fetch_case.plus = -5
+
+    def test_definite_range_and_plus_can_be_used_together(self) -> None:
+        """The definite_range and plus properties shall work together."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        params.speculative.fetch_case.definite_range = (1, 100)
+        params.speculative.fetch_case.plus = 20
+
+        assert params.speculative.fetch_case.definite_range == (1, 100)
+        assert params.speculative.fetch_case.plus == 20
+
+    def test_multiple_functions_independent_config(self) -> None:
+        """Multiple @speculate functions shall have independent configs."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+            @speculate
+            def fetch_docket(self, docket_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/docket/{docket_id}"
+                    ),
+                    continuation="parse_docket",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        params.speculative.fetch_case.definite_range = (1, 100)
+        params.speculative.fetch_case.plus = 20
+        params.speculative.fetch_docket.definite_range = (1, 500)
+        params.speculative.fetch_docket.plus = 50
+
+        assert params.speculative.fetch_case.definite_range == (1, 100)
+        assert params.speculative.fetch_case.plus == 20
+        assert params.speculative.fetch_docket.definite_range == (1, 500)
+        assert params.speculative.fetch_docket.plus == 50
+
+    def test_invalid_function_raises(self) -> None:
+        """Accessing non-existent speculate function raises AttributeError."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        with pytest.raises(AttributeError, match="not a speculate function"):
+            _ = params.speculative.nonexistent_function
+
+    def test_get_configs(self) -> None:
+        """get_configs shall return all function configurations."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.common.searchable import (
+            SpeculativeFunctionsProxy,
+        )
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        class CaseData(ScrapedData):
+            docket: str
+
+        class TestScraper(BaseScraper[CaseData]):
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
+
+            @speculate
+            def fetch_docket(self, docket_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/docket/{docket_id}"
+                    ),
+                    continuation="parse_docket",
+                )
+
+        params = build_params_for_scraper(TestScraper)
+        params.speculative.fetch_case.definite_range = (1, 100)
+        params.speculative.fetch_docket.plus = 50
+
+        # Must be SpeculativeFunctionsProxy (not SpeculativeStepsProxy)
+        assert isinstance(params.speculative, SpeculativeFunctionsProxy)
+        configs = params.speculative.get_configs()
+
+        assert "fetch_case" in configs
+        assert "fetch_docket" in configs
+        assert configs["fetch_case"].definite_range == (1, 100)
+        assert configs["fetch_case"].plus is None
+        assert configs["fetch_docket"].definite_range is None
+        assert configs["fetch_docket"].plus == 50
+
+
+class TestFindSpeculateFunctions:
+    """Tests for _find_speculate_functions helper."""
+
+    def test_find_speculate_functions_empty(self) -> None:
+        """The helper shall return an empty set for scrapers with no @speculate functions."""
+        from juriscraper.scraper_driver.common.searchable import (
+            _find_speculate_functions,
+        )
 
         class CaseData(ScrapedData):
             docket: str
@@ -668,216 +1110,111 @@ class TestSpeculativeStepsProxy:
         class TestScraper(BaseScraper[CaseData]):
             pass
 
-        params = build_params_for_scraper(TestScraper)
+        funcs = _find_speculate_functions(TestScraper)
+        assert funcs == set()
 
-        with pytest.raises(
-            AttributeError,
-            match="no speculative steps|no data model 'speculative'",
-        ):
-            _ = params.speculative
-
-    def test_speculative_steps_detected(self) -> None:
-        """Speculative steps shall be detected from @step(speculative=True)."""
-        from collections.abc import Generator
-        from typing import Any
-
-        from juriscraper.scraper_driver.common.decorators import step
-        from juriscraper.scraper_driver.data_types import ScraperYield
-
-        class CaseData(ScrapedData):
-            docket: str
-
-        class TestScraper(BaseScraper[CaseData]):
-            @step(speculative=True)
-            def parse_case(
-                self, response: Any, speculative_id: int
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
-
-        params = build_params_for_scraper(TestScraper)
-        steps = params.speculative.get_speculative_steps()
-
-        assert "parse_case" in steps
-
-    def test_speculative_default_starting_id(self) -> None:
-        """Speculative steps shall default to starting ID of 1."""
-        from collections.abc import Generator
-        from typing import Any
-
-        from juriscraper.scraper_driver.common.decorators import step
-        from juriscraper.scraper_driver.data_types import ScraperYield
+    def test_find_speculate_functions_single(self) -> None:
+        """The helper shall find a single @speculate function."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.common.searchable import (
+            _find_speculate_functions,
+        )
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
 
         class CaseData(ScrapedData):
             docket: str
 
         class TestScraper(BaseScraper[CaseData]):
-            @step(speculative=True)
-            def parse_case(
-                self, response: Any, speculative_id: int
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
 
-        params = build_params_for_scraper(TestScraper)
+        funcs = _find_speculate_functions(TestScraper)
+        assert funcs == {"fetch_case"}
 
-        assert params.speculative.parse_case == 1
-
-    def test_speculative_set_starting_id(self) -> None:
-        """Speculative starting ID shall be configurable."""
-        from collections.abc import Generator
-        from typing import Any
-
-        from juriscraper.scraper_driver.common.decorators import step
-        from juriscraper.scraper_driver.data_types import ScraperYield
-
-        class CaseData(ScrapedData):
-            docket: str
-
-        class TestScraper(BaseScraper[CaseData]):
-            @step(speculative=True)
-            def parse_case(
-                self, response: Any, speculative_id: int
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
-
-        params = build_params_for_scraper(TestScraper)
-        params.speculative.parse_case = 100
-
-        assert params.speculative.parse_case == 100
-
-    def test_speculative_invalid_step_raises(self) -> None:
-        """Accessing non-existent speculative step raises AttributeError."""
-        from collections.abc import Generator
-        from typing import Any
-
-        from juriscraper.scraper_driver.common.decorators import step
-        from juriscraper.scraper_driver.data_types import ScraperYield
+    def test_find_speculate_functions_multiple(self) -> None:
+        """The helper shall find multiple @speculate functions."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.common.searchable import (
+            _find_speculate_functions,
+        )
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
 
         class CaseData(ScrapedData):
             docket: str
 
         class TestScraper(BaseScraper[CaseData]):
-            @step(speculative=True)
-            def parse_case(
-                self, response: Any, speculative_id: int
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
 
-        params = build_params_for_scraper(TestScraper)
+            @speculate
+            def fetch_docket(self, docket_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/docket/{docket_id}"
+                    ),
+                    continuation="parse_docket",
+                )
 
-        with pytest.raises(AttributeError, match="not a speculative step"):
-            _ = params.speculative.nonexistent_step
+            def normal_method(self):
+                pass
 
-    def test_speculative_set_invalid_step_raises(self) -> None:
-        """Setting non-existent speculative step raises AttributeError."""
-        from collections.abc import Generator
-        from typing import Any
+        funcs = _find_speculate_functions(TestScraper)
+        assert funcs == {"fetch_case", "fetch_docket"}
 
-        from juriscraper.scraper_driver.common.decorators import step
-        from juriscraper.scraper_driver.data_types import ScraperYield
-
-        class CaseData(ScrapedData):
-            docket: str
-
-        class TestScraper(BaseScraper[CaseData]):
-            @step(speculative=True)
-            def parse_case(
-                self, response: Any, speculative_id: int
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
-
-        params = build_params_for_scraper(TestScraper)
-
-        with pytest.raises(AttributeError, match="not a speculative step"):
-            params.speculative.nonexistent_step = 50
-
-    def test_speculative_set_non_integer_raises(self) -> None:
-        """Setting speculative starting ID to non-integer raises TypeError."""
-        from collections.abc import Generator
-        from typing import Any
-
-        from juriscraper.scraper_driver.common.decorators import step
-        from juriscraper.scraper_driver.data_types import ScraperYield
+    def test_find_speculate_functions_ignores_private(self) -> None:
+        """The helper shall ignore private methods (starting with _)."""
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.common.searchable import (
+            _find_speculate_functions,
+        )
+        from juriscraper.scraper_driver.data_types import (
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
 
         class CaseData(ScrapedData):
             docket: str
 
         class TestScraper(BaseScraper[CaseData]):
-            @step(speculative=True)
-            def parse_case(
-                self, response: Any, speculative_id: int
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
+            @speculate
+            def fetch_case(self, case_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/case/{case_id}"
+                    ),
+                    continuation="parse_case",
+                )
 
-        params = build_params_for_scraper(TestScraper)
+            @speculate
+            def _fetch_internal(self, id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET, url=f"/internal/{id}"
+                    ),
+                    continuation="parse_internal",
+                )
 
-        with pytest.raises(TypeError, match="must be an integer"):
-            params.speculative.parse_case = "not an int"  # type: ignore
-
-    def test_speculative_get_starting_ids(self) -> None:
-        """get_starting_ids shall return all configured starting IDs."""
-        from collections.abc import Generator
-        from typing import Any
-
-        from juriscraper.scraper_driver.common.decorators import step
-        from juriscraper.scraper_driver.data_types import ScraperYield
-
-        class CaseData(ScrapedData):
-            docket: str
-
-        class TestScraper(BaseScraper[CaseData]):
-            @step(speculative=True)
-            def parse_case(
-                self, response: Any, speculative_id: int
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
-
-            @step(speculative=True)
-            def parse_detail(
-                self, response: Any, speculative_id: int
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
-
-        params = build_params_for_scraper(TestScraper)
-        params.speculative.parse_case = 100
-        params.speculative.parse_detail = 200
-
-        starting_ids = params.speculative.get_starting_ids()
-
-        assert starting_ids == {"parse_case": 100, "parse_detail": 200}
-
-    def test_speculative_multiple_steps(self) -> None:
-        """Multiple speculative steps shall be independently configurable."""
-        from collections.abc import Generator
-        from typing import Any
-
-        from juriscraper.scraper_driver.common.decorators import step
-        from juriscraper.scraper_driver.data_types import ScraperYield
-
-        class CaseData(ScrapedData):
-            docket: str
-
-        class TestScraper(BaseScraper[CaseData]):
-            @step(speculative=True)
-            def parse_case(
-                self, response: Any, speculative_id: int
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
-
-            @step(speculative=True)
-            def parse_detail(
-                self, response: Any, speculative_id: int
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
-
-            @step  # Not speculative
-            def parse_list(
-                self, response: Any
-            ) -> Generator[ScraperYield[CaseData], Any, None]:
-                yield None
-
-        params = build_params_for_scraper(TestScraper)
-        steps = params.speculative.get_speculative_steps()
-
-        assert "parse_case" in steps
-        assert "parse_detail" in steps
-        assert "parse_list" not in steps
+        funcs = _find_speculate_functions(TestScraper)
+        assert funcs == {"fetch_case"}
+        assert "_fetch_internal" not in funcs

@@ -1083,3 +1083,139 @@ class TestDiagnoseMethods:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
             with pytest.raises(ValueError, match="Error .* not found"):
                 await debugger.diagnose(9999)
+
+
+class TestResponseSearch:
+    """Tests for response search methods."""
+
+    async def test_search_text_match(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test text search that finds matches."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            matches = await debugger.search_responses(text="Response")
+
+            assert len(matches) == 2
+            assert all("response_id" in m for m in matches)
+            assert all("request_id" in m for m in matches)
+
+    async def test_search_text_case_insensitive(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that text search is case insensitive."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            matches = await debugger.search_responses(text="RESPONSE")
+
+            assert len(matches) == 2
+
+    async def test_search_text_no_match(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test text search that finds no matches."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            matches = await debugger.search_responses(text="nonexistent")
+
+            assert len(matches) == 0
+
+    async def test_search_regex_match(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test regex search that finds matches."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            matches = await debugger.search_responses(regex=r"Response \d")
+
+            assert len(matches) == 2
+
+    async def test_search_regex_no_match(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test regex search that finds no matches."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            matches = await debugger.search_responses(regex=r"Response \d{5}")
+
+            assert len(matches) == 0
+
+    async def test_search_xpath_match(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test XPath search that finds matches."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            matches = await debugger.search_responses(xpath="//html")
+
+            assert len(matches) == 2
+
+    async def test_search_xpath_no_match(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test XPath search that finds no matches."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            matches = await debugger.search_responses(
+                xpath="//div[@class='nonexistent']"
+            )
+
+            assert len(matches) == 0
+
+    async def test_search_with_continuation_filter(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test search with continuation filter."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            # Both responses are in step1
+            matches = await debugger.search_responses(
+                text="Response", continuation="step1"
+            )
+
+            assert len(matches) == 2
+
+            # No responses in step2
+            matches = await debugger.search_responses(
+                text="Response", continuation="step2"
+            )
+
+            assert len(matches) == 0
+
+    async def test_search_requires_exactly_one_pattern(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that exactly one search pattern must be provided."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            # No pattern provided
+            with pytest.raises(ValueError, match="Exactly one"):
+                await debugger.search_responses()
+
+            # Multiple patterns provided
+            with pytest.raises(ValueError, match="Exactly one"):
+                await debugger.search_responses(text="foo", regex="bar")
+
+    async def test_search_returns_correct_ids(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that search returns correct response and request IDs."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            # Search for "Response 1" - should only match first response
+            matches = await debugger.search_responses(text="Response 1")
+
+            assert len(matches) == 1
+            assert matches[0]["response_id"] == 1
+            # Request IDs are 2 and 5 for the two completed requests
+            assert matches[0]["request_id"] == 2

@@ -1510,3 +1510,142 @@ class LocalDevDriverDebugger:
             "record_count": count,
             "estimated_size": total_size,
         }
+
+    # =========================================================================
+    # Response Search Methods
+    # =========================================================================
+
+    async def search_responses(
+        self,
+        text: str | None = None,
+        regex: str | None = None,
+        xpath: str | None = None,
+        continuation: str | None = None,
+    ) -> list[dict[str, int]]:
+        """Search response content for matching patterns.
+
+        Searches through all response content (decompressed) for matches.
+        Exactly one of text, regex, or xpath must be provided.
+
+        Args:
+            text: Plain text to search for (case-insensitive substring match).
+            regex: Regular expression pattern to search for.
+            xpath: XPath expression to evaluate (returns matches if any nodes found).
+            continuation: Optional filter by continuation (step name).
+
+        Returns:
+            List of dictionaries with:
+                - response_id: The response ID that matched
+                - request_id: The associated request ID
+
+        Raises:
+            ValueError: If zero or more than one search pattern is provided.
+            re.error: If regex pattern is invalid.
+
+        Example:
+            # Text search
+            matches = await debugger.search_responses(text="error")
+
+            # Regex search
+            matches = await debugger.search_responses(regex=r"case.*\\d{4}")
+
+            # XPath search
+            matches = await debugger.search_responses(
+                xpath="//div[@class='opinion']"
+            )
+
+            # With continuation filter
+            matches = await debugger.search_responses(
+                text="verdict", continuation="step1"
+            )
+        """
+        import re
+
+        # Validate exactly one search type is provided
+        search_types = [text, regex, xpath]
+        provided = sum(1 for s in search_types if s is not None)
+        if provided != 1:
+            raise ValueError(
+                "Exactly one of text, regex, or xpath must be provided"
+            )
+
+        # Compile regex if provided
+        regex_pattern = None
+        if regex is not None:
+            regex_pattern = re.compile(regex)
+
+        # Compile XPath if provided
+        xpath_expr = None
+        if xpath is not None:
+            from lxml import etree
+
+            xpath_expr = etree.XPath(xpath)
+
+        # Build query to get response IDs and request IDs
+        conditions = []
+        params: list[Any] = []
+        if continuation:
+            conditions.append("continuation = ?")
+            params.append(continuation)
+
+        where_clause = (
+            f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        )
+
+        query = f"""
+            SELECT id, request_id
+            FROM responses
+            {where_clause}
+            ORDER BY id
+        """
+
+        matches: list[dict[str, int]] = []
+
+        async with self.sql.db.execute(query, params) as cursor:
+            async for row in cursor:
+                response_id, request_id = row
+
+                # Get decompressed content
+                content = await self.get_response_content(response_id)
+                if content is None:
+                    continue
+
+                # Try to decode as text
+                try:
+                    content_str = content.decode("utf-8")
+                except UnicodeDecodeError:
+                    try:
+                        content_str = content.decode("latin-1")
+                    except UnicodeDecodeError:
+                        # Skip binary content
+                        continue
+
+                # Check for match based on search type
+                matched = False
+
+                if text is not None:
+                    # Case-insensitive text search
+                    matched = text.lower() in content_str.lower()
+
+                elif regex_pattern is not None:
+                    # Regex search
+                    matched = regex_pattern.search(content_str) is not None
+
+                elif xpath_expr is not None:
+                    # XPath search - parse as HTML and evaluate
+                    try:
+                        from lxml import html
+
+                        tree = html.fromstring(content_str)
+                        result = xpath_expr(tree)
+                        matched = bool(result)
+                    except Exception:
+                        # If parsing fails, skip this response
+                        continue
+
+                if matched:
+                    matches.append(
+                        {"response_id": response_id, "request_id": request_id}
+                    )
+
+        return matches

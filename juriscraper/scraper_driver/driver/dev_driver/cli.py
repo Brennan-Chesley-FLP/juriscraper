@@ -8,6 +8,7 @@ Usage:
     ldd-debug requests list <db-path>           # List requests
     ldd-debug requests show <db-path> <id>      # Show request details
     ldd-debug responses list <db-path>          # List responses
+    ldd-debug responses search <db-path>        # Search response content
     ldd-debug errors list <db-path>             # List errors
     ldd-debug results list <db-path>            # List results
     ldd-debug requeue request <db-path> <id>    # Requeue a request
@@ -540,6 +541,86 @@ def responses_content(
                     click.echo(content.decode("utf-8"))
                 except UnicodeDecodeError:
                     click.echo(content, nl=False)
+
+    asyncio.run(run())
+
+
+@responses.command("search")
+@click.argument("db_path", type=click.Path(exists=True))
+@click.option("--text", "text_pattern", help="Plain text to search for")
+@click.option("--regex", "regex_pattern", help="Regular expression pattern")
+@click.option("--xpath", "xpath_expr", help="XPath expression to evaluate")
+@click.option("--continuation", help="Filter by continuation (step name)")
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["table", "json", "jsonl"]),
+    default="table",
+    help="Output format",
+)
+def responses_search(
+    db_path: str,
+    text_pattern: str | None,
+    regex_pattern: str | None,
+    xpath_expr: str | None,
+    continuation: str | None,
+    format_type: str,
+) -> None:
+    """Search response content for matching patterns.
+
+    Searches through all response content (decompressed) for matches.
+    Exactly one of --text, --regex, or --xpath must be provided.
+
+    \b
+    Examples:
+        ldd-debug responses search run.db --text "error"
+        ldd-debug responses search run.db --regex "case.*\\d{4}"
+        ldd-debug responses search run.db --xpath "//div[@class='opinion']"
+        ldd-debug responses search run.db --text "verdict" --format json
+        ldd-debug responses search run.db --text "verdict" --format jsonl
+    """
+    # Validate exactly one search type is provided
+    search_types = [text_pattern, regex_pattern, xpath_expr]
+    provided = sum(1 for s in search_types if s is not None)
+    if provided != 1:
+        click.echo(
+            "Error: Exactly one of --text, --regex, or --xpath must be provided",
+            err=True,
+        )
+        sys.exit(1)
+
+    async def run() -> None:
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            try:
+                matches = await debugger.search_responses(
+                    text=text_pattern,
+                    regex=regex_pattern,
+                    xpath=xpath_expr,
+                    continuation=continuation,
+                )
+
+                if format_type == "table":
+                    if matches:
+                        click.echo(f"Found {len(matches)} matching responses:")
+                        for match in matches:
+                            click.echo(
+                                f"  response_id={match['response_id']}, "
+                                f"request_id={match['request_id']}"
+                            )
+                    else:
+                        click.echo("No matching responses found")
+                elif format_type == "json":
+                    click.echo(json.dumps(matches, indent=2))
+                elif format_type == "jsonl":
+                    for match in matches:
+                        click.echo(json.dumps(match))
+
+            except ValueError as e:
+                click.echo(f"Error: {e}", err=True)
+                sys.exit(1)
+            except Exception as e:
+                click.echo(f"Search error: {e}", err=True)
+                sys.exit(1)
 
     asyncio.run(run())
 

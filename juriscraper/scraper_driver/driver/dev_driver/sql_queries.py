@@ -1151,3 +1151,105 @@ class SQL:
     SELECT_ERROR_IDS_BY_REQUEST_IDS = """
         SELECT id FROM errors WHERE request_id IN ({placeholders})
     """
+
+    # =========================================================================
+    # sql_manager.py additional queries
+    # =========================================================================
+
+    # Full run metadata for get_run_metadata()
+    SELECT_RUN_METADATA_FULL = """
+        SELECT scraper_name, scraper_version, status, created_at, started_at,
+               ended_at, error_message, base_delay, jitter, num_workers,
+               max_backoff_time, speculation_config_json
+        FROM run_metadata WHERE id = 1
+    """
+
+    # Get permanent_json for a request (used by resume step)
+    SELECT_PERMANENT_JSON_BY_REQUEST_ID = """
+        SELECT permanent_json FROM requests WHERE id = ?
+    """
+
+    # Get responses for JSON validation
+    SELECT_RESPONSES_FOR_JSON_VALIDATION = """
+        SELECT id, request_id, content_compressed, compression_dict_id
+        FROM responses
+        WHERE continuation = ?
+    """
+
+    # Get request data for requeue operations
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    SELECT_REQUESTS_FOR_REQUEUE_BY_IDS = """
+        SELECT id, method, url, continuation, priority,
+               headers_json, cookies_json, body,
+               current_location, accumulated_data_json, aux_data_json,
+               permanent_json, request_type, expected_type
+        FROM requests
+        WHERE id IN ({placeholders})
+    """
+
+    # Delete responses by response ID (not request_id)
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    DELETE_RESPONSES_BY_IDS = """
+        DELETE FROM responses WHERE id IN ({placeholders})
+    """
+
+    # Delete results by result ID
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    DELETE_RESULTS_BY_IDS = """
+        DELETE FROM results WHERE id IN ({placeholders})
+    """
+
+    # Delete errors by error ID
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    DELETE_ERRORS_BY_IDS = """
+        DELETE FROM errors WHERE id IN ({placeholders})
+    """
+
+    # Get error ID and request_id for requeue_error
+    SELECT_ERROR_ID_AND_REQUEST_ID = """
+        SELECT id, request_id FROM errors WHERE id = ?
+    """
+
+    # Get distinct request IDs for requeue_continuation with error filtering
+    # Note: Uses dynamic WHERE clause, caller must format with {where_clause}
+    SELECT_REQUEST_IDS_WITH_ERROR_FILTER = """
+        SELECT DISTINCT r.id
+        FROM requests r
+        INNER JOIN errors e ON e.request_id = r.id
+        WHERE {where_clause}
+    """
+
+    # Get request IDs for requeue_continuation (completed requests)
+    SELECT_REQUEST_IDS_BY_CONTINUATION_COMPLETED = """
+        SELECT id
+        FROM requests
+        WHERE continuation = ? AND status = 'completed'
+    """
+
+    # Get unresolved error IDs by request IDs (for bulk resolution)
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    SELECT_UNRESOLVED_ERROR_IDS_BY_REQUEST_IDS = """
+        SELECT e.id
+        FROM errors e
+        WHERE e.request_id IN ({placeholders})
+          AND e.is_resolved = 0
+    """
+
+    # Bulk resolve errors with resolution note
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    BULK_RESOLVE_ERRORS = """
+        UPDATE errors
+        SET is_resolved = 1,
+            resolved_at = CURRENT_TIMESTAMP,
+            resolution_notes = ?
+        WHERE id IN ({placeholders})
+    """
+
+    # Batch mark errors as resolved (used by batch_requeue_errors)
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    BATCH_MARK_ERRORS_RESOLVED = """
+        UPDATE errors
+        SET is_resolved = 1, resolved_at = CURRENT_TIMESTAMP,
+            resolution_notes = 'Batch requeued'
+        WHERE id IN ({placeholders})
+    """

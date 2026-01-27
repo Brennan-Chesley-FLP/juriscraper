@@ -14,9 +14,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
+from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+    LocalDevDriverDebugger,
+)
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
+    get_debugger_for_run,
     get_run_manager,
 )
 
@@ -43,20 +46,34 @@ class WarcExportResponse(BaseModel):
     message: str
 
 
-async def _get_db_for_run(run_id: str, manager: RunManager):
-    """Get database connection for a loaded run."""
-    run_info = await manager.get_run(run_id)
-    if run_info is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Run '{run_id}' not found",
-        )
-    if run_info.driver is None:
+async def _get_debugger(
+    run_id: str, manager: RunManager, read_only: bool = True
+) -> LocalDevDriverDebugger:
+    """Get LocalDevDriverDebugger for a run.
+
+    Args:
+        run_id: The run identifier.
+        manager: The run manager.
+        read_only: If True, open in read-only mode (prevents writes).
+
+    Returns:
+        LocalDevDriverDebugger instance.
+
+    Raises:
+        HTTPException: 404 if run not found, 400 if error.
+    """
+    try:
+        return await get_debugger_for_run(run_id, manager, read_only=read_only)
+    except ValueError as e:
+        if "not found" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e),
+            ) from e
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Run '{run_id}' is not loaded. Load it first.",
-        )
-    return run_info.driver.db.db
+            detail=str(e),
+        ) from e
 
 
 @router.post("/warc", response_class=FileResponse)
@@ -80,11 +97,7 @@ async def export_warc(
     Raises:
         HTTPException: 400 if no responses to export.
     """
-    from juriscraper.scraper_driver.driver.dev_driver.warc_export import (
-        export_warc as do_export,
-    )
-
-    db = await _get_db_for_run(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
     # Create temp file for WARC
     suffix = ".warc.gz" if request.compress else ".warc"
@@ -96,25 +109,24 @@ async def export_warc(
     warc_path = Path(temp_path)
 
     try:
-        count = await do_export(
-            db,
+        _count = await debugger.export_warc(
             warc_path,
             compress=request.compress,
             continuation=request.continuation,
         )
+    except ValueError as e:
+        # LDDD raises ValueError when no responses to export
+        warc_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
     except Exception as e:
         warc_path.unlink(missing_ok=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to export WARC: {e}",
         ) from e
-
-    if count == 0:
-        warc_path.unlink(missing_ok=True)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No responses to export",
-        )
 
     filename = f"{run_id}{suffix}"
     media_type = (
@@ -148,25 +160,12 @@ async def preview_warc_export(
     Returns:
         Export preview with record count.
     """
-    db = await _get_db_for_run(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    # Build query
-    conditions = []
-    params: list = []
+    preview = await debugger.preview_warc_export(continuation=continuation)
 
-    if continuation:
-        conditions.append("continuation = ?")
-        params.append(continuation)
-
-    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-
-    cursor = await db.execute(
-        SQL.SELECT_WARC_PREVIEW_STATS.format(where_clause=where_clause),
-        params,
-    )
-    row = await cursor.fetchone()
-    count = row[0] if row else 0
-    estimated_size = row[1] if row else 0
+    count = preview["record_count"]
+    estimated_size = preview["estimated_size"]
 
     return WarcExportResponse(
         record_count=count,

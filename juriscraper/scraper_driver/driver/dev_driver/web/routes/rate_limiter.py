@@ -12,15 +12,48 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+    LocalDevDriverDebugger,
+)
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
+    get_debugger_for_run,
     get_run_manager,
-    get_sql_manager_for_run,
 )
 
 router = APIRouter(
     prefix="/api/runs/{run_id}/rate-limiter", tags=["rate-limiter"]
 )
+
+
+async def _get_debugger(
+    run_id: str, manager: RunManager, read_only: bool = True
+) -> LocalDevDriverDebugger:
+    """Get LocalDevDriverDebugger for a run.
+
+    Args:
+        run_id: The run identifier.
+        manager: The run manager.
+        read_only: If True, open in read-only mode (prevents writes).
+
+    Returns:
+        LocalDevDriverDebugger instance.
+
+    Raises:
+        HTTPException: 404 if run not found, 400 if error.
+    """
+    try:
+        return await get_debugger_for_run(run_id, manager, read_only=read_only)
+    except ValueError as e:
+        if "not found" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(e),
+            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
 
 
 class RateLimiterStateResponse(BaseModel):
@@ -77,25 +110,10 @@ async def get_rate_limiter_state(
     Raises:
         HTTPException: 404 if run not found or rate limiter not initialized.
     """
-    # Get run info
-    run_info = await manager.get_run(run_id)
-    if run_info is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Run '{run_id}' not found",
-        )
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    # Get SQLManager
-    try:
-        sql_manager = await get_sql_manager_for_run(run_id, manager)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        ) from e
-
-    # Get rate limiter state from database
-    state = await sql_manager.get_rate_limiter_state()
+    # Get rate limiter state from database using LDDD method
+    state = await debugger.get_rate_limiter_state()
 
     if state is None:
         raise HTTPException(
@@ -178,24 +196,8 @@ async def get_throughput_stats(
     Raises:
         HTTPException: 404 if run not found.
     """
-    # Get run info
-    run_info = await manager.get_run(run_id)
-    if run_info is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Run '{run_id}' not found",
-        )
-
-    # Get SQLManager
-    try:
-        sql_manager = await get_sql_manager_for_run(run_id, manager)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        ) from e
-
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
+    db = debugger.sql.db
 
     # Get active workers (in_progress requests)
     cursor = await db.execute(

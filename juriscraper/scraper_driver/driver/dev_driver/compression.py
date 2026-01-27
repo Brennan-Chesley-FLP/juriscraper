@@ -246,33 +246,46 @@ async def recompress_responses(
     db: aiosqlite.Connection,
     continuation: str,
     level: int = DEFAULT_COMPRESSION_LEVEL,
+    dict_id: int | None = None,
 ) -> tuple[int, int, int]:
-    """Re-compress responses using the latest dictionary for a continuation.
+    """Re-compress responses using a dictionary for a continuation.
 
     Decompresses all responses for the continuation and re-compresses them
-    using the latest trained dictionary. This can significantly improve
-    compression ratios after training a new dictionary.
+    using the specified or latest trained dictionary. This can significantly
+    improve compression ratios after training a new dictionary.
 
     Args:
         db: Database connection.
         continuation: The continuation method name.
         level: Compression level for re-compression (default 3).
+        dict_id: Specific dictionary ID to use. If None, uses the latest.
 
     Returns:
         Tuple of (recompressed_count, total_original_bytes, total_compressed_bytes).
 
     Raises:
-        ValueError: If no dictionary exists for this continuation.
+        ValueError: If no dictionary exists for this continuation or dict_id.
     """
-    # Get the latest dictionary for this continuation
-    dict_result = await get_compression_dict(db, continuation)
-    if dict_result is None:
-        raise ValueError(
-            f"No dictionary found for continuation '{continuation}'. "
-            "Train a dictionary first using train_compression_dict()."
+    # Get the dictionary to use
+    if dict_id is not None:
+        # Get specific dictionary by ID
+        cursor = await db.execute(
+            SQL.SELECT_COMPRESSION_DICT_DATA_BY_ID, (dict_id,)
         )
-
-    dict_id, dictionary = dict_result
+        row = await cursor.fetchone()
+        if row is None:
+            raise ValueError(f"No dictionary found with id {dict_id}.")
+        dictionary = row[0]
+        target_dict_id = dict_id
+    else:
+        # Get the latest dictionary for this continuation
+        dict_result = await get_compression_dict(db, continuation)
+        if dict_result is None:
+            raise ValueError(
+                f"No dictionary found for continuation '{continuation}'. "
+                "Train a dictionary first using train_compression_dict()."
+            )
+        target_dict_id, dictionary = dict_result
 
     # Get all responses for this continuation
     cursor = await db.execute(
@@ -304,7 +317,7 @@ async def recompress_responses(
                     new_compressed,
                     original_size,
                     new_size,
-                    dict_id,
+                    target_dict_id,
                     response_id,
                 ),
             )

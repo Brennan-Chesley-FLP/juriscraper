@@ -38,6 +38,7 @@ dependencies = [
   "certifi>=2017.4.17",
   "chardet>=3.0.2",
   "charset-normalizer>=3.1.0",
+  "click>=8.0.0",
   "cssselect",
   "dateparser>=1.2.0",
   "feedparser>=6.0.11",

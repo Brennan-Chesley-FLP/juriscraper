@@ -17,12 +17,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
-from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
+from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+    LocalDevDriverDebugger,
+)
 from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
+    get_debugger_for_run,
     get_run_manager,
-    get_sql_manager_for_run,
 )
 
 router = APIRouter(prefix="/api/runs/{run_id}/responses", tags=["responses"])
@@ -69,21 +71,24 @@ class RequeueResponse(BaseModel):
     message: str
 
 
-async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
-    """Get SQLManager for a loaded run.
+async def _get_debugger(
+    run_id: str, manager: RunManager, read_only: bool = True
+) -> LocalDevDriverDebugger:
+    """Get LocalDevDriverDebugger for a run.
 
     Args:
         run_id: The run identifier.
         manager: The run manager.
+        read_only: If True, open in read-only mode (prevents writes).
 
     Returns:
-        SQLManager instance.
+        LocalDevDriverDebugger instance.
 
     Raises:
-        HTTPException: 404 if run not found, 400 if not loaded.
+        HTTPException: 404 if run not found, 400 if error.
     """
     try:
-        return await get_sql_manager_for_run(run_id, manager)
+        return await get_debugger_for_run(run_id, manager, read_only=read_only)
     except ValueError as e:
         if "not found" in str(e):
             raise HTTPException(
@@ -169,8 +174,8 @@ async def get_speculation_summary(
     - skipped: Deduplicated speculative requests
     - non_speculative: Regular (non-speculative) requests
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
+    db = debugger.sql.db
 
     cursor = await db.execute(SQL.SELECT_SPECULATION_SUMMARY_FOR_WEB)
     rows = await cursor.fetchall()
@@ -218,9 +223,10 @@ async def list_responses(
     Returns:
         Paginated list of responses.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    page = await sql_manager.list_responses(
+    # Use SQLManager's list_responses via debugger.sql (not yet in LDDD)
+    page = await debugger.sql.list_responses(
         continuation=continuation,
         request_id=request_id,
         speculation_outcome=speculation_outcome,
@@ -272,9 +278,9 @@ async def get_response(
     Raises:
         HTTPException: 404 if response not found.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    record = await sql_manager.get_response(response_id)
+    record = await debugger.get_response(response_id)
 
     if record is None:
         raise HTTPException(
@@ -330,18 +336,18 @@ async def requeue_response(
     Raises:
         HTTPException: 404 if response not found.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=False)
 
     # Verify response exists
-    record = await sql_manager.get_response(response_id)
+    record = await debugger.get_response(response_id)
     if record is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Response {response_id} not found in run '{run_id}'",
         )
 
-    # Use new requeue_response method
-    result = await sql_manager.requeue_response(
+    # Use SQLManager's requeue_response method (via debugger.sql)
+    result = await debugger.sql.requeue_response(
         response_id,
         clear_responses=clear_responses,
         clear_downstream=clear_downstream,
@@ -388,10 +394,11 @@ async def get_response_content(
         HTTPException: 404 if response not found.
         HTTPException: 500 if decompression fails.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
     try:
-        result = await sql_manager.get_response_content_with_headers(
+        # Use SQLManager's get_response_content_with_headers (via debugger.sql)
+        result = await debugger.sql.get_response_content_with_headers(
             response_id
         )
     except Exception as e:
@@ -759,10 +766,11 @@ async def get_annotated_response(
     Raises:
         HTTPException: 404 if response not found.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
     try:
-        result = await sql_manager.get_response_content_with_headers(
+        # Use SQLManager's get_response_content_with_headers (via debugger.sql)
+        result = await debugger.sql.get_response_content_with_headers(
             response_id
         )
     except Exception as e:

@@ -17,12 +17,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
+from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+    LocalDevDriverDebugger,
+)
 from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
+    get_debugger_for_run,
     get_run_manager,
-    get_sql_manager_for_run,
 )
 
 router = APIRouter(prefix="/api/runs/{run_id}/results", tags=["results"])
@@ -73,21 +75,24 @@ class ResultsSummaryResponse(BaseModel):
     by_type: list[ResultTypeSummaryItem]
 
 
-async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
-    """Get SQLManager for a loaded run.
+async def _get_debugger(
+    run_id: str, manager: RunManager, read_only: bool = True
+) -> LocalDevDriverDebugger:
+    """Get LocalDevDriverDebugger for a run.
 
     Args:
         run_id: The run identifier.
         manager: The run manager.
+        read_only: If True, open in read-only mode (prevents writes).
 
     Returns:
-        SQLManager instance.
+        LocalDevDriverDebugger instance.
 
     Raises:
-        HTTPException: 404 if run not found, 400 if not loaded.
+        HTTPException: 404 if run not found, 400 if error.
     """
     try:
-        return await get_sql_manager_for_run(run_id, manager)
+        return await get_debugger_for_run(run_id, manager, read_only=read_only)
     except ValueError as e:
         if "not found" in str(e):
             raise HTTPException(
@@ -125,15 +130,25 @@ async def list_results(
     Returns:
         Paginated list of results.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager)
 
-    page = await sql_manager.list_results(
-        result_type=result_type,
-        is_valid=is_valid,
-        request_id=request_id,
-        offset=offset,
-        limit=limit,
-    )
+    # LDDD only supports result_type and is_valid filters, not request_id
+    # Fall back to SQL for request_id filtering
+    if request_id is not None:
+        page = await debugger.sql.list_results(
+            result_type=result_type,
+            is_valid=is_valid,
+            request_id=request_id,
+            offset=offset,
+            limit=limit,
+        )
+    else:
+        page = await debugger.list_results(
+            result_type=result_type,
+            is_valid=is_valid,
+            offset=offset,
+            limit=limit,
+        )
 
     items = [
         ResultResponse(
@@ -172,8 +187,8 @@ async def get_result_type_summary(
     Returns:
         Dictionary mapping result types to their counts.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager)
+    db = debugger.sql.db
 
     cursor = await db.execute(SQL.SELECT_RESULT_TYPE_SUMMARY)
     rows = await cursor.fetchall()
@@ -194,17 +209,20 @@ async def get_results_summary(
     Returns:
         Summary with total counts and breakdown by result type.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager)
 
-    cursor = await db.execute(SQL.SELECT_RESULTS_SUMMARY_FOR_WEB)
-    rows = await cursor.fetchall()
+    # Use LDDD's get_result_summary method
+    summary = await debugger.get_result_summary()
 
     by_type: list[ResultTypeSummaryItem] = []
     total_valid = 0
     total_invalid = 0
 
-    for result_type, valid_count, invalid_count, total_count in rows:
+    for result_type, counts in summary.items():
+        valid_count = counts["valid"]
+        invalid_count = counts["invalid"]
+        total_count = counts["total"]
+
         by_type.append(
             ResultTypeSummaryItem(
                 result_type=result_type,
@@ -246,8 +264,8 @@ async def export_results_jsonl(
     Returns:
         Streaming JSONL response with Content-Disposition for download.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager)
+    db = debugger.sql.db
 
     # Build where clause
     conditions = []
@@ -340,9 +358,9 @@ async def get_result(
     Raises:
         HTTPException: 404 if result not found.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager)
 
-    record = await sql_manager.get_result(result_id)
+    record = await debugger.get_result(result_id)
 
     if record is None:
         raise HTTPException(

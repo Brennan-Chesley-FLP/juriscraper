@@ -10,16 +10,18 @@ This module provides endpoints for:
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
+from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+    LocalDevDriverDebugger,
+)
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
+    get_debugger_for_run,
     get_run_manager,
-    get_sql_manager_for_run,
 )
 
 router = APIRouter(prefix="/api/runs/{run_id}/requests", tags=["requests"])
@@ -110,21 +112,24 @@ class RequestSummaryResponse(BaseModel):
     grand_total: int
 
 
-async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
-    """Get SQLManager for a loaded run.
+async def _get_debugger(
+    run_id: str, manager: RunManager, read_only: bool = True
+) -> LocalDevDriverDebugger:
+    """Get LocalDevDriverDebugger for a run.
 
     Args:
         run_id: The run identifier.
         manager: The run manager.
+        read_only: If True, open in read-only mode (prevents writes).
 
     Returns:
-        SQLManager instance.
+        LocalDevDriverDebugger instance.
 
     Raises:
-        HTTPException: 404 if run not found, 400 if not loaded.
+        HTTPException: 404 if run not found, 400 if error.
     """
     try:
-        return await get_sql_manager_for_run(run_id, manager)
+        return await get_debugger_for_run(run_id, manager, read_only=read_only)
     except ValueError as e:
         if "not found" in str(e):
             raise HTTPException(
@@ -141,9 +146,10 @@ async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
 async def list_requests(
     run_id: str,
     manager: Annotated[RunManager, Depends(get_run_manager)],
-    status_filter: str | None = Query(
-        None, alias="status", description="Filter by status"
-    ),
+    status_filter: Literal[
+        "pending", "in_progress", "completed", "failed", "held"
+    ]
+    | None = Query(None, alias="status", description="Filter by status"),
     continuation: str | None = Query(
         None, description="Filter by continuation"
     ),
@@ -162,10 +168,10 @@ async def list_requests(
     Returns:
         Paginated list of requests.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    # Use SQLManager's list_requests method
-    page = await sql_manager.list_requests(
+    # Use LDDD's list_requests method
+    page = await debugger.list_requests(
         status=status_filter,
         continuation=continuation,
         offset=offset,
@@ -219,48 +225,31 @@ async def get_request_summary(
     Returns:
         Summary of request counts by continuation and status.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    # Query counts grouped by continuation and status
-    # Exclude bookkeeping requests (those without URLs)
-    query = """
-        SELECT continuation, status, COUNT(*) as count
-        FROM requests
-        WHERE url IS NOT NULL AND url != ''
-        GROUP BY continuation, status
-        ORDER BY continuation
-    """
-    cursor = await db.execute(query)
-    rows = await cursor.fetchall()
+    # Use LDDD's get_request_summary method
+    summary = await debugger.get_request_summary()
 
-    # Build pivot table
+    # Convert to response model format
     summaries: dict[str, RequestSummaryItem] = {}
     grand_total = 0
 
-    for continuation, status_val, count in rows:
-        if continuation not in summaries:
-            summaries[continuation] = RequestSummaryItem(
-                continuation=continuation
-            )
+    for continuation, status_counts in summary.items():
+        if continuation == "all":
+            # Skip the "all" key as we calculate grand_total separately
+            continue
 
-        item = summaries[continuation]
-        grand_total += count
-        item.total += count
-
-        # Map status to field
-        if status_val == "pending":
-            item.pending = count
-        elif status_val == "in_progress":
-            item.in_progress = count
-        elif status_val == "completed":
-            item.completed = count
-        elif status_val == "failed":
-            item.failed = count
-        elif status_val == "held":
-            item.held = count
-        elif status_val == "cancelled":
-            item.cancelled = count
+        summaries[continuation] = RequestSummaryItem(
+            continuation=continuation,
+            pending=status_counts.get("pending", 0),
+            in_progress=status_counts.get("in_progress", 0),
+            completed=status_counts.get("completed", 0),
+            failed=status_counts.get("failed", 0),
+            held=status_counts.get("held", 0),
+            cancelled=status_counts.get("cancelled", 0),
+            total=sum(status_counts.values()),
+        )
+        grand_total += summaries[continuation].total
 
     return RequestSummaryResponse(
         items=list(summaries.values()),
@@ -286,9 +275,9 @@ async def get_request(
     Raises:
         HTTPException: 404 if request not found.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    record = await sql_manager.get_request(request_id)
+    record = await debugger.get_request(request_id)
 
     if record is None:
         raise HTTPException(
@@ -333,13 +322,13 @@ async def cancel_request(
         HTTPException: 404 if request not found.
         HTTPException: 400 if request cannot be cancelled.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=False)
 
-    cancelled = await sql_manager.cancel_request(request_id)
+    cancelled = await debugger.cancel_request(request_id)
 
     if not cancelled:
         # Check if request exists
-        record = await sql_manager.get_request(request_id)
+        record = await debugger.get_request(request_id)
         if record is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -389,18 +378,19 @@ async def requeue_request(
     Raises:
         HTTPException: 404 if request not found.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=False)
 
     # Verify request exists
-    record = await sql_manager.get_request(request_id)
+    record = await debugger.get_request(request_id)
     if record is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Request {request_id} not found",
         )
 
-    # Use new requeue_requests method
-    result = await sql_manager.requeue_requests(
+    # Use SQLManager's requeue_requests method (via debugger.sql)
+    # TODO: LDDD's requeue_request doesn't support clear_responses/dry_run yet
+    result = await debugger.sql.requeue_requests(
         [request_id],
         clear_responses=clear_responses,
         clear_downstream=clear_downstream,
@@ -443,9 +433,9 @@ async def cancel_by_continuation(
     Returns:
         Number of requests cancelled.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=False)
 
-    cancelled_count = await sql_manager.cancel_requests_by_continuation(
+    cancelled_count = await debugger.cancel_requests_by_continuation(
         request.continuation
     )
 
@@ -489,10 +479,11 @@ async def requeue_by_continuation(
     Returns:
         Requeue result with affected IDs.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=False)
 
-    # Use new requeue_continuation method (no error filtering)
-    result = await sql_manager.requeue_continuation(
+    # Use SQLManager's requeue_continuation method (via debugger.sql)
+    # TODO: LDDD's requeue_continuation doesn't support clear_responses/dry_run yet
+    result = await debugger.sql.requeue_continuation(
         request.continuation,
         clear_responses=clear_responses,
         clear_downstream=clear_downstream,

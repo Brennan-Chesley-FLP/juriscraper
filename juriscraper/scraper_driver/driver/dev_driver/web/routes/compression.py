@@ -13,12 +13,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
+from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+    LocalDevDriverDebugger,
+)
 from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
+    get_debugger_for_run,
     get_run_manager,
-    get_sql_manager_for_run,
 )
 
 router = APIRouter(
@@ -109,10 +111,24 @@ class CompressionStatsByContinuationResponse(BaseModel):
     overall_ratio: float
 
 
-async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
-    """Get SQLManager for a loaded run."""
+async def _get_debugger(
+    run_id: str, manager: RunManager, read_only: bool = True
+) -> LocalDevDriverDebugger:
+    """Get LocalDevDriverDebugger for a run.
+
+    Args:
+        run_id: The run identifier.
+        manager: The run manager.
+        read_only: If True, open in read-only mode (prevents writes).
+
+    Returns:
+        LocalDevDriverDebugger instance.
+
+    Raises:
+        HTTPException: 404 if run not found, 400 if error.
+    """
     try:
-        return await get_sql_manager_for_run(run_id, manager)
+        return await get_debugger_for_run(run_id, manager, read_only=read_only)
     except ValueError as e:
         if "not found" in str(e):
             raise HTTPException(
@@ -163,8 +179,7 @@ async def train_dictionary(
         train_compression_dict,
     )
 
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=False)
 
     # Calculate smart defaults if not provided
     dict_size = request.dict_size
@@ -172,7 +187,7 @@ async def train_dictionary(
 
     if dict_size is None or sample_limit is None:
         # Query collection stats for this continuation
-        cursor = await db.execute(
+        cursor = await debugger.sql.db.execute(
             """
             SELECT COUNT(*), COALESCE(SUM(content_size_original), 0)
             FROM responses
@@ -206,8 +221,9 @@ async def train_dictionary(
                 sample_limit = DEFAULT_SAMPLE_LIMIT
 
     try:
+        # Use compression module directly since LDDD doesn't expose dict_size param
         dict_id = await train_compression_dict(
-            db,
+            debugger.sql.db,
             request.continuation,
             sample_limit=sample_limit,
             dict_size=dict_size,
@@ -219,7 +235,9 @@ async def train_dictionary(
         ) from e
 
     # Get sample count for response
-    cursor = await db.execute(SQL.SELECT_DICT_SAMPLE_COUNT, (dict_id,))
+    cursor = await debugger.sql.db.execute(
+        SQL.SELECT_DICT_SAMPLE_COUNT, (dict_id,)
+    )
     row = await cursor.fetchone()
     sample_count = row[0] if row else 0
 
@@ -257,12 +275,12 @@ async def recompress_responses(
         recompress_responses as do_recompress,
     )
 
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=False)
 
     try:
+        # Use compression module directly for proper signature
         count, total_original, total_compressed = await do_recompress(
-            db,
+            debugger.sql.db,
             request.continuation,
             level=request.compression_level,
         )
@@ -296,19 +314,16 @@ async def get_compression_stats(
     Returns:
         Compression statistics.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    cursor = await db.execute(SQL.SELECT_COMPRESSION_STATS_FOR_WEB)
-    row = await cursor.fetchone()
+    stats = await debugger.get_compression_stats()
 
-    total = row[0] or 0
-    total_original = row[1] or 0
-    total_compressed = row[2] or 0
-    with_dict = row[3] or 0
-    no_dict = row[4] or 0
-
-    ratio = total_original / total_compressed if total_compressed > 0 else 0
+    total = stats.get("total", 0)
+    total_original = stats.get("total_original", 0)
+    total_compressed = stats.get("total_compressed", 0)
+    with_dict = stats.get("with_dict", 0)
+    no_dict = stats.get("no_dict", 0)
+    ratio = stats.get("compression_ratio", 0)
 
     return CompressionStatsResponse(
         total_responses=total,
@@ -339,11 +354,10 @@ async def get_compression_stats_by_continuation(
     Returns:
         Compression statistics grouped by continuation.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
     # First, get set of continuations that have trained dictionaries
-    dict_cursor = await db.execute(
+    dict_cursor = await debugger.sql.db.execute(
         "SELECT DISTINCT continuation FROM compression_dicts"
     )
     continuations_with_dicts = {row[0] for row in await dict_cursor.fetchall()}
@@ -362,7 +376,7 @@ async def get_compression_stats_by_continuation(
         GROUP BY r.continuation, r.compression_dict_id
         ORDER BY r.continuation, d.version DESC NULLS LAST
     """
-    cursor = await db.execute(query)
+    cursor = await debugger.sql.db.execute(query)
     rows = await cursor.fetchall()
 
     items: list[CompressionStatsByContinuationItem] = []
@@ -416,20 +430,6 @@ async def list_dictionaries(
     Returns:
         List of dictionary metadata.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    cursor = await db.execute(SQL.SELECT_COMPRESSION_DICTS_FOR_WEB)
-    rows = await cursor.fetchall()
-
-    return [
-        {
-            "id": r[0],
-            "continuation": r[1],
-            "version": r[2],
-            "sample_count": r[3],
-            "size": r[4],
-            "created_at": r[5],
-        }
-        for r in rows
-    ]
+    return await debugger.list_compression_dicts()

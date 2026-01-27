@@ -1,0 +1,1085 @@
+"""Tests for LocalDevDriverDebugger.
+
+These tests verify the LocalDevDriverDebugger class which provides standalone
+inspection and manipulation of scraper run databases.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import aiosqlite
+import pytest
+
+from juriscraper.scraper_driver.driver.dev_driver.compression import compress
+from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+    LocalDevDriverDebugger,
+)
+from juriscraper.scraper_driver.driver.dev_driver.schema import init_database
+from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
+
+
+@pytest.fixture
+async def db_path(tmp_path: Path) -> Path:
+    """Create a temporary database path."""
+    return tmp_path / "test.db"
+
+
+@pytest.fixture
+async def initialized_db(db_path: Path) -> aiosqlite.Connection:
+    """Create an initialized database connection."""
+    db = await init_database(db_path)
+    yield db
+    await db.close()
+
+
+@pytest.fixture
+async def populated_db(
+    initialized_db: aiosqlite.Connection,
+) -> aiosqlite.Connection:
+    """Create a populated database with sample data for testing.
+
+    This fixture creates:
+    - Run metadata for a test scraper
+    - Multiple requests with various statuses
+    - Responses with content
+    - Results (both valid and invalid)
+    - Errors (both resolved and unresolved)
+    - Rate limiter state
+    - Compression dictionaries
+    """
+    db = initialized_db
+    sql_manager = SQLManager(db)
+
+    # Insert run metadata directly (since we need fields not in init_run_metadata)
+    await db.execute(
+        """
+        INSERT INTO run_metadata (
+            scraper_name, scraper_version, status, created_at,
+            base_delay, jitter, num_workers, max_backoff_time, speculation_config_json
+        ) VALUES (?, ?, ?, datetime('now'), ?, ?, ?, ?, ?)
+        """,
+        (
+            "test.scraper",
+            "1.0.0",
+            "running",
+            0.5,
+            0.2,
+            4,
+            300.0,
+            "{}",
+        ),
+    )
+    await db.commit()
+
+    # Insert multiple requests with different statuses
+    request_data = [
+        ("GET", "https://example.com/page1", "step1", "pending"),
+        ("GET", "https://example.com/page2", "step1", "completed"),
+        ("GET", "https://example.com/page3", "step2", "failed"),
+        ("GET", "https://example.com/page4", "step2", "held"),
+        ("GET", "https://example.com/page5", "step1", "completed"),
+    ]
+
+    request_ids = []
+    for method, url, continuation, target_status in request_data:
+        # Insert using SQLManager
+        request_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method=method,
+            url=url,
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation=continuation,
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+        request_ids.append(request_id)
+
+        # Update status to target status (since insert always creates pending)
+        if target_status != "pending":
+            await db.execute(
+                "UPDATE requests SET status = ? WHERE id = ?",
+                (target_status, request_id),
+            )
+
+    await db.commit()
+
+    # Insert responses for completed requests using SQLManager
+    import uuid
+
+    response_data = [
+        (
+            request_ids[1],
+            200,
+            b"<html>Response 1</html>",
+            "step1",
+            "https://example.com/page2",
+        ),
+        (
+            request_ids[4],
+            200,
+            b"<html>Response 2</html>",
+            "step1",
+            "https://example.com/page5",
+        ),
+    ]
+
+    response_ids = []
+    for request_id, status_code, content, continuation, url in response_data:
+        compressed_content = compress(content)
+        response_id = await sql_manager.store_response(
+            request_id=request_id,
+            status_code=status_code,
+            headers_json="{}",
+            url=url,
+            compressed_content=compressed_content,
+            content_size_original=len(content),
+            content_size_compressed=len(compressed_content),
+            dict_id=None,
+            continuation=continuation,
+            warc_record_id=str(uuid.uuid4()),
+            speculation_outcome=None,
+        )
+        response_ids.append(response_id)
+
+    await db.commit()
+
+    # Insert results for completed responses (using raw SQL for test fixture)
+    result_data = [
+        (request_ids[1], "TestResult", {"title": "Result 1"}, True, None),
+        (
+            request_ids[4],
+            "TestResult",
+            {"title": "Result 2"},
+            False,
+            ["error1"],
+        ),
+    ]
+
+    for request_id, result_type, data, is_valid, errors in result_data:
+        await db.execute(
+            """
+            INSERT INTO results (
+                request_id, result_type, data_json, is_valid,
+                validation_errors_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, datetime('now'))
+            """,
+            (
+                request_id,
+                result_type,
+                json.dumps(data),
+                is_valid,
+                json.dumps(errors) if errors else None,
+            ),
+        )
+
+    await db.commit()
+
+    # Insert errors (using raw SQL for test fixture)
+    error_data = [
+        (
+            request_ids[2],
+            "xpath",
+            "XPath not found",
+            "//*[@id='test']",
+            "xpath",
+            1,
+            1,
+            0,
+            False,
+            None,
+        ),
+        (
+            request_ids[3],
+            "http",
+            "Connection timeout",
+            None,
+            None,
+            None,
+            None,
+            None,
+            True,
+            "Resolved manually",
+        ),
+    ]
+
+    for (
+        request_id,
+        error_type,
+        message,
+        selector,
+        selector_type,
+        expected_min,
+        expected_max,
+        actual_count,
+        is_resolved,
+        resolution_notes,
+    ) in error_data:
+        await db.execute(
+            """
+            INSERT INTO errors (
+                request_id, error_type, message, selector, selector_type,
+                expected_min, expected_max, actual_count, is_resolved,
+                resolution_notes, created_at, request_url, error_class, traceback
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)
+            """,
+            (
+                request_id,
+                error_type,
+                message,
+                selector,
+                selector_type,
+                expected_min,
+                expected_max,
+                actual_count,
+                is_resolved,
+                resolution_notes,
+                f"https://example.com/page{request_id}",
+                "TestError",
+                "fake traceback",
+            ),
+        )
+
+    await db.commit()
+
+    # Insert rate limiter state (using raw SQL for test fixture)
+    await db.execute(
+        """
+        INSERT INTO rate_limiter_state (
+            tokens, rate, bucket_size, last_congestion_rate, jitter,
+            last_used_at, total_requests, total_successes, total_rate_limited
+        ) VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)
+        """,
+        (10.0, 2.0, 20.0, 1.5, 0.2, 100, 95, 5),
+    )
+
+    await db.commit()
+
+    # Insert compression dictionary (using raw SQL for test fixture)
+    await db.execute(
+        """
+        INSERT INTO compression_dicts (
+            continuation, version, sample_count, dictionary_data, created_at
+        ) VALUES (?, ?, ?, ?, datetime('now'))
+        """,
+        ("step1", 1, 100, b"fake_dict_data"),
+    )
+
+    await db.commit()
+
+    return db
+
+
+class TestDebuggerContextManager:
+    """Tests for LocalDevDriverDebugger context manager."""
+
+    async def test_open_read_only(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test opening debugger in read-only mode."""
+        await initialized_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            assert debugger.read_only is True
+            assert debugger.sql is not None
+
+    async def test_open_write_mode(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test opening debugger in write mode."""
+        await initialized_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=False
+        ) as debugger:
+            assert debugger.read_only is False
+            assert debugger.sql is not None
+
+    async def test_open_with_string_path(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test opening debugger with string path."""
+        await initialized_db.close()
+
+        async with LocalDevDriverDebugger.open(str(db_path)) as debugger:
+            assert debugger.sql is not None
+
+
+class TestRunMetadataAndStats:
+    """Tests for run metadata and statistics methods."""
+
+    async def test_get_run_metadata(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting run metadata."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            metadata = await debugger.get_run_metadata()
+
+            assert metadata is not None
+            assert metadata["scraper_name"] == "test.scraper"
+            assert metadata["scraper_version"] == "1.0.0"
+            assert metadata["status"] == "running"
+            assert metadata["base_delay"] == 0.5
+
+    async def test_get_run_metadata_empty_db(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting run metadata from empty database."""
+        await initialized_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            metadata = await debugger.get_run_metadata()
+            assert metadata is None
+
+    async def test_get_stats(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting comprehensive statistics."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            stats = await debugger.get_stats()
+
+            assert "queue" in stats
+            assert "throughput" in stats
+            assert "compression" in stats
+            assert "results" in stats
+            assert "errors" in stats
+
+            # Verify queue stats
+            assert stats["queue"]["total"] == 5
+
+
+class TestRequestInspection:
+    """Tests for request inspection methods."""
+
+    async def test_list_requests_no_filter(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test listing all requests."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            page = await debugger.list_requests()
+
+            assert page.total == 5
+            assert len(page.items) == 5
+            assert not page.has_more
+
+    async def test_list_requests_filter_by_status(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test filtering requests by status."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            # Get completed requests
+            page = await debugger.list_requests(status="completed")
+            assert page.total == 2
+            assert all(req.status == "completed" for req in page.items)
+
+            # Get pending requests
+            page = await debugger.list_requests(status="pending")
+            assert page.total == 1
+
+            # Get failed requests
+            page = await debugger.list_requests(status="failed")
+            assert page.total == 1
+
+    async def test_list_requests_filter_by_continuation(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test filtering requests by continuation."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            page = await debugger.list_requests(continuation="step1")
+            assert page.total == 3
+            assert all(req.continuation == "step1" for req in page.items)
+
+    async def test_list_requests_pagination(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test request pagination."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            # First page
+            page1 = await debugger.list_requests(limit=2, offset=0)
+            assert len(page1.items) == 2
+            assert page1.total == 5
+            assert page1.has_more
+
+            # Second page
+            page2 = await debugger.list_requests(limit=2, offset=2)
+            assert len(page2.items) == 2
+            assert page2.has_more
+
+            # Last page
+            page3 = await debugger.list_requests(limit=2, offset=4)
+            assert len(page3.items) == 1
+            assert not page3.has_more
+
+    async def test_get_request(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting a single request."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            request = await debugger.get_request(1)
+
+            assert request is not None
+            assert request.id == 1
+            assert request.url == "https://example.com/page1"
+            assert request.continuation == "step1"
+
+    async def test_get_request_not_found(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting a non-existent request."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            request = await debugger.get_request(9999)
+            assert request is None
+
+    async def test_get_request_summary(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting request summary."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            summary = await debugger.get_request_summary()
+
+            assert "all" in summary
+            assert "step1" in summary
+            assert "step2" in summary
+
+            # Check totals
+            assert summary["all"]["completed"] == 2
+            assert summary["all"]["pending"] == 1
+            assert summary["all"]["failed"] == 1
+            assert summary["all"]["held"] == 1
+
+
+class TestResponseInspection:
+    """Tests for response inspection methods."""
+
+    async def test_list_responses(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test listing responses."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            page = await debugger.list_responses()
+
+            assert page.total == 2
+            assert len(page.items) == 2
+
+    async def test_list_responses_filter_by_continuation(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test filtering responses by continuation."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            page = await debugger.list_responses(continuation="step1")
+            assert page.total == 2
+            assert all(resp.continuation == "step1" for resp in page.items)
+
+    async def test_get_response(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting a single response."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            response = await debugger.get_response(1)
+
+            assert response is not None
+            assert response.id == 1
+            assert response.status_code == 200
+
+    async def test_get_response_content(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting decompressed response content."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            content = await debugger.get_response_content(1)
+
+            assert content is not None
+            assert b"Response 1" in content
+
+
+class TestErrorInspection:
+    """Tests for error inspection methods."""
+
+    async def test_list_errors(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test listing errors."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            page = await debugger.list_errors()
+
+            assert page.total == 2
+            assert len(page.items) == 2
+
+    async def test_list_errors_filter_by_type(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test filtering errors by type."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            page = await debugger.list_errors(error_type="xpath")
+            assert page.total == 1
+            assert page.items[0]["error_type"] == "xpath"
+
+    async def test_list_errors_filter_by_resolution(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test filtering errors by resolution status."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            # Unresolved errors
+            page = await debugger.list_errors(is_resolved=False)
+            assert page.total == 1
+
+            # Resolved errors
+            page = await debugger.list_errors(is_resolved=True)
+            assert page.total == 1
+
+    async def test_get_error(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting a single error."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            error = await debugger.get_error(1)
+
+            assert error is not None
+            assert error["error_type"] == "xpath"
+            assert error["message"] == "XPath not found"
+            assert error["selector"] == "//*[@id='test']"
+
+    async def test_get_error_summary(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting error summary."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            summary = await debugger.get_error_summary()
+
+            assert "by_type" in summary
+            assert "by_continuation" in summary
+            assert "totals" in summary
+
+            # Check totals
+            assert summary["totals"]["total"] == 2
+            assert summary["totals"]["resolved"] == 1
+            assert summary["totals"]["unresolved"] == 1
+
+
+class TestResultInspection:
+    """Tests for result inspection methods."""
+
+    async def test_list_results(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test listing results."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            page = await debugger.list_results()
+
+            assert page.total == 2
+            assert len(page.items) == 2
+
+    async def test_list_results_filter_by_validity(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test filtering results by validity."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            # Valid results
+            page = await debugger.list_results(is_valid=True)
+            assert page.total == 1
+
+            # Invalid results
+            page = await debugger.list_results(is_valid=False)
+            assert page.total == 1
+
+    async def test_get_result(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting a single result."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_result(1)
+
+            assert result is not None
+            assert result.result_type == "TestResult"
+            assert result.data is not None
+            assert result.data["title"] == "Result 1"
+            assert result.is_valid is True
+
+    async def test_get_result_summary(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting result summary."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            summary = await debugger.get_result_summary()
+
+            assert "TestResult" in summary
+            assert summary["TestResult"]["valid"] == 1
+            assert summary["TestResult"]["invalid"] == 1
+            assert summary["TestResult"]["total"] == 2
+
+
+class TestSpeculationInspection:
+    """Tests for speculation inspection methods."""
+
+    async def test_get_speculation_summary(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting speculation summary."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            summary = await debugger.get_speculation_summary()
+
+            assert "config" in summary
+            assert "progress" in summary
+            assert "tracking" in summary
+
+    async def test_get_speculative_progress(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting speculative progress."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            progress = await debugger.get_speculative_progress()
+
+            # Empty progress in test database
+            assert isinstance(progress, dict)
+
+
+class TestRateLimiterInspection:
+    """Tests for rate limiter inspection methods."""
+
+    async def test_get_rate_limiter_state(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting rate limiter state."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            state = await debugger.get_rate_limiter_state()
+
+            assert state is not None
+            assert state["tokens"] == 10.0
+            assert state["rate"] == 2.0
+            assert state["bucket_size"] == 20.0
+            assert state["total_requests"] == 100
+
+    async def test_get_throughput_stats(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting throughput statistics."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            stats = await debugger.get_throughput_stats()
+
+            assert isinstance(stats, dict)
+
+
+class TestCompressionInspection:
+    """Tests for compression inspection methods."""
+
+    async def test_get_compression_stats(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting compression statistics."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            stats = await debugger.get_compression_stats()
+
+            assert isinstance(stats, dict)
+            assert "total" in stats
+
+    async def test_list_compression_dicts(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test listing compression dictionaries."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            dicts = await debugger.list_compression_dicts()
+
+            assert len(dicts) == 1
+            assert dicts[0]["continuation"] == "step1"
+            assert dicts[0]["version"] == 1
+            assert dicts[0]["sample_count"] == 100
+
+
+class TestReadOnlyModeEnforcement:
+    """Tests for read-only mode enforcement."""
+
+    async def test_cancel_request_read_only(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that cancel_request raises error in read-only mode."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            with pytest.raises(PermissionError, match="write mode"):
+                await debugger.cancel_request(1)
+
+    async def test_cancel_requests_by_continuation_read_only(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that cancel_requests_by_continuation raises error in read-only mode."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            with pytest.raises(PermissionError, match="write mode"):
+                await debugger.cancel_requests_by_continuation("step1")
+
+    async def test_requeue_request_read_only(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that requeue_request raises error in read-only mode."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            with pytest.raises(PermissionError, match="write mode"):
+                await debugger.requeue_request(2)
+
+    async def test_requeue_continuation_read_only(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that requeue_continuation raises error in read-only mode."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            with pytest.raises(PermissionError, match="write mode"):
+                await debugger.requeue_continuation("step1")
+
+    async def test_resolve_error_read_only(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that resolve_error raises error in read-only mode."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            with pytest.raises(PermissionError, match="write mode"):
+                await debugger.resolve_error(1)
+
+    async def test_requeue_error_read_only(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that requeue_error raises error in read-only mode."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            with pytest.raises(PermissionError, match="write mode"):
+                await debugger.requeue_error(1)
+
+    async def test_batch_requeue_errors_read_only(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that batch_requeue_errors raises error in read-only mode."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            with pytest.raises(PermissionError, match="write mode"):
+                await debugger.batch_requeue_errors(error_type="xpath")
+
+    async def test_train_compression_dict_read_only(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that train_compression_dict raises error in read-only mode."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            with pytest.raises(PermissionError, match="write mode"):
+                await debugger.train_compression_dict("step1")
+
+    async def test_recompress_responses_read_only(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test that recompress_responses raises error in read-only mode."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            with pytest.raises(PermissionError, match="write mode"):
+                await debugger.recompress_responses("step1")
+
+
+class TestManipulationMethods:
+    """Tests for manipulation methods in write mode."""
+
+    async def test_cancel_request(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test cancelling a request."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=False
+        ) as debugger:
+            # Cancel a pending request
+            result = await debugger.cancel_request(1)
+            assert result is True
+
+            # Verify it's marked as failed
+            request = await debugger.get_request(1)
+            assert request is not None
+            assert request.status == "failed"
+
+    async def test_cancel_requests_by_continuation(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test cancelling all requests for a continuation."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=False
+        ) as debugger:
+            # Cancel all pending/held requests for step2
+            count = await debugger.cancel_requests_by_continuation("step2")
+            assert count == 1  # Only the held request
+
+    async def test_requeue_request_with_downstream_clear(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test requeuing a request with downstream cleanup."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=False
+        ) as debugger:
+            # Requeue a completed request
+            new_id = await debugger.requeue_request(2, clear_downstream=True)
+            assert new_id > 0
+
+            # Verify new request exists
+            new_request = await debugger.get_request(new_id)
+            assert new_request is not None
+            assert new_request.url == "https://example.com/page2"
+            assert new_request.status == "pending"
+
+    async def test_requeue_request_without_downstream_clear(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test requeuing a request without downstream cleanup."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=False
+        ) as debugger:
+            # Requeue without clearing downstream
+            new_id = await debugger.requeue_request(2, clear_downstream=False)
+            assert new_id > 0
+
+            # Verify new request exists
+            new_request = await debugger.get_request(new_id)
+            assert new_request is not None
+
+    async def test_requeue_continuation(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test requeuing all requests for a continuation."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=False
+        ) as debugger:
+            # Requeue all completed requests for step1
+            count = await debugger.requeue_continuation(
+                "step1", status="completed"
+            )
+            assert count == 2  # Two completed requests in step1
+
+    async def test_resolve_error(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test resolving an error."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=False
+        ) as debugger:
+            # Resolve an unresolved error
+            result = await debugger.resolve_error(1, "Fixed the selector")
+            assert result is True
+
+            # Verify it's resolved
+            error = await debugger.get_error(1)
+            assert error is not None
+            assert error["is_resolved"] is True
+            assert error["resolution_notes"] == "Fixed the selector"
+
+    async def test_requeue_error(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test requeuing an error."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=False
+        ) as debugger:
+            # Requeue an error
+            new_id = await debugger.requeue_error(1, "Trying again")
+            assert new_id > 0
+
+            # Verify error is resolved
+            error = await debugger.get_error(1)
+            assert error is not None
+            assert error["is_resolved"] is True
+
+    async def test_batch_requeue_errors(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test batch requeuing errors."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=False
+        ) as debugger:
+            # Batch requeue xpath errors
+            count = await debugger.batch_requeue_errors(error_type="xpath")
+            assert count == 1  # One unresolved xpath error
+
+
+class TestExportMethods:
+    """Tests for export methods."""
+
+    async def test_export_results_jsonl(
+        self, db_path: Path, populated_db: aiosqlite.Connection, tmp_path: Path
+    ) -> None:
+        """Test exporting results to JSONL."""
+        await populated_db.close()
+
+        output_path = tmp_path / "results.jsonl"
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            count = await debugger.export_results_jsonl(output_path)
+
+            assert count == 2
+            assert output_path.exists()
+
+            # Verify content
+            lines = output_path.read_text().strip().split("\n")
+            assert len(lines) == 2
+
+            # Parse first line
+            result = json.loads(lines[0])
+            assert "id" in result
+            assert "result_type" in result
+            assert "data" in result
+            assert result["result_type"] == "TestResult"
+
+    async def test_export_results_jsonl_filtered(
+        self, db_path: Path, populated_db: aiosqlite.Connection, tmp_path: Path
+    ) -> None:
+        """Test exporting filtered results to JSONL."""
+        await populated_db.close()
+
+        output_path = tmp_path / "valid_results.jsonl"
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            count = await debugger.export_results_jsonl(
+                output_path, is_valid=True
+            )
+
+            assert count == 1
+            assert output_path.exists()
+
+    async def test_preview_warc_export(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test previewing WARC export."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            preview = await debugger.preview_warc_export()
+
+            assert "record_count" in preview
+            assert "estimated_size" in preview
+            assert preview["record_count"] == 2  # Two responses
+
+
+class TestDiagnoseMethods:
+    """Tests for diagnosis methods."""
+
+    async def test_diagnose_error(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test diagnosing an error."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            # Diagnose the xpath error
+            # Note: Full diagnosis requires scraper class, so we test partial functionality
+            with pytest.raises(ValueError, match="No response found"):
+                # Error ID 1 is for request_id 3, which has no response
+                await debugger.diagnose(1)
+
+    async def test_diagnose_error_not_found(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test diagnosing a non-existent error."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            with pytest.raises(ValueError, match="Error .* not found"):
+                await debugger.diagnose(9999)

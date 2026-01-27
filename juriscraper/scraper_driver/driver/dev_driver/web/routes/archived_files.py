@@ -15,12 +15,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 
-from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
+from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+    LocalDevDriverDebugger,
+)
 from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
+    get_debugger_for_run,
     get_run_manager,
-    get_sql_manager_for_run,
 )
 
 router = APIRouter(
@@ -60,10 +62,24 @@ class ArchivedFilesStatsResponse(BaseModel):
     total_size_human: str
 
 
-async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
-    """Get SQLManager for a loaded run."""
+async def _get_debugger(
+    run_id: str, manager: RunManager, read_only: bool = True
+) -> LocalDevDriverDebugger:
+    """Get LocalDevDriverDebugger for a run.
+
+    Args:
+        run_id: The run identifier.
+        manager: The run manager.
+        read_only: If True, open in read-only mode (prevents writes).
+
+    Returns:
+        LocalDevDriverDebugger instance.
+
+    Raises:
+        HTTPException: 404 if run not found, 400 if error.
+    """
     try:
-        return await get_sql_manager_for_run(run_id, manager)
+        return await get_debugger_for_run(run_id, manager, read_only=read_only)
     except ValueError as e:
         if "not found" in str(e):
             raise HTTPException(
@@ -111,8 +127,8 @@ async def list_archived_files(
     Returns:
         Paginated list of archived files.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
+    db = debugger.sql.db
 
     # Build query
     conditions = []
@@ -183,8 +199,8 @@ async def get_archived_files_stats(
     Returns:
         Archived files statistics.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
+    db = debugger.sql.db
 
     cursor = await db.execute(SQL.SELECT_ARCHIVED_FILES_STATS)
     row = await cursor.fetchone()
@@ -217,8 +233,8 @@ async def get_archived_file(
     Raises:
         HTTPException: 404 if file not found.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
+    db = debugger.sql.db
 
     cursor = await db.execute(SQL.SELECT_ARCHIVED_FILE_BY_ID, (file_id,))
     row = await cursor.fetchone()
@@ -260,8 +276,8 @@ async def get_archived_file_content(
     Raises:
         HTTPException: 404 if file not found or file doesn't exist on disk.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
+    db = debugger.sql.db
 
     cursor = await db.execute(SQL.SELECT_ARCHIVED_FILE_BY_ID, (file_id,))
     row = await cursor.fetchone()

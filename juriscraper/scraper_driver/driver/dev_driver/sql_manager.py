@@ -292,6 +292,20 @@ class ResultRecord:
     validation_errors_json: str | None
     created_at: str | None
 
+    @property
+    def data(self) -> dict[str, Any] | None:
+        """Parse and return the data as a dictionary."""
+        if self.data_json:
+            return json.loads(self.data_json)
+        return None
+
+    @property
+    def validation_errors(self) -> list[str] | None:
+        """Parse and return validation errors as a list."""
+        if self.validation_errors_json:
+            return json.loads(self.validation_errors_json)
+        return None
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -523,7 +537,7 @@ class SQLManager:
         Returns:
             True if there are any requests, False otherwise.
         """
-        cursor = await self._db.execute("SELECT COUNT(*) FROM requests")
+        cursor = await self._db.execute(SQL.COUNT_ALL_REQUESTS)
         row = await cursor.fetchone()
         return (row[0] if row else 0) > 0
 
@@ -533,14 +547,7 @@ class SQLManager:
         Returns:
             Dict with run metadata or None if not found.
         """
-        cursor = await self._db.execute(
-            """
-            SELECT scraper_name, scraper_version, status, created_at, started_at,
-                   ended_at, error_message, base_delay, jitter, num_workers,
-                   max_backoff_time, speculation_config_json
-            FROM run_metadata WHERE id = 1
-            """
-        )
+        cursor = await self._db.execute(SQL.SELECT_RUN_METADATA_FULL)
         row = await cursor.fetchone()
         if row is None:
             return None
@@ -1047,7 +1054,7 @@ class SQLManager:
             Dictionary bytes if found, None otherwise.
         """
         cursor = await self._db.execute(
-            "SELECT dictionary_data FROM compression_dicts WHERE id = ?",
+            SQL.SELECT_COMPRESSION_DICT_DATA_BY_ID,
             (dict_id,),
         )
         row = await cursor.fetchone()
@@ -1437,12 +1444,9 @@ class SQLManager:
             async with self._lock:
                 placeholders = ",".join("?" * len(error_ids))
                 await self._db.execute(
-                    f"""
-                    UPDATE errors
-                    SET is_resolved = 1, resolved_at = CURRENT_TIMESTAMP,
-                        resolution_notes = 'Batch requeued'
-                    WHERE id IN ({placeholders})
-                    """,
+                    SQL.BATCH_MARK_ERRORS_RESOLVED.format(
+                        placeholders=placeholders
+                    ),
                     error_ids,
                 )
                 await self._db.commit()
@@ -1964,7 +1968,7 @@ class SQLManager:
                 request_id=row[1],
                 result_type=row[2],
                 data_json=row[3],
-                is_valid=row[4],
+                is_valid=bool(row[4]),  # Convert SQLite 1/0 to bool
                 validation_errors_json=row[5],
                 created_at=row[6],
             )
@@ -2060,7 +2064,7 @@ class SQLManager:
             request_id=row[1],
             result_type=row[2],
             data_json=row[3],
-            is_valid=row[4],
+            is_valid=bool(row[4]),  # Convert SQLite 1/0 to bool
             validation_errors_json=row[5],
             created_at=row[6],
         )
@@ -2079,7 +2083,7 @@ class SQLManager:
             The permanent_json string or None.
         """
         cursor = await self._db.execute(
-            "SELECT permanent_json FROM requests WHERE id = ?", (request_id,)
+            SQL.SELECT_PERMANENT_JSON_BY_REQUEST_ID, (request_id,)
         )
         row = await cursor.fetchone()
         return row[0] if row else None
@@ -2350,11 +2354,7 @@ class SQLManager:
 
         # Get all responses for this continuation
         cursor = await self._db.execute(
-            """
-            SELECT id, request_id, content_compressed, compression_dict_id
-            FROM responses
-            WHERE continuation = ?
-            """,
+            SQL.SELECT_RESPONSES_FOR_JSON_VALIDATION,
             (continuation,),
         )
         rows = await cursor.fetchall()
@@ -2443,14 +2443,9 @@ class SQLManager:
         # Get original request data for all request_ids
         placeholders = ",".join("?" * len(request_ids))
         cursor = await self._db.execute(
-            f"""
-            SELECT id, method, url, continuation, priority,
-                   headers_json, cookies_json, body,
-                   current_location, accumulated_data_json, aux_data_json,
-                   permanent_json, request_type, expected_type
-            FROM requests
-            WHERE id IN ({placeholders})
-            """,
+            SQL.SELECT_REQUESTS_FOR_REQUEUE_BY_IDS.format(
+                placeholders=placeholders
+            ),
             request_ids,
         )
         rows = await cursor.fetchall()
@@ -2571,7 +2566,9 @@ class SQLManager:
             if clear_responses and result.cleared_response_ids:
                 placeholders = ",".join("?" * len(result.cleared_response_ids))
                 await self._db.execute(
-                    f"DELETE FROM responses WHERE id IN ({placeholders})",
+                    SQL.DELETE_RESPONSES_BY_IDS.format(
+                        placeholders=placeholders
+                    ),
                     result.cleared_response_ids,
                 )
 
@@ -2583,7 +2580,9 @@ class SQLManager:
                         "?" * len(result.cleared_result_ids)
                     )
                     await self._db.execute(
-                        f"DELETE FROM results WHERE id IN ({placeholders})",
+                        SQL.DELETE_RESULTS_BY_IDS.format(
+                            placeholders=placeholders
+                        ),
                         result.cleared_result_ids,
                     )
 
@@ -2593,7 +2592,9 @@ class SQLManager:
                         "?" * len(result.cleared_error_ids)
                     )
                     await self._db.execute(
-                        f"DELETE FROM errors WHERE id IN ({placeholders})",
+                        SQL.DELETE_ERRORS_BY_IDS.format(
+                            placeholders=placeholders
+                        ),
                         result.cleared_error_ids,
                     )
 
@@ -2603,7 +2604,9 @@ class SQLManager:
                         "?" * len(result.cleared_downstream_request_ids)
                     )
                     await self._db.execute(
-                        f"DELETE FROM requests WHERE id IN ({placeholders})",
+                        SQL.DELETE_REQUESTS_BY_IDS.format(
+                            placeholders=placeholders
+                        ),
                         result.cleared_downstream_request_ids,
                     )
 
@@ -2696,7 +2699,7 @@ class SQLManager:
         """
         # Get error and associated request_id
         cursor = await self._db.execute(
-            "SELECT id, request_id FROM errors WHERE id = ?", (error_id,)
+            SQL.SELECT_ERROR_ID_AND_REQUEST_ID, (error_id,)
         )
         row = await cursor.fetchone()
 
@@ -2792,19 +2795,12 @@ class SQLManager:
                 params.append(f"%{traceback_contains}%")
 
             where_clause = " AND ".join(conditions)
-            query = f"""
-                SELECT DISTINCT r.id
-                FROM requests r
-                INNER JOIN errors e ON e.request_id = r.id
-                WHERE {where_clause}
-            """
+            query = SQL.SELECT_REQUEST_IDS_WITH_ERROR_FILTER.format(
+                where_clause=where_clause
+            )
         else:
             # No error filtering, get all completed requests for continuation
-            query = """
-                SELECT id
-                FROM requests
-                WHERE continuation = ? AND status = 'completed'
-            """
+            query = SQL.SELECT_REQUEST_IDS_BY_CONTINUATION_COMPLETED
             params = [continuation]
 
         cursor = await self._db.execute(query, params)
@@ -2827,12 +2823,9 @@ class SQLManager:
             # Get error IDs for the requeued requests
             placeholders = ",".join("?" * len(request_ids))
             cursor = await self._db.execute(
-                f"""
-                SELECT e.id
-                FROM errors e
-                WHERE e.request_id IN ({placeholders})
-                  AND e.is_resolved = 0
-                """,
+                SQL.SELECT_UNRESOLVED_ERROR_IDS_BY_REQUEST_IDS.format(
+                    placeholders=placeholders
+                ),
                 request_ids,
             )
             error_rows = await cursor.fetchall()
@@ -2842,14 +2835,10 @@ class SQLManager:
                 async with self._lock:
                     placeholders = ",".join("?" * len(error_ids))
                     await self._db.execute(
-                        f"""
-                        UPDATE errors
-                        SET is_resolved = 1,
-                            resolved_at = CURRENT_TIMESTAMP,
-                            resolution_notes = 'Bulk requeued via continuation'
-                        WHERE id IN ({placeholders})
-                        """,
-                        error_ids,
+                        SQL.BULK_RESOLVE_ERRORS.format(
+                            placeholders=placeholders
+                        ),
+                        ["Bulk requeued via continuation"] + error_ids,
                     )
                     await self._db.commit()
                     result.resolved_error_ids = error_ids

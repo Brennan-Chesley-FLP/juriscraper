@@ -22,6 +22,9 @@ from fastapi import FastAPI
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
+    from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+        LocalDevDriverDebugger,
+    )
     from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
         LocalDevDriver,
     )
@@ -773,6 +776,48 @@ async def get_sql_manager_for_run(
 
     # Otherwise, use the read-only connection cache
     return await get_readonly_sql_manager(run_id, run_info.db_path)
+
+
+async def get_debugger_for_run(
+    run_id: str, manager: RunManager, read_only: bool = True
+) -> LocalDevDriverDebugger:
+    """Get LocalDevDriverDebugger instance for a run.
+
+    This provides a high-level API for inspecting and manipulating run databases
+    without requiring the full driver to be loaded. Uses the same connection
+    pooling as get_sql_manager_for_run.
+
+    Args:
+        run_id: The run identifier.
+        manager: The run manager.
+        read_only: If True, open in read-only mode (prevents writes).
+                   Set to False for operations like requeue, cancel, etc.
+
+    Returns:
+        LocalDevDriverDebugger instance wrapping the SQLManager.
+
+    Raises:
+        ValueError: If run not found.
+    """
+    from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+        LocalDevDriverDebugger,
+    )
+
+    sql_manager = await get_sql_manager_for_run(run_id, manager)
+
+    # Wrap the SQL manager with LDDD
+    # Note: We use the read_only parameter to control whether write operations
+    # are allowed. The actual database connection mode is determined by
+    # whether the driver is loaded (writeable) or using readonly cache.
+    run_info = await manager.get_run(run_id)
+    is_loaded = run_info is not None and run_info.driver is not None
+
+    # If driver is loaded, allow writes even if read_only=True is requested
+    # (the driver owns the connection and can write)
+    # If driver is not loaded, respect the read_only parameter
+    effective_read_only = read_only if not is_loaded else False
+
+    return LocalDevDriverDebugger(sql_manager, read_only=effective_read_only)
 
 
 @asynccontextmanager

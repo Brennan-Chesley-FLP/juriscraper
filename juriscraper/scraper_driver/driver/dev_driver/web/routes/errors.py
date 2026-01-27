@@ -15,12 +15,13 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from juriscraper.scraper_driver.driver.dev_driver.sql_manager import SQLManager
-from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
+from juriscraper.scraper_driver.driver.dev_driver.debugger import (
+    LocalDevDriverDebugger,
+)
 from juriscraper.scraper_driver.driver.dev_driver.web.app import (
     RunManager,
+    get_debugger_for_run,
     get_run_manager,
-    get_sql_manager_for_run,
 )
 
 router = APIRouter(prefix="/api/runs/{run_id}/errors", tags=["errors"])
@@ -94,21 +95,24 @@ class BatchRequeueRequest(BaseModel):
     )
 
 
-async def _get_sql_manager(run_id: str, manager: RunManager) -> SQLManager:
-    """Get SQLManager for a loaded run.
+async def _get_debugger(
+    run_id: str, manager: RunManager, read_only: bool = True
+) -> LocalDevDriverDebugger:
+    """Get LocalDevDriverDebugger for a run.
 
     Args:
         run_id: The run identifier.
         manager: The run manager.
+        read_only: If True, open in read-only mode (prevents writes).
 
     Returns:
-        SQLManager instance.
+        LocalDevDriverDebugger instance.
 
     Raises:
-        HTTPException: 404 if run not found, 400 if not loaded.
+        HTTPException: 404 if run not found, 400 if error.
     """
     try:
-        return await get_sql_manager_for_run(run_id, manager)
+        return await get_debugger_for_run(run_id, manager, read_only=read_only)
     except ValueError as e:
         if "not found" in str(e):
             raise HTTPException(
@@ -182,6 +186,65 @@ def _row_to_error(row) -> ErrorResponse:
     )
 
 
+def _dict_to_error(error_dict: dict[str, Any]) -> ErrorResponse:
+    """Convert an error dictionary from LDDD to ErrorResponse.
+
+    Args:
+        error_dict: Error dictionary from LocalDevDriverDebugger.
+
+    Returns:
+        ErrorResponse model.
+    """
+    import json
+
+    # Parse JSON fields if they're strings
+    context = error_dict.get("context")
+    if isinstance(context, str):
+        try:
+            context = json.loads(context)
+        except (json.JSONDecodeError, TypeError):
+            context = None
+
+    validation_errors = error_dict.get("validation_errors")
+    if isinstance(validation_errors, str):
+        try:
+            validation_errors = json.loads(validation_errors)
+        except (json.JSONDecodeError, TypeError):
+            validation_errors = None
+
+    failed_doc = error_dict.get("failed_doc")
+    if isinstance(failed_doc, str):
+        try:
+            failed_doc = json.loads(failed_doc)
+        except (json.JSONDecodeError, TypeError):
+            failed_doc = None
+
+    return ErrorResponse(
+        id=error_dict["id"],
+        request_id=error_dict.get("request_id"),
+        error_type=error_dict["error_type"],
+        error_class=error_dict["error_class"],
+        message=error_dict["message"],
+        request_url=error_dict.get("request_url", ""),
+        is_resolved=bool(error_dict.get("is_resolved", False)),
+        resolved_at=error_dict.get("resolved_at"),
+        resolution_notes=error_dict.get("resolution_notes"),
+        created_at=error_dict.get("created_at"),
+        selector=error_dict.get("selector"),
+        selector_type=error_dict.get("selector_type"),
+        expected_min=error_dict.get("expected_min"),
+        expected_max=error_dict.get("expected_max"),
+        actual_count=error_dict.get("actual_count"),
+        model_name=error_dict.get("model_name"),
+        status_code=error_dict.get("status_code"),
+        timeout_seconds=error_dict.get("timeout_seconds"),
+        traceback=error_dict.get("traceback"),
+        context=context,
+        validation_errors=validation_errors,
+        failed_doc=failed_doc,
+    )
+
+
 @router.get("/summary")
 async def get_error_summary(
     run_id: str,
@@ -195,31 +258,21 @@ async def get_error_summary(
     Returns:
         Summary with counts by type and resolution status.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    # Get counts by type
-    cursor = await db.execute(SQL.SELECT_ERROR_SUMMARY_FOR_WEB)
-    rows = await cursor.fetchall()
+    # Use LDDD's get_error_summary method
+    summary = await debugger.get_error_summary()
 
-    by_type: dict[str, dict[str, int]] = {}
-    total_resolved = 0
-    total_unresolved = 0
-
-    for error_type, is_resolved, count in rows:
-        if error_type not in by_type:
-            by_type[error_type] = {"resolved": 0, "unresolved": 0}
-        key = "resolved" if is_resolved else "unresolved"
-        by_type[error_type][key] = count
-        if is_resolved:
-            total_resolved += count
-        else:
-            total_unresolved += count
+    # Extract the fields we need for the API response
+    by_type = summary.get("by_type", {})
+    totals = summary.get(
+        "totals", {"resolved": 0, "unresolved": 0, "total": 0}
+    )
 
     return {
-        "total": total_resolved + total_unresolved,
-        "resolved": total_resolved,
-        "unresolved": total_unresolved,
+        "total": totals["total"],
+        "resolved": totals["resolved"],
+        "unresolved": totals["unresolved"],
         "by_type": by_type,
     }
 
@@ -247,41 +300,25 @@ async def list_errors(
     Returns:
         Paginated list of errors.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    # Build query
-    conditions = []
-    params: list = []
-
-    if error_type:
-        conditions.append("error_type = ?")
-        params.append(error_type)
-    if unresolved_only:
-        conditions.append("is_resolved = FALSE")
-
-    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-
-    # Get total count
-    cursor = await db.execute(
-        f"SELECT COUNT(*) FROM errors {where_clause}", params
+    # Use LDDD's list_errors method
+    page = await debugger.list_errors(
+        error_type=error_type,
+        is_resolved=False if unresolved_only else None,
+        limit=limit,
+        offset=offset,
     )
-    row = await cursor.fetchone()
-    total = row[0] if row else 0
 
-    # Get paginated results
-    query = SQL.SELECT_ERRORS_PAGE_FOR_WEB.format(where_clause=where_clause)
-    cursor = await db.execute(query, params + [limit, offset])
-    rows = await cursor.fetchall()
-
-    items = [_row_to_error(r) for r in rows]
+    # Convert dict items to ErrorResponse
+    items = [_dict_to_error(e) for e in page.items]
 
     return ErrorListResponse(
         items=items,
-        total=total,
-        offset=offset,
-        limit=limit,
-        has_more=offset + len(items) < total,
+        total=page.total,
+        offset=page.offset,
+        limit=page.limit,
+        has_more=page.has_more,
     )
 
 
@@ -303,19 +340,18 @@ async def get_error(
     Raises:
         HTTPException: 404 if error not found.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=True)
 
-    cursor = await db.execute(SQL.SELECT_ERROR_BY_ID_FOR_WEB, (error_id,))
-    row = await cursor.fetchone()
+    # Use LDDD's get_error method
+    error_dict = await debugger.get_error(error_id)
 
-    if row is None:
+    if error_dict is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Error {error_id} not found in run '{run_id}'",
         )
 
-    return _row_to_error(row)
+    return _dict_to_error(error_dict)
 
 
 @router.post("/{error_id}/resolve", response_model=ErrorResponse)
@@ -338,15 +374,12 @@ async def resolve_error(
     Raises:
         HTTPException: 404 if error not found.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
-    db = sql_manager.db
+    debugger = await _get_debugger(run_id, manager, read_only=False)
 
-    cursor = await db.execute(
-        SQL.UPDATE_RESOLVE_ERROR_FOR_WEB, (request.notes, error_id)
-    )
-    await db.commit()
+    # Use LDDD's resolve_error method
+    resolved = await debugger.resolve_error(error_id, request.notes)
 
-    if cursor.rowcount == 0:
+    if not resolved:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Error {error_id} not found",
@@ -391,10 +424,10 @@ async def requeue_error(
     Raises:
         HTTPException: 404 if error not found or has no linked request.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=False)
 
-    # Use new requeue_error method
-    result = await sql_manager.requeue_error(
+    # Use debugger.sql to access SQLManager's requeue_error method
+    result = await debugger.sql.requeue_error(
         error_id,
         mark_resolved=mark_resolved,
         clear_responses=clear_responses,
@@ -404,7 +437,7 @@ async def requeue_error(
 
     if not result.requeued_request_ids:
         # Error not found or has no linked request
-        db = sql_manager.db
+        db = debugger.sql.db
         cursor = await db.execute(
             "SELECT id, request_id FROM errors WHERE id = ?", (error_id,)
         )
@@ -472,10 +505,10 @@ async def batch_requeue(
     Returns:
         Requeue result with affected IDs.
     """
-    sql_manager = await _get_sql_manager(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=False)
 
-    # Use new requeue_continuation method with optional error filtering
-    result = await sql_manager.requeue_continuation(
+    # Use debugger.sql to access SQLManager's requeue_continuation method
+    result = await debugger.sql.requeue_continuation(
         request.continuation,
         error_type=request.error_type,
         traceback_contains=request.traceback_contains,

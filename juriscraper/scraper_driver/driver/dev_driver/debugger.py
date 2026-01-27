@@ -30,6 +30,7 @@ Example usage:
 
 from __future__ import annotations
 
+import json
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -1649,3 +1650,331 @@ class LocalDevDriverDebugger:
                     )
 
         return matches
+
+    # =========================================================================
+    # Comparison Methods (for compare command)
+    # =========================================================================
+
+    async def get_child_requests_transitive(
+        self, parent_request_id: int
+    ) -> list[RequestRecord]:
+        """Get all child requests transitively by parent_request_id.
+
+        Recursively fetches all requests that were generated as children
+        of the given parent request, including grandchildren and beyond.
+
+        Args:
+            parent_request_id: The parent request ID.
+
+        Returns:
+            List of RequestRecord objects for all transitive children.
+
+        Example:
+            # Get all requests generated from request 123's continuation
+            children = await debugger.get_child_requests_transitive(123)
+            print(f"Found {len(children)} child requests")
+        """
+        query = """
+            WITH RECURSIVE children AS (
+                -- Base case: direct children
+                SELECT id, status, priority, queue_counter, method, url,
+                       continuation, current_location, created_at, started_at,
+                       completed_at, retry_count, cumulative_backoff, last_error,
+                       created_at_ns, started_at_ns, completed_at_ns
+                FROM requests WHERE parent_request_id = ?
+                UNION ALL
+                -- Recursive case: children of children
+                SELECT r.id, r.status, r.priority, r.queue_counter, r.method, r.url,
+                       r.continuation, r.current_location, r.created_at, r.started_at,
+                       r.completed_at, r.retry_count, r.cumulative_backoff, r.last_error,
+                       r.created_at_ns, r.started_at_ns, r.completed_at_ns
+                FROM requests r
+                INNER JOIN children c ON r.parent_request_id = c.id
+            )
+            SELECT * FROM children ORDER BY id
+        """
+
+        async with self.sql.db.execute(query, (parent_request_id,)) as cursor:
+            rows = await cursor.fetchall()
+
+        # Convert rows to RequestRecord objects
+        # Match the field order from the query
+        requests = []
+        for row in rows:
+            requests.append(
+                RequestRecord(
+                    id=row[0],
+                    status=row[1],
+                    priority=row[2],
+                    queue_counter=row[3],
+                    method=row[4],
+                    url=row[5],
+                    continuation=row[6],
+                    current_location=row[7],
+                    created_at=row[8],
+                    started_at=row[9],
+                    completed_at=row[10],
+                    retry_count=row[11],
+                    cumulative_backoff=row[12],
+                    last_error=row[13],
+                    created_at_ns=row[14],
+                    started_at_ns=row[15],
+                    completed_at_ns=row[16],
+                )
+            )
+
+        return requests
+
+    async def get_results_for_request(
+        self, request_id: int
+    ) -> list[ResultRecord]:
+        """Get all results (ParsedData) for a request.
+
+        Args:
+            request_id: The request ID.
+
+        Returns:
+            List of ResultRecord objects.
+
+        Example:
+            results = await debugger.get_results_for_request(123)
+            for result in results:
+                print(f"Result {result.id}: {result.result_type}")
+        """
+        # Use list_results with request_id filter and no pagination limit
+        page = await self.sql.list_results(
+            request_id=request_id, limit=10000, offset=0
+        )
+        return page.items
+
+    async def sample_terminal_requests(
+        self, continuation: str, sample_count: int
+    ) -> list[int]:
+        """Sample terminal requests (requests that produced no child requests).
+
+        Terminal requests are completed requests that did not yield any child
+        requests - they only yielded ParsedData or nothing at all.
+
+        Args:
+            continuation: The continuation (step name) to sample from.
+            sample_count: Number of terminal requests to sample.
+
+        Returns:
+            List of request IDs for sampled terminal requests.
+
+        Example:
+            # Sample 10 terminal requests from step1
+            terminal_ids = await debugger.sample_terminal_requests('step1', 10)
+            print(f"Sampled {len(terminal_ids)} terminal requests")
+        """
+        query = """
+            SELECT r.id
+            FROM requests r
+            WHERE r.continuation = ?
+                AND r.status = 'completed'
+                AND NOT EXISTS (
+                    SELECT 1 FROM requests child
+                    WHERE child.parent_request_id = r.id
+                )
+            ORDER BY RANDOM()
+            LIMIT ?
+        """
+
+        async with self.sql.db.execute(
+            query, (continuation, sample_count)
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        return [row[0] for row in rows]
+
+    async def compare_continuation(
+        self,
+        request_id: int,
+        scraper_class: type,
+    ) -> Any:
+        """Compare continuation output between stored and dry-run execution.
+
+        Replays a stored response through the current continuation code and
+        compares the output (child requests, ParsedData, errors) against what
+        was originally stored in the database.
+
+        This enables developers to understand how code changes affect scraper
+        behavior without making actual network requests.
+
+        Args:
+            request_id: The request ID to compare.
+            scraper_class: The scraper class to instantiate for dry-run.
+
+        Returns:
+            ComparisonResult with detailed diffs.
+
+        Raises:
+            ValueError: If request not found or no response available.
+
+        Example:
+            # Compare a specific request
+            from juriscraper.opinions.united_states.federal_appellate import ca1
+            result = await debugger.compare_continuation(123, ca1.Site)
+
+            if result.has_changes:
+                print(f"Found {result.request_diff.total_changes} request changes")
+                print(f"Found {len(result.data_diff.changed_pairs)} data changes")
+        """
+        from juriscraper.scraper_driver.driver.dev_driver.comparison import (
+            ComparisonResult,
+            compare_continuation_output,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dry_run_driver import (
+            DryRunDriver,
+            DryRunResult,
+        )
+
+        # Get the full request data including JSON fields directly from DB
+        async with self.sql.db.execute(
+            """SELECT id, url, method, continuation, current_location,
+                      accumulated_data_json, aux_data_json, permanent_json
+               FROM requests WHERE id = ?""",
+            (request_id,),
+        ) as cursor:
+            request_row = await cursor.fetchone()
+            if not request_row:
+                raise ValueError(f"Request {request_id} not found")
+
+        # Build request data dict from raw row
+        request_data = {
+            "url": request_row[1],
+            "method": request_row[2],
+            "continuation": request_row[3],
+            "current_location": request_row[4],
+            "accumulated_data_json": request_row[5],
+            "aux_data_json": request_row[6],
+            "permanent_json": request_row[7],
+        }
+
+        # Get the response for this request
+        async with self.sql.db.execute(
+            "SELECT * FROM responses WHERE request_id = ? LIMIT 1",
+            (request_id,),
+        ) as cursor:
+            response_row = await cursor.fetchone()
+            if not response_row:
+                raise ValueError(f"No response found for request {request_id}")
+
+        # Convert response row to dict
+        response_data = dict(response_row)
+
+        # Get decompressed content
+        response_content = await self.get_response_content(response_data["id"])
+        if response_content is None:
+            raise ValueError(
+                f"No content available for response {response_data['id']}"
+            )
+
+        response_data["content"] = response_content
+        # Decode text if available
+        try:
+            response_data["text"] = response_content.decode("utf-8")
+        except UnicodeDecodeError:
+            response_data["text"] = ""
+
+        # Load original stored results (child requests + ParsedData)
+        # Query child requests with all fields needed for CapturedRequest
+        child_query = """
+            WITH RECURSIVE children AS (
+                SELECT id, request_type, url, method, continuation, current_location,
+                       accumulated_data_json, aux_data_json, permanent_json,
+                       priority, deduplication_key, expected_type
+                FROM requests WHERE parent_request_id = ?
+                UNION ALL
+                SELECT r.id, r.request_type, r.url, r.method, r.continuation, r.current_location,
+                       r.accumulated_data_json, r.aux_data_json, r.permanent_json,
+                       r.priority, r.deduplication_key, r.expected_type
+                FROM requests r
+                INNER JOIN children c ON r.parent_request_id = c.id
+            )
+            SELECT * FROM children ORDER BY id
+        """
+        async with self.sql.db.execute(child_query, (request_id,)) as cursor:
+            child_rows = await cursor.fetchall()
+
+        original_results = await self.get_results_for_request(request_id)
+
+        # Convert to DryRunResult format for comparison
+        from juriscraper.scraper_driver.driver.dev_driver.dry_run_driver import (
+            CapturedData,
+            CapturedRequest,
+        )
+
+        original_requests = []
+        for row in child_rows:
+            # Row: id, request_type, url, method, continuation, current_location,
+            #      accumulated_data_json, aux_data_json, permanent_json,
+            #      priority, deduplication_key, expected_type
+            original_requests.append(
+                CapturedRequest(
+                    request_type=row[1] or "navigating",
+                    url=row[2],
+                    method=row[3],
+                    continuation=row[4],
+                    accumulated_data=(json.loads(row[6]) if row[6] else {}),
+                    aux_data=(json.loads(row[7]) if row[7] else {}),
+                    permanent=(json.loads(row[8]) if row[8] else {}),
+                    current_location=row[5] or "",
+                    priority=row[9],
+                    deduplication_key=row[10],
+                    is_speculative=False,  # Not stored in DB currently
+                    speculation_id=None,
+                    expected_type=row[11],
+                )
+            )
+
+        original_data = [
+            CapturedData(
+                data=(json.loads(result.data_json) if result.data_json else {})
+            )
+            for result in original_results
+        ]
+
+        original: DryRunResult = DryRunResult(
+            requests=original_requests, data=original_data, error=None
+        )
+
+        # Check if there was an error for this request
+        errors_page = await self.list_errors(
+            continuation=request_data["continuation"],
+            is_resolved=None,
+            limit=1000,  # Get all errors for now
+            offset=0,
+        )
+        original_error = None
+        for error in errors_page.items:
+            if error["request_id"] == request_id and not error["is_resolved"]:
+                from juriscraper.scraper_driver.driver.dev_driver.dry_run_driver import (
+                    CapturedError,
+                )
+
+                original_error = CapturedError(
+                    error_type=error["error_type"],
+                    error_message=error["message"],
+                )
+                break
+
+        original.error = original_error
+
+        # Run dry-run with new code
+        scraper_instance = scraper_class()
+        driver = DryRunDriver(scraper_instance)
+        new = driver.run_continuation(
+            request_data["continuation"], response_data, request_data
+        )
+
+        # Compare
+        result: ComparisonResult = compare_continuation_output(
+            request_id=request_id,
+            request_url=request_data["url"],
+            continuation=request_data["continuation"],
+            original=original,
+            new=new,
+        )
+
+        return result

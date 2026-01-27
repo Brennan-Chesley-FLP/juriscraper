@@ -8,6 +8,15 @@ This package provides a development driver that extends AsyncDriver with:
 - Web interface integration via callbacks
 """
 
+from juriscraper.scraper_driver.driver.dev_driver.comparison import (
+    ComparisonResult,
+    ComparisonSummary,
+    DataDiff,
+    ErrorDiff,
+    RequestChange,
+    RequestDiff,
+    compare_continuation_output,
+)
 from juriscraper.scraper_driver.driver.dev_driver.compression import (
     DEFAULT_COMPRESSION_LEVEL,
     DEFAULT_DICT_SIZE,
@@ -27,6 +36,13 @@ from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
     RequestRecord,
     ResponseRecord,
     ResultRecord,
+)
+from juriscraper.scraper_driver.driver.dev_driver.dry_run_driver import (
+    CapturedData,
+    CapturedError,
+    CapturedRequest,
+    DryRunDriver,
+    DryRunResult,
 )
 from juriscraper.scraper_driver.driver.dev_driver.errors import (
     ErrorRecord,
@@ -117,4 +133,18 @@ __all__ = [
     # WARC export
     "export_warc",
     "export_warc_for_continuation",
+    # Dry run driver
+    "CapturedData",
+    "CapturedError",
+    "CapturedRequest",
+    "DryRunDriver",
+    "DryRunResult",
+    # Comparison
+    "ComparisonResult",
+    "ComparisonSummary",
+    "DataDiff",
+    "ErrorDiff",
+    "RequestChange",
+    "RequestDiff",
+    "compare_continuation_output",
 ]

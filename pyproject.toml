@@ -56,6 +56,9 @@ dependencies = [
   "typing-extensions>=4.0.0",
 ]
 
+[project.scripts]
+ldd-debug = "juriscraper.scraper_driver.driver.dev_driver.cli:main"
+
 [dependency-groups]
 dev = [
   "jsondate3-aware",

@@ -885,6 +885,18 @@ wheels = [
 ]
 
 [[package]]
+name = "jsondiff"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/35/48/841137f1843fa215ea284834d1514b8e9e20962bda63a636c7417e02f8fb/jsondiff-2.2.1.tar.gz", hash = "sha256:658d162c8a86ba86de26303cd86a7b37e1b2c1ec98b569a60e2ca6180545f7fe", size = 26649 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/63/94/a8066f84d62ab666d61ef97deba1a33126e3e5c0c0da2c458ada17053ed6/jsondiff-2.2.1-py3-none-any.whl", hash = "sha256:b1f0f7e2421881848b1d556d541ac01a91680cfcc14f51a9b62cdf4da0e56722", size = 13440 },
+]
+
+[[package]]
 name = "juriscraper"
 version = "2.7.0"
 source = { editable = "." }
@@ -918,6 +930,7 @@ dev = [
     { name = "fastapi" },
     { name = "jinja2" },
     { name = "jsondate3-aware" },
+    { name = "jsondiff" },
     { name = "mypy" },
     { name = "pyrate-limiter" },
     { name = "pytest" },
@@ -973,6 +986,7 @@ dev = [
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "jinja2" },
     { name = "jsondate3-aware" },
+    { name = "jsondiff", specifier = ">=2.2.1" },
     { name = "mypy", specifier = ">=1.19.0" },
     { name = "pyrate-limiter", specifier = ">=3.9.0" },
     { name = "pytest" },

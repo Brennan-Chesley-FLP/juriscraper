@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import unquote
 
 from juriscraper.scraper_driver.driver.dev_driver.dry_run_driver import (
     CapturedData,
@@ -93,6 +94,9 @@ def _pair_results_by_levenshtein(
     from consideration, and repeats. This provides a simple and predictable
     pairing strategy.
 
+    Optimization: Pre-computes all JSON serializations and identifies exact
+    matches first to avoid expensive Levenshtein calculations when possible.
+
     Args:
         original: List of original CapturedData results.
         new: List of new CapturedData results.
@@ -112,42 +116,62 @@ def _pair_results_by_levenshtein(
     if not new:
         return [], original.copy(), []
 
-    # Create working lists that we'll modify
-    remaining_original = original.copy()
-    remaining_new = new.copy()
+    # Pre-compute all JSON serializations once (major optimization)
+    original_strs = [_serialize_for_comparison(o.data) for o in original]
+    new_strs = [_serialize_for_comparison(n.data) for n in new]
+
+    # Track which indices are still available
+    available_orig: set[int] = set(range(len(original)))
+    available_new: set[int] = set(range(len(new)))
     paired: list[tuple[CapturedData, CapturedData]] = []
 
-    # Greedy pairing: repeatedly find and remove the closest pair
-    while remaining_original and remaining_new:
-        min_distance = float("inf")
-        best_pair: tuple[int, int] | None = None
+    # Phase 1: Find exact matches first (O(n*m) string comparisons, no Levenshtein)
+    # Build a map of new_str -> indices for fast lookup
+    new_str_to_indices: dict[str, list[int]] = {}
+    for j, ns in enumerate(new_strs):
+        new_str_to_indices.setdefault(ns, []).append(j)
 
-        # Find the pair with minimum Levenshtein distance
-        for i, orig in enumerate(remaining_original):
-            orig_str = _serialize_for_comparison(orig.data)
-            for j, new_item in enumerate(remaining_new):
-                new_str = _serialize_for_comparison(new_item.data)
-                distance = _levenshtein_distance(orig_str, new_str)
+    for i in list(available_orig):
+        orig_str = original_strs[i]
+        if orig_str in new_str_to_indices:
+            # Find first available new index with exact match
+            for j in new_str_to_indices[orig_str]:
+                if j in available_new:
+                    paired.append((original[i], new[j]))
+                    available_orig.discard(i)
+                    available_new.discard(j)
+                    break
 
-                if distance < min_distance:
-                    min_distance = distance
-                    best_pair = (i, j)
+    # Phase 2: Greedy Levenshtein pairing for remaining items
+    # Pre-compute distance matrix for remaining items (computed once)
+    if available_orig and available_new:
+        orig_indices = sorted(available_orig)
+        new_indices = sorted(available_new)
 
-        # Pair the best match and remove from consideration
-        if best_pair is not None:
-            orig_idx, new_idx = best_pair
-            paired.append(
-                (remaining_original[orig_idx], remaining_new[new_idx])
-            )
-            # Remove in reverse index order to avoid index shifting issues
-            if orig_idx > new_idx:
-                del remaining_original[orig_idx]
-                del remaining_new[new_idx]
-            else:
-                del remaining_new[new_idx]
-                del remaining_original[orig_idx]
+        # Compute distance matrix once
+        distances: list[
+            tuple[int, int, int]
+        ] = []  # (distance, orig_idx, new_idx)
+        for i in orig_indices:
+            for j in new_indices:
+                dist = _levenshtein_distance(original_strs[i], new_strs[j])
+                distances.append((dist, i, j))
 
-    return paired, remaining_original, remaining_new
+        # Sort by distance for greedy selection
+        distances.sort(key=lambda x: x[0])
+
+        # Greedily pair by smallest distance
+        for _dist, i, j in distances:
+            if i in available_orig and j in available_new:
+                paired.append((original[i], new[j]))
+                available_orig.discard(i)
+                available_new.discard(j)
+
+    # Collect unpaired items
+    unpaired_original = [original[i] for i in sorted(available_orig)]
+    unpaired_new = [new[j] for j in sorted(available_new)]
+
+    return paired, unpaired_original, unpaired_new
 
 
 def _compare_dicts(
@@ -436,13 +460,23 @@ def compare_continuation_output(
     )
 
 
+def _normalize_url(url: str) -> str:
+    """Normalize URL for comparison by decoding percent-encoded characters.
+
+    This ensures URLs like "...sort=field%2Casc" and "...sort=field,asc"
+    are treated as equivalent.
+    """
+    return unquote(url)
+
+
 def _compare_requests(
     original: list[CapturedRequest], new: list[CapturedRequest]
 ) -> RequestDiff:
     """Compare two lists of captured requests.
 
     Identifies added, removed, and modified requests. Requests are matched
-    by URL and continuation method.
+    by deduplication_key (which is the canonical identifier for request equivalence).
+    Falls back to normalized URL + continuation if deduplication_key is None.
 
     Args:
         original: Requests from original code.
@@ -453,12 +487,19 @@ def _compare_requests(
     """
     diff = RequestDiff()
 
-    # Create lookup maps by (url, continuation)
-    original_map: dict[tuple[str, str], CapturedRequest] = {
-        (req.url, req.continuation): req for req in original
+    def get_key(req: CapturedRequest) -> str | tuple[str, str]:
+        """Get the matching key for a request."""
+        if req.deduplication_key is not None:
+            return req.deduplication_key
+        # Fallback to normalized URL + continuation
+        return (_normalize_url(req.url), req.continuation)
+
+    # Create lookup maps by deduplication_key (or fallback)
+    original_map: dict[str | tuple[str, str], CapturedRequest] = {
+        get_key(req): req for req in original
     }
-    new_map: dict[tuple[str, str], CapturedRequest] = {
-        (req.url, req.continuation): req for req in new
+    new_map: dict[str | tuple[str, str], CapturedRequest] = {
+        get_key(req): req for req in new
     }
 
     # Find modified and unchanged requests
@@ -494,7 +535,7 @@ def _requests_equal(req1: CapturedRequest, req2: CapturedRequest) -> bool:
     """
     return (
         req1.request_type == req2.request_type
-        and req1.url == req2.url
+        and _normalize_url(req1.url) == _normalize_url(req2.url)
         and req1.method == req2.method
         and req1.continuation == req2.continuation
         and req1.accumulated_data == req2.accumulated_data

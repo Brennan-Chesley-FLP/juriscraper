@@ -85,6 +85,7 @@ _CREATE_REQUESTS_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_requests_continuation ON requests(continuation)",
     "CREATE INDEX IF NOT EXISTS idx_requests_deduplication ON requests(deduplication_key)",
     "CREATE INDEX IF NOT EXISTS idx_requests_cache_key ON requests(cache_key)",
+    "CREATE INDEX IF NOT EXISTS idx_requests_parent ON requests(parent_request_id)",
 ]
 
 _CREATE_RESPONSES = """

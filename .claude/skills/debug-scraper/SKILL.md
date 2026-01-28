@@ -1,57 +1,58 @@
 ---
 name: debug-scraper
 description: Debug scrapers using the LocalDevDriver web API. Use when debugging a scraper run, inspecting XPath issues, viewing responses, analyzing errors, or diagnosing why a scraper isn't returning expected results.
-allowed-tools: WebFetch, Read, Bash(ldd-debug:*, curl:*, jq:*)
+allowed-tools: WebFetch, Read, Bash(uv run ldd-debug:*, curl:*, jq:*)
 ---
 
 # Debug Scraper with LocalDevDriver
 
 ## Tools Available
 
-- **`ldd-debug`** - CLI for inspecting run databases (preferred)
+- **`uv run ldd-debug`** - CLI for inspecting run databases (preferred)
 - **`jq`** - JSON processor for filtering and transforming JSON output
 - **Web API** - REST API at `http://127.0.0.1:8001` (requires server running)
 
 ## CLI Reference (Preferred)
 
-The `ldd-debug` CLI provides direct database access without needing the web server.
+The `uv run ldd-debug` CLI provides direct database access without needing the web server.
 
 ### Basic Usage
 
 ```bash
 # All commands support --format table|json|jsonl
-ldd-debug <command> <db-path> [options]
+uv run ldd-debug <command> <db-path> [options]
 ```
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
-| `ldd-debug info <db>` | Show run metadata and statistics |
-| `ldd-debug requests list <db>` | List requests (filters: `--status`, `--continuation`) |
-| `ldd-debug requests show <db> <id>` | Show request details |
-| `ldd-debug requests summary <db>` | Request counts by status and continuation |
-| `ldd-debug responses list <db>` | List responses (filter: `--continuation`) |
-| `ldd-debug responses show <db> <id>` | Show response metadata |
-| `ldd-debug responses content <db> <id>` | Get decompressed response content |
-| `ldd-debug responses search <db>` | Search response content (see below) |
-| `ldd-debug results list <db>` | List results (filters: `--type`, `--valid/--invalid`) |
-| `ldd-debug results show <db> <id>` | Show result with data |
-| `ldd-debug results summary <db>` | Result counts by type and validity |
-| `ldd-debug errors list <db>` | List errors (filters: `--type`, `--resolved/--unresolved`) |
-| `ldd-debug errors show <db> <id>` | Show error details |
-| `ldd-debug errors summary <db>` | Error counts by type |
-| `ldd-debug errors resolve <db> <id>` | Mark error as resolved |
-| `ldd-debug errors requeue <db> <id>` | Requeue error's request |
-| `ldd-debug requeue request <db> <id>` | Requeue a request |
-| `ldd-debug requeue continuation <db> <name>` | Requeue all requests for continuation |
-| `ldd-debug requeue errors <db>` | Batch requeue errors |
-| `ldd-debug cancel request <db> <id>` | Cancel pending request |
-| `ldd-debug cancel continuation <db> <name>` | Cancel all pending for continuation |
-| `ldd-debug compression stats <db>` | Show compression statistics |
-| `ldd-debug diagnose <db> <error-id>` | Re-run XPath observation on error |
-| `ldd-debug export jsonl <db> <output>` | Export results to JSONL |
-| `ldd-debug export warc <db> <output>` | Export responses to WARC |
+| `uv run ldd-debug info <db>` | Show run metadata and statistics |
+| `uv run ldd-debug requests list <db>` | List requests (filters: `--status`, `--continuation`) |
+| `uv run ldd-debug requests show <db> <id>` | Show request details |
+| `uv run ldd-debug requests summary <db>` | Request counts by status and continuation |
+| `uv run ldd-debug responses list <db>` | List responses (filter: `--continuation`) |
+| `uv run ldd-debug responses show <db> <id>` | Show response metadata |
+| `uv run ldd-debug responses content <db> <id>` | Get decompressed response content |
+| `uv run ldd-debug responses search <db>` | Search response content (see below) |
+| `uv run ldd-debug results list <db>` | List results (filters: `--type`, `--valid/--invalid`) |
+| `uv run ldd-debug results show <db> <id>` | Show result with data |
+| `uv run ldd-debug results summary <db>` | Result counts by type and validity |
+| `uv run ldd-debug errors list <db>` | List errors (filters: `--type`, `--resolved/--unresolved`) |
+| `uv run ldd-debug errors show <db> <id>` | Show error details |
+| `uv run ldd-debug errors summary <db>` | Error counts by type |
+| `uv run ldd-debug errors resolve <db> <id>` | Mark error as resolved |
+| `uv run ldd-debug errors requeue <db> <id>` | Requeue error's request |
+| `uv run ldd-debug requeue request <db> <id>` | Requeue a request |
+| `uv run ldd-debug requeue continuation <db> <name>` | Requeue all requests for continuation |
+| `uv run ldd-debug requeue errors <db>` | Batch requeue errors |
+| `uv run ldd-debug cancel request <db> <id>` | Cancel pending request |
+| `uv run ldd-debug cancel continuation <db> <name>` | Cancel all pending for continuation |
+| `uv run ldd-debug compression stats <db>` | Show compression statistics |
+| `uv run ldd-debug diagnose <db> <error-id>` | Re-run XPath observation on error |
+| `uv run ldd-debug compare <db> <continuation>` | Compare stored vs dry-run output (see below) |
+| `uv run ldd-debug export jsonl <db> <output>` | Export results to JSONL |
+| `uv run ldd-debug export warc <db> <output>` | Export responses to WARC |
 
 ### Response Search
 
@@ -59,17 +60,50 @@ Search through response content with text, regex, or XPath:
 
 ```bash
 # Text search (case-insensitive)
-ldd-debug responses search run.db --text "error message"
+uv run ldd-debug responses search run.db --text "error message"
 
 # Regex search
-ldd-debug responses search run.db --regex "case.*\d{4}"
+uv run ldd-debug responses search run.db --regex "case.*\d{4}"
 
 # XPath search (matches if any nodes found)
-ldd-debug responses search run.db --xpath "//div[@class='opinion']"
+uv run ldd-debug responses search run.db --xpath "//div[@class='opinion']"
 
 # With continuation filter and JSON output
-ldd-debug responses search run.db --text "verdict" --continuation step1 --format json
+uv run ldd-debug responses search run.db --text "verdict" --continuation step1 --format json
 ```
+
+### Compare Command
+
+Compare continuation output between stored results and current code (dry-run). Useful for testing scraper changes without making network requests:
+
+```bash
+# Compare specific request
+uv run ldd-debug compare run.db parse_opinions --request-id 123
+
+# Sample 10 terminal requests randomly
+uv run ldd-debug compare run.db parse_docket_entries --sample 10
+
+# Detailed output showing field-level diffs
+uv run ldd-debug compare run.db parse_opinions --sample 5 --output-mode detail
+
+# JSON output for programmatic analysis
+uv run ldd-debug compare run.db parse_opinions --sample 5 --output-mode json
+
+# Show only request tree changes (not data changes)
+uv run ldd-debug compare run.db parse_opinions --show-requests
+
+# Limit comparisons
+uv run ldd-debug compare run.db parse_opinions --limit 50
+
+# Specify scraper class explicitly (otherwise auto-discovered from run metadata)
+uv run ldd-debug compare run.db parse_case_parties --sample 3 \
+  --scraper-class juriscraper.sd.state.alabama.publicportal_alappeals_gov.scraper.AlabamaScraper
+```
+
+Output modes:
+- `summary` (default): Aggregate statistics across all comparisons
+- `detail`: Show individual changes per request
+- `json`: Machine-readable JSON output
 
 ## Using jq for JSON Processing
 
@@ -77,16 +111,16 @@ The `jq` command is available for processing JSON output:
 
 ```bash
 # Get all failed request URLs
-ldd-debug requests list run.db --status failed --format json | jq -r '.items[].url'
+uv run ldd-debug requests list run.db --status failed --format json | jq -r '.items[].url'
 
 # Count errors by type
-ldd-debug errors list run.db --format json | jq '.items | group_by(.type) | map({type: .[0].type, count: length})'
+uv run ldd-debug errors list run.db --format json | jq '.items | group_by(.type) | map({type: .[0].type, count: length})'
 
 # Extract specific fields from results
-ldd-debug results list run.db --format json | jq '.items[] | {id, type: .result_type, valid: .is_valid}'
+uv run ldd-debug results list run.db --format json | jq '.items[] | {id, type: .result_type, valid: .is_valid}'
 
 # Filter responses by status code
-ldd-debug responses list run.db --format json | jq '.items | map(select(.status_code != 200))'
+uv run ldd-debug responses list run.db --format json | jq '.items | map(select(.status_code != 200))'
 ```
 
 ## Common Debug Workflows
@@ -95,55 +129,70 @@ ldd-debug responses list run.db --format json | jq '.items | map(select(.status_
 
 ```bash
 # Check run stats first
-ldd-debug info run.db
+uv run ldd-debug info run.db
 
 # List responses to find one to diagnose
-ldd-debug responses list run.db --format json | jq '.items[0].id'
+uv run ldd-debug responses list run.db --format json | jq '.items[0].id'
 
 # View the response content
-ldd-debug responses content run.db <response_id>
+uv run ldd-debug responses content run.db <response_id>
 
 # Search for expected content
-ldd-debug responses search run.db --xpath "//table[@class='results']"
+uv run ldd-debug responses search run.db --xpath "//table[@class='results']"
 
 # Diagnose an error
-ldd-debug diagnose run.db <error_id>
+uv run ldd-debug diagnose run.db <error_id>
 ```
 
 ### 2. Inspect Failed Requests
 
 ```bash
 # List failed requests
-ldd-debug requests list run.db --status failed
+uv run ldd-debug requests list run.db --status failed
 
 # Get error summary
-ldd-debug errors summary run.db
+uv run ldd-debug errors summary run.db
 
 # View specific error details
-ldd-debug errors show run.db <error_id>
+uv run ldd-debug errors show run.db <error_id>
 
 # Requeue a failed request
-ldd-debug requeue request run.db <request_id>
+uv run ldd-debug requeue request run.db <request_id>
 ```
 
 ### 3. Check Request Progress
 
 ```bash
 # Get summary of request status by continuation
-ldd-debug requests summary run.db
+uv run ldd-debug requests summary run.db
 
 # List pending requests
-ldd-debug requests list run.db --status pending
+uv run ldd-debug requests list run.db --status pending
 ```
 
 ### 4. Export Results
 
 ```bash
 # Export all valid results as JSONL
-ldd-debug export jsonl run.db results.jsonl --valid
+uv run ldd-debug export jsonl run.db results.jsonl --valid
 
 # Export specific result type
-ldd-debug export jsonl run.db opinions.jsonl --type CourtOpinion
+uv run ldd-debug export jsonl run.db opinions.jsonl --type CourtOpinion
+```
+
+### 5. Test Scraper Changes (Compare)
+
+Verify scraper code changes work correctly without making network requests:
+
+```bash
+# After modifying scraper code, compare against stored run
+uv run ldd-debug compare run.db parse_opinions --sample 20 --output-mode detail
+
+# Check summary to see overall impact
+uv run ldd-debug compare run.db parse_opinions --limit 100
+
+# Focus on specific problematic request
+uv run ldd-debug compare run.db parse_opinions --request-id 12345 --output-mode detail
 ```
 
 ---

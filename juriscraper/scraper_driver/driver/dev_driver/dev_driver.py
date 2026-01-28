@@ -265,7 +265,9 @@ class LocalDevDriver(
         sql_manager = SQLManager(aiosqlite_db)
 
         # Initialize run metadata
-        scraper_name = scraper.__class__.__name__
+        # Use __module__ to get full path (e.g., juriscraper.opinions...ca1)
+        # This is needed for the debugger's compare command to import the scraper
+        scraper_name = scraper.__class__.__module__
         scraper_version = getattr(scraper, "__version__", None)
         await sql_manager.init_run_metadata(
             scraper_name=scraper_name,

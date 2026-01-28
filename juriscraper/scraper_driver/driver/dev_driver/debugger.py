@@ -1787,6 +1787,41 @@ class LocalDevDriverDebugger:
 
         return [row[0] for row in rows]
 
+    async def sample_requests(
+        self, continuation: str, sample_count: int
+    ) -> list[int]:
+        """Sample completed requests for a continuation (including non-terminal).
+
+        Unlike sample_terminal_requests, this includes requests that produced
+        child requests. Useful for comparing intermediate continuation behavior.
+
+        Args:
+            continuation: The continuation (step name) to sample from.
+            sample_count: Number of requests to sample.
+
+        Returns:
+            List of request IDs for sampled requests.
+
+        Example:
+            # Sample 10 requests from parse_case_parties (which always produces children)
+            ids = await debugger.sample_requests('parse_case_parties', 10)
+        """
+        query = """
+            SELECT r.id
+            FROM requests r
+            WHERE r.continuation = ?
+                AND r.status = 'completed'
+            ORDER BY RANDOM()
+            LIMIT ?
+        """
+
+        async with self.sql.db.execute(
+            query, (continuation, sample_count)
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        return [row[0] for row in rows]
+
     async def compare_continuation(
         self,
         request_id: int,
@@ -1978,3 +2013,67 @@ class LocalDevDriverDebugger:
         )
 
         return result
+
+    async def compare_request_tree(
+        self,
+        request_id: int,
+        scraper_class: type,
+    ) -> list[Any]:
+        """Compare entire request tree starting from a request.
+
+        Recursively compares the request and all its descendants, following
+        the same execution path the scraper would take. For each request in
+        the tree, runs the continuation with stored response and compares
+        output against stored results.
+
+        Args:
+            request_id: The root request ID to start comparison from.
+            scraper_class: The scraper class to instantiate for dry-run.
+
+        Returns:
+            List of ComparisonResult for each request in the tree.
+
+        Example:
+            # Compare entire tree starting from a parse_case_parties request
+            results = await debugger.compare_request_tree(123, AlabamaScraper)
+            for result in results:
+                if result.has_changes:
+                    print(f"Changes at {result.continuation}: {result.request_id}")
+        """
+        from collections import deque
+
+        results = []
+        queue: deque[int] = deque([request_id])
+        visited: set[int] = set()
+
+        while queue:
+            current_id = queue.popleft()
+            if current_id in visited:
+                continue
+            visited.add(current_id)
+
+            try:
+                # Compare this request
+                result = await self.compare_continuation(
+                    current_id, scraper_class
+                )
+                results.append(result)
+
+                # Get child requests to continue traversal
+                async with self.sql.db.execute(
+                    """SELECT id FROM requests
+                       WHERE parent_request_id = ? AND status = 'completed'""",
+                    (current_id,),
+                ) as cursor:
+                    child_rows = await cursor.fetchall()
+
+                for row in child_rows:
+                    child_id = row[0]
+                    if child_id not in visited:
+                        queue.append(child_id)
+
+            except ValueError:
+                # Skip requests without responses (e.g., pending)
+                pass
+
+        return results

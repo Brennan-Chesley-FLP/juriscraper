@@ -103,6 +103,165 @@ def format_output(
 
 
 # =========================================================================
+# Data Diff Formatting
+# =========================================================================
+
+
+def _format_data_diff(orig: dict[str, Any], new: dict[str, Any]) -> str:
+    """Format the diff between two data dicts using jsondiff.
+
+    Returns a human-readable diff showing changed fields.
+    Aggregates list item changes to show field-level summary.
+    """
+    import jsondiff
+
+    diff = jsondiff.diff(orig, new, syntax="symmetric")
+    if not diff:
+        return ""
+
+    # Format the diff with aggregation
+    return _format_jsondiff_aggregated(diff, indent=6)
+
+
+def _format_jsondiff_aggregated(diff: Any, indent: int = 0) -> str:
+    """Format jsondiff output with aggregation for list items.
+
+    Groups similar changes across list items to produce concise output like:
+    - date_filed: str → datetime.date (all 50 entries)
+    - description: None → various values (35 entries)
+    """
+    lines: list[str] = []
+    prefix = " " * indent
+
+    if not isinstance(diff, dict):
+        return f"{prefix}{_truncate_repr(diff)}"
+
+    import jsondiff
+
+    # Separate scalar changes from list changes
+    scalar_changes: list[str] = []
+    list_changes: dict[
+        str, dict[int, dict[str, Any]]
+    ] = {}  # list_name -> {idx -> changes}
+
+    for key, value in diff.items():
+        if key == jsondiff.symbols.insert:
+            for pos, val in value:
+                scalar_changes.append(f"+ [{pos}]: {_truncate_repr(val)}")
+        elif key == jsondiff.symbols.delete:
+            if isinstance(value, list):
+                for pos in value:
+                    scalar_changes.append(f"- [{pos}]")
+            else:
+                scalar_changes.append(f"- deleted: {_truncate_repr(value)}")
+        elif isinstance(key, str) and isinstance(value, dict):
+            # Check if this is a list with indexed changes
+            if all(
+                isinstance(k, int)
+                for k in value
+                if k not in (jsondiff.symbols.insert, jsondiff.symbols.delete)
+            ):
+                # This is a list field with changes
+                list_changes[key] = value
+            elif isinstance(value, list) and len(value) == 2:
+                # Scalar field change
+                scalar_changes.append(
+                    f"{key}: {_truncate_repr(value[0])} → {_truncate_repr(value[1])}"
+                )
+            else:
+                # Nested dict, recurse
+                nested = _format_jsondiff_aggregated(value, indent)
+                if nested:
+                    scalar_changes.append(f"{key}:")
+                    scalar_changes.append(nested.lstrip())
+        elif isinstance(value, list) and len(value) == 2:
+            # Scalar field with [old, new]
+            scalar_changes.append(
+                f"{key}: {_truncate_repr(value[0])} → {_truncate_repr(value[1])}"
+            )
+        else:
+            scalar_changes.append(f"{key}: {_truncate_repr(value)}")
+
+    # Output scalar changes
+    for change in scalar_changes:
+        lines.append(f"{prefix}{change}")
+
+    # Aggregate list changes by field
+    for list_name, item_changes in list_changes.items():
+        # Collect all field changes across items
+        field_stats: dict[
+            str, dict[str, Any]
+        ] = {}  # field -> {count, sample_old, sample_new, all_same}
+
+        for idx, changes in item_changes.items():
+            if isinstance(idx, int) and isinstance(changes, dict):
+                for field, change_val in changes.items():
+                    if isinstance(change_val, list) and len(change_val) == 2:
+                        old_val, new_val = change_val
+                        if field not in field_stats:
+                            field_stats[field] = {
+                                "count": 0,
+                                "sample_old": old_val,
+                                "sample_new": new_val,
+                                "all_same": True,
+                            }
+                        field_stats[field]["count"] += 1
+                        # Check if all values are the same pattern
+                        if _type_name(old_val) != _type_name(
+                            field_stats[field]["sample_old"]
+                        ) or _type_name(new_val) != _type_name(
+                            field_stats[field]["sample_new"]
+                        ):
+                            field_stats[field]["all_same"] = False
+
+        # Output aggregated changes
+        total_items = len(
+            [idx for idx in item_changes if isinstance(idx, int)]
+        )
+        lines.append(f"{prefix}{list_name}: {total_items} items changed")
+
+        for field, stats in sorted(field_stats.items()):
+            count = stats["count"]
+            sample_old = stats["sample_old"]
+            sample_new = stats["sample_new"]
+
+            if stats["all_same"]:
+                # All changes are the same pattern (e.g., str → date)
+                old_type = _type_name(sample_old)
+                new_type = _type_name(sample_new)
+                if old_type != new_type:
+                    lines.append(
+                        f"{prefix}  .{field}: {old_type} → {new_type} ({count}x)"
+                    )
+                else:
+                    lines.append(
+                        f"{prefix}  .{field}: {_truncate_repr(sample_old)} → {_truncate_repr(sample_new)} ({count}x)"
+                    )
+            else:
+                # Mixed changes
+                lines.append(f"{prefix}  .{field}: various changes ({count}x)")
+
+    return "\n".join(lines)
+
+
+def _type_name(value: Any) -> str:
+    """Get a short type name for a value."""
+    if value is None:
+        return "None"
+    return type(value).__name__
+
+
+def _truncate_repr(value: Any, max_len: int = 60) -> str:
+    """Get a truncated repr of a value."""
+    if value is None:
+        return "None"
+    s = repr(value)
+    if len(s) > max_len:
+        return s[: max_len - 3] + "..."
+    return s
+
+
+# =========================================================================
 # CLI Groups
 # =========================================================================
 
@@ -1350,7 +1509,9 @@ def compression_recompress(
     "--request-id", type=int, help="Compare specific request ID only"
 )
 @click.option(
-    "--sample", type=int, help="Sample N terminal requests for comparison"
+    "--sample",
+    type=int,
+    help="Sample N requests and follow their entire request trees",
 )
 @click.option(
     "--output-mode",
@@ -1457,14 +1618,14 @@ def compare(
                 # Single request
                 request_ids = [request_id]
             elif sample is not None:
-                # Sample terminal requests
+                # Sample requests (all completed, since we follow the tree)
                 try:
-                    request_ids = await debugger.sample_terminal_requests(
+                    request_ids = await debugger.sample_requests(
                         continuation, sample
                     )
                     if not request_ids:
                         click.echo(
-                            f"No terminal requests found for continuation '{continuation}'",
+                            f"No completed requests found for continuation '{continuation}'",
                             err=True,
                         )
                         sys.exit(1)
@@ -1492,17 +1653,19 @@ def compare(
             if limit is not None and len(request_ids) > limit:
                 request_ids = request_ids[:limit]
 
-            # Perform comparisons
+            # Perform comparisons - follow entire request tree
             results: list[ComparisonResult] = []
             summary = ComparisonSummary()
 
             for req_id in request_ids:
                 try:
-                    result = await debugger.compare_continuation(
+                    # Compare entire tree starting from this request
+                    tree_results = await debugger.compare_request_tree(
                         req_id, scraper_cls
                     )
-                    results.append(result)
-                    summary.add_comparison(result)
+                    for result in tree_results:
+                        results.append(result)
+                        summary.add_comparison(result)
                 except Exception as e:
                     click.echo(
                         f"Warning: Failed to compare request {req_id}: {e}",
@@ -1607,17 +1770,15 @@ def compare(
                                 f"    Changed: {len(result.data_diff.changed_pairs)} results"
                             )
                             for (
-                                _orig,
-                                _new,
-                                diffs,
+                                orig_data,
+                                new_data,
+                                _diffs,
                             ) in result.data_diff.changed_pairs[:3]:
-                                click.echo("      Field changes:")
-                                for field, (old_val, new_val) in list(
-                                    diffs.items()
-                                )[:5]:
-                                    click.echo(
-                                        f"        {field}: {old_val} -> {new_val}"
-                                    )
+                                changes_text = _format_data_diff(
+                                    orig_data.data, new_data.data
+                                )
+                                if changes_text:
+                                    click.echo(changes_text)
 
                     # Error changes
                     if result.error_diff.has_change:

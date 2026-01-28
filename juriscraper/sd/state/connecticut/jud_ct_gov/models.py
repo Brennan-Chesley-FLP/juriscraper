@@ -398,6 +398,135 @@ class ConnDocket(Docket):
     """Whether the case was e-filed"""
 
 
+class ConnTrialCourtParty(BaseModel):
+    """Party information from Connecticut trial court docket.
+
+    Represents a party and their attorney(s) on a trial court case
+    from civilinquiry.jud.ct.gov.
+    """
+
+    party_number: str
+    """Party identifier (e.g., 'P-01', 'D-01', 'L-01')"""
+
+    name: str
+    """Party name"""
+
+    party_type: str | None = None
+    """Party type (e.g., 'Plaintiff', 'Defendant', 'For Notice Only')"""
+
+    self_represented: bool = False
+    """Whether party is self-represented (no attorney)"""
+
+    attorneys: list[dict] = []
+    """List of attorneys with name, juris_number, firm, address, file_date"""
+
+
+class ConnTrialCourtDocketEntry(DocketEntry):
+    """Individual entry from Connecticut trial court docket.
+
+    Represents a single filing/document from the "Motions/Pleadings/Documents/
+    Case Status" section of civilinquiry.jud.ct.gov.
+    """
+
+    # === Foreign key to parent docket ===
+    trial_docket_id: Annotated[str, UniqueMatch()]
+    """Parent trial court docket number (e.g., 'HHD-CV23-5076142-S')"""
+
+    # === Entry fields ===
+    conn_entry_number: str | None = None
+    """Entry number (e.g., '100.30', '101.00')"""
+
+    date_filed: date | None = None
+    """Date the entry was filed"""
+
+    filed_by: str | None = None
+    """Who filed this entry (e.g., 'P', 'D', 'C' for Plaintiff, Defendant, Court)"""
+
+    description: str | None = None
+    """Description of the filing (e.g., 'SUMMONS', 'COMPLAINT', 'MOTION')"""
+
+    additional_description: str | None = None
+    """Additional description or notes"""
+
+    result: str | None = None
+    """Result of motion/filing (e.g., 'Granted 8/28/2023 HON DAVID SHERIDAN')"""
+
+    arguable: bool = False
+    """Whether this is an arguable motion"""
+
+    document_url: str | None = None
+    """URL to the document (DocumentInquiry.aspx?DocumentNo=XXX)"""
+
+    document_local_path: str | None = None
+    """Local file path to the downloaded document"""
+
+
+class ConnTrialCourtDocket(Docket):
+    """Connecticut Superior Court (trial court) docket.
+
+    Represents a trial court case from civilinquiry.jud.ct.gov.
+    These cases can be linked from appellate dockets via trial_court_docket_url.
+    """
+
+    # === Searchable fields ===
+    trial_docket_id: Annotated[str, UniqueMatch()]
+    """Trial court docket number (e.g., 'HHD-CV23-5076142-S')"""
+
+    appellate_docket_id: str | None = None
+    """Associated appellate docket number if navigated from appellate case"""
+
+    # === Required fields ===
+    case_name: str
+    """Case name (e.g., 'BALTAS, JOE J.  v. CONNECTICUT OF DEPARTMENT OF CORRECTIONS Et Al')"""
+
+    # === Case Information ===
+    case_type: str | None = None
+    """Case type code (e.g., 'P90')"""
+
+    case_type_description: str | None = None
+    """Full case type description (e.g., 'P90 - Property - All other')"""
+
+    suffix: str | None = None
+    """Case suffix"""
+
+    court_location: str | None = None
+    """Court location (e.g., 'HARTFORD JD')"""
+
+    list_type: str | None = None
+    """List type classification"""
+
+    # === Dates ===
+    file_date: date | None = None
+    """Date the case was filed"""
+
+    return_date: date | None = None
+    """Return date"""
+
+    disposition_date: date | None = None
+    """Date of disposition"""
+
+    last_updated: date | None = None
+    """Date information was last updated"""
+
+    # === Disposition ===
+    disposition: str | None = None
+    """Disposition description (e.g., 'JUDGMENT OF DISMISSAL')"""
+
+    judge: str | None = None
+    """Judge name"""
+
+    # === Related data ===
+    # Note: ConnTrialCourtDocketEntry objects are yielded separately
+    # with trial_docket_id reference to support document downloads
+
+    parties: list[ConnTrialCourtParty] = []
+    """List of parties and their attorneys"""
+
+    # === Source tracking ===
+    source_url: str | None = None
+    """URL of the trial court docket page"""
+
+
 # Backwards compatibility aliases
 ConnSupremeCourtOpinion = ConnOpinion
 ConnSupremeCourtOpinionCluster = ConnOpinionCluster

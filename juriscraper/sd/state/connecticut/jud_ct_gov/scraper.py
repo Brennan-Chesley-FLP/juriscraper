@@ -78,6 +78,9 @@ from .models import (
     ConnOralArgument,
     ConnPreliminaryPaper,
     ConnTranscriptInfo,
+    ConnTrialCourtDocket,
+    ConnTrialCourtDocketEntry,
+    ConnTrialCourtParty,
 )
 
 if TYPE_CHECKING:
@@ -123,6 +126,13 @@ DOCKET_CONFIG = {
     "error_url": "https://appellateinquiry.jud.ct.gov/ErrorPage.aspx",
 }
 
+# Trial court configuration
+TRIAL_COURT_CONFIG = {
+    "base_url": "https://civilinquiry.jud.ct.gov",
+    "case_detail_url": "https://civilinquiry.jud.ct.gov/CaseDetail/PublicCaseDetail.aspx",
+    "document_inquiry_url": "https://civilinquiry.jud.ct.gov/DocumentInquiry/DocumentInquiry.aspx",
+}
+
 
 class ConnScraper(
     BaseScraper[
@@ -130,6 +140,8 @@ class ConnScraper(
         | ConnOralArgument
         | ConnDocket
         | ConnDocketUnavailable
+        | ConnTrialCourtDocket
+        | ConnTrialCourtDocketEntry
     ]
 ):
     """Unified scraper for Connecticut appellate court opinions, oral arguments, and dockets.
@@ -1693,6 +1705,23 @@ class ConnScraper(
                 # No document - yield entry directly
                 yield ParsedData(entry)
 
+        # === Follow Trial Court Docket Link ===
+        # If this appellate docket has a linked trial court docket,
+        # yield a NavigatingRequest to fetch and parse it
+        if trial_court_docket_url:
+            full_url = urljoin(response.url, trial_court_docket_url)
+            yield NavigatingRequest(
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET,
+                    url=full_url,
+                ),
+                continuation=self.parse_trial_court_docket,
+                accumulated_data={
+                    "appellate_docket_id": docket_id,
+                    "trial_docket_number": trial_court_docket_number,
+                },
+            )
+
     @step
     def handle_docket_document_download(
         self,
@@ -2175,3 +2204,475 @@ class ConnScraper(
         if subscribe_links:
             return subscribe_links[0].get("href")
         return None
+
+    # =========================================================================
+    # Trial Court Docket Scraping Steps
+    # =========================================================================
+
+    # XPath patterns for trial court docket page elements (civilinquiry.jud.ct.gov)
+    XPATH_TC_CASE_TYPE = "//span[contains(@id, 'lblCaseType') or contains(@id, 'lblBasicCaseType')]"
+    XPATH_TC_FILE_DATE = "//span[contains(@id, 'lblFileDate')]"
+    XPATH_TC_RETURN_DATE = "//span[contains(@id, 'lblReturnDate')]"
+    XPATH_TC_COURT_LOCATION = "//span[contains(@id, 'lblLocation') or contains(@id, 'lblBasicLocation')]"
+    XPATH_TC_DISPOSITION = "//span[contains(@id, 'lblDisposition')]"
+    XPATH_TC_JUDGE = "//span[contains(@id, 'lblJudge')]"
+    XPATH_TC_PARTIES_TABLE = "//table[contains(@id, 'gvParties')]"
+    XPATH_TC_DOCUMENTS_TABLE = "//table[contains(@id, 'gvDocuments')]"
+
+    @step
+    def parse_trial_court_docket(
+        self,
+        lxml_tree: CheckedHtmlElement,
+        response: Response,
+        accumulated_data: dict,
+    ) -> Generator[
+        ScraperYield[ConnTrialCourtDocket | ConnTrialCourtDocketEntry],
+        None,
+        None,
+    ]:
+        """Parse Connecticut trial court docket page from civilinquiry.jud.ct.gov.
+
+        Extracts:
+        - Case information (docket number, case name, type, dates)
+        - Parties and attorneys
+        - Docket entries (motions/pleadings/documents/case status)
+
+        Entries with documents trigger ArchiveRequest for download.
+        """
+        appellate_docket_id = accumulated_data.get("appellate_docket_id")
+        trial_docket_number = accumulated_data.get("trial_docket_number")
+
+        # Extract trial docket ID from page title or URL
+        # Page title format: "Case Detail - HHD-CV23-5076142-S"
+        title_elem = lxml_tree.checked_xpath(
+            "//title",
+            "page title",
+            min_count=0,
+        )
+        trial_docket_id = trial_docket_number
+        if title_elem:
+            title_text = title_elem[0].text_content().strip()
+            if "Case Detail -" in title_text:
+                trial_docket_id = title_text.replace(
+                    "Case Detail -", ""
+                ).strip()
+
+        if not trial_docket_id and "DocketNo=" in response.url:
+            trial_docket_id = response.url.split("DocketNo=")[-1].split("&")[0]
+
+        if not trial_docket_id:
+            return  # Cannot parse without docket ID
+
+        # Extract case name from header
+        case_name_elems = lxml_tree.checked_xpath(
+            "//span[contains(@class, 'casenamebanner') and contains(text(), 'v.')]"
+            " | //td[contains(@class, 'casenamebanner')]",
+            "case name",
+            min_count=0,
+        )
+        case_name = "Unknown"
+        if case_name_elems:
+            # Find the element with the case name (contains "v.")
+            for elem in case_name_elems:
+                text = elem.text_content().strip()
+                if " v. " in text or " v " in text.lower():
+                    case_name = text
+                    break
+
+        # Helper to extract text
+        def extract_text(xpath_expr: str) -> str | None:
+            elems = lxml_tree.checked_xpath(
+                xpath_expr, "text field", min_count=0
+            )
+            if elems:
+                text = elems[0].text_content().strip()
+                # Clean up text - remove label prefix if present
+                if ":" in text:
+                    text = text.split(":", 1)[-1].strip()
+                return text if text else None
+            return None
+
+        # Helper to extract date
+        def extract_date(xpath_expr: str) -> date | None:
+            text = extract_text(xpath_expr)
+            if text:
+                date_match = self.DOCKET_DATE_PATTERN.search(text)
+                if date_match:
+                    try:
+                        return datetime.strptime(
+                            date_match.group(1), "%m/%d/%Y"
+                        ).date()
+                    except ValueError:
+                        pass
+            return None
+
+        # Extract case information
+        case_type = extract_text(self.XPATH_TC_CASE_TYPE)
+        case_type_description = None
+        if case_type and " - " in case_type:
+            parts = case_type.split(" - ", 1)
+            case_type = parts[0].strip()
+            case_type_description = case_type.strip()
+
+        file_date = extract_date(self.XPATH_TC_FILE_DATE)
+        return_date = extract_date(self.XPATH_TC_RETURN_DATE)
+        court_location = extract_text(self.XPATH_TC_COURT_LOCATION)
+        disposition = extract_text(self.XPATH_TC_DISPOSITION)
+        judge = extract_text(self.XPATH_TC_JUDGE)
+
+        # Extract disposition date if present (from disposition text)
+        disposition_date = None
+        if disposition:
+            date_match = self.DOCKET_DATE_PATTERN.search(disposition)
+            if date_match:
+                try:
+                    disposition_date = datetime.strptime(
+                        date_match.group(1), "%m/%d/%Y"
+                    ).date()
+                except ValueError:
+                    pass
+
+        # Parse parties
+        parties = self._parse_trial_court_parties(lxml_tree)
+
+        # Parse docket entries
+        entries = self._parse_trial_court_entries(lxml_tree)
+
+        # Yield the ConnTrialCourtDocket (without embedded entries)
+        docket = ConnTrialCourtDocket(
+            trial_docket_id=trial_docket_id,
+            appellate_docket_id=appellate_docket_id,
+            case_name=case_name,
+            case_type=case_type,
+            case_type_description=case_type_description,
+            court_location=court_location,
+            file_date=file_date,
+            return_date=return_date,
+            disposition=disposition,
+            disposition_date=disposition_date,
+            judge=judge,
+            parties=parties,
+            source_url=response.url,
+        )
+        yield ParsedData(docket)
+
+        # Yield docket entries - with ArchiveRequest for documents
+        for entry_data in entries:
+            entry = ConnTrialCourtDocketEntry(
+                trial_docket_id=trial_docket_id,
+                conn_entry_number=entry_data.get("conn_entry_number"),
+                date_filed=entry_data.get("date_filed"),
+                filed_by=entry_data.get("filed_by"),
+                description=entry_data.get("description"),
+                additional_description=entry_data.get(
+                    "additional_description"
+                ),
+                result=entry_data.get("result"),
+                arguable=entry_data.get("arguable", False),
+                document_url=entry_data.get("document_url"),
+            )
+
+            if entry_data.get("document_url"):
+                # Yield ArchiveRequest for document download
+                yield ArchiveRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url=entry_data["document_url"],
+                    ),
+                    continuation=self.handle_trial_court_document_download,
+                    expected_type="pdf",
+                    accumulated_data={
+                        "entry": entry.model_dump(mode="json"),
+                    },
+                )
+            else:
+                # No document - yield entry directly
+                yield ParsedData(entry)
+
+    @step
+    def handle_trial_court_document_download(
+        self,
+        response: ArchiveResponse,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[ConnTrialCourtDocketEntry], None, None]:
+        """Handle a downloaded trial court document.
+
+        Yields a single ConnTrialCourtDocketEntry with the downloaded document path.
+        """
+        entry_data = accumulated_data["entry"]
+
+        # Helper to parse ISO date strings
+        def iso_to_date(s: str | None) -> date | None:
+            if s:
+                return datetime.fromisoformat(s).date()
+            return None
+
+        # Rebuild entry with local path
+        entry = ConnTrialCourtDocketEntry(
+            trial_docket_id=entry_data["trial_docket_id"],
+            conn_entry_number=entry_data.get("conn_entry_number"),
+            date_filed=iso_to_date(entry_data.get("date_filed")),
+            filed_by=entry_data.get("filed_by"),
+            description=entry_data.get("description"),
+            additional_description=entry_data.get("additional_description"),
+            result=entry_data.get("result"),
+            arguable=entry_data.get("arguable", False),
+            document_url=entry_data.get("document_url"),
+            document_local_path=response.file_url,
+        )
+
+        yield ParsedData(entry)
+
+    def _parse_trial_court_parties(
+        self, lxml_tree: CheckedHtmlElement
+    ) -> list[ConnTrialCourtParty]:
+        """Parse party information from trial court docket page.
+
+        Returns a list of ConnTrialCourtParty objects.
+
+        Table structure (gvParties):
+        - Party number (P-01, D-01, etc.)
+        - Party name
+        - Nested gvAttyInfo table with attorney details
+        """
+        parties: list[ConnTrialCourtParty] = []
+
+        # Find the parties table
+        party_tables = lxml_tree.checked_xpath(
+            self.XPATH_TC_PARTIES_TABLE,
+            "parties table",
+            min_count=0,
+        )
+
+        if not party_tables:
+            return parties
+
+        # Find all party rows (look for rows with party number spans)
+        party_rows = party_tables[0].checked_xpath(
+            ".//tr[.//span[contains(@id, 'lblPlaintDefPartyNo')]]",
+            "party rows",
+            min_count=0,
+        )
+
+        for row in party_rows:
+            # Extract party number
+            party_num_elems = row.checked_xpath(
+                ".//span[contains(@id, 'lblPlaintDefPartyNo')]",
+                "party number",
+                min_count=0,
+            )
+            if not party_num_elems:
+                continue
+
+            party_number = party_num_elems[0].text_content().strip()
+
+            # Extract party name
+            party_name_elems = row.checked_xpath(
+                ".//span[contains(@id, 'lblPtyPartyName')]",
+                "party name",
+                min_count=0,
+            )
+            if not party_name_elems:
+                continue
+
+            party_name = party_name_elems[0].text_content().strip()
+
+            # Determine party type from party number
+            party_type = None
+            if party_number.startswith("P"):
+                party_type = "Plaintiff"
+            elif party_number.startswith("D"):
+                party_type = "Defendant"
+            elif party_number.startswith("L"):
+                party_type = "For Notice Only"
+
+            # Check for self-represented
+            self_rep_elems = row.checked_xpath(
+                ".//span[contains(@id, 'lblAppearanceTitle') and contains(text(), 'Self-Rep')]",
+                "self-rep indicator",
+                min_count=0,
+            )
+            self_represented = bool(self_rep_elems)
+
+            # Extract attorney info
+            attorneys: list[dict] = []
+            atty_info_elems = row.checked_xpath(
+                ".//span[contains(@id, 'lblAppearanceInfo1')]",
+                "attorney info",
+                min_count=0,
+            )
+            for atty_elem in atty_info_elems:
+                atty_text = atty_elem.text_content().strip()
+                if atty_text:
+                    # Parse attorney text - typically format:
+                    # "NAME (JURIS_NUMBER)\nFIRM\nADDRESS"
+                    lines = [
+                        line.strip()
+                        for line in atty_text.replace("<br />", "\n").split(
+                            "\n"
+                        )
+                        if line.strip()
+                    ]
+                    atty_info: dict[str, str | None] = {"raw": atty_text}
+
+                    # Try to extract juris number from first line
+                    if lines and "(" in lines[0] and ")" in lines[0]:
+                        name_part = lines[0]
+                        juris_match = re.search(r"\((\d+)\)", name_part)
+                        if juris_match:
+                            atty_info["juris_number"] = juris_match.group(1)
+                            atty_info["name"] = name_part[
+                                : juris_match.start()
+                            ].strip()
+                        else:
+                            atty_info["name"] = name_part
+                    elif lines:
+                        atty_info["name"] = lines[0]
+
+                    attorneys.append(atty_info)
+
+            party = ConnTrialCourtParty(
+                party_number=party_number,
+                name=party_name,
+                party_type=party_type,
+                self_represented=self_represented,
+                attorneys=attorneys,
+            )
+            parties.append(party)
+
+        return parties
+
+    def _parse_trial_court_entries(
+        self, lxml_tree: CheckedHtmlElement
+    ) -> list[dict]:
+        """Parse docket entries from trial court docket page.
+
+        Returns a list of dicts with entry data.
+
+        Table structure (gvDocuments):
+        Columns: Entry No, File Date, Filed By, Description, Arguable
+        - Document links in Description column
+        - Additional description in lblAddDesc span
+        - Result in lblResult span
+        """
+        entries: list[dict] = []
+
+        # Find the documents table
+        doc_tables = lxml_tree.checked_xpath(
+            self.XPATH_TC_DOCUMENTS_TABLE,
+            "documents table",
+            min_count=0,
+        )
+
+        if not doc_tables:
+            return entries
+
+        # Get all data rows (skip header row)
+        rows = doc_tables[0].checked_xpath(
+            ".//tr[td]",
+            "document rows",
+            min_count=0,
+        )
+
+        for row in rows:
+            cells = row.checked_xpath(".//td", "table cells", min_count=0)
+            if len(cells) < 4:
+                continue
+
+            # Column 0: Entry Number
+            conn_entry_number = cells[0].text_content().strip()
+            if conn_entry_number == "\xa0" or not conn_entry_number:
+                conn_entry_number = None
+
+            # Column 1: File Date
+            date_filed = None
+            date_text = cells[1].text_content().strip()
+            if date_text:
+                date_match = self.DOCKET_DATE_PATTERN.search(date_text)
+                if date_match:
+                    try:
+                        date_filed = datetime.strptime(
+                            date_match.group(1), "%m/%d/%Y"
+                        ).date()
+                    except ValueError:
+                        pass
+
+            # Column 2: Filed By
+            filed_by_elems = cells[2].checked_xpath(
+                ".//span[contains(@id, 'lblFiledBy')]",
+                "filed by",
+                min_count=0,
+            )
+            filed_by = None
+            if filed_by_elems:
+                filed_by = filed_by_elems[0].text_content().strip()
+                if filed_by == "\xa0" or not filed_by:
+                    filed_by = None
+
+            # Column 3: Description - check for document link
+            description = None
+            document_url = None
+            additional_description = None
+            result = None
+
+            # Look for document link
+            doc_links = cells[3].checked_xpath(
+                ".//a[contains(@id, 'hlnkDocument')]",
+                "document link",
+                min_count=0,
+            )
+            if doc_links:
+                description = doc_links[0].text_content().strip()
+                href = doc_links[0].get("href")
+                if href:
+                    # Resolve relative URL
+                    document_url = urljoin(
+                        TRIAL_COURT_CONFIG["base_url"], href
+                    )
+            else:
+                # No link - get text directly
+                desc_text = cells[3].text_content().strip()
+                if desc_text and desc_text != "\xa0":
+                    description = desc_text
+
+            # Look for additional description
+            add_desc_elems = cells[3].checked_xpath(
+                ".//span[contains(@id, 'lblAddDesc')]",
+                "additional description",
+                min_count=0,
+            )
+            if add_desc_elems:
+                add_text = add_desc_elems[0].text_content().strip()
+                if add_text and add_text != "\xa0":
+                    additional_description = add_text
+
+            # Look for result
+            result_elems = cells[3].checked_xpath(
+                ".//span[contains(@id, 'lblResult')]",
+                "result",
+                min_count=0,
+            )
+            if result_elems:
+                result_text = result_elems[0].text_content().strip()
+                if result_text and result_text != "\xa0":
+                    result = result_text
+
+            # Column 4: Arguable
+            arguable = False
+            if len(cells) > 4:
+                arguable_text = cells[4].text_content().strip()
+                arguable = arguable_text.lower() == "yes"
+
+            entry_data = {
+                "conn_entry_number": conn_entry_number,
+                "date_filed": date_filed,
+                "filed_by": filed_by,
+                "description": description,
+                "additional_description": additional_description,
+                "result": result,
+                "arguable": arguable,
+                "document_url": document_url,
+            }
+            entries.append(entry_data)
+
+        return entries

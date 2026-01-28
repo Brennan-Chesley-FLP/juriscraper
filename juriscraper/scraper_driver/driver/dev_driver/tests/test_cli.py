@@ -1006,6 +1006,198 @@ class TestIntegration:
         assert len(lines) == 1  # Only 1 valid result
 
 
+class TestDoctorCommand:
+    """Tests for doctor command and subcommands."""
+
+    def test_doctor_base_command_table_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test base doctor command with table format."""
+        result = runner.invoke(cli, ["doctor", str(populated_db)])
+
+        assert result.exit_code == 0
+        assert "Health Report" in result.output
+        assert "Run Status:" in result.output
+        assert "Integrity Check:" in result.output
+        assert "Errors:" in result.output
+        assert "Ghost Requests:" in result.output
+
+    def test_doctor_base_command_json_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test base doctor command with JSON format."""
+        result = runner.invoke(
+            cli, ["doctor", "--format", "json", str(populated_db)]
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "status" in data
+        assert "integrity" in data
+        assert "ghosts" in data
+        assert "error_stats" in data
+
+    def test_doctor_base_command_jsonl_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test base doctor command with JSONL format."""
+        result = runner.invoke(
+            cli, ["doctor", "--format", "jsonl", str(populated_db)]
+        )
+
+        assert result.exit_code == 0
+        lines = result.output.strip().split("\n")
+        assert len(lines) == 4  # status, integrity, ghosts, errors
+
+        # Each line should be valid JSON with section field
+        for line in lines:
+            data = json.loads(line)
+            assert "section" in data
+
+    def test_doctor_orphans_table_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor orphans command with table format."""
+        result = runner.invoke(cli, ["doctor", str(populated_db), "orphans"])
+
+        assert result.exit_code == 0
+        assert "Orphaned Requests" in result.output
+        assert "Orphaned Responses" in result.output
+
+    def test_doctor_orphans_json_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor orphans command with JSON format."""
+        result = runner.invoke(
+            cli, ["doctor", str(populated_db), "orphans", "--format", "json"]
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "orphaned_requests" in data
+        assert "orphaned_responses" in data
+        assert isinstance(data["orphaned_requests"], list)
+        assert isinstance(data["orphaned_responses"], list)
+
+    def test_doctor_orphans_jsonl_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor orphans command with JSONL format."""
+        result = runner.invoke(
+            cli, ["doctor", str(populated_db), "orphans", "--format", "jsonl"]
+        )
+
+        assert result.exit_code == 0
+        # Should have lines for any orphaned requests/responses
+        # In populated_db, we have no orphans, so output may be empty or minimal
+
+    def test_doctor_pending_table_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor pending command with table format."""
+        result = runner.invoke(cli, ["doctor", str(populated_db), "pending"])
+
+        assert result.exit_code == 0
+        assert "Total Pending:" in result.output
+        # populated_db has 1 pending request
+        assert "1" in result.output
+
+    def test_doctor_pending_json_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor pending command with JSON format."""
+        result = runner.invoke(
+            cli, ["doctor", str(populated_db), "pending", "--format", "json"]
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "total" in data
+        assert "items" in data
+        assert data["total"] == 1  # One pending request in populated_db
+
+    def test_doctor_pending_with_limit(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor pending command with limit option."""
+        result = runner.invoke(
+            cli,
+            ["doctor", str(populated_db), "pending", "--limit", "50"],
+        )
+
+        assert result.exit_code == 0
+
+    def test_doctor_ghosts_table_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor ghosts command with table format."""
+        result = runner.invoke(cli, ["doctor", str(populated_db), "ghosts"])
+
+        assert result.exit_code == 0
+        assert "Ghost Requests" in result.output
+        assert "Total:" in result.output
+
+    def test_doctor_ghosts_json_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor ghosts command with JSON format."""
+        result = runner.invoke(
+            cli, ["doctor", str(populated_db), "ghosts", "--format", "json"]
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "total_count" in data
+        assert "by_continuation" in data
+        assert "ghosts" in data
+
+    def test_doctor_ghosts_jsonl_format(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor ghosts command with JSONL format."""
+        result = runner.invoke(
+            cli, ["doctor", str(populated_db), "ghosts", "--format", "jsonl"]
+        )
+
+        assert result.exit_code == 0
+        # Output should be valid (may be empty if no ghosts)
+
+    def test_doctor_ghosts_with_continuation_filter(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor ghosts command with continuation filter."""
+        result = runner.invoke(
+            cli,
+            [
+                "doctor",
+                str(populated_db),
+                "ghosts",
+                "--continuation",
+                "step1",
+            ],
+        )
+
+        assert result.exit_code == 0
+
+    def test_doctor_ghosts_nonexistent_continuation(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test doctor ghosts with nonexistent continuation."""
+        result = runner.invoke(
+            cli,
+            [
+                "doctor",
+                str(populated_db),
+                "ghosts",
+                "--continuation",
+                "nonexistent",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "No ghost requests found" in result.output
+
+
 class TestErrorHandling:
     """Tests for error handling and edge cases."""
 

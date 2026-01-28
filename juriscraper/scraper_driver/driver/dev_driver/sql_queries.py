@@ -1253,3 +1253,84 @@ class SQL:
             resolution_notes = 'Batch requeued'
         WHERE id IN ({placeholders})
     """
+
+    # =========================================================================
+    # Doctor/Integrity Check Queries
+    # =========================================================================
+
+    # Find orphaned requests: completed requests with no corresponding response
+    SELECT_ORPHANED_REQUESTS = """
+        SELECT r.id, r.url, r.continuation, r.completed_at
+        FROM requests r
+        LEFT JOIN responses resp ON r.id = resp.request_id
+        WHERE r.status = 'completed' AND resp.id IS NULL
+        ORDER BY r.id
+    """
+
+    # Count orphaned requests
+    COUNT_ORPHANED_REQUESTS = """
+        SELECT COUNT(*)
+        FROM requests r
+        LEFT JOIN responses resp ON r.id = resp.request_id
+        WHERE r.status = 'completed' AND resp.id IS NULL
+    """
+
+    # Find orphaned responses: responses with no matching request
+    SELECT_ORPHANED_RESPONSES = """
+        SELECT resp.id, resp.request_id, resp.url, resp.created_at
+        FROM responses resp
+        LEFT JOIN requests r ON resp.request_id = r.id
+        WHERE r.id IS NULL
+        ORDER BY resp.id
+    """
+
+    # Count orphaned responses
+    COUNT_ORPHANED_RESPONSES = """
+        SELECT COUNT(*)
+        FROM responses resp
+        LEFT JOIN requests r ON resp.request_id = r.id
+        WHERE r.id IS NULL
+    """
+
+    # Find ghost requests: completed requests with no children and no results
+    # Ghost requests are completed but produced no observable output
+    SELECT_GHOST_REQUESTS = """
+        SELECT r.id, r.url, r.continuation, r.completed_at
+        FROM requests r
+        WHERE r.status = 'completed'
+          AND NOT EXISTS (
+              SELECT 1 FROM requests child WHERE child.parent_request_id = r.id
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM results res WHERE res.request_id = r.id
+          )
+        ORDER BY r.continuation, r.id
+    """
+
+    # Count ghost requests grouped by continuation
+    SELECT_GHOST_REQUEST_COUNTS_BY_CONTINUATION = """
+        SELECT r.continuation, COUNT(*) as ghost_count
+        FROM requests r
+        WHERE r.status = 'completed'
+          AND NOT EXISTS (
+              SELECT 1 FROM requests child WHERE child.parent_request_id = r.id
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM results res WHERE res.request_id = r.id
+          )
+        GROUP BY r.continuation
+        ORDER BY r.continuation
+    """
+
+    # Count all ghost requests
+    COUNT_GHOST_REQUESTS = """
+        SELECT COUNT(*)
+        FROM requests r
+        WHERE r.status = 'completed'
+          AND NOT EXISTS (
+              SELECT 1 FROM requests child WHERE child.parent_request_id = r.id
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM results res WHERE res.request_id = r.id
+          )
+    """

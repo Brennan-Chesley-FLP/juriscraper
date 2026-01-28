@@ -345,6 +345,67 @@ class TestRunMetadataAndStats:
             metadata = await debugger.get_run_metadata()
             assert metadata is None
 
+    async def test_get_run_status_running(
+        self, db_path: Path, populated_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting run status for a running scraper."""
+        await populated_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            status = await debugger.get_run_status()
+
+            assert status["status"] == "running"
+            assert status["is_running"] is True
+            assert "pending_count" in status
+            # From the populated_db fixture, there's 1 pending request
+            assert status["pending_count"] == 1
+
+    async def test_get_run_status_completed(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting run status for a completed scraper."""
+        # Insert run metadata with completed status
+        await initialized_db.execute(
+            """
+            INSERT INTO run_metadata (
+                scraper_name, scraper_version, status, created_at,
+                base_delay, jitter, num_workers, max_backoff_time, speculation_config_json
+            ) VALUES (?, ?, ?, datetime('now'), ?, ?, ?, ?, ?)
+            """,
+            (
+                "test.scraper",
+                "1.0.0",
+                "completed",
+                0.5,
+                0.2,
+                4,
+                300.0,
+                "{}",
+            ),
+        )
+        await initialized_db.commit()
+        await initialized_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            status = await debugger.get_run_status()
+
+            assert status["status"] == "completed"
+            assert status["is_running"] is False
+            # pending_count should not be present for completed runs
+            assert "pending_count" not in status
+
+    async def test_get_run_status_empty_db(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test getting run status from empty database."""
+        await initialized_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            status = await debugger.get_run_status()
+
+            assert status["status"] == "unknown"
+            assert status["is_running"] is False
+
     async def test_get_stats(
         self, db_path: Path, populated_db: aiosqlite.Connection
     ) -> None:
@@ -1893,3 +1954,657 @@ class TestComparisonMethods:
             # Should raise error for missing response
             with pytest.raises(ValueError, match="No response found"):
                 await debugger.compare_continuation(req_id, TestScraper)
+
+
+class TestIntegrityChecks:
+    """Tests for integrity check methods."""
+
+    async def test_check_integrity_no_issues(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test check_integrity when database has no issues."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create a request with matching response (no orphans)
+        req_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/test",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="step1",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+
+        # Mark as completed
+        await db.execute(
+            "UPDATE requests SET status = ? WHERE id = ?",
+            ("completed", req_id),
+        )
+
+        # Add matching response
+        content = b"<html>Test</html>"
+        compressed_content = compress(content)
+        await sql_manager.store_response(
+            request_id=req_id,
+            status_code=200,
+            headers_json="{}",
+            url="https://example.com/test",
+            compressed_content=compressed_content,
+            content_size_original=len(content),
+            content_size_compressed=len(compressed_content),
+            dict_id=None,
+            continuation="step1",
+            warc_record_id=str(uuid.uuid4()),
+            speculation_outcome=None,
+        )
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.check_integrity()
+
+            assert result["has_issues"] is False
+            assert result["orphaned_requests"]["count"] == 0
+            assert result["orphaned_responses"]["count"] == 0
+
+    async def test_check_integrity_orphaned_request(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test check_integrity detects orphaned requests."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create a completed request WITHOUT a response
+        req_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/orphan",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="step1",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+
+        # Mark as completed (but no response exists)
+        await db.execute(
+            "UPDATE requests SET status = ? WHERE id = ?",
+            ("completed", req_id),
+        )
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.check_integrity()
+
+            assert result["has_issues"] is True
+            assert result["orphaned_requests"]["count"] == 1
+            assert req_id in result["orphaned_requests"]["ids"]
+            assert result["orphaned_responses"]["count"] == 0
+
+    async def test_check_integrity_orphaned_response(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test check_integrity detects orphaned responses."""
+        db = initialized_db
+
+        # Insert a response WITHOUT a matching request
+        # (We'll temporarily disable foreign keys to allow this)
+        content = b"<html>Orphan</html>"
+        compressed_content = compress(content)
+
+        await db.execute("PRAGMA foreign_keys = OFF")
+        await db.execute(
+            """
+            INSERT INTO responses (
+                request_id, status_code, headers_json, url,
+                content_compressed, content_size_original,
+                content_size_compressed, compression_dict_id, continuation,
+                warc_record_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            """,
+            (
+                9999,  # Non-existent request ID
+                200,
+                "{}",
+                "https://example.com/orphan",
+                compressed_content,
+                len(content),
+                len(compressed_content),
+                None,
+                "step1",
+                str(uuid.uuid4()),
+            ),
+        )
+        await db.execute("PRAGMA foreign_keys = ON")
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.check_integrity()
+
+            assert result["has_issues"] is True
+            assert result["orphaned_requests"]["count"] == 0
+            assert result["orphaned_responses"]["count"] == 1
+            # Response ID should be 1 (first response in the table)
+            assert 1 in result["orphaned_responses"]["ids"]
+
+    async def test_check_integrity_multiple_issues(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test check_integrity detects multiple types of issues."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create orphaned request
+        orphan_req_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/orphan_req",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="step1",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+        await db.execute(
+            "UPDATE requests SET status = ? WHERE id = ?",
+            ("completed", orphan_req_id),
+        )
+
+        # Create orphaned response (non-existent request)
+        await db.commit()  # Commit orphaned request first
+        content = b"<html>Orphan Response</html>"
+        compressed_content = compress(content)
+        await db.execute("PRAGMA foreign_keys = OFF")
+        await db.execute(
+            """
+            INSERT INTO responses (
+                request_id, status_code, headers_json, url,
+                content_compressed, content_size_original,
+                content_size_compressed, compression_dict_id, continuation,
+                warc_record_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            """,
+            (
+                9999,
+                200,
+                "{}",
+                "https://example.com/orphan_resp",
+                compressed_content,
+                len(content),
+                len(compressed_content),
+                None,
+                "step2",
+                str(uuid.uuid4()),
+            ),
+        )
+        await db.execute("PRAGMA foreign_keys = ON")
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.check_integrity()
+
+            assert result["has_issues"] is True
+            assert result["orphaned_requests"]["count"] == 1
+            assert result["orphaned_responses"]["count"] == 1
+
+    async def test_get_orphan_details_no_orphans(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test get_orphan_details when there are no orphans."""
+        await initialized_db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_orphan_details()
+
+            assert len(result["orphaned_requests"]) == 0
+            assert len(result["orphaned_responses"]) == 0
+
+    async def test_get_orphan_details_with_orphaned_request(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test get_orphan_details includes request details."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create orphaned request
+        req_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/orphan",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="step1",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+        await db.execute(
+            "UPDATE requests SET status = ? WHERE id = ?",
+            ("completed", req_id),
+        )
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_orphan_details()
+
+            assert len(result["orphaned_requests"]) == 1
+            req = result["orphaned_requests"][0]
+            assert req["id"] == req_id
+            assert req["url"] == "https://example.com/orphan"
+            assert req["continuation"] == "step1"
+
+    async def test_get_orphan_details_with_orphaned_response(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test get_orphan_details includes response details."""
+        db = initialized_db
+
+        # Create orphaned response
+        content = b"<html>Orphan</html>"
+        compressed_content = compress(content)
+        await db.execute("PRAGMA foreign_keys = OFF")
+        await db.execute(
+            """
+            INSERT INTO responses (
+                request_id, status_code, headers_json, url,
+                content_compressed, content_size_original,
+                content_size_compressed, compression_dict_id, continuation,
+                warc_record_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            """,
+            (
+                9999,
+                404,
+                "{}",
+                "https://example.com/orphan_response",
+                compressed_content,
+                len(content),
+                len(compressed_content),
+                None,
+                "step2",
+                str(uuid.uuid4()),
+            ),
+        )
+        await db.execute("PRAGMA foreign_keys = ON")
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_orphan_details()
+
+            assert len(result["orphaned_responses"]) == 1
+            resp = result["orphaned_responses"][0]
+            assert resp["id"] == 1
+            assert resp["url"] == "https://example.com/orphan_response"
+
+
+class TestGhostRequestDetection:
+    """Tests for ghost request detection methods."""
+
+    async def test_get_ghost_requests_no_ghosts(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test get_ghost_requests when there are no ghost requests."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create a completed request with a result (not a ghost)
+        req_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/test",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="step1",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+
+        # Mark as completed
+        await db.execute(
+            "UPDATE requests SET status = ? WHERE id = ?",
+            ("completed", req_id),
+        )
+
+        # Add a result (prevents it from being a ghost)
+        await sql_manager.store_result(
+            request_id=req_id,
+            result_type="TestData",
+            data_json='{"test": "data"}',
+            is_valid=True,
+        )
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_ghost_requests()
+
+            assert result["total_count"] == 0
+            assert len(result["by_continuation"]) == 0
+            assert len(result["ghosts"]) == 0
+
+    async def test_get_ghost_requests_detects_ghost(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test get_ghost_requests detects a ghost request."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create a completed request with NO children and NO results (ghost)
+        ghost_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/ghost",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="parse_index",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+
+        # Mark as completed
+        await db.execute(
+            "UPDATE requests SET status = ? WHERE id = ?",
+            ("completed", ghost_id),
+        )
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_ghost_requests()
+
+            assert result["total_count"] == 1
+            assert "parse_index" in result["by_continuation"]
+            assert result["by_continuation"]["parse_index"] == 1
+            assert len(result["ghosts"]) == 1
+            assert result["ghosts"][0]["id"] == ghost_id
+            assert result["ghosts"][0]["url"] == "https://example.com/ghost"
+            assert result["ghosts"][0]["continuation"] == "parse_index"
+
+    async def test_get_ghost_requests_not_ghost_with_children(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test that requests with children are not ghosts."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create a parent request
+        parent_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/parent",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="step1",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+
+        # Mark as completed
+        await db.execute(
+            "UPDATE requests SET status = ? WHERE id = ?",
+            ("completed", parent_id),
+        )
+
+        # Create a child request
+        await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/child",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="step2",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=parent_id,
+        )
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_ghost_requests()
+
+            # Parent should not be a ghost (has children)
+            assert result["total_count"] == 0
+
+    async def test_get_ghost_requests_not_ghost_with_results(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test that requests with results are not ghosts."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create a request
+        req_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/test",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="step1",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+
+        # Mark as completed
+        await db.execute(
+            "UPDATE requests SET status = ? WHERE id = ?",
+            ("completed", req_id),
+        )
+
+        # Add a result (prevents it from being a ghost)
+        await sql_manager.store_result(
+            request_id=req_id,
+            result_type="TestData",
+            data_json='{"test": "data"}',
+            is_valid=True,
+        )
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_ghost_requests()
+
+            # Should not be a ghost (has results)
+            assert result["total_count"] == 0
+
+    async def test_get_ghost_requests_multiple_continuations(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test get_ghost_requests groups by continuation."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create ghost requests in different continuations
+        ghost_ids = []
+        for i in range(3):
+            continuation = "step1" if i < 2 else "step2"
+            ghost_id = await sql_manager.insert_request(
+                priority=1,
+                request_type="navigating",
+                method="GET",
+                url=f"https://example.com/ghost{i}",
+                headers_json="{}",
+                cookies_json="{}",
+                body=None,
+                continuation=continuation,
+                current_location="",
+                accumulated_data_json="{}",
+                aux_data_json="{}",
+                permanent_json="{}",
+                expected_type=None,
+                dedup_key=None,
+                parent_id=None,
+            )
+            await db.execute(
+                "UPDATE requests SET status = ? WHERE id = ?",
+                ("completed", ghost_id),
+            )
+            ghost_ids.append(ghost_id)
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_ghost_requests()
+
+            assert result["total_count"] == 3
+            assert result["by_continuation"]["step1"] == 2
+            assert result["by_continuation"]["step2"] == 1
+            assert len(result["ghosts"]) == 3
+
+    async def test_get_ghost_requests_pending_not_ghost(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test that pending requests are not considered ghosts."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create a pending request (should not be a ghost)
+        _req_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/pending",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="step1",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+
+        # Leave as pending (default status)
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_ghost_requests()
+
+            # Pending requests should not be ghosts
+            assert result["total_count"] == 0
+
+    async def test_get_ghost_requests_failed_not_ghost(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test that failed requests are not considered ghosts."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create a failed request
+        req_id = await sql_manager.insert_request(
+            priority=1,
+            request_type="navigating",
+            method="GET",
+            url="https://example.com/failed",
+            headers_json="{}",
+            cookies_json="{}",
+            body=None,
+            continuation="step1",
+            current_location="",
+            accumulated_data_json="{}",
+            aux_data_json="{}",
+            permanent_json="{}",
+            expected_type=None,
+            dedup_key=None,
+            parent_id=None,
+        )
+
+        # Mark as failed
+        await db.execute(
+            "UPDATE requests SET status = ? WHERE id = ?",
+            ("failed", req_id),
+        )
+
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            result = await debugger.get_ghost_requests()
+
+            # Failed requests should not be ghosts
+            assert result["total_count"] == 0

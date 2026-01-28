@@ -17,6 +17,7 @@ Usage:
     ldd-debug diagnose <db-path> <error-id>     # Diagnose an error
     ldd-debug export jsonl <db-path> <output>   # Export results to JSONL
     ldd-debug export warc <db-path> <output>    # Export responses to WARC
+    ldd-debug doctor <db-path>                  # Run health checks
 
 All commands support:
     --format table|json|jsonl    Output format (default: table)
@@ -1970,6 +1971,343 @@ def export_warc(
 
 
 # =========================================================================
+# Doctor Commands
+# =========================================================================
+
+
+@cli.group(invoke_without_command=True)
+@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["table", "json", "jsonl"]),
+    default="table",
+    help="Output format",
+)
+@click.pass_context
+def doctor(ctx: click.Context, db_path: str, format_type: str) -> None:
+    """Run health checks on database.
+
+    When called without a subcommand, displays a comprehensive health report
+    including integrity check summary, error counts, pending/wrapped status,
+    and ghost request summary by step.
+
+    \b
+    Examples:
+        ldd-debug doctor run.db
+        ldd-debug doctor --format json run.db
+        ldd-debug doctor run.db orphans
+        ldd-debug doctor run.db pending
+        ldd-debug doctor run.db ghosts
+    """
+    # If a subcommand was invoked, don't run the base command
+    if ctx.invoked_subcommand is not None:
+        return
+
+    async def run() -> None:
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            # Get all health check data
+            integrity = await debugger.check_integrity()
+            ghosts = await debugger.get_ghost_requests()
+            status = await debugger.get_run_status()
+            stats = await debugger.get_stats()
+
+            if format_type == "json":
+                # JSON output
+                output = {
+                    "status": status,
+                    "integrity": integrity,
+                    "ghosts": ghosts,
+                    "error_stats": stats["errors"],
+                }
+                format_output(output, format_type)
+            elif format_type == "jsonl":
+                # JSONL output (one line per section)
+                click.echo(json.dumps({"section": "status", **status}))
+                click.echo(json.dumps({"section": "integrity", **integrity}))
+                click.echo(json.dumps({"section": "ghosts", **ghosts}))
+                click.echo(
+                    json.dumps({"section": "errors", **stats["errors"]})
+                )
+            else:
+                # Table output (default)
+                click.echo("=== Health Report ===\n")
+
+                # Run Status
+                click.echo("Run Status:")
+                click.echo(f"  Status: {status['status']}")
+                if status.get("is_running"):
+                    click.echo(
+                        f"  Pending Requests: {status['pending_count']}"
+                    )
+                click.echo()
+
+                # Integrity Check Summary
+                click.echo("Integrity Check:")
+                if integrity["has_issues"]:
+                    click.echo(
+                        f"  Orphaned Requests: {integrity['orphaned_requests']['count']}"
+                    )
+                    click.echo(
+                        f"  Orphaned Responses: {integrity['orphaned_responses']['count']}"
+                    )
+                else:
+                    click.echo("  No integrity issues found")
+                click.echo()
+
+                # Error Summary
+                click.echo("Errors:")
+                click.echo(f"  Total: {stats['errors']['total']}")
+                click.echo(f"  Unresolved: {stats['errors']['unresolved']}")
+                click.echo()
+
+                # Ghost Request Summary
+                click.echo("Ghost Requests:")
+                if ghosts["total_count"] > 0:
+                    click.echo(f"  Total: {ghosts['total_count']}")
+                    click.echo("  By Continuation:")
+                    for continuation, count in ghosts[
+                        "by_continuation"
+                    ].items():
+                        click.echo(f"    {continuation}: {count}")
+                else:
+                    click.echo("  No ghost requests found")
+
+    asyncio.run(run())
+
+
+@doctor.command("orphans")
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["table", "json", "jsonl"]),
+    default="table",
+    help="Output format",
+)
+@click.pass_context
+def doctor_orphans(ctx: click.Context, format_type: str) -> None:
+    """List orphaned requests and responses with details.
+
+    \b
+    Examples:
+        ldd-debug doctor run.db orphans
+        ldd-debug doctor run.db orphans --format json
+    """
+    db_path = ctx.parent.params["db_path"]
+
+    async def run() -> None:
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            orphans = await debugger.get_orphan_details()
+
+            if format_type == "json":
+                format_output(orphans, format_type)
+            elif format_type == "jsonl":
+                # Output orphaned requests
+                for req in orphans["orphaned_requests"]:
+                    click.echo(json.dumps({"type": "orphaned_request", **req}))
+                # Output orphaned responses
+                for resp in orphans["orphaned_responses"]:
+                    click.echo(
+                        json.dumps({"type": "orphaned_response", **resp})
+                    )
+            else:
+                # Table output
+                click.echo("=== Orphaned Requests ===")
+                if orphans["orphaned_requests"]:
+                    click.echo(f"Count: {len(orphans['orphaned_requests'])}")
+                    headers = ["id", "url", "continuation", "completed_at"]
+                    format_output(
+                        orphans["orphaned_requests"],
+                        "table",
+                        headers,
+                    )
+                else:
+                    click.echo("No orphaned requests found")
+
+                click.echo("\n=== Orphaned Responses ===")
+                if orphans["orphaned_responses"]:
+                    click.echo(f"Count: {len(orphans['orphaned_responses'])}")
+                    headers = ["id", "request_id", "url", "created_at"]
+                    format_output(
+                        orphans["orphaned_responses"],
+                        "table",
+                        headers,
+                    )
+                else:
+                    click.echo("No orphaned responses found")
+
+    asyncio.run(run())
+
+
+@doctor.command("pending")
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["table", "json", "jsonl"]),
+    default="table",
+    help="Output format",
+)
+@click.option("--limit", default=100, help="Maximum number of results")
+@click.pass_context
+def doctor_pending(ctx: click.Context, format_type: str, limit: int) -> None:
+    """List pending requests with details.
+
+    \b
+    Examples:
+        ldd-debug doctor run.db pending
+        ldd-debug doctor run.db pending --limit 50
+        ldd-debug doctor run.db pending --format json
+    """
+    db_path = ctx.parent.params["db_path"]
+
+    async def run() -> None:
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            page = await debugger.list_requests(
+                status="pending", limit=limit, offset=0
+            )
+
+            if format_type == "table":
+                click.echo(f"Total Pending: {page.total}")
+                click.echo(f"Showing: {len(page.items)}")
+                if page.items:
+                    headers = [
+                        "id",
+                        "url",
+                        "continuation",
+                        "priority",
+                        "retry_count",
+                    ]
+                    items = [
+                        {
+                            "id": r.id,
+                            "url": r.url[:50] if r.url else "",
+                            "continuation": r.continuation,
+                            "priority": r.priority,
+                            "retry_count": r.retry_count,
+                        }
+                        for r in page.items
+                    ]
+                    format_output(items, format_type, headers)
+                else:
+                    click.echo("No pending requests found")
+            else:
+                output = {
+                    "total": page.total,
+                    "items": [
+                        {
+                            "id": r.id,
+                            "url": r.url,
+                            "continuation": r.continuation,
+                            "priority": r.priority,
+                            "retry_count": r.retry_count,
+                            "method": r.method,
+                            "created_at": r.created_at,
+                        }
+                        for r in page.items
+                    ],
+                    "limit": limit,
+                }
+                format_output(output, format_type)
+
+    asyncio.run(run())
+
+
+@doctor.command("ghosts")
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["table", "json", "jsonl"]),
+    default="table",
+    help="Output format",
+)
+@click.option("--continuation", help="Filter by continuation (step name)")
+@click.pass_context
+def doctor_ghosts(
+    ctx: click.Context, format_type: str, continuation: str | None
+) -> None:
+    """List ghost requests grouped by step.
+
+    Ghost requests are completed requests with no child requests and no results.
+
+    \b
+    Examples:
+        ldd-debug doctor run.db ghosts
+        ldd-debug doctor run.db ghosts --continuation parse_index
+        ldd-debug doctor run.db ghosts --format json
+    """
+    db_path = ctx.parent.params["db_path"]
+
+    async def run() -> None:
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            ghosts = await debugger.get_ghost_requests()
+
+            # Filter by continuation if specified
+            if continuation:
+                if continuation not in ghosts["by_continuation"]:
+                    if format_type == "table":
+                        click.echo(
+                            f"No ghost requests found for continuation '{continuation}'"
+                        )
+                    else:
+                        format_output(
+                            {
+                                "total_count": 0,
+                                "by_continuation": {},
+                                "ghosts": [],
+                            },
+                            format_type,
+                        )
+                    return
+
+                # Filter ghosts to only include the specified continuation
+                filtered_ghosts_list = [
+                    g
+                    for g in ghosts["ghosts"]
+                    if g["continuation"] == continuation
+                ]
+                filtered_ghosts = {
+                    "total_count": len(filtered_ghosts_list),
+                    "by_continuation": {
+                        continuation: ghosts["by_continuation"][continuation]
+                    },
+                    "ghosts": filtered_ghosts_list,
+                }
+                ghosts = filtered_ghosts
+
+            if format_type == "json":
+                format_output(ghosts, format_type)
+            elif format_type == "jsonl":
+                for ghost in ghosts["ghosts"]:
+                    click.echo(json.dumps(ghost))
+            else:
+                # Table output
+                click.echo("=== Ghost Requests ===")
+                click.echo(f"Total: {ghosts['total_count']}")
+
+                if ghosts["total_count"] > 0:
+                    click.echo("\nBy Continuation:")
+                    for cont, count in ghosts["by_continuation"].items():
+                        click.echo(f"  {cont}: {count}")
+
+                    if ghosts["ghosts"]:
+                        click.echo("\nDetails:")
+                        headers = ["id", "url", "continuation"]
+                        items = [
+                            {
+                                "id": g["id"],
+                                "url": g["url"][:50] if g.get("url") else "",
+                                "continuation": g["continuation"],
+                            }
+                            for g in ghosts["ghosts"]
+                        ]
+                        format_output(items, "table", headers)
+                else:
+                    click.echo("No ghost requests found")
+
+    asyncio.run(run())
+
+
+# =========================================================================
 # Main Entry Point
 # =========================================================================
 
@@ -1985,6 +2323,7 @@ def main() -> None:
     cli.add_command(cancel)
     cli.add_command(compression)
     cli.add_command(export)
+    cli.add_command(doctor)
 
     cli()
 

@@ -150,6 +150,61 @@ class LocalDevDriverDebugger:
         """
         return await self.sql.get_run_metadata()
 
+    async def get_run_status(self) -> dict[str, Any]:
+        """Get run status with pending count or wrapped status indicator.
+
+        Returns a status dictionary suitable for health reports and doctor commands.
+        For runs in progress, shows the pending request count. For completed runs,
+        shows the final status.
+
+        Returns:
+            Dictionary with status information:
+                - status: Current run status (created, running, completed, error, interrupted)
+                - pending_count: Number of pending requests (only if status is running)
+                - is_running: Boolean indicating if run is in progress
+
+        Example:
+            status = await debugger.get_run_status()
+            if status['is_running']:
+                print(f"Run in progress: {status['pending_count']} pending requests")
+            else:
+                print(f"Run {status['status']}")
+        """
+        from juriscraper.scraper_driver.driver.dev_driver.sql_queries import (
+            SQL,
+        )
+
+        # Get run status from metadata
+        async with self.sql.db.execute(SQL.SELECT_RUN_METADATA) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return {
+                    "status": "unknown",
+                    "is_running": False,
+                }
+
+            # scraper_name = row[0]
+            status = row[1]
+
+        # Determine if run is in progress
+        is_running = status in ("created", "running")
+
+        result = {
+            "status": status,
+            "is_running": is_running,
+        }
+
+        # If running, include pending count
+        if is_running:
+            async with self.sql.db.execute(
+                SQL.COUNT_PENDING_REQUESTS
+            ) as cursor:
+                row = await cursor.fetchone()
+                pending_count = row[0] if row else 0
+                result["pending_count"] = pending_count
+
+        return result
+
     async def get_stats(self) -> dict[str, Any]:
         """Get comprehensive statistics about the run.
 
@@ -1178,6 +1233,190 @@ class LocalDevDriverDebugger:
             "size_before": size_before,
             "size_after": size_after,
             "savings": size_before - size_after,
+        }
+
+    # =========================================================================
+    # Integrity Check Methods
+    # =========================================================================
+
+    async def check_integrity(self) -> dict[str, Any]:
+        """Check database integrity for orphaned requests and responses.
+
+        Detects two types of integrity issues:
+        1. Orphaned requests: completed requests with no corresponding response
+        2. Orphaned responses: responses with no matching request
+
+        Returns:
+            Dictionary with integrity check results:
+                - orphaned_requests: {count: int, ids: list[int]}
+                - orphaned_responses: {count: int, ids: list[int]}
+                - has_issues: bool (True if any orphans found)
+
+        Example:
+            result = await debugger.check_integrity()
+            if result['has_issues']:
+                print(f"Found {result['orphaned_requests']['count']} orphaned requests")
+                print(f"Found {result['orphaned_responses']['count']} orphaned responses")
+        """
+        from juriscraper.scraper_driver.driver.dev_driver.sql_queries import (
+            SQL,
+        )
+
+        # Count orphaned requests
+        async with self.sql.db.execute(SQL.COUNT_ORPHANED_REQUESTS) as cursor:
+            row = await cursor.fetchone()
+            orphaned_requests_count = row[0] if row else 0
+
+        # Get orphaned request IDs
+        orphaned_request_ids: list[int] = []
+        async with self.sql.db.execute(SQL.SELECT_ORPHANED_REQUESTS) as cursor:
+            rows = await cursor.fetchall()
+            orphaned_request_ids = [row[0] for row in rows]
+
+        # Count orphaned responses
+        async with self.sql.db.execute(SQL.COUNT_ORPHANED_RESPONSES) as cursor:
+            row = await cursor.fetchone()
+            orphaned_responses_count = row[0] if row else 0
+
+        # Get orphaned response IDs
+        orphaned_response_ids: list[int] = []
+        async with self.sql.db.execute(
+            SQL.SELECT_ORPHANED_RESPONSES
+        ) as cursor:
+            rows = await cursor.fetchall()
+            orphaned_response_ids = [row[0] for row in rows]
+
+        has_issues = (
+            orphaned_requests_count > 0 or orphaned_responses_count > 0
+        )
+
+        return {
+            "orphaned_requests": {
+                "count": orphaned_requests_count,
+                "ids": orphaned_request_ids,
+            },
+            "orphaned_responses": {
+                "count": orphaned_responses_count,
+                "ids": orphaned_response_ids,
+            },
+            "has_issues": has_issues,
+        }
+
+    async def get_orphan_details(self) -> dict[str, Any]:
+        """Get detailed information about orphaned requests and responses.
+
+        Returns full details for each orphaned request and response, unlike
+        check_integrity() which only returns counts and IDs.
+
+        Returns:
+            Dictionary with detailed orphan information:
+                - orphaned_requests: List of dicts with {id, url, continuation, completed_at}
+                - orphaned_responses: List of dicts with {id, request_id, url, created_at}
+
+        Example:
+            details = await debugger.get_orphan_details()
+            for req in details['orphaned_requests']:
+                print(f"Orphaned request {req['id']}: {req['url']}")
+            for resp in details['orphaned_responses']:
+                print(f"Orphaned response {resp['id']}: {resp['url']}")
+        """
+        from juriscraper.scraper_driver.driver.dev_driver.sql_queries import (
+            SQL,
+        )
+
+        # Get orphaned request details
+        orphaned_requests = []
+        async with self.sql.db.execute(SQL.SELECT_ORPHANED_REQUESTS) as cursor:
+            rows = await cursor.fetchall()
+            for row in rows:
+                orphaned_requests.append(
+                    {
+                        "id": row[0],
+                        "url": row[1],
+                        "continuation": row[2],
+                        "completed_at": row[3],
+                    }
+                )
+
+        # Get orphaned response details
+        orphaned_responses = []
+        async with self.sql.db.execute(
+            SQL.SELECT_ORPHANED_RESPONSES
+        ) as cursor:
+            rows = await cursor.fetchall()
+            for row in rows:
+                orphaned_responses.append(
+                    {
+                        "id": row[0],
+                        "request_id": row[1],
+                        "url": row[2],
+                        "created_at": row[3],
+                    }
+                )
+
+        return {
+            "orphaned_requests": orphaned_requests,
+            "orphaned_responses": orphaned_responses,
+        }
+
+    async def get_ghost_requests(self) -> dict[str, Any]:
+        """Get ghost requests (completed requests with no children and no results).
+
+        Ghost requests are completed requests that produced no observable output:
+        no child requests and no ParsedData results. These may indicate issues
+        with continuation logic or missing yield statements.
+
+        Returns:
+            Dictionary with ghost request information:
+                - total_count: Total number of ghost requests
+                - by_continuation: Dict mapping continuation -> count
+                - ghosts: List of dicts with {id, url, continuation, completed_at}
+
+        Example:
+            ghosts = await debugger.get_ghost_requests()
+            if ghosts['total_count'] > 0:
+                print(f"Found {ghosts['total_count']} ghost requests")
+                for continuation, count in ghosts['by_continuation'].items():
+                    print(f"  {continuation}: {count} ghosts")
+        """
+        from juriscraper.scraper_driver.driver.dev_driver.sql_queries import (
+            SQL,
+        )
+
+        # Get total count
+        async with self.sql.db.execute(SQL.COUNT_GHOST_REQUESTS) as cursor:
+            row = await cursor.fetchone()
+            total_count = row[0] if row else 0
+
+        # Get counts by continuation
+        by_continuation: dict[str, int] = {}
+        async with self.sql.db.execute(
+            SQL.SELECT_GHOST_REQUEST_COUNTS_BY_CONTINUATION
+        ) as cursor:
+            rows = await cursor.fetchall()
+            for row in rows:
+                continuation = row[0]
+                count = row[1]
+                by_continuation[continuation] = count
+
+        # Get detailed ghost request list
+        ghosts = []
+        async with self.sql.db.execute(SQL.SELECT_GHOST_REQUESTS) as cursor:
+            rows = await cursor.fetchall()
+            for row in rows:
+                ghosts.append(
+                    {
+                        "id": row[0],
+                        "url": row[1],
+                        "continuation": row[2],
+                        "completed_at": row[3],
+                    }
+                )
+
+        return {
+            "total_count": total_count,
+            "by_continuation": by_continuation,
+            "ghosts": ghosts,
         }
 
     # =========================================================================

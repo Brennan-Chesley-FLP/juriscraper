@@ -30,8 +30,8 @@ class SampleData(ScrapedData):
     value: int
 
 
-class TestScraper(BaseScraper[SampleData]):
-    """Test scraper for dry run testing."""
+class SampleScraper(BaseScraper[SampleData]):
+    """Sample scraper for dry run testing."""
 
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Entry point for the scraper."""
@@ -86,7 +86,7 @@ class TestScraper(BaseScraper[SampleData]):
 
 def test_dry_run_captures_data_and_requests():
     """Test that DryRunDriver captures both ParsedData and requests."""
-    scraper = TestScraper()
+    scraper = SampleScraper()
     driver = DryRunDriver(scraper)
 
     # Prepare mock response and request data
@@ -132,7 +132,7 @@ def test_dry_run_captures_data_and_requests():
 
 def test_dry_run_captures_archive_request():
     """Test that DryRunDriver captures ArchiveRequest correctly."""
-    scraper = TestScraper()
+    scraper = SampleScraper()
     driver = DryRunDriver(scraper)
 
     response_data = {
@@ -167,7 +167,7 @@ def test_dry_run_captures_archive_request():
 
 def test_dry_run_captures_error():
     """Test that DryRunDriver captures errors raised during execution."""
-    scraper = TestScraper()
+    scraper = SampleScraper()
     driver = DryRunDriver(scraper)
 
     response_data = {
@@ -204,7 +204,7 @@ def test_dry_run_captures_error():
 
 def test_dry_run_reconstructs_context():
     """Test that DryRunDriver correctly reconstructs context from stored data."""
-    scraper = TestScraper()
+    scraper = SampleScraper()
     driver = DryRunDriver(scraper)
 
     # Prepare request data with context
@@ -251,7 +251,7 @@ def test_dry_run_no_network_io():
     This test verifies the core promise of DryRunDriver: it captures
     request yields without executing them.
     """
-    scraper = TestScraper()
+    scraper = SampleScraper()
     driver = DryRunDriver(scraper)
 
     response_data = {

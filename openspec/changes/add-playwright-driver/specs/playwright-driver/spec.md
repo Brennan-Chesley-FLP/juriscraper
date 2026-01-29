@@ -180,6 +180,227 @@ The `@step` decorator SHALL support a `page` parameter name for injecting a `Pag
 - **AND** `get_step_metadata()` SHALL return metadata with the `auto_await_timeout` field populated
 - **AND** the Playwright driver SHALL use this value to bound autowait retry attempts
 
+### Requirement: Playwright Driver Database Persistence (LocalDevDriver Compatible)
+
+The Playwright driver SHALL persist all run state to an SQLite database using the same schema as LocalDevDriver. This enables run resumption, debugging, and tooling compatibility.
+
+#### Scenario: Same database schema as LocalDevDriver
+- **WHEN** a Playwright driver initializes a new run
+- **THEN** the driver SHALL create an SQLite database with the same schema as LocalDevDriver
+- **AND** the database SHALL contain tables: `requests`, `responses`, `results`, `errors`, `run_metadata`, `compression_dicts`, `archived_files`, `rate_bucket`, `rate_items`, `rate_limiter_state`, `speculative_progress`, `speculation_tracking`, `speculative_start_ids`, `schema_info`
+- **AND** the schema version and migration logic SHALL be identical to LocalDevDriver
+
+#### Scenario: Request persistence
+- **WHEN** the Playwright driver executes a request from a `NavigatingRequest` or `NonNavigatingRequest`
+- **THEN** the driver SHALL insert a row into the `requests` table with the same fields as LocalDevDriver
+- **AND** the `request_type` field SHALL be populated (`navigating`, `non_navigating`, `archive`)
+- **AND** the `cache_key` SHALL be computed as SHA256(method, url, body, headers_json)
+- **AND** nanosecond timing fields (`created_at_ns`, `started_at_ns`, `completed_at_ns`) SHALL be populated
+
+#### Scenario: Response persistence
+- **WHEN** the Playwright driver receives a response (via page navigation or fetch)
+- **THEN** the driver SHALL store the response in the `responses` table
+- **AND** the response content SHALL be the serialized DOM snapshot (from `page.content()`)
+- **AND** the content SHALL be Zstd-compressed with optional dictionary compression
+- **AND** the `compression_dict_id` SHALL reference `compression_dicts` if dictionary compression is used
+
+#### Scenario: Result and error persistence
+- **WHEN** a step function yields `ParsedData`
+- **THEN** the driver SHALL store it in the `results` table with validation status
+- **WHEN** a step function raises an exception
+- **THEN** the driver SHALL store it in the `errors` table with type-specific fields (structural, validation, transient)
+
+#### Scenario: Run metadata persistence
+- **WHEN** a Playwright driver run is created
+- **THEN** the driver SHALL store scraper identity, invocation parameters, and run state in `run_metadata`
+- **AND** the `params_json` SHALL contain the ScraperParams filters
+
+### Requirement: Incidental Requests Tracking
+
+The Playwright driver SHALL track all network requests made by the browser that are not directly initiated by `BaseRequest` subclasses. These "incidental requests" include images, stylesheets, scripts, fonts, XHR/fetch calls, and other resources loaded by the page.
+
+#### Scenario: Incidental requests table schema
+- **WHEN** a Playwright driver initializes a database
+- **THEN** the database SHALL contain an `incidental_requests` table with schema:
+  ```sql
+  CREATE TABLE IF NOT EXISTS incidental_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      parent_request_id INTEGER NOT NULL REFERENCES requests(id),
+
+      -- Request info
+      resource_type TEXT NOT NULL,        -- document, stylesheet, image, script, font, xhr, fetch, etc.
+      method TEXT NOT NULL,
+      url TEXT NOT NULL,
+      headers_json TEXT,
+      body BLOB,
+
+      -- Response info (NULL if request failed/blocked)
+      status_code INTEGER,
+      response_headers_json TEXT,
+      content_compressed BLOB,            -- Zstd-compressed response body
+      content_size_original INTEGER,
+      content_size_compressed INTEGER,
+      compression_dict_id INTEGER REFERENCES compression_dicts(id),
+
+      -- Timing
+      started_at_ns INTEGER,
+      completed_at_ns INTEGER,
+
+      -- Metadata
+      from_cache BOOLEAN,                 -- Whether browser served from cache
+      failure_reason TEXT,                -- If request failed: 'timeout', 'aborted', etc.
+
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+  ```
+
+#### Scenario: Capture incidental requests during navigation
+- **WHEN** the Playwright driver navigates to a URL or submits a form
+- **THEN** the driver SHALL register a network request listener via `page.on('request')` and `page.on('response')`
+- **AND** all network requests made by the browser during the navigation SHALL be captured
+- **AND** each captured request SHALL be stored in `incidental_requests` with `parent_request_id` linking to the primary request
+
+#### Scenario: Resource type classification
+- **WHEN** an incidental request is captured
+- **THEN** the `resource_type` field SHALL be populated from Playwright's `request.resource_type()`
+- **AND** recognized types SHALL include: `document`, `stylesheet`, `image`, `media`, `font`, `script`, `texttrack`, `xhr`, `fetch`, `eventsource`, `websocket`, `manifest`, `other`
+
+#### Scenario: Response content storage for incidental requests
+- **WHEN** an incidental request receives a response
+- **THEN** the response body SHALL be compressed with Zstd and stored in `content_compressed`
+
+#### Scenario: Cache key lookup includes incidental requests
+- **WHEN** the Playwright driver checks for a cached response
+- **THEN** the driver SHALL check both `requests.cache_key` and `incidental_requests` for cache hits
+- **AND** if the primary request has a cache hit AND all associated incidental requests have cache hits
+- **THEN** the driver MAY skip the network request and replay from cache
+
+### Requirement: LDD-Debug Tool Compatibility
+
+The Playwright driver's database artifacts SHALL be fully compatible with the `ldd-debug` CLI and LocalDevDriverDebugger class. All debugging, inspection, and manipulation operations SHALL work identically.
+
+#### Scenario: ldd-debug info command
+- **WHEN** `ldd-debug info <playwright-run.db>` is executed
+- **THEN** the command SHALL display run metadata, statistics, and status
+- **AND** output SHALL include Playwright-specific metadata (browser type, viewport size, etc.)
+
+#### Scenario: ldd-debug requests commands
+- **WHEN** `ldd-debug requests list|show|summary` is executed on a Playwright run database
+- **THEN** the commands SHALL work identically to LocalDevDriver databases
+- **AND** request details SHALL include the `via` field interpretation (ViaFormSubmit, ViaLink)
+
+#### Scenario: ldd-debug responses commands
+- **WHEN** `ldd-debug responses list|show|content|search` is executed on a Playwright run database
+- **THEN** the commands SHALL work identically to LocalDevDriver databases
+- **AND** response content SHALL be the serialized DOM snapshot (decompressed)
+- **AND** XPath/CSS search SHALL work on the DOM snapshot content
+
+#### Scenario: ldd-debug incidental command (new)
+- **WHEN** `ldd-debug incidental list <db>` is executed
+- **THEN** the command SHALL list all incidental requests grouped by parent request
+- **AND** filters SHALL include: `--resource-type`, `--status-code`, `--parent-request-id`
+
+#### Scenario: ldd-debug incidental show
+- **WHEN** `ldd-debug incidental show <db> <id>` is executed
+- **THEN** the command SHALL display full incidental request details including headers and timing
+
+#### Scenario: ldd-debug incidental content
+- **WHEN** `ldd-debug incidental content <db> <id>` is executed
+- **THEN** the command SHALL display the decompressed response content
+
+#### Scenario: ldd-debug diagnose compatibility
+- **WHEN** `ldd-debug diagnose <playwright-run.db> <error-id>` is executed
+- **THEN** the diagnose command SHALL re-run XPath observation on the stored DOM snapshot
+- **AND** the observer SHALL work on the serialized HTML exactly as it would for HTTP-fetched content
+
+#### Scenario: ldd-debug compare compatibility
+- **WHEN** `ldd-debug compare <playwright-run.db> <continuation>` is executed
+- **THEN** the compare command SHALL replay step functions using stored DOM snapshots
+- **AND** dry-run mode SHALL inject the stored `PageElement` (from serialized DOM)
+- **AND** comparison SHALL detect data and request tree changes
+
+#### Scenario: ldd-debug requeue compatibility
+- **WHEN** `ldd-debug requeue request|continuation|errors` is executed on a Playwright run database
+- **THEN** the requeue operations SHALL work identically to LocalDevDriver
+- **AND** requeued requests SHALL clear associated incidental requests when `--clear-responses` is used
+
+#### Scenario: WARC export includes incidental requests
+- **WHEN** `ldd-debug export warc <playwright-run.db> <output>` is executed
+- **THEN** the WARC export SHALL include both primary responses and incidental requests
+- **AND** incidental requests SHALL be grouped with their parent request record
+
+### Requirement: Rate Limiting via pyrate_limiter
+
+The Playwright driver SHALL use pyrate_limiter for rate limiting, with persistent state stored in the SQLite database. The rate limiter SHALL control the pace of browser navigations.
+
+#### Scenario: pyrate_limiter integration
+- **WHEN** the Playwright driver is initialized
+- **THEN** the driver SHALL create a `pyrate_limiter.Limiter` with configurable `Rate` objects
+
+#### Scenario: Navigation rate limiting
+- **WHEN** the Playwright driver is about to navigate to a new URL
+- **THEN** the driver SHALL acquire a token from the rate limiter
+- **AND** if no token is available, the driver SHALL wait until one becomes available
+- **AND** the wait time SHALL be calculated from the configured rate limits
+
+#### Scenario: Rate limiter configuration
+- **WHEN** a Playwright driver is opened with rate limiting configuration
+- **THEN** the driver SHALL accept a `rates: list[Rate]` parameter
+- **AND** common configurations SHALL include:
+  - Single rate: `[Rate(1, Duration.SECOND)]` — 1 request per second
+  - Burst with sustained: `[Rate(5, Duration.SECOND), Rate(30, Duration.MINUTE)]` — 5/sec burst, 30/min sustained
+
+#### Scenario: Rate limiting bypassed for incidental requests
+- **WHEN** the browser makes incidental requests (images, scripts, etc.)
+- **THEN** incidental requests SHALL NOT consume rate limiter tokens
+- **AND** only primary navigations (from `NavigatingRequest`/`NonNavigatingRequest`) SHALL be rate-limited
+
+#### Scenario: Adaptive rate limiting (optional)
+- **WHEN** the driver receives a 429 (Too Many Requests) or 5xx response
+- **THEN** the driver MAY reduce the rate limit dynamically
+- **AND** rate limiter state changes SHALL be persisted in `rate_limiter_state` table
+
+#### Scenario: Jitter support
+- **WHEN** the driver is configured with jitter
+- **THEN** the driver SHALL add random jitter (±configured seconds) to wait times
+- **AND** jitter SHALL be applied after rate limiter wait time is calculated
+
+### Requirement: Browser Lifecycle Management
+
+The Playwright driver SHALL manage browser and context lifecycle efficiently, reusing resources where appropriate.
+
+#### Scenario: Browser context per run
+- **WHEN** a Playwright driver run is started
+- **THEN** the driver SHALL create a single browser context for the entire run
+- **AND** the context SHALL be configured with: viewport size, user agent, locale, timezone
+- **AND** the context SHALL persist cookies and storage across navigations within the run
+
+#### Scenario: Page reuse within context
+- **WHEN** the driver processes sequential navigations
+- **THEN** the driver SHALL reuse the same page instance when possible
+- **AND** a new page SHALL be created only when required (e.g., popup handling, parallel tabs)
+
+#### Scenario: Browser configuration persistence
+- **WHEN** a run is created
+- **THEN** browser configuration SHALL be stored in `run_metadata` as `browser_config_json`:
+  ```json
+  {
+    "browser_type": "chromium",
+    "headless": true,
+    "viewport": {"width": 1280, "height": 720},
+    "user_agent": "...",
+    "locale": "en-US",
+    "timezone_id": "America/New_York"
+  }
+  ```
+
+#### Scenario: Run resumption with browser config
+- **WHEN** a Playwright driver resumes an existing run
+- **THEN** the driver SHALL read browser configuration from `run_metadata.browser_config_json`
+- **AND** the driver SHALL create a new browser context with the same configuration
+- **AND** stored cookies/storage MAY be restored from a separate persistence mechanism
+
+
 ## MODIFIED Requirements
 
 ### Requirement: Automatic Argument Injection

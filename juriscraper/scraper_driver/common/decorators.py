@@ -56,6 +56,9 @@ class StepMetadata:
         encoding: Character encoding for text/HTML decoding.
         xsd: Optional path to XSD schema file for structural validation hints.
         json_model: Optional dotted path to Pydantic model for JSON response validation.
+        await_list: List of wait conditions for Playwright driver (WaitForSelector, etc).
+        auto_await_timeout: Optional timeout in milliseconds for autowait retry logic.
+        observer: Optional SelectorObserver for debugging and autowait (set after step execution).
     """
 
     def __init__(
@@ -64,11 +67,16 @@ class StepMetadata:
         encoding: str = "utf-8",
         xsd: str | None = None,
         json_model: str | None = None,
+        await_list: list[Any] | None = None,
+        auto_await_timeout: int | None = None,
     ):
         self.priority = priority
         self.encoding = encoding
         self.xsd = xsd
         self.json_model = json_model
+        self.await_list = await_list or []
+        self.auto_await_timeout = auto_await_timeout
+        self.observer: Any = None  # Will be set after step execution
 
 
 class SpeculateMetadata:
@@ -165,6 +173,49 @@ def _get_text(response: Response, encoding: str = "utf-8") -> str:
     return response.content.decode(encoding)
 
 
+def _parse_page_element(
+    response: Response, encoding: str = "utf-8"
+) -> tuple[Any, Any]:
+    """Parse HTML and create PageElement with SelectorObserver.
+
+    Args:
+        response: The HTTP response.
+        encoding: Fallback encoding if lxml can't detect one.
+
+    Returns:
+        Tuple of (PageElement, SelectorObserver) for injection and debugging.
+
+    Raises:
+        ScraperAssumptionException: If HTML parsing fails.
+    """
+    from juriscraper.scraper_driver.common.lxml_page_element import (
+        LxmlPageElement,
+    )
+    from juriscraper.scraper_driver.common.selector_observer import (
+        SelectorObserver,
+    )
+
+    try:
+        # Parse HTML using lxml and wrap in CheckedHtmlElement
+        checked_element = _parse_html(response, encoding)
+
+        # Create observer to track selector queries
+        observer = SelectorObserver()
+
+        # Create PageElement with observer
+        page_element = LxmlPageElement(
+            element=checked_element, url=response.url, observer=observer
+        )
+
+        return page_element, observer
+    except Exception as e:
+        raise ScraperAssumptionException(
+            f"Failed to parse HTML for page element: {e}",
+            request_url=response.url,
+            context={"encoding": encoding, "error": str(e)},
+        ) from e
+
+
 def _process_yielded_request(yielded: Any) -> Any:
     """Process a yielded BaseRequest to resolve Callable continuations.
 
@@ -205,6 +256,8 @@ def step(
     encoding: str = "utf-8",
     xsd: str | None = None,
     json_model: str | None = None,
+    await_list: list[Any] | None = None,
+    auto_await_timeout: int | None = None,
 ) -> Any:
     """Decorator for scraper step methods with automatic argument injection.
 
@@ -218,6 +271,7 @@ def step(
     - aux_data: Navigation metadata like tokens, session data (from request)
     - json_content: Response content parsed as JSON
     - lxml_tree: Response content parsed as CheckedHtmlElement
+    - page: Response content parsed as PageElement (LxmlPageElement with observer)
     - text: Response content as string
     - local_filepath: Local file path from ArchiveResponse (None otherwise)
 
@@ -265,6 +319,12 @@ def step(
         json_model: Optional dotted path to Pydantic model (e.g.,
             "api.publications.PublicationsResponse"). Resolved relative to
             scraper package. Drivers may use this for post-hoc validation.
+        await_list: Optional list of wait conditions for Playwright driver
+            (WaitForSelector, WaitForLoadState, WaitForURL, WaitForTimeout).
+            HTTP driver ignores this parameter.
+        auto_await_timeout: Optional timeout in milliseconds for autowait retry logic.
+            When set, Playwright driver will retry the step if it raises
+            HTMLStructuralAssumptionException. HTTP driver ignores this parameter.
 
     Returns:
         Decorated function with automatic argument injection.
@@ -286,6 +346,8 @@ def step(
             encoding=encoding,
             xsd=xsd,
             json_model=json_model,
+            await_list=await_list,
+            auto_await_timeout=auto_await_timeout,
         )
 
         @wraps(fn)
@@ -297,6 +359,7 @@ def step(
         ) -> Generator[ScraperYield, bool | None, None]:
             # Build kwargs for injection based on parameter names
             injected_kwargs: dict[str, Any] = {}
+            observer = None  # Track observer for metadata storage
 
             if "response" in param_names:
                 injected_kwargs["response"] = response
@@ -328,6 +391,12 @@ def step(
             if "lxml_tree" in param_names:
                 injected_kwargs["lxml_tree"] = _parse_html(response, encoding)
 
+            if "page" in param_names:
+                page_element, observer = _parse_page_element(
+                    response, encoding
+                )
+                injected_kwargs["page"] = page_element
+
             if "text" in param_names:
                 injected_kwargs["text"] = _get_text(response, encoding)
 
@@ -341,9 +410,14 @@ def step(
             gen = fn(scraper_self, *args, **injected_kwargs, **kwargs)
 
             # Yield from the generator, processing requests to resolve Callables
-            for yielded in gen:
-                processed = _process_yielded_request(yielded)
-                yield processed
+            try:
+                for yielded in gen:
+                    processed = _process_yielded_request(yielded)
+                    yield processed
+            finally:
+                # Store observer in metadata for driver access (debugging/autowait)
+                if observer is not None:
+                    metadata.observer = observer
 
         # Attach metadata to the wrapper
         wrapper._step_metadata = metadata  # type: ignore[attr-defined]

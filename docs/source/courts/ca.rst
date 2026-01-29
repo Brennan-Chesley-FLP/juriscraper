@@ -13,5 +13,11 @@ Court Coverage
 Scrapers
 --------
 
+.. scraper-info:: CalDocketScraper
+
 .. scraper-info:: CalScraper
+
+.. scraper-info:: CalSupremeBriefsScraper
+
+.. scraper-info:: CalSupremeOralArgumentsScraper
 

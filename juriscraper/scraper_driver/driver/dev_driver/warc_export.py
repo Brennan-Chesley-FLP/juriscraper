@@ -57,14 +57,33 @@ async def export_warc(
     # Create parent directory if needed
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Build query with optional continuation filter
+    # Build query with optional continuation filter - need request_id for incidental requests
     params: list = []
     if continuation:
         where_clause = "WHERE req.continuation = ?"
         params.append(continuation)
     else:
         where_clause = ""
-    query = SQL.SELECT_RESPONSES_FOR_WARC.format(where_clause=where_clause)
+    # Modified query to include request_id
+    query = f"""
+        SELECT
+            resp.id,
+            resp.status_code,
+            resp.headers_json,
+            resp.url,
+            resp.content_compressed,
+            resp.compression_dict_id,
+            resp.warc_record_id,
+            req.method,
+            req.url as request_url,
+            req.headers_json as request_headers_json,
+            req.body,
+            req.id as request_id
+        FROM responses resp
+        JOIN requests req ON resp.request_id = req.id
+        {where_clause}
+        ORDER BY resp.id
+    """
 
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
@@ -90,6 +109,7 @@ async def export_warc(
                 request_url,
                 request_headers_json,
                 request_body,
+                request_id,
             ) = row
 
             # Decompress content
@@ -163,6 +183,116 @@ async def export_warc(
 
             count += 1
             logger.debug(f"Exported response {response_id} ({response_url})")
+
+            # Export incidental requests associated with this parent request
+            # Get incidental requests for this parent
+            inc_cursor = await db.execute(
+                SQL.SELECT_INCIDENTAL_REQUESTS_BY_PARENT, (request_id,)
+            )
+            inc_rows = await inc_cursor.fetchall()
+
+            for inc_row in inc_rows:
+                (
+                    inc_id,
+                    parent_request_id,
+                    resource_type,
+                    inc_method,
+                    inc_url,
+                    inc_headers_json,
+                    inc_body,
+                    inc_status_code,
+                    inc_response_headers_json,
+                    inc_content_compressed,
+                    inc_content_size_original,
+                    inc_content_size_compressed,
+                    inc_compression_dict_id,
+                    started_at_ns,
+                    completed_at_ns,
+                    from_cache,
+                    failure_reason,
+                    created_at,
+                ) = inc_row
+
+                # Skip failed incidental requests (no response)
+                if not inc_status_code:
+                    logger.debug(
+                        f"Skipping failed incidental request {inc_id} ({inc_url})"
+                    )
+                    continue
+
+                # Decompress incidental content if present
+                inc_content = b""
+                if inc_content_compressed:
+                    try:
+                        inc_content = await decompress_response(
+                            db,
+                            inc_content_compressed,
+                            inc_compression_dict_id,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to decompress incidental request {inc_id}: {e}"
+                        )
+                        continue
+
+                # Parse incidental response headers
+                inc_response_headers = []
+                if inc_response_headers_json:
+                    inc_headers_dict = json.loads(inc_response_headers_json)
+                    inc_response_headers = list(inc_headers_dict.items())
+
+                # Build HTTP response headers for incidental request
+                inc_http_headers = StatusAndHeaders(
+                    statusline=f"{inc_status_code} OK",
+                    headers=inc_response_headers,
+                    protocol="HTTP/1.1",
+                )
+
+                # Create response record for incidental request
+                inc_payload_stream = BytesIO(inc_content)
+                inc_response_record = writer.create_warc_record(
+                    uri=inc_url,
+                    record_type="response",
+                    payload=inc_payload_stream,
+                    http_headers=inc_http_headers,
+                    warc_headers_dict={
+                        "X-HTTP-Method": inc_method,
+                        "X-Resource-Type": resource_type,
+                        "X-From-Cache": str(from_cache),
+                        "X-Parent-WARC-Record-ID": f"<urn:uuid:{warc_record_id}>",
+                    },
+                )
+                writer.write_record(inc_response_record)
+
+                # Create request record for incidental request
+                inc_request_headers = []
+                if inc_headers_json:
+                    inc_req_headers_dict = json.loads(inc_headers_json)
+                    inc_request_headers = list(inc_req_headers_dict.items())
+
+                inc_request_http_headers = StatusAndHeaders(
+                    statusline=f"{inc_method} {inc_url} HTTP/1.1",
+                    headers=inc_request_headers,
+                    protocol="HTTP/1.1",
+                    is_http_request=True,
+                )
+
+                inc_request_payload = BytesIO(inc_body or b"")
+                inc_request_record = writer.create_warc_record(
+                    uri=inc_url,
+                    record_type="request",
+                    payload=inc_request_payload,
+                    http_headers=inc_request_http_headers,
+                    warc_headers_dict={
+                        "X-Resource-Type": resource_type,
+                        "X-Parent-WARC-Record-ID": f"<urn:uuid:{warc_record_id}>",
+                    },
+                )
+                writer.write_record(inc_request_record)
+
+                logger.debug(
+                    f"Exported incidental {resource_type} {inc_id} ({inc_url})"
+                )
 
     logger.info(f"Exported {count} responses to {output_path}")
     return count

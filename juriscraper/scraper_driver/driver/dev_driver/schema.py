@@ -1,20 +1,24 @@
-"""SQLite schema for LocalDevDriver.
+"""SQLite schema for LocalDevDriver and PlaywrightDriver.
 
-This module defines the database schema for the LocalDevDriver, which provides
-persistent storage for request queuing, response archival, compression
+This module defines the database schema for the LocalDevDriver and PlaywrightDriver,
+which provides persistent storage for request queuing, response archival, compression
 dictionaries, results, and error tracking.
 
-The schema consists of 10 tables:
+The schema consists of 14 tables:
 - requests: HTTP request queue with status tracking and retry logic
 - responses: Compressed HTTP responses with dictionary references
 - compression_dicts: Versioned zstd dictionaries per-continuation
 - results: Validated scraped data
 - archived_files: Downloaded file metadata
-- run_metadata: Single-row configuration and state
+- run_metadata: Single-row configuration and state (including browser config for Playwright)
 - errors: Detailed error tracking with type-specific fields
-- rate_bucket: Token bucket state for pyrate_limiter
+- rate_bucket: Token bucket state for pyrate_limiter (legacy)
+- rate_items: Rate limiting items for pyrate_limiter
+- rate_limiter_state: Rate limiter state for adaptive rate limiting
 - speculative_progress: Tracks latest speculative_id per step for recovery (legacy)
+- speculative_start_ids: Starting IDs for speculative steps
 - speculation_tracking: Tracks @speculate function state for the new pattern
+- incidental_requests: Browser-initiated network requests (Playwright driver)
 """
 
 from pathlib import Path
@@ -22,7 +26,7 @@ from pathlib import Path
 import aiosqlite
 
 # Schema version for migrations
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 11
 
 # SQL statements for creating tables
 _CREATE_REQUESTS = """
@@ -209,7 +213,10 @@ CREATE TABLE IF NOT EXISTS run_metadata (
     max_backoff_time REAL NOT NULL,          -- Max cumulative backoff before marking failed
 
     -- Speculation configuration
-    speculation_config_json TEXT             -- JSON: {continuation: {threshold: int, speculation: int}}
+    speculation_config_json TEXT,            -- JSON: {continuation: {threshold: int, speculation: int}}
+
+    -- Browser configuration (Playwright driver)
+    browser_config_json TEXT                 -- JSON: {browser_type, headless, viewport, user_agent, etc.}
 )
 """
 
@@ -338,6 +345,44 @@ _CREATE_SPECULATION_TRACKING_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_speculation_tracking_func ON speculation_tracking(func_name)",
 ]
 
+# Table for tracking incidental requests (Playwright driver)
+_CREATE_INCIDENTAL_REQUESTS = """
+CREATE TABLE IF NOT EXISTS incidental_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    parent_request_id INTEGER NOT NULL REFERENCES requests(id),
+
+    -- Request info
+    resource_type TEXT NOT NULL,        -- document, stylesheet, image, script, font, xhr, fetch, etc.
+    method TEXT NOT NULL,
+    url TEXT NOT NULL,
+    headers_json TEXT,
+    body BLOB,
+
+    -- Response info (NULL if request failed/blocked)
+    status_code INTEGER,
+    response_headers_json TEXT,
+    content_compressed BLOB,            -- Zstd-compressed response body
+    content_size_original INTEGER,
+    content_size_compressed INTEGER,
+    compression_dict_id INTEGER REFERENCES compression_dicts(id),
+
+    -- Timing
+    started_at_ns INTEGER,
+    completed_at_ns INTEGER,
+
+    -- Metadata
+    from_cache BOOLEAN,                 -- Whether browser served from cache
+    failure_reason TEXT,                -- If request failed: 'timeout', 'aborted', etc.
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+"""
+
+_CREATE_INCIDENTAL_REQUESTS_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_incidental_requests_parent ON incidental_requests(parent_request_id)",
+    "CREATE INDEX IF NOT EXISTS idx_incidental_requests_resource_type ON incidental_requests(resource_type)",
+]
+
 # Schema metadata table for versioning
 _CREATE_SCHEMA_INFO = """
 CREATE TABLE IF NOT EXISTS schema_info (
@@ -382,6 +427,7 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     await db.execute(_CREATE_SPECULATIVE_START_IDS)
     await db.execute(_CREATE_RATE_LIMITER_STATE)
     await db.execute(_CREATE_SPECULATION_TRACKING)
+    await db.execute(_CREATE_INCIDENTAL_REQUESTS)
 
     # Run migrations BEFORE creating indexes
     # This ensures columns added by migrations exist when their indexes are created
@@ -405,6 +451,8 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     for index_sql in _CREATE_SPECULATIVE_PROGRESS_INDEXES:
         await db.execute(index_sql)
     for index_sql in _CREATE_SPECULATION_TRACKING_INDEXES:
+        await db.execute(index_sql)
+    for index_sql in _CREATE_INCIDENTAL_REQUESTS_INDEXES:
         await db.execute(index_sql)
 
     await db.commit()
@@ -548,6 +596,38 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT INTO schema_info (version) VALUES (?)",
             (9,),
+        )
+        current_version = 9
+
+    # Migration 9 -> 10: Add browser_config_json column to run_metadata
+    if current_version < 10:
+        # Check if column exists
+        cursor = await db.execute("PRAGMA table_info(run_metadata)")
+        columns = [row[1] for row in await cursor.fetchall()]
+        if "browser_config_json" not in columns:
+            await db.execute(
+                "ALTER TABLE run_metadata ADD COLUMN browser_config_json TEXT"
+            )
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (10,),
+        )
+        current_version = 10
+
+    # Migration 10 -> 11: Add incidental_requests table
+    if current_version < 11:
+        # Create the table if it doesn't exist
+        await db.execute(_CREATE_INCIDENTAL_REQUESTS)
+        # Create indexes
+        for index_sql in _CREATE_INCIDENTAL_REQUESTS_INDEXES:
+            await db.execute(index_sql)
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (11,),
         )
 
     # Record initial schema version if not present

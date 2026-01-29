@@ -224,7 +224,85 @@ This works identically for HTTP and Playwright drivers — the `page` injection 
 - **Playwright dependency**: Adds a significant dependency. Mitigation: Playwright is optional — only scrapers that need it will use it.
 - **Browser resource overhead**: Running a browser is heavier than HTTP requests. Mitigation: Use HTTP driver where possible; Playwright only for JS-required sites.
 
+### Decision 6: LocalDevDriver-compatible database schema
+
+The Playwright driver uses the same SQLite schema as LocalDevDriver. This enables:
+- Full compatibility with `ldd-debug` CLI and LocalDevDriverDebugger
+- Run resumption with the same semantics
+- Response caching and compression dictionaries
+- Error tracking and requeue operations
+- WARC export
+
+**Key mapping from Playwright to schema:**
+- Navigation + DOM snapshot → `requests` row + `responses` row (content = serialized DOM)
+- Form submission → same, with `via` field populated in request serialization
+- Step yields → `results` table
+- Step exceptions → `errors` table with type-specific fields
+
+The only schema addition is the `incidental_requests` table (Decision 7).
+
+### Decision 7: Incidental requests table for browser-initiated network activity
+
+Playwright makes many network requests that aren't directly initiated by `BaseRequest` subclasses: images, stylesheets, scripts, XHR/fetch calls, fonts, etc. These need to be captured for:
+- Debugging (what resources failed to load?)
+- Cache validation (can we replay from cache?)
+- WARC completeness (archive all network activity)
+
+The `incidental_requests` table captures these with:
+- `parent_request_id` linking to the navigation that triggered them
+- `resource_type` from Playwright's classification
+- Request/response details, compressed content
+- Timing and caching metadata
+- Blocking status (if route interception blocked the request)
+
+**Caching strategy:** A primary request cache hit requires all associated incidental requests to also have cache hits. This ensures the DOM snapshot is consistent with the resources that were available when it was captured.
+
+**Storage limits:** Large binary resources (images, fonts) can be excluded or truncated based on driver configuration. The goal is debugging and archival, not perfect fidelity.
+
+### Decision 8: Rate limiting via pyrate_limiter
+
+The Playwright driver uses `pyrate_limiter` with `AioSQLiteBucket` for rate limiting, identical to LocalDevDriver. This provides:
+- Persistent rate limiting state across restarts
+- Configurable rate limits (requests per second, per minute, etc.)
+- Burst handling with multiple rate tiers
+
+**Only primary navigations are rate-limited.** Incidental requests (browser-initiated resource loads) are not counted against the rate limit — they're a side effect of the navigation, not separate intentional requests. This matches how courts view "a page load" vs "N requests."
+
+**Jitter** is applied after the rate limiter wait time to avoid thundering herd effects.
+
+### Decision 9: Browser lifecycle — context per run, page reuse
+
+A single browser context is used for the entire run:
+- Cookies and storage persist across navigations (important for session handling)
+- Configuration (viewport, user agent) is consistent
+- Stored in `run_metadata.browser_config_json` for resumption
+
+Pages are reused where possible to reduce overhead. A new page is created only for:
+- Popup/new tab handling
+- Parallel navigation (if supported in future)
+
+On run resumption, a new browser context is created with the same configuration. Cookie restoration is out of scope for initial implementation — the resume behavior is: pending requests are re-executed, responses are not re-fetched if cached.
+
+### Decision 10: LDD-Debug compatibility as a hard requirement
+
+The Playwright driver's artifacts MUST work with `ldd-debug`. This is not optional. Specific extensions:
+- `ldd-debug incidental list|show|content` — new commands for incidental requests
+- `ldd-debug diagnose` — works on DOM snapshots identically to HTTP responses
+- `ldd-debug compare` — replays step functions with stored DOM snapshots
+- `ldd-debug export warc` — includes incidental requests grouped with parent
+
+The debugger doesn't need to know whether the run was HTTP or Playwright — the schema is the same.
+
+## Risks / Trade-offs
+
+- **Snapshot is a point-in-time view**: If the page changes after the snapshot (e.g., lazy-loaded content), the step won't see updates. Mitigation: the Playwright driver should wait for the page to be fully rendered before snapshotting.
+- **Playwright dependency**: Adds a significant dependency. Mitigation: Playwright is optional — only scrapers that need it will use it.
+- **Browser resource overhead**: Running a browser is heavier than HTTP requests. Mitigation: Use HTTP driver where possible; Playwright only for JS-required sites.
+- **Incidental requests storage**: Can grow large. Mitigation: Configurable exclusion of binary resources, compression.
+- **Cache complexity**: Validating incidental request cache hits is complex. Mitigation: Conservative cache invalidation — any missing incidental request invalidates the cache.
+
 ## Open Questions
 
-1. Should there be a browser pool / context reuse strategy, or is a fresh browser per scraper run acceptable?
-2. How should network interception (blocking ads, tracking scripts) be configured?
+1. ~~Should there be a browser pool / context reuse strategy, or is a fresh browser per scraper run acceptable?~~ Resolved: Single context per run, page reuse.
+2. Should incidental request content storage be opt-in or opt-out? (Current design: opt-out for large binaries)
+3. Should we support parallel page workers within a single run? (Deferred to future enhancement)

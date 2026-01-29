@@ -390,6 +390,164 @@ class LocalDevDriverDebugger:
         return await self.sql.get_response_content(response_id)
 
     # =========================================================================
+    # Incidental Request Inspection
+    # =========================================================================
+
+    async def list_incidental_requests(
+        self,
+        parent_request_id: int | None = None,
+        resource_type: str | None = None,
+        from_cache: bool | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> Page[dict[str, Any]]:
+        """List incidental requests with optional filtering.
+
+        Args:
+            parent_request_id: Filter by parent request ID.
+            resource_type: Filter by resource type (e.g., 'script', 'stylesheet', 'image').
+            from_cache: Filter by cache status (True=from cache, False=not from cache).
+            limit: Maximum number of results to return.
+            offset: Number of results to skip (for pagination).
+
+        Returns:
+            Page object containing incidental request dictionaries.
+
+        Example:
+            # Get all scripts for a request
+            page = await debugger.list_incidental_requests(
+                parent_request_id=123, resource_type='script'
+            )
+            for req in page.items:
+                print(f"Script: {req['url']}")
+        """
+        from juriscraper.scraper_driver.driver.dev_driver.sql_queries import (
+            SQL,
+        )
+
+        # Build WHERE clause
+        conditions: list[str] = []
+        params: list[int | str | bool] = []
+
+        if parent_request_id is not None:
+            conditions.append("parent_request_id = ?")
+            params.append(parent_request_id)
+
+        if resource_type is not None:
+            conditions.append("resource_type = ?")
+            params.append(resource_type)
+
+        if from_cache is not None:
+            conditions.append("from_cache = ?")
+            params.append(1 if from_cache else 0)
+
+        where_clause = (
+            "WHERE " + " AND ".join(conditions) if conditions else ""
+        )
+
+        # Get total count
+        count_query = SQL.COUNT_INCIDENTAL_REQUESTS.format(
+            where_clause=where_clause
+        )
+        async with self.sql.db.execute(count_query, params) as cursor:
+            row = await cursor.fetchone()
+            total = row[0] if row else 0
+
+        # Get page of results
+        query = SQL.SELECT_INCIDENTAL_REQUESTS_LIST.format(
+            where_clause=where_clause
+        )
+        query_params = params + [limit, offset]
+        async with self.sql.db.execute(query, query_params) as cursor:
+            rows = await cursor.fetchall()
+
+        # Convert to dictionaries
+        items = [
+            {
+                "id": row[0],
+                "parent_request_id": row[1],
+                "resource_type": row[2],
+                "method": row[3],
+                "url": row[4],
+                "status_code": row[5],
+                "content_size_original": row[6],
+                "from_cache": bool(row[7]),
+                "failure_reason": row[8],
+                "created_at": row[9],
+            }
+            for row in rows
+        ]
+
+        return Page(
+            items=items,
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
+
+    async def get_incidental_request(
+        self, incidental_id: int
+    ) -> dict[str, Any] | None:
+        """Get a single incidental request by ID.
+
+        Args:
+            incidental_id: The incidental request ID.
+
+        Returns:
+            Incidental request dict if found, None otherwise.
+
+        Example:
+            inc = await debugger.get_incidental_request(456)
+            if inc:
+                print(f"Type: {inc['resource_type']}")
+                print(f"URL: {inc['url']}")
+                print(f"Status: {inc['status_code']}")
+        """
+        return await self.sql.get_incidental_request_by_id(incidental_id)
+
+    async def get_incidental_request_content(
+        self, incidental_id: int
+    ) -> bytes | None:
+        """Get decompressed incidental request content.
+
+        Args:
+            incidental_id: The incidental request ID.
+
+        Returns:
+            Decompressed content bytes, or None if not found or no content.
+
+        Example:
+            content = await debugger.get_incidental_request_content(456)
+            if content:
+                print(f"Script size: {len(content)} bytes")
+        """
+        inc = await self.sql.get_incidental_request_by_id(incidental_id)
+        if not inc or not inc.get("content_compressed"):
+            return None
+
+        # Decompress content
+        import zstandard as zstd
+
+        content_compressed = inc["content_compressed"]
+        compression_dict_id = inc.get("compression_dict_id")
+
+        if compression_dict_id:
+            # Get compression dictionary
+            dict_data = await self.sql.get_compression_dict(
+                compression_dict_id
+            )
+            if dict_data:
+                dctx = zstd.ZstdDecompressor(
+                    dict_data=zstd.ZstdCompressionDict(dict_data)
+                )
+            else:
+                dctx = zstd.ZstdDecompressor()
+        else:
+            dctx = zstd.ZstdDecompressor()
+
+        return dctx.decompress(content_compressed)
+
+    # =========================================================================
     # Error Inspection
     # =========================================================================
 

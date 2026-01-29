@@ -1065,3 +1065,73 @@ ScraperYield = (
 # The second type parameter (bool | None) is the SendType - values sent back
 # to the generator via .send(). Currently unused but kept for future compatibility.
 ScraperGenerator = Generator[ScraperYield[T], bool | None, None]
+
+
+# =============================================================================
+# Wait Conditions for Playwright Driver
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class WaitForSelector:
+    """Wait for a selector to appear in the DOM.
+
+    Used in @step(await_list=[...]) to instruct Playwright driver
+    to wait for an element before taking a DOM snapshot.
+
+    Attributes:
+        selector: CSS or XPath selector to wait for.
+        state: Optional state to wait for ('attached', 'detached', 'visible', 'hidden').
+               Defaults to 'visible'.
+        timeout: Optional timeout in milliseconds. If None, uses Playwright's default.
+    """
+
+    selector: str
+    state: str = "visible"
+    timeout: int | None = None
+
+
+@dataclass(frozen=True)
+class WaitForLoadState:
+    """Wait for a specific load state.
+
+    Used in @step(await_list=[...]) to instruct Playwright driver
+    to wait for a load state before taking a DOM snapshot.
+
+    Attributes:
+        state: Load state to wait for ('load', 'domcontentloaded', 'networkidle').
+        timeout: Optional timeout in milliseconds. If None, uses Playwright's default.
+    """
+
+    state: str = "load"
+    timeout: int | None = None
+
+
+@dataclass(frozen=True)
+class WaitForURL:
+    """Wait for the URL to match a pattern.
+
+    Used in @step(await_list=[...]) to instruct Playwright driver
+    to wait for URL navigation before taking a DOM snapshot.
+
+    Attributes:
+        url: URL string or pattern to wait for. Can be a string, regex pattern, or callable.
+        timeout: Optional timeout in milliseconds. If None, uses Playwright's default.
+    """
+
+    url: str
+    timeout: int | None = None
+
+
+@dataclass(frozen=True)
+class WaitForTimeout:
+    """Wait for a specific amount of time.
+
+    Used in @step(await_list=[...]) to instruct Playwright driver
+    to wait before taking a DOM snapshot.
+
+    Attributes:
+        timeout: Time to wait in milliseconds.
+    """
+
+    timeout: int

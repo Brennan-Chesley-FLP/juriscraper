@@ -26,8 +26,8 @@ class SQL:
         INSERT INTO run_metadata (
             id, scraper_name, scraper_version, status,
             base_delay, jitter, num_workers, max_backoff_time,
-            speculation_config_json
-        ) VALUES (1, ?, ?, 'created', ?, ?, ?, ?, ?)
+            speculation_config_json, browser_config_json
+        ) VALUES (1, ?, ?, 'created', ?, ?, ?, ?, ?, ?)
     """
 
     UPDATE_SPECULATION_CONFIG = """
@@ -1160,7 +1160,7 @@ class SQL:
     SELECT_RUN_METADATA_FULL = """
         SELECT scraper_name, scraper_version, status, created_at, started_at,
                ended_at, error_message, base_delay, jitter, num_workers,
-               max_backoff_time, speculation_config_json
+               max_backoff_time, speculation_config_json, browser_config_json
         FROM run_metadata WHERE id = 1
     """
 
@@ -1333,4 +1333,65 @@ class SQL:
           AND NOT EXISTS (
               SELECT 1 FROM results res WHERE res.request_id = r.id
           )
+    """
+
+    # =========================================================================
+    # Incidental Requests (Playwright driver)
+    # =========================================================================
+
+    INSERT_INCIDENTAL_REQUEST = """
+        INSERT INTO incidental_requests (
+            parent_request_id, resource_type, method, url,
+            headers_json, body,
+            status_code, response_headers_json,
+            content_compressed, content_size_original, content_size_compressed,
+            compression_dict_id,
+            started_at_ns, completed_at_ns,
+            from_cache, failure_reason
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
+
+    SELECT_INCIDENTAL_REQUESTS_BY_PARENT = """
+        SELECT id, parent_request_id, resource_type, method, url,
+               headers_json, body,
+               status_code, response_headers_json,
+               content_compressed, content_size_original, content_size_compressed,
+               compression_dict_id,
+               started_at_ns, completed_at_ns,
+               from_cache, failure_reason, created_at
+        FROM incidental_requests
+        WHERE parent_request_id = ?
+        ORDER BY started_at_ns ASC
+    """
+
+    SELECT_INCIDENTAL_REQUEST_BY_ID = """
+        SELECT id, parent_request_id, resource_type, method, url,
+               headers_json, body,
+               status_code, response_headers_json,
+               content_compressed, content_size_original, content_size_compressed,
+               compression_dict_id,
+               started_at_ns, completed_at_ns,
+               from_cache, failure_reason, created_at
+        FROM incidental_requests
+        WHERE id = ?
+    """
+
+    SELECT_INCIDENTAL_REQUESTS_LIST = """
+        SELECT id, parent_request_id, resource_type, method, url,
+               status_code, content_size_original, from_cache,
+               failure_reason, created_at
+        FROM incidental_requests
+        {where_clause}
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+    """
+
+    COUNT_INCIDENTAL_REQUESTS = """
+        SELECT COUNT(*) FROM incidental_requests {where_clause}
+    """
+
+    # Delete incidental requests by parent request IDs
+    # Note: Uses dynamic IN clause, caller must format with placeholders
+    DELETE_INCIDENTAL_REQUESTS_BY_PARENT_IDS = """
+        DELETE FROM incidental_requests WHERE parent_request_id IN ({placeholders})
     """

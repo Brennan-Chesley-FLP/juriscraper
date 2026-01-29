@@ -397,6 +397,7 @@ class SQLManager:
         num_workers: int,
         max_backoff_time: float,
         speculation_config: dict[str, dict[str, int]] | None = None,
+        browser_config: dict[str, Any] | None = None,
     ) -> None:
         """Initialize run metadata in database.
 
@@ -409,6 +410,8 @@ class SQLManager:
             max_backoff_time: Maximum total backoff time before failure.
             speculation_config: Optional dict mapping continuation name to
                 {"threshold": int, "speculation": int} for speculative handling.
+            browser_config: Optional dict with browser configuration for Playwright
+                driver (browser_type, headless, viewport, user_agent, etc.).
         """
         async with self._lock:
             cursor = await self._db.execute(SQL.SELECT_RUN_METADATA_BY_ID)
@@ -416,6 +419,9 @@ class SQLManager:
 
             speculation_config_json = (
                 json.dumps(speculation_config) if speculation_config else None
+            )
+            browser_config_json = (
+                json.dumps(browser_config) if browser_config else None
             )
 
             if row is None:
@@ -430,6 +436,7 @@ class SQLManager:
                         num_workers,
                         max_backoff_time,
                         speculation_config_json,
+                        browser_config_json,
                     ),
                 )
                 await self._db.commit()
@@ -565,6 +572,7 @@ class SQLManager:
             "num_workers": row[9],
             "max_backoff_time": row[10],
             "speculation_config": json.loads(row[11]) if row[11] else None,
+            "browser_config": json.loads(row[12]) if row[12] else None,
         }
 
     # --- Request Queue Operations ---
@@ -992,6 +1000,155 @@ class SQLManager:
             )
             await self._db.commit()
             return cursor.lastrowid or 0
+
+    # --- Incidental Requests (Playwright driver) ---
+
+    async def insert_incidental_request(
+        self,
+        parent_request_id: int,
+        resource_type: str,
+        method: str,
+        url: str,
+        headers_json: str | None = None,
+        body: bytes | None = None,
+        status_code: int | None = None,
+        response_headers_json: str | None = None,
+        content_compressed: bytes | None = None,
+        content_size_original: int | None = None,
+        content_size_compressed: int | None = None,
+        compression_dict_id: int | None = None,
+        started_at_ns: int | None = None,
+        completed_at_ns: int | None = None,
+        from_cache: bool = False,
+        failure_reason: str | None = None,
+    ) -> int:
+        """Store an incidental browser request (Playwright driver).
+
+        Incidental requests are browser-initiated network requests that are not
+        directly initiated by BaseRequest subclasses (e.g., images, scripts, XHR).
+
+        Args:
+            parent_request_id: ID of the primary request that triggered this navigation.
+            resource_type: Resource type (document, stylesheet, image, script, etc.).
+            method: HTTP method.
+            url: Request URL.
+            headers_json: JSON-encoded request headers.
+            body: Request body (if any).
+            status_code: HTTP status code (None if request failed).
+            response_headers_json: JSON-encoded response headers.
+            content_compressed: Zstd-compressed response body.
+            content_size_original: Original response size.
+            content_size_compressed: Compressed response size.
+            compression_dict_id: Compression dictionary ID if used.
+            started_at_ns: Nanosecond timestamp when request started.
+            completed_at_ns: Nanosecond timestamp when request completed.
+            from_cache: Whether browser served from cache.
+            failure_reason: Reason if request failed (timeout, aborted, etc.).
+
+        Returns:
+            The database ID of the stored incidental request.
+        """
+        async with self._lock:
+            cursor = await self._db.execute(
+                SQL.INSERT_INCIDENTAL_REQUEST,
+                (
+                    parent_request_id,
+                    resource_type,
+                    method,
+                    url,
+                    headers_json,
+                    body,
+                    status_code,
+                    response_headers_json,
+                    content_compressed,
+                    content_size_original,
+                    content_size_compressed,
+                    compression_dict_id,
+                    started_at_ns,
+                    completed_at_ns,
+                    from_cache,
+                    failure_reason,
+                ),
+            )
+            await self._db.commit()
+            return cursor.lastrowid or 0
+
+    async def get_incidental_requests(
+        self, parent_request_id: int
+    ) -> list[dict[str, Any]]:
+        """Get all incidental requests for a parent request.
+
+        Args:
+            parent_request_id: ID of the parent request.
+
+        Returns:
+            List of incidental request records as dicts.
+        """
+        cursor = await self._db.execute(
+            SQL.SELECT_INCIDENTAL_REQUESTS_BY_PARENT, (parent_request_id,)
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "id": row[0],
+                "parent_request_id": row[1],
+                "resource_type": row[2],
+                "method": row[3],
+                "url": row[4],
+                "headers_json": row[5],
+                "body": row[6],
+                "status_code": row[7],
+                "response_headers_json": row[8],
+                "content_compressed": row[9],
+                "content_size_original": row[10],
+                "content_size_compressed": row[11],
+                "compression_dict_id": row[12],
+                "started_at_ns": row[13],
+                "completed_at_ns": row[14],
+                "from_cache": row[15],
+                "failure_reason": row[16],
+                "created_at": row[17],
+            }
+            for row in rows
+        ]
+
+    async def get_incidental_request_by_id(
+        self, incidental_id: int
+    ) -> dict[str, Any] | None:
+        """Get a single incidental request by ID.
+
+        Args:
+            incidental_id: ID of the incidental request.
+
+        Returns:
+            Incidental request record as dict, or None if not found.
+        """
+        cursor = await self._db.execute(
+            SQL.SELECT_INCIDENTAL_REQUEST_BY_ID, (incidental_id,)
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "parent_request_id": row[1],
+            "resource_type": row[2],
+            "method": row[3],
+            "url": row[4],
+            "headers_json": row[5],
+            "body": row[6],
+            "status_code": row[7],
+            "response_headers_json": row[8],
+            "content_compressed": row[9],
+            "content_size_original": row[10],
+            "content_size_compressed": row[11],
+            "compression_dict_id": row[12],
+            "started_at_ns": row[13],
+            "completed_at_ns": row[14],
+            "from_cache": row[15],
+            "failure_reason": row[16],
+            "created_at": row[17],
+        }
 
     async def get_response_compressed(
         self, response_id: int
@@ -2571,6 +2728,16 @@ class SQLManager:
                     ),
                     result.cleared_response_ids,
                 )
+
+                # Also delete incidental requests associated with these parent requests
+                if affected_list:
+                    placeholders = ",".join("?" * len(affected_list))
+                    await self._db.execute(
+                        SQL.DELETE_INCIDENTAL_REQUESTS_BY_PARENT_IDS.format(
+                            placeholders=placeholders
+                        ),
+                        affected_list,
+                    )
 
             # Clear downstream artifacts if requested
             if clear_downstream:

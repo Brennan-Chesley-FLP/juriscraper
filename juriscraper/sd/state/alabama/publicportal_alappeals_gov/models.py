@@ -6,6 +6,7 @@ Alabama Supreme Court, Court of Civil Appeals, and Court of Criminal Appeals dat
 Mapping to base.py types:
 - AlaOpinion -> Opinion (individual opinion document)
 - AlaOpinionCluster -> OpinionCluster (group of related opinions from release lists)
+- AlaHistoricalReleaseList -> OpinionCluster (weekly PDF bundles, pre-May 2023)
 - AlaOralArgument -> Audio (oral argument information)
 - AlaDocket -> Docket (case docket information)
 - AlaDocketEntry -> DocketEntry (individual docket entry/filing)
@@ -49,6 +50,7 @@ class CourtConfigEntry(TypedDict):
     name: str
     court_guid: str
     clerk_name: str
+    decisions_url: str  # Historical decisions page on judicial.alabama.gov
 
 
 # Court configuration for scraping
@@ -58,16 +60,19 @@ COURT_CONFIG: dict[str, CourtConfigEntry] = {
         "name": "Alabama Supreme Court",
         "court_guid": "68f021c4-6a44-4735-9a76-5360b2e8af13",
         "clerk_name": "Megan B. Rhodebeck",
+        "decisions_url": "https://judicial.alabama.gov/decision/supremecourtdecisions",
     },
     "alactapp": {
         "name": "Alabama Court of Civil Appeals",
         "court_guid": "1da1a297-c391-4e4f-9480-1bc68b46f21a",
         "clerk_name": "Seth Rhodebeck",
+        "decisions_url": "https://judicial.alabama.gov/decision/civildecisions",
     },
     "alacrimapp": {
         "name": "Alabama Court of Criminal Appeals",
         "court_guid": "b82b30d5-bd3c-46d7-9451-1cb05e470873",
         "clerk_name": "D. Scott Mitchell",
+        "decisions_url": "https://judicial.alabama.gov/decision/criminaldecisions",
     },
 }
 
@@ -293,3 +298,46 @@ class AlaDocket(Docket):
     # === API metadata ===
     court_guid: str | None = None
     """Court GUID used in API calls"""
+
+
+class AlaHistoricalReleaseList(OpinionCluster):
+    """A weekly release list from Alabama appellate courts (pre-May 2023).
+
+    This represents a weekly release list PDF document from acis.alabama.gov.
+    The PDF contains multiple opinions grouped by authoring judge/justice.
+
+    These historical opinions were released before May 19, 2023, when Alabama
+    transitioned to the Public Portal system at publicportal.alappeals.gov.
+
+    Note: This scraper captures the release list PDFs. Extracting individual
+    opinions from these PDFs requires additional PDF parsing not included here.
+    """
+
+    # === Searchable fields ===
+    court_id: Annotated[str, SetFilter()]
+    """Court identifier: 'ala', 'alactapp', or 'alacrimapp'"""
+
+    date_filed: Annotated[date, DateRange()]
+    """Date the release list was published (the Friday of release)"""
+
+    # === Required fields ===
+    case_name: str
+    """Description of the release list (e.g., 'Decisions on Friday, May 19, 2023')"""
+
+    # === PDF document ===
+    pdf_url: str
+    """URL to the release list PDF on acis.alabama.gov"""
+
+    local_path: str | None = None
+    """Local filesystem path where the PDF was downloaded (set by driver)"""
+
+    # === Source tracking ===
+    source_url: str | None = None
+    """URL of the decisions listing page on judicial.alabama.gov"""
+
+    # === ACIS metadata ===
+    acis_doc_no: str | None = None
+    """Document number from acis.alabama.gov URL (the 'no' parameter)"""
+
+    acis_event: str | None = None
+    """Event code from acis.alabama.gov URL (the 'event' parameter)"""

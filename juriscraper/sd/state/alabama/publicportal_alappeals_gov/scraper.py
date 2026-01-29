@@ -1,7 +1,7 @@
 """Alabama Appellate Courts Scraper.
 
 This module contains a unified scraper for opinions, oral arguments,
-and dockets from Alabama appellate courts:
+dockets, and historical opinions from Alabama appellate courts:
 
 - Alabama Supreme Court (ala)
 - Alabama Court of Civil Appeals (alactapp)
@@ -9,10 +9,15 @@ and dockets from Alabama appellate courts:
 
 Entry points:
 
-- Opinions (Release Lists/Publications):
+- Opinions (Release Lists/Publications, May 2023+):
 
   - API: https://publicportal-api.alappeals.gov/courts/cms/publications
   - Portal: https://publicportal.alappeals.gov/portal/search/publication
+
+- Historical Opinions (Pre-May 2023):
+
+  - Source: https://judicial.alabama.gov/decision/*
+  - PDFs: https://acis.alabama.gov/displaydocs2.cfm
 
 - Dockets/Cases:
 
@@ -32,6 +37,11 @@ Opinions Flow:
      - Respects date range filters and stops when outside range
   3. handle_opinion_download -> stores local paths, yields final AlaOpinionClusters
 
+Historical Opinions Flow (pre-May 2023):
+  1. get_entry -> HTML requests to judicial.alabama.gov decisions pages
+  2. parse_historical_decisions_list -> parses HTML table, yields ArchiveRequests for PDFs
+  3. handle_historical_pdf_download -> stores local paths, yields AlaHistoricalReleaseList
+
 Dockets Flow:
   1. get_entry -> yields date range search requests
   2. parse_dockets_search -> handles 10,000 result limit by splitting date ranges
@@ -50,7 +60,8 @@ Oral Arguments Flow:
   3. parse_event_hearings -> parses cases for each event, yields AlaOralArgument objects
 
 Design decisions:
-- Uses JSON API endpoints for data retrieval (not HTML scraping)
+- Uses JSON API endpoints for data retrieval (current opinions, dockets, oral args)
+- Uses HTML scraping for historical opinions (pre-May 2023)
 - Uses DateRange filter on date_filed for searching
 - Uses SetFilter on court_id to select which courts to scrape
 - Archives opinion PDFs via ArchiveRequest
@@ -64,7 +75,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, ClassVar
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from juriscraper.scraper_driver.common.decorators import step
 from juriscraper.scraper_driver.data_types import (
@@ -85,6 +96,7 @@ from .models import (
     COURT_CONFIG,
     AlaDocket,
     AlaDocketEntry,
+    AlaHistoricalReleaseList,
     AlaOpinion,
     AlaOpinionCluster,
     AlaOralArgument,
@@ -97,7 +109,12 @@ if TYPE_CHECKING:
 
 
 class AlabamaScraper(
-    BaseScraper[AlaOpinionCluster | AlaOralArgument | AlaDocket]
+    BaseScraper[
+        AlaOpinionCluster
+        | AlaOralArgument
+        | AlaDocket
+        | AlaHistoricalReleaseList
+    ]
 ):
     """Unified scraper for Alabama appellate court data.
 
@@ -136,6 +153,7 @@ class AlabamaScraper(
     court_url: ClassVar[str] = "https://publicportal.alappeals.gov/"
     data_types: ClassVar[set[str]] = {
         "opinions",
+        "historical_opinions",
         "oral_arguments",
         "dockets",
     }
@@ -162,8 +180,32 @@ class AlabamaScraper(
     # Mapping from model name to data type
     MODEL_TO_DATA_TYPE: ClassVar[dict[str, str]] = {
         "AlaOpinionCluster": "opinions",
+        "AlaHistoricalReleaseList": "historical_opinions",
         "AlaOralArgument": "oral_arguments",
         "AlaDocket": "dockets",
+    }
+
+    # === Historical Opinions Patterns ===
+    # Regex to parse release date from link text
+    # Format: "Decisions on Friday, May 19, 2023"
+    HISTORICAL_DATE_PATTERN = re.compile(
+        r"Decisions on \w+,\s+(\w+)\s+(\d{1,2}),\s+(\d{4})"
+    )
+
+    # Month name to number mapping
+    MONTH_MAP: ClassVar[dict[str, int]] = {
+        "January": 1,
+        "February": 2,
+        "March": 3,
+        "April": 4,
+        "May": 5,
+        "June": 6,
+        "July": 7,
+        "August": 8,
+        "September": 9,
+        "October": 10,
+        "November": 11,
+        "December": 12,
     }
 
     def _parse_date(self, date_str: str) -> date | None:
@@ -188,6 +230,32 @@ class AlabamaScraper(
             pass
 
         return None
+
+    def _parse_historical_release_date(self, text: str) -> date | None:
+        """Parse release date from historical link text.
+
+        Args:
+            text: Link text like "Decisions on Friday, May 19, 2023"
+
+        Returns:
+            Parsed date object, or None if parsing fails.
+        """
+        match = self.HISTORICAL_DATE_PATTERN.search(text)
+        if not match:
+            return None
+
+        month_name = match.group(1)
+        day = int(match.group(2))
+        year = int(match.group(3))
+
+        month = self.MONTH_MAP.get(month_name)
+        if not month:
+            return None
+
+        try:
+            return date(year, month, day)
+        except ValueError:
+            return None
 
     def _get_requested_data_types(self) -> set[str]:
         """Get the set of data types to scrape based on enabled models.
@@ -329,10 +397,45 @@ class AlabamaScraper(
 
         return date_gte, date_lte, case_number, court_ids
 
+    def _get_historical_search_params(
+        self,
+    ) -> tuple[date | None, date | None, set[str] | None]:
+        """Extract search parameters for historical opinions from ScraperParams.
+
+        Returns:
+            Tuple of (date_gte, date_lte, court_ids)
+        """
+        if self._params is None:
+            return None, None, None
+
+        try:
+            model_proxy = self._params.AlaHistoricalReleaseList
+        except AttributeError:
+            return None, None, None
+
+        date_gte = None
+        date_lte = None
+        court_ids = None
+
+        searchable = model_proxy.get_searchable_fields()
+
+        date_field = searchable.get("date_filed")
+        if date_field and date_field.is_set():
+            date_gte = date_field.gte
+            date_lte = date_field.lte
+
+        court_field = searchable.get("court_id")
+        if court_field and court_field.is_set():
+            court_ids = court_field.values
+
+        return date_gte, date_lte, court_ids
+
     def _get_target_courts(self, data_type: str) -> set[str]:
         """Get the set of court IDs to scrape for a given data type."""
         if data_type == "opinions":
             _, _, _, court_ids = self._get_opinions_search_params()
+        elif data_type == "historical_opinions":
+            _, _, court_ids = self._get_historical_search_params()
         elif data_type == "dockets":
             _, _, _, court_ids = self._get_dockets_search_params()
         elif data_type == "oral_arguments":
@@ -363,6 +466,9 @@ class AlabamaScraper(
 
         if "opinions" in requested:
             yield from self._get_opinions_entry()
+
+        if "historical_opinions" in requested:
+            yield from self._get_historical_opinions_entry()
 
         if "oral_arguments" in requested:
             yield from self._get_oral_arguments_entry()
@@ -423,7 +529,12 @@ class AlabamaScraper(
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
-        ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
         None,
         None,
     ]:
@@ -640,7 +751,12 @@ class AlabamaScraper(
         archive_response: ArchiveResponse,
         accumulated_data: dict,
     ) -> Generator[
-        ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
         None,
         None,
     ]:
@@ -668,6 +784,169 @@ class AlabamaScraper(
 
         # Yield the complete cluster
         yield ParsedData(data=cluster)
+
+    # =========================================================================
+    # Historical Opinions Scraping Steps (pre-May 2023)
+    # =========================================================================
+
+    def _get_historical_opinions_entry(
+        self,
+    ) -> Generator[NavigatingRequest, None, None]:
+        """Yield initial requests for historical opinions scraping.
+
+        Fetches the decisions listing pages from judicial.alabama.gov
+        for each target court. These pages contain links to weekly PDF
+        release lists on acis.alabama.gov.
+        """
+        target_courts = self._get_target_courts("historical_opinions")
+
+        for court_id in sorted(target_courts):
+            config = COURT_CONFIG[court_id]
+            url = config["decisions_url"]
+
+            yield NavigatingRequest(
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET,
+                    url=url,
+                    headers={
+                        "Accept": "text/html",
+                    },
+                ),
+                continuation=self.parse_historical_decisions_list,
+                accumulated_data={
+                    "court_id": court_id,
+                },
+            )
+
+    @step()
+    def parse_historical_decisions_list(
+        self,
+        html_content: str,
+        response: Response,
+        accumulated_data: dict,
+    ) -> Generator[
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
+        None,
+        None,
+    ]:
+        """Parse the historical decisions listing page and yield ArchiveRequests for PDFs.
+
+        The page contains a DataTables table where each row has a link to
+        a release list PDF on acis.alabama.gov.
+
+        The table HTML structure:
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <a href="https://acis.alabama.gov/displaydocs2.cfm?no=...&event=...">
+                  Decisions on Friday, May 19, 2023
+                </a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        """
+        court_id: str = accumulated_data.get("court_id", "")
+
+        # Get date filter parameters
+        date_gte, date_lte, _ = self._get_historical_search_params()
+
+        # Parse HTML to find all release list links
+        # Pattern: href="https://acis.alabama.gov/displaydocs2.cfm?no=...&event=..."
+        # followed by text like "Decisions on Friday, May 19, 2023"
+        link_pattern = re.compile(
+            r'<a\s+[^>]*href="(https://acis\.alabama\.gov/displaydocs2\.cfm\?[^"]+)"[^>]*>'
+            r"\s*(?:<[^>]+>\s*)*"  # Optional inner elements
+            r"(Decisions on [^<]+)"
+            r"</a>",
+            re.IGNORECASE | re.DOTALL,
+        )
+
+        matches = link_pattern.findall(html_content)
+
+        for pdf_url, link_text in matches:
+            # Clean up the link text
+            link_text = link_text.strip()
+
+            # Parse the release date from link text
+            release_date = self._parse_historical_release_date(link_text)
+            if not release_date:
+                continue
+
+            # Check date range filters
+            if date_lte and release_date > date_lte:
+                continue
+            if date_gte and release_date < date_gte:
+                continue
+
+            # Parse ACIS parameters from URL
+            parsed = urlparse(pdf_url.strip())
+            params = parse_qs(parsed.query)
+            acis_doc_no = params.get("no", [""])[0]
+            acis_event = params.get("event", [""])[0]
+
+            # Create release list object
+            release_list = AlaHistoricalReleaseList(
+                court_id=court_id,
+                date_filed=release_date,
+                case_name=link_text,
+                pdf_url=pdf_url.strip(),
+                source_url=response.url,
+                acis_doc_no=acis_doc_no.strip() if acis_doc_no else None,
+                acis_event=acis_event.strip() if acis_event else None,
+            )
+
+            # Yield ArchiveRequest to download the PDF
+            yield ArchiveRequest(
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET,
+                    url=pdf_url.strip(),
+                ),
+                continuation=self.handle_historical_pdf_download,
+                accumulated_data={
+                    "release_list": release_list,
+                },
+            )
+
+    @step()
+    def handle_historical_pdf_download(
+        self,
+        archive_response: ArchiveResponse,
+        accumulated_data: dict,
+    ) -> Generator[
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
+        None,
+        None,
+    ]:
+        """Handle the downloaded historical PDF and yield the final release list.
+
+        Args:
+            archive_response: Response from archiving the PDF
+            accumulated_data: Contains release_list object
+        """
+        release_list = accumulated_data.get("release_list")
+
+        if not release_list or not isinstance(
+            release_list, AlaHistoricalReleaseList
+        ):
+            return
+
+        # Update the release list with the local path
+        release_list.local_path = archive_response.file_url
+
+        # Yield the complete release list
+        yield ParsedData(data=release_list)
 
     # =========================================================================
     # Oral Arguments Scraping Steps
@@ -741,7 +1020,12 @@ class AlabamaScraper(
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
-        ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
         None,
         None,
     ]:
@@ -887,7 +1171,12 @@ class AlabamaScraper(
         json_content: dict,
         accumulated_data: dict,
     ) -> Generator[
-        ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
         None,
         None,
     ]:
@@ -1068,7 +1357,12 @@ class AlabamaScraper(
         json_content: dict,
         accumulated_data: dict,
     ) -> Generator[
-        ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
         None,
         None,
     ]:
@@ -1254,7 +1548,12 @@ class AlabamaScraper(
         json_content: dict,
         accumulated_data: dict,
     ) -> Generator[
-        ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
         None,
         None,
     ]:
@@ -1373,7 +1672,12 @@ class AlabamaScraper(
         json_content: dict,
         accumulated_data: dict,
     ) -> Generator[
-        ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
         None,
         None,
     ]:
@@ -1485,7 +1789,12 @@ class AlabamaScraper(
         json_content: dict,
         accumulated_data: dict,
     ) -> Generator[
-        ScraperYield[AlaOpinionCluster | AlaOralArgument | AlaDocket],
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
         None,
         None,
     ]:

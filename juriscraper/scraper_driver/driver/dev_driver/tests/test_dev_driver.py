@@ -3888,6 +3888,120 @@ class TestRequestLineageTracking:
                     f"got {parent_id}"
                 )
 
+    async def test_archive_request_tracks_parent(self, db_path: Path) -> None:
+        """Test that ArchiveRequest yields properly track their parent.
+
+        This verifies the fix for JURI-gih9 where ArchiveRequests (like PDF downloads)
+        were not having their parent_request_id populated.
+        """
+        from juriscraper.scraper_driver.data_types import (
+            ArchiveRequest,
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+            Response,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.dev_driver import (
+            LocalDevDriver,
+        )
+        from juriscraper.scraper_driver.driver.dev_driver.testing import (
+            MockResponse,
+            TestRequestManager,
+            create_html_response,
+        )
+
+        class PDFDownloadScraper(BaseScraper[str]):
+            """Scraper that yields ArchiveRequests for PDFs."""
+
+            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+                yield NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url="https://example.com/index",
+                    ),
+                    continuation="parse_index",
+                    current_location="https://example.com",
+                )
+
+            def parse_index(
+                self, response: Response
+            ) -> Generator[ArchiveRequest, None, None]:
+                """Parse index and yield archive requests for PDFs."""
+                for i in range(3):
+                    yield ArchiveRequest(
+                        request=HTTPRequestParams(
+                            method=HttpMethod.GET,
+                            url=f"https://example.com/doc{i}.pdf",
+                        ),
+                        continuation="handle_pdf",
+                        current_location=response.url,
+                    )
+
+            def handle_pdf(
+                self, response: Response
+            ) -> Generator[None, None, None]:
+                """Handle PDF download (no further requests)."""
+                yield None
+
+        # Create request manager with mock responses
+        request_manager = TestRequestManager()
+        request_manager.add_response(
+            "https://example.com/index",
+            create_html_response("<html>Index</html>"),
+        )
+        for i in range(3):
+            # Create PDF response manually
+            request_manager.add_response(
+                f"https://example.com/doc{i}.pdf",
+                MockResponse(
+                    content=b"fake pdf content",
+                    text="",
+                    status_code=200,
+                    headers={"Content-Type": "application/pdf"},
+                ),
+            )
+
+        scraper = PDFDownloadScraper()
+        async with LocalDevDriver.open(
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
+        ) as driver:
+            # Run the scraper
+            await driver.run()
+
+            # Verify parent-child relationships
+            assert driver.db.db is not None
+
+            # Get the index request ID
+            cursor = await driver.db.db.execute(
+                "SELECT id FROM requests WHERE url = 'https://example.com/index'"
+            )
+            index_row = await cursor.fetchone()
+            assert index_row is not None
+            index_id = index_row[0]
+
+            # Check that all PDF requests have index as parent
+            cursor = await driver.db.db.execute(
+                """
+                SELECT url, parent_request_id FROM requests
+                WHERE url LIKE 'https://example.com/doc%.pdf'
+                ORDER BY url
+                """
+            )
+            pdf_rows = await cursor.fetchall()
+
+            assert len(pdf_rows) == 3, "Should have 3 PDF archive requests"
+
+            for url, parent_id in pdf_rows:
+                assert parent_id == index_id, (
+                    f"Archive request to {url} should have parent_request_id={index_id}, "
+                    f"got {parent_id}"
+                )
+
 
 class TestRequestStatusMarking:
     """Tests for completed and failed request status marking."""

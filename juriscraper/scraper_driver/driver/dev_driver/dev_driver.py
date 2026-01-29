@@ -606,7 +606,10 @@ class LocalDevDriver(
     # --- Queue Operations (DB-backed) ---
 
     async def enqueue_request(
-        self, new_request: BaseRequest, context: Response | BaseRequest
+        self,
+        new_request: BaseRequest,
+        context: Response | BaseRequest,
+        parent_request_id: int | None = None,
     ) -> None:
         """Enqueue a new request to the database.
 
@@ -615,6 +618,7 @@ class LocalDevDriver(
         Args:
             new_request: The new request to enqueue.
             context: Response or originating request for URL resolution.
+            parent_request_id: Optional parent request ID for tracking request relationships.
         """
         # Resolve the request from context
         resolved_request = new_request.resolve_from(context)  # type: ignore
@@ -633,9 +637,13 @@ class LocalDevDriver(
         # Serialize request data
         request_data = self._serialize_request(resolved_request)
 
-        # Get parent request ID if context is a Response
-        parent_id: int | None = None
-        if isinstance(context, Response) and context.request:
+        # Use provided parent_request_id, or look up from context if not provided
+        parent_id: int | None = parent_request_id
+        if (
+            parent_id is None
+            and isinstance(context, Response)
+            and context.request
+        ):
             parent_id = await self.db.find_parent_request_id(
                 context.request.request.url
             )
@@ -1858,10 +1866,12 @@ class LocalDevDriver(
                             await self.handle_data(raw_data)
 
                     case NavigatingRequest():
-                        await self.enqueue_request(item, response)
+                        await self.enqueue_request(item, response, request_id)
 
                     case NonNavigatingRequest() | ArchiveRequest():
-                        await self.enqueue_request(item, parent_request)
+                        await self.enqueue_request(
+                            item, parent_request, request_id
+                        )
 
                     case None:
                         pass

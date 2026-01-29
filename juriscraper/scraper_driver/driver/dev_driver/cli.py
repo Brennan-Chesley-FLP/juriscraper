@@ -4,20 +4,26 @@ This module provides a Click-based CLI for inspecting and manipulating
 LocalDevDriver run databases.
 
 Usage:
-    ldd-debug info <db-path>                    # Show run metadata and stats
-    ldd-debug requests list <db-path>           # List requests
-    ldd-debug requests show <db-path> <id>      # Show request details
-    ldd-debug responses list <db-path>          # List responses
-    ldd-debug responses search <db-path>        # Search response content
-    ldd-debug errors list <db-path>             # List errors
-    ldd-debug results list <db-path>            # List results
-    ldd-debug requeue request <db-path> <id>    # Requeue a request
-    ldd-debug cancel request <db-path> <id>     # Cancel a request
-    ldd-debug compression stats <db-path>       # Show compression stats
-    ldd-debug diagnose <db-path> <error-id>     # Diagnose an error
-    ldd-debug export jsonl <db-path> <output>   # Export results to JSONL
-    ldd-debug export warc <db-path> <output>    # Export responses to WARC
-    ldd-debug doctor <db-path>                  # Run health checks
+    ldd-debug --db run.db info                    # Show run metadata and stats
+    ldd-debug --db run.db requests list           # List requests
+    ldd-debug --db run.db requests show <id>      # Show request details
+    ldd-debug --db run.db responses list          # List responses
+    ldd-debug --db run.db responses search        # Search response content
+    ldd-debug --db run.db errors list             # List errors
+    ldd-debug --db run.db results list            # List results
+    ldd-debug --db run.db requeue request <id>    # Requeue a request
+    ldd-debug --db run.db cancel request <id>     # Cancel a request
+    ldd-debug --db run.db compression stats       # Show compression stats
+    ldd-debug --db run.db diagnose <error-id>     # Diagnose an error
+    ldd-debug --db run.db export jsonl <output>   # Export results to JSONL
+    ldd-debug --db run.db export warc <output>    # Export responses to WARC
+    ldd-debug --db run.db doctor health           # Run health checks
+    ldd-debug --db run.db doctor structure        # Validate response structure
+
+The --db option can be placed at any level:
+    ldd-debug --db run.db doctor structure
+    ldd-debug doctor --db run.db structure
+    ldd-debug doctor structure --db run.db
 
 All commands support:
     --format table|json|jsonl    Output format (default: table)
@@ -269,9 +275,18 @@ def _truncate_repr(value: Any, max_len: int = 60) -> str:
 
 @click.group()
 @click.version_option()
-def cli() -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def cli(ctx: click.Context, db_path: str | None) -> None:
     """LocalDevDriver Debugger - Inspect and manipulate scraper run databases."""
-    pass
+    ctx.ensure_object(dict)
+    ctx.obj["db_path"] = db_path
 
 
 # =========================================================================
@@ -280,7 +295,13 @@ def cli() -> None:
 
 
 @cli.command()
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option(
     "--format",
     "format_type",
@@ -288,7 +309,8 @@ def cli() -> None:
     default="table",
     help="Output format",
 )
-def info(db_path: str, format_type: str) -> None:
+@click.pass_context
+def info(ctx: click.Context, db_path: str | None, format_type: str) -> None:
     """Show run metadata and statistics.
 
     \b
@@ -296,6 +318,7 @@ def info(db_path: str, format_type: str) -> None:
         ldd-debug info run.db
         ldd-debug info run.db --format json
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -333,13 +356,29 @@ def info(db_path: str, format_type: str) -> None:
 
 
 @cli.group()
-def requests() -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def requests(ctx: click.Context, db_path: str | None) -> None:
     """Inspect and manipulate requests."""
-    pass
+    ctx.ensure_object(dict)
+    if db_path:
+        ctx.obj["db_path"] = db_path
 
 
 @requests.command("list")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option(
     "--status", help="Filter by status (pending, completed, failed, held)"
 )
@@ -353,8 +392,10 @@ def requests() -> None:
     default="table",
     help="Output format",
 )
+@click.pass_context
 def requests_list(
-    db_path: str,
+    ctx: click.Context,
+    db_path: str | None,
     status: str | None,
     continuation: str | None,
     limit: int,
@@ -369,6 +410,8 @@ def requests_list(
         ldd-debug requests list run.db --status failed
         ldd-debug requests list run.db --continuation step1 --limit 50
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -430,7 +473,13 @@ def requests_list(
 
 
 @requests.command("show")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("request_id", type=int)
 @click.option(
     "--format",
@@ -439,7 +488,10 @@ def requests_list(
     default="table",
     help="Output format",
 )
-def requests_show(db_path: str, request_id: int, format_type: str) -> None:
+@click.pass_context
+def requests_show(
+    ctx: click.Context, db_path: str | None, request_id: int, format_type: str
+) -> None:
     """Show detailed request information.
 
     \b
@@ -447,6 +499,7 @@ def requests_show(db_path: str, request_id: int, format_type: str) -> None:
         ldd-debug requests show run.db 123
         ldd-debug requests show run.db 123 --format json
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -485,7 +538,13 @@ def requests_show(db_path: str, request_id: int, format_type: str) -> None:
 
 
 @requests.command("summary")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option(
     "--format",
     "format_type",
@@ -493,7 +552,10 @@ def requests_show(db_path: str, request_id: int, format_type: str) -> None:
     default="table",
     help="Output format",
 )
-def requests_summary(db_path: str, format_type: str) -> None:
+@click.pass_context
+def requests_summary(
+    ctx: click.Context, db_path: str | None, format_type: str
+) -> None:
     """Show request counts by status and continuation.
 
     \b
@@ -501,6 +563,7 @@ def requests_summary(db_path: str, format_type: str) -> None:
         ldd-debug requests summary run.db
         ldd-debug requests summary run.db --format json
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -523,13 +586,29 @@ def requests_summary(db_path: str, format_type: str) -> None:
 
 
 @cli.group()
-def responses() -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def responses(ctx: click.Context, db_path: str | None) -> None:
     """Inspect responses."""
-    pass
+    ctx.ensure_object(dict)
+    if db_path:
+        ctx.obj["db_path"] = db_path
 
 
 @responses.command("list")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option("--continuation", help="Filter by continuation (step name)")
 @click.option("--limit", default=100, help="Maximum number of results")
 @click.option("--offset", default=0, help="Number of results to skip")
@@ -540,8 +619,10 @@ def responses() -> None:
     default="table",
     help="Output format",
 )
+@click.pass_context
 def responses_list(
-    db_path: str,
+    ctx: click.Context,
+    db_path: str | None,
     continuation: str | None,
     limit: int,
     offset: int,
@@ -554,6 +635,8 @@ def responses_list(
         ldd-debug responses list run.db
         ldd-debug responses list run.db --continuation step1
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -612,7 +695,13 @@ def responses_list(
 
 
 @responses.command("show")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("response_id", type=int)
 @click.option(
     "--format",
@@ -621,7 +710,10 @@ def responses_list(
     default="table",
     help="Output format",
 )
-def responses_show(db_path: str, response_id: int, format_type: str) -> None:
+@click.pass_context
+def responses_show(
+    ctx: click.Context, db_path: str | None, response_id: int, format_type: str
+) -> None:
     """Show detailed response information.
 
     \b
@@ -629,6 +721,7 @@ def responses_show(db_path: str, response_id: int, format_type: str) -> None:
         ldd-debug responses show run.db 123
         ldd-debug responses show run.db 123 --format json
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -670,11 +763,21 @@ def responses_show(db_path: str, response_id: int, format_type: str) -> None:
 
 
 @responses.command("content")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("response_id", type=int)
 @click.option("--output", "-o", help="Output file path (default: stdout)")
+@click.pass_context
 def responses_content(
-    db_path: str, response_id: int, output: str | None
+    ctx: click.Context,
+    db_path: str | None,
+    response_id: int,
+    output: str | None,
 ) -> None:
     """Get decompressed response content.
 
@@ -683,6 +786,8 @@ def responses_content(
         ldd-debug responses content run.db 123
         ldd-debug responses content run.db 123 -o response.html
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -706,7 +811,13 @@ def responses_content(
 
 
 @responses.command("search")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option("--text", "text_pattern", help="Plain text to search for")
 @click.option("--regex", "regex_pattern", help="Regular expression pattern")
 @click.option("--xpath", "xpath_expr", help="XPath expression to evaluate")
@@ -718,8 +829,10 @@ def responses_content(
     default="table",
     help="Output format",
 )
+@click.pass_context
 def responses_search(
-    db_path: str,
+    ctx: click.Context,
+    db_path: str | None,
     text_pattern: str | None,
     regex_pattern: str | None,
     xpath_expr: str | None,
@@ -748,6 +861,8 @@ def responses_search(
             err=True,
         )
         sys.exit(1)
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -791,13 +906,29 @@ def responses_search(
 
 
 @cli.group()
-def incidental() -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def incidental(ctx: click.Context, db_path: str | None) -> None:
     """Inspect incidental requests (browser-initiated network requests)."""
-    pass
+    ctx.ensure_object(dict)
+    if db_path:
+        ctx.obj["db_path"] = db_path
 
 
 @incidental.command("list")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option("--parent-id", type=int, help="Filter by parent request ID")
 @click.option(
     "--resource-type",
@@ -817,8 +948,10 @@ def incidental() -> None:
     default="table",
     help="Output format",
 )
+@click.pass_context
 def incidental_list(
-    db_path: str,
+    ctx: click.Context,
+    db_path: str | None,
     parent_id: int | None,
     resource_type: str | None,
     from_cache: bool | None,
@@ -835,6 +968,8 @@ def incidental_list(
         ldd-debug incidental list run.db --resource-type script
         ldd-debug incidental list run.db --from-cache
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -888,7 +1023,13 @@ def incidental_list(
 
 
 @incidental.command("show")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("incidental_id", type=int)
 @click.option(
     "--format",
@@ -897,8 +1038,12 @@ def incidental_list(
     default="table",
     help="Output format",
 )
+@click.pass_context
 def incidental_show(
-    db_path: str, incidental_id: int, format_type: str
+    ctx: click.Context,
+    db_path: str | None,
+    incidental_id: int,
+    format_type: str,
 ) -> None:
     """Show detailed incidental request information.
 
@@ -907,6 +1052,8 @@ def incidental_show(
         ldd-debug incidental show run.db 456
         ldd-debug incidental show run.db 456 --format json
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -947,11 +1094,21 @@ def incidental_show(
 
 
 @incidental.command("content")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("incidental_id", type=int)
 @click.option("--output", "-o", help="Output file path (default: stdout)")
+@click.pass_context
 def incidental_content(
-    db_path: str, incidental_id: int, output: str | None
+    ctx: click.Context,
+    db_path: str | None,
+    incidental_id: int,
+    output: str | None,
 ) -> None:
     """Get decompressed incidental request content.
 
@@ -960,6 +1117,8 @@ def incidental_content(
         ldd-debug incidental content run.db 456
         ldd-debug incidental content run.db 456 -o script.js
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -993,13 +1152,29 @@ def incidental_content(
 
 
 @cli.group()
-def errors() -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def errors(ctx: click.Context, db_path: str | None) -> None:
     """Inspect and manipulate errors."""
-    pass
+    ctx.ensure_object(dict)
+    if db_path:
+        ctx.obj["db_path"] = db_path
 
 
 @errors.command("list")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option("--type", "error_type", help="Filter by error type")
 @click.option(
     "--resolved/--unresolved",
@@ -1016,8 +1191,10 @@ def errors() -> None:
     default="table",
     help="Output format",
 )
+@click.pass_context
 def errors_list(
-    db_path: str,
+    ctx: click.Context,
+    db_path: str | None,
     error_type: str | None,
     resolved: bool | None,
     continuation: str | None,
@@ -1033,6 +1210,8 @@ def errors_list(
         ldd-debug errors list run.db --type xpath --unresolved
         ldd-debug errors list run.db --continuation step1
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -1079,7 +1258,13 @@ def errors_list(
 
 
 @errors.command("show")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("error_id", type=int)
 @click.option(
     "--format",
@@ -1088,7 +1273,10 @@ def errors_list(
     default="table",
     help="Output format",
 )
-def errors_show(db_path: str, error_id: int, format_type: str) -> None:
+@click.pass_context
+def errors_show(
+    ctx: click.Context, db_path: str | None, error_id: int, format_type: str
+) -> None:
     """Show detailed error information.
 
     \b
@@ -1096,6 +1284,7 @@ def errors_show(db_path: str, error_id: int, format_type: str) -> None:
         ldd-debug errors show run.db 123
         ldd-debug errors show run.db 123 --format json
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -1127,7 +1316,13 @@ def errors_show(db_path: str, error_id: int, format_type: str) -> None:
 
 
 @errors.command("summary")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option(
     "--format",
     "format_type",
@@ -1135,7 +1330,10 @@ def errors_show(db_path: str, error_id: int, format_type: str) -> None:
     default="table",
     help="Output format",
 )
-def errors_summary(db_path: str, format_type: str) -> None:
+@click.pass_context
+def errors_summary(
+    ctx: click.Context, db_path: str | None, format_type: str
+) -> None:
     """Show error counts by type and resolution status.
 
     \b
@@ -1143,6 +1341,7 @@ def errors_summary(db_path: str, format_type: str) -> None:
         ldd-debug errors summary run.db
         ldd-debug errors summary run.db --format json
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -1172,10 +1371,19 @@ def errors_summary(db_path: str, format_type: str) -> None:
 
 
 @errors.command("resolve")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("error_id", type=int)
 @click.option("--notes", help="Resolution notes")
-def errors_resolve(db_path: str, error_id: int, notes: str | None) -> None:
+@click.pass_context
+def errors_resolve(
+    ctx: click.Context, db_path: str | None, error_id: int, notes: str | None
+) -> None:
     """Mark an error as resolved.
 
     \b
@@ -1183,6 +1391,7 @@ def errors_resolve(db_path: str, error_id: int, notes: str | None) -> None:
         ldd-debug errors resolve run.db 123
         ldd-debug errors resolve run.db 123 --notes "Fixed XPath selector"
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(
@@ -1202,10 +1411,19 @@ def errors_resolve(db_path: str, error_id: int, notes: str | None) -> None:
 
 
 @errors.command("requeue")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("error_id", type=int)
 @click.option("--notes", help="Resolution notes")
-def errors_requeue(db_path: str, error_id: int, notes: str | None) -> None:
+@click.pass_context
+def errors_requeue(
+    ctx: click.Context, db_path: str | None, error_id: int, notes: str | None
+) -> None:
     """Requeue the request that caused an error.
 
     \b
@@ -1213,6 +1431,7 @@ def errors_requeue(db_path: str, error_id: int, notes: str | None) -> None:
         ldd-debug errors requeue run.db 123
         ldd-debug errors requeue run.db 123 --notes "Fixed server issue"
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(
@@ -1234,13 +1453,29 @@ def errors_requeue(db_path: str, error_id: int, notes: str | None) -> None:
 
 
 @cli.group()
-def results() -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def results(ctx: click.Context, db_path: str | None) -> None:
     """Inspect and export results."""
-    pass
+    ctx.ensure_object(dict)
+    if db_path:
+        ctx.obj["db_path"] = db_path
 
 
 @results.command("list")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option("--type", "result_type", help="Filter by result type")
 @click.option(
     "--valid/--invalid", default=None, help="Filter by validation status"
@@ -1254,8 +1489,10 @@ def results() -> None:
     default="table",
     help="Output format",
 )
+@click.pass_context
 def results_list(
-    db_path: str,
+    ctx: click.Context,
+    db_path: str | None,
     result_type: str | None,
     valid: bool | None,
     limit: int,
@@ -1269,6 +1506,8 @@ def results_list(
         ldd-debug results list run.db
         ldd-debug results list run.db --type CourtOpinion --valid
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -1322,7 +1561,13 @@ def results_list(
 
 
 @results.command("show")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("result_id", type=int)
 @click.option(
     "--format",
@@ -1331,7 +1576,10 @@ def results_list(
     default="table",
     help="Output format",
 )
-def results_show(db_path: str, result_id: int, format_type: str) -> None:
+@click.pass_context
+def results_show(
+    ctx: click.Context, db_path: str | None, result_id: int, format_type: str
+) -> None:
     """Show detailed result information.
 
     \b
@@ -1339,6 +1587,7 @@ def results_show(db_path: str, result_id: int, format_type: str) -> None:
         ldd-debug results show run.db 123
         ldd-debug results show run.db 123 --format json
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -1375,7 +1624,13 @@ def results_show(db_path: str, result_id: int, format_type: str) -> None:
 
 
 @results.command("summary")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option(
     "--format",
     "format_type",
@@ -1383,7 +1638,10 @@ def results_show(db_path: str, result_id: int, format_type: str) -> None:
     default="table",
     help="Output format",
 )
-def results_summary(db_path: str, format_type: str) -> None:
+@click.pass_context
+def results_summary(
+    ctx: click.Context, db_path: str | None, format_type: str
+) -> None:
     """Show result counts by type and validity.
 
     \b
@@ -1391,6 +1649,7 @@ def results_summary(db_path: str, format_type: str) -> None:
         ldd-debug results summary run.db
         ldd-debug results summary run.db --format json
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -1413,21 +1672,41 @@ def results_summary(db_path: str, format_type: str) -> None:
 
 
 @cli.group()
-def requeue() -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def requeue(ctx: click.Context, db_path: str | None) -> None:
     """Requeue requests or errors."""
-    pass
+    ctx.ensure_object(dict)
+    if db_path:
+        ctx.obj["db_path"] = db_path
 
 
 @requeue.command("request")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("request_id", type=int)
 @click.option(
     "--clear-downstream/--no-clear-downstream",
     default=True,
     help="Clear downstream data (responses, results, errors)",
 )
+@click.pass_context
 def requeue_request(
-    db_path: str, request_id: int, clear_downstream: bool
+    ctx: click.Context,
+    db_path: str | None,
+    request_id: int,
+    clear_downstream: bool,
 ) -> None:
     """Requeue a completed or failed request.
 
@@ -1436,6 +1715,8 @@ def requeue_request(
         ldd-debug requeue request run.db 123
         ldd-debug requeue request run.db 123 --no-clear-downstream
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(
@@ -1456,7 +1737,13 @@ def requeue_request(
 
 
 @requeue.command("continuation")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("continuation")
 @click.option(
     "--status",
@@ -1464,7 +1751,10 @@ def requeue_request(
     default="completed",
     help="Which requests to requeue",
 )
-def requeue_continuation(db_path: str, continuation: str, status: str) -> None:
+@click.pass_context
+def requeue_continuation(
+    ctx: click.Context, db_path: str | None, continuation: str, status: str
+) -> None:
     """Requeue all requests for a continuation with a given status.
 
     \b
@@ -1472,6 +1762,7 @@ def requeue_continuation(db_path: str, continuation: str, status: str) -> None:
         ldd-debug requeue continuation run.db step1
         ldd-debug requeue continuation run.db step1 --status failed
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(
@@ -1489,11 +1780,21 @@ def requeue_continuation(db_path: str, continuation: str, status: str) -> None:
 
 
 @requeue.command("errors")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option("--type", "error_type", help="Filter by error type")
 @click.option("--continuation", help="Filter by continuation (step name)")
+@click.pass_context
 def requeue_errors(
-    db_path: str, error_type: str | None, continuation: str | None
+    ctx: click.Context,
+    db_path: str | None,
+    error_type: str | None,
+    continuation: str | None,
 ) -> None:
     """Batch requeue errors matching filter criteria.
 
@@ -1502,6 +1803,8 @@ def requeue_errors(
         ldd-debug requeue errors run.db --type xpath
         ldd-debug requeue errors run.db --continuation step1
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(
@@ -1521,21 +1824,41 @@ def requeue_errors(
 
 
 @cli.group()
-def cancel() -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def cancel(ctx: click.Context, db_path: str | None) -> None:
     """Cancel pending or held requests."""
-    pass
+    ctx.ensure_object(dict)
+    if db_path:
+        ctx.obj["db_path"] = db_path
 
 
 @cancel.command("request")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("request_id", type=int)
-def cancel_request(db_path: str, request_id: int) -> None:
+@click.pass_context
+def cancel_request(
+    ctx: click.Context, db_path: str | None, request_id: int
+) -> None:
     """Cancel a pending or held request.
 
     \b
     Examples:
         ldd-debug cancel request run.db 123
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(
@@ -1556,15 +1879,25 @@ def cancel_request(db_path: str, request_id: int) -> None:
 
 
 @cancel.command("continuation")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("continuation")
-def cancel_continuation(db_path: str, continuation: str) -> None:
+@click.pass_context
+def cancel_continuation(
+    ctx: click.Context, db_path: str | None, continuation: str
+) -> None:
     """Cancel all pending/held requests for a continuation.
 
     \b
     Examples:
         ldd-debug cancel continuation run.db step1
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(
@@ -1584,13 +1917,29 @@ def cancel_continuation(db_path: str, continuation: str) -> None:
 
 
 @cli.group()
-def compression() -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def compression(ctx: click.Context, db_path: str | None) -> None:
     """Inspect and manipulate compression."""
-    pass
+    ctx.ensure_object(dict)
+    if db_path:
+        ctx.obj["db_path"] = db_path
 
 
 @compression.command("stats")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option(
     "--format",
     "format_type",
@@ -1598,7 +1947,10 @@ def compression() -> None:
     default="table",
     help="Output format",
 )
-def compression_stats(db_path: str, format_type: str) -> None:
+@click.pass_context
+def compression_stats(
+    ctx: click.Context, db_path: str | None, format_type: str
+) -> None:
     """Show compression statistics.
 
     \b
@@ -1606,6 +1958,7 @@ def compression_stats(db_path: str, format_type: str) -> None:
         ldd-debug compression stats run.db
         ldd-debug compression stats run.db --format json
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -1632,12 +1985,21 @@ def compression_stats(db_path: str, format_type: str) -> None:
 
 
 @compression.command("train")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("continuation")
 @click.option(
     "--samples", default=1000, help="Number of samples to use for training"
 )
-def compression_train(db_path: str, continuation: str, samples: int) -> None:
+@click.pass_context
+def compression_train(
+    ctx: click.Context, db_path: str | None, continuation: str, samples: int
+) -> None:
     """Train a new compression dictionary for a continuation.
 
     \b
@@ -1645,6 +2007,7 @@ def compression_train(db_path: str, continuation: str, samples: int) -> None:
         ldd-debug compression train run.db step1
         ldd-debug compression train run.db step1 --samples 500
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(
@@ -1665,13 +2028,23 @@ def compression_train(db_path: str, continuation: str, samples: int) -> None:
 
 
 @compression.command("recompress")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("continuation")
 @click.option(
     "--dict-id", type=int, help="Compression dictionary ID (default: latest)"
 )
+@click.pass_context
 def compression_recompress(
-    db_path: str, continuation: str, dict_id: int | None
+    ctx: click.Context,
+    db_path: str | None,
+    continuation: str,
+    dict_id: int | None,
 ) -> None:
     """Recompress responses with a compression dictionary.
 
@@ -1680,6 +2053,8 @@ def compression_recompress(
         ldd-debug compression recompress run.db step1
         ldd-debug compression recompress run.db step1 --dict-id 5
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(
@@ -1706,7 +2081,13 @@ def compression_recompress(
 
 
 @cli.command()
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("continuation")
 @click.option(
     "--request-id", type=int, help="Compare specific request ID only"
@@ -1735,8 +2116,10 @@ def compression_recompress(
     "--scraper-class",
     help="Scraper class path (e.g., juriscraper.opinions.united_states.federal_appellate.ca1.Site)",
 )
+@click.pass_context
 def compare(
-    db_path: str,
+    ctx: click.Context,
+    db_path: str | None,
     continuation: str,
     request_id: int | None,
     sample: int | None,
@@ -1771,6 +2154,8 @@ def compare(
         # Limit to 50 comparisons
         ldd-debug compare run.db parse_opinions --limit 50
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         import importlib
@@ -2049,7 +2434,13 @@ def compare(
 
 
 @cli.command()
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("error_id", type=int)
 @click.option(
     "--format",
@@ -2058,7 +2449,10 @@ def compare(
     default="table",
     help="Output format",
 )
-def diagnose(db_path: str, error_id: int, format_type: str) -> None:
+@click.pass_context
+def diagnose(
+    ctx: click.Context, db_path: str | None, error_id: int, format_type: str
+) -> None:
     """Diagnose an error by re-running XPath observation.
 
     \b
@@ -2066,6 +2460,7 @@ def diagnose(db_path: str, error_id: int, format_type: str) -> None:
         ldd-debug diagnose run.db 123
         ldd-debug diagnose run.db 123 --format json
     """
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -2109,20 +2504,38 @@ def diagnose(db_path: str, error_id: int, format_type: str) -> None:
 
 
 @cli.group()
-def export() -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def export(ctx: click.Context, db_path: str | None) -> None:
     """Export results and responses."""
-    pass
+    ctx.ensure_object(dict)
+    if db_path:
+        ctx.obj["db_path"] = db_path
 
 
 @export.command("jsonl")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("output_path", type=click.Path())
 @click.option("--type", "result_type", help="Filter by result type")
 @click.option(
     "--valid/--invalid", default=None, help="Filter by validation status"
 )
+@click.pass_context
 def export_jsonl(
-    db_path: str,
+    ctx: click.Context,
+    db_path: str | None,
     output_path: str,
     result_type: str | None,
     valid: bool | None,
@@ -2135,6 +2548,8 @@ def export_jsonl(
         ldd-debug export jsonl run.db opinions.jsonl --type CourtOpinion --valid
     """
 
+    db_path = _resolve_db_path(ctx, db_path)
+
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
             count = await debugger.export_results_jsonl(
@@ -2146,7 +2561,13 @@ def export_jsonl(
 
 
 @export.command("warc")
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.argument("output_path", type=click.Path())
 @click.option(
     "--compress/--no-compress",
@@ -2154,8 +2575,13 @@ def export_jsonl(
     help="Gzip-compress the WARC file",
 )
 @click.option("--continuation", help="Filter by continuation (step name)")
+@click.pass_context
 def export_warc(
-    db_path: str, output_path: str, compress: bool, continuation: str | None
+    ctx: click.Context,
+    db_path: str | None,
+    output_path: str,
+    compress: bool,
+    continuation: str | None,
 ) -> None:
     """Export responses to WARC (Web ARChive) format.
 
@@ -2164,6 +2590,8 @@ def export_warc(
         ldd-debug export warc run.db archive.warc.gz
         ldd-debug export warc run.db step1.warc --no-compress --continuation step1
     """
+
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -2184,8 +2612,66 @@ def export_warc(
 # =========================================================================
 
 
+def _resolve_db_path(ctx: click.Context, db_path: str | None) -> str:
+    """Resolve db_path from the current option or any parent group.
+
+    Checks the subcommand's own --db first, then walks up the context
+    chain checking ctx.obj["db_path"] (set by groups) and ctx.params.
+    Raises UsageError if no --db was provided at any level.
+    """
+    if db_path:
+        return db_path
+    # Walk up to find --db from parent groups
+    parent = ctx.parent
+    while parent is not None:
+        # Check ctx.obj (where groups store propagated values)
+        obj = parent.ensure_object(dict)
+        if obj.get("db_path"):
+            return obj["db_path"]
+        # Check params directly
+        parent_db = parent.params.get("db_path")
+        if parent_db:
+            return parent_db
+        parent = parent.parent
+    raise click.UsageError(
+        "Missing --db option. Provide a database path with --db."
+    )
+
+
 @cli.group(invoke_without_command=True)
-@click.argument("db_path", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.pass_context
+def doctor(ctx: click.Context, db_path: str | None) -> None:
+    """Run health checks on database.
+
+    \b
+    Examples:
+        ldd-debug doctor --db run.db health
+        ldd-debug doctor health --db run.db
+        ldd-debug doctor structure --db run.db
+        ldd-debug doctor structure --db run.db --detailed
+    """
+    ctx.ensure_object(dict)
+    if db_path:
+        ctx.obj["db_path"] = db_path
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+
+
+@doctor.command("health")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
 @click.option(
     "--format",
     "format_type",
@@ -2194,24 +2680,20 @@ def export_warc(
     help="Output format",
 )
 @click.pass_context
-def doctor(ctx: click.Context, db_path: str, format_type: str) -> None:
-    """Run health checks on database.
+def doctor_health(
+    ctx: click.Context, db_path: str | None, format_type: str
+) -> None:
+    """Show comprehensive health report.
 
-    When called without a subcommand, displays a comprehensive health report
-    including integrity check summary, error counts, pending/wrapped status,
+    Displays integrity check summary, error counts, pending/wrapped status,
     and ghost request summary by step.
 
     \b
     Examples:
-        ldd-debug doctor run.db
-        ldd-debug doctor --format json run.db
-        ldd-debug doctor run.db orphans
-        ldd-debug doctor run.db pending
-        ldd-debug doctor run.db ghosts
+        ldd-debug doctor health --db run.db
+        ldd-debug doctor --db run.db health
     """
-    # If a subcommand was invoked, don't run the base command
-    if ctx.invoked_subcommand is not None:
-        return
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -2287,6 +2769,13 @@ def doctor(ctx: click.Context, db_path: str, format_type: str) -> None:
 
 @doctor.command("orphans")
 @click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.option(
     "--format",
     "format_type",
     type=click.Choice(["table", "json", "jsonl"]),
@@ -2294,15 +2783,17 @@ def doctor(ctx: click.Context, db_path: str, format_type: str) -> None:
     help="Output format",
 )
 @click.pass_context
-def doctor_orphans(ctx: click.Context, format_type: str) -> None:
+def doctor_orphans(
+    ctx: click.Context, db_path: str | None, format_type: str
+) -> None:
     """List orphaned requests and responses with details.
 
     \b
     Examples:
-        ldd-debug doctor run.db orphans
-        ldd-debug doctor run.db orphans --format json
+        ldd-debug doctor orphans --db run.db
+        ldd-debug doctor --db run.db orphans --format json
     """
-    db_path = ctx.parent.params["db_path"]
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -2350,6 +2841,13 @@ def doctor_orphans(ctx: click.Context, format_type: str) -> None:
 
 @doctor.command("pending")
 @click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.option(
     "--format",
     "format_type",
     type=click.Choice(["table", "json", "jsonl"]),
@@ -2358,16 +2856,17 @@ def doctor_orphans(ctx: click.Context, format_type: str) -> None:
 )
 @click.option("--limit", default=100, help="Maximum number of results")
 @click.pass_context
-def doctor_pending(ctx: click.Context, format_type: str, limit: int) -> None:
+def doctor_pending(
+    ctx: click.Context, db_path: str | None, format_type: str, limit: int
+) -> None:
     """List pending requests with details.
 
     \b
     Examples:
-        ldd-debug doctor run.db pending
-        ldd-debug doctor run.db pending --limit 50
-        ldd-debug doctor run.db pending --format json
+        ldd-debug doctor pending --db run.db
+        ldd-debug doctor --db run.db pending --limit 50
     """
-    db_path = ctx.parent.params["db_path"]
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -2423,6 +2922,13 @@ def doctor_pending(ctx: click.Context, format_type: str, limit: int) -> None:
 
 @doctor.command("ghosts")
 @click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.option(
     "--format",
     "format_type",
     type=click.Choice(["table", "json", "jsonl"]),
@@ -2432,7 +2938,10 @@ def doctor_pending(ctx: click.Context, format_type: str, limit: int) -> None:
 @click.option("--continuation", help="Filter by continuation (step name)")
 @click.pass_context
 def doctor_ghosts(
-    ctx: click.Context, format_type: str, continuation: str | None
+    ctx: click.Context,
+    db_path: str | None,
+    format_type: str,
+    continuation: str | None,
 ) -> None:
     """List ghost requests grouped by step.
 
@@ -2440,11 +2949,10 @@ def doctor_ghosts(
 
     \b
     Examples:
-        ldd-debug doctor run.db ghosts
-        ldd-debug doctor run.db ghosts --continuation parse_index
-        ldd-debug doctor run.db ghosts --format json
+        ldd-debug doctor ghosts --db run.db
+        ldd-debug doctor --db run.db ghosts --continuation parse_index
     """
-    db_path = ctx.parent.params["db_path"]
+    db_path = _resolve_db_path(ctx, db_path)
 
     async def run() -> None:
         async with LocalDevDriverDebugger.open(db_path) as debugger:
@@ -2512,6 +3020,157 @@ def doctor_ghosts(
                         format_output(items, "table", headers)
                 else:
                     click.echo("No ghost requests found")
+
+    asyncio.run(run())
+
+
+@doctor.command("structure")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True),
+    default=None,
+    help="Path to the database file",
+)
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["table", "json", "jsonl"]),
+    default="table",
+    help="Output format",
+)
+@click.option(
+    "--step", "step_name", default=None, help="Filter to a specific step name"
+)
+@click.option(
+    "--detailed",
+    is_flag=True,
+    help="Show request_id/response_id pairs for failures",
+)
+@click.option(
+    "--request",
+    "request_id",
+    type=int,
+    default=None,
+    help="Show detailed validation for a specific request",
+)
+@click.option(
+    "--response",
+    "response_id",
+    type=int,
+    default=None,
+    help="Show detailed validation for a specific response",
+)
+@click.pass_context
+def doctor_structure(
+    ctx: click.Context,
+    db_path: str | None,
+    format_type: str,
+    step_name: str | None,
+    detailed: bool,
+    request_id: int | None,
+    response_id: int | None,
+) -> None:
+    """Validate stored responses against step XSD/JSON model specs.
+
+    Finds all steps with xsd or json_model annotations and validates
+    stored responses against those specs.
+
+    \b
+    Default mode shows pass/fail statistics by continuation.
+    --step filters to a single step.
+    --detailed shows request_id/response_id pairs for failures.
+    --request or --response shows full validation error detail.
+
+    \b
+    Examples:
+        ldd-debug doctor structure --db run.db
+        ldd-debug doctor --db run.db structure --step parse_opinions_page
+        ldd-debug doctor structure --db run.db --detailed
+        ldd-debug doctor structure --db run.db --request 15
+    """
+    db_path = _resolve_db_path(ctx, db_path)
+
+    async def run() -> None:
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            # Single request/response detail mode
+            if request_id is not None or response_id is not None:
+                detail = await debugger.validate_structure_detail(
+                    request_id=request_id,
+                    response_id=response_id,
+                )
+
+                if format_type in ("json", "jsonl"):
+                    format_output(detail, format_type)
+                else:
+                    target = (
+                        f"request {request_id}"
+                        if request_id is not None
+                        else f"response {response_id}"
+                    )
+                    click.echo(f"=== Validation Detail for {target} ===\n")
+                    click.echo(f"  Step: {detail['continuation']}")
+                    click.echo(
+                        f"  Spec: {detail.get('spec_path', 'N/A')} ({detail.get('spec_type', 'N/A')})"
+                    )
+                    click.echo(f"  Status: {detail['status']}")
+                    if detail.get("errors"):
+                        click.echo("\n  Validation Errors:")
+                        for err in detail["errors"]:
+                            click.echo(f"    - {err}")
+                    elif detail["status"] == "VALID":
+                        click.echo("\n  No validation errors.")
+                return
+
+            # Summary / detailed mode
+            result = await debugger.validate_structure(
+                step_name=step_name,
+            )
+
+            if format_type == "json":
+                format_output(result, format_type)
+            elif format_type == "jsonl":
+                for step in result["steps"]:
+                    click.echo(json.dumps(step))
+                click.echo(
+                    json.dumps({"section": "summary", **result["summary"]})
+                )
+            else:
+                click.echo("=== Structure Validation ===\n")
+
+                if not result["steps"]:
+                    click.echo("No steps with xsd or json_model specs found.")
+                    return
+
+                for step in result["steps"]:
+                    cont = step["continuation"]
+                    stype = step["spec_type"]
+                    total = step["total_responses"]
+                    valid = step["valid"]
+                    invalid = step["invalid"]
+
+                    click.echo(f"{cont} ({stype}):")
+                    click.echo(
+                        f"  Total: {total}  Valid: {valid}  Invalid: {invalid}"
+                    )
+
+                    if detailed and invalid > 0:
+                        req_ids = step["invalid_request_ids"]
+                        resp_ids = step["invalid_response_ids"]
+                        # Pair them up (they correspond by index)
+                        for i, rid in enumerate(req_ids):
+                            resp = resp_ids[i] if i < len(resp_ids) else "?"
+                            click.echo(
+                                f"    request_id={rid}  response_id={resp}"
+                            )
+                    click.echo()
+
+                # Summary
+                s = result["summary"]
+                click.echo(
+                    f"Summary: {s['total_responses_checked']} responses checked, "
+                    f"{s['total_valid']} valid, {s['total_invalid']} invalid"
+                )
 
     asyncio.run(run())
 

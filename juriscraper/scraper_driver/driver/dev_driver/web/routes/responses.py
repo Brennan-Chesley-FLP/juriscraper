@@ -581,6 +581,83 @@ async def _get_driver_for_run(run_id: str, manager: RunManager):
     return run_info.driver
 
 
+async def _resolve_scraper(run_id: str, manager: RunManager):
+    """Resolve a scraper instance for a run.
+
+    Prefers the loaded driver's scraper if available. Otherwise, resolves
+    the scraper class from the registry using the run's metadata.
+
+    Args:
+        run_id: The run identifier.
+        manager: The run manager.
+
+    Returns:
+        BaseScraper instance.
+
+    Raises:
+        HTTPException: 404 if run not found, 400 if scraper cannot be resolved.
+    """
+    from juriscraper.scraper_driver.driver.dev_driver.web.app import (
+        get_sql_manager_for_run,
+    )
+    from juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry import (
+        get_registry,
+    )
+
+    # If run is loaded, use the driver's scraper directly
+    run_info = await manager.get_run(run_id)
+    if run_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run '{run_id}' not found",
+        )
+    if run_info.driver is not None:
+        return run_info.driver.scraper
+
+    # Not loaded — resolve from registry
+    sql_manager = await get_sql_manager_for_run(run_id, manager)
+    run_metadata = await sql_manager.get_run_metadata()
+    if run_metadata is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No metadata found for run '{run_id}'",
+        )
+
+    scraper_name = run_metadata.get("scraper_name")
+    if not scraper_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Run '{run_id}' has no scraper_name in metadata",
+        )
+
+    registry = get_registry()
+    matching = [
+        s for s in registry.list_scrapers() if s.module_path == scraper_name
+    ]
+    if not matching:
+        matching = [
+            s for s in registry.list_scrapers() if s.full_path == scraper_name
+        ]
+    if not matching:
+        matching = [
+            s for s in registry.list_scrapers() if s.class_name == scraper_name
+        ]
+
+    if not matching:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Scraper '{scraper_name}' not found in registry",
+        )
+
+    scraper = registry.instantiate_scraper(matching[0].full_path)
+    if scraper is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to instantiate scraper '{scraper_name}'",
+        )
+    return scraper
+
+
 @router.get("/{response_id}/output", response_model=ResponseOutputResponse)
 async def get_response_output(
     run_id: str,
@@ -593,6 +670,9 @@ async def get_response_output(
     method with an XPathObserver active to capture all XPath/CSS queries.
     Returns structured data suitable for the debug palette UI.
 
+    Works with both loaded and unloaded runs. For unloaded runs, the scraper
+    class is resolved from the registry using the run's metadata.
+
     Args:
         run_id: The run identifier.
         response_id: The database ID of the response to analyze.
@@ -602,7 +682,7 @@ async def get_response_output(
 
     Raises:
         HTTPException: 404 if run or response not found.
-        HTTPException: 400 if run not loaded.
+        HTTPException: 400 if scraper class cannot be resolved.
     """
     from juriscraper.scraper_driver.common.xpath_observer import XPathObserver
     from juriscraper.scraper_driver.data_types import (
@@ -614,10 +694,13 @@ async def get_response_output(
         Response as ScraperResponse,
     )
 
-    driver = await _get_driver_for_run(run_id, manager)
+    debugger = await _get_debugger(run_id, manager, read_only=True)
+
+    # Resolve the scraper instance: prefer loaded driver, fall back to registry
+    scraper = await _resolve_scraper(run_id, manager)
 
     # Get response and request data
-    cursor = await driver.db.db.execute(
+    cursor = await debugger.sql._db.execute(
         """
         SELECT
             r.status_code,
@@ -656,7 +739,7 @@ async def get_response_output(
     ) = row
 
     # Decompress content
-    content = await driver.get_response_content(response_id)
+    content = await debugger.get_response_content(response_id)
     if content is None:
         content = b""
 
@@ -708,9 +791,7 @@ async def get_response_output(
 
     with XPathObserver() as observer:
         try:
-            continuation_method = driver.scraper.get_continuation(
-                continuation_name
-            )
+            continuation_method = scraper.get_continuation(continuation_name)
             gen = continuation_method(response)
 
             for item in gen:

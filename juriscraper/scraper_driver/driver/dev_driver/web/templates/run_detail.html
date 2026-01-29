@@ -103,12 +103,39 @@
             <h2 id="requests-detail-title">Requests</h2>
             <button class="close-btn" onclick="closeRequestsDetailModal()">&times;</button>
         </div>
-        <div class="modal-body" style="padding: 1.5rem; max-height: 70vh; overflow-y: auto;">
+        <div class="modal-toolbar">
+            <div class="toolbar-left">
+                <label>Sort:
+                    <select id="modal-sort" onchange="loadModalPage(0)">
+                        <option value="queue">Queue order</option>
+                        <option value="id_asc">ID ascending</option>
+                        <option value="id_desc">ID descending</option>
+                    </select>
+                </label>
+                <label>Per page:
+                    <select id="modal-page-size" onchange="loadModalPage(0)">
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                    </select>
+                </label>
+            </div>
+            <div class="toolbar-right">
+                <span id="modal-page-info"></span>
+            </div>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem; max-height: 60vh; overflow-y: auto;">
             <div id="requests-detail-content">Loading...</div>
         </div>
         <div class="form-actions">
-            <button type="button" class="btn btn-secondary" onclick="closeRequestsDetailModal()">Close</button>
-            <button type="button" class="btn btn-primary" id="requeue-all-btn" style="display:none;" onclick="requeueAllInModal()">Requeue All</button>
+            <div class="pagination-controls">
+                <button type="button" class="btn btn-secondary btn-sm" id="modal-prev-btn" onclick="loadModalPage(modalCurrentOffset - modalPageSize)" disabled>Prev</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="modal-next-btn" onclick="loadModalPage(modalCurrentOffset + modalPageSize)" disabled>Next</button>
+            </div>
+            <div>
+                <button type="button" class="btn btn-secondary" onclick="closeRequestsDetailModal()">Close</button>
+                <button type="button" class="btn btn-primary" id="requeue-all-btn" style="display:none;" onclick="requeueAllInModal()">Requeue All</button>
+            </div>
         </div>
     </div>
 </div>
@@ -140,6 +167,9 @@ let currentErrorId = null;
 let currentView = 'summary'; // 'summary' or 'list'
 let currentModalContinuation = null;
 let currentModalStatus = null;
+let modalCurrentOffset = 0;
+let modalPageSize = 50;
+let modalTotal = 0;
 
 // Load run details
 async function loadRunDetails() {
@@ -253,6 +283,7 @@ async function openFilteredRequests(continuation, status) {
     // Track current modal state for batch operations
     currentModalContinuation = continuation;
     currentModalStatus = status;
+    modalCurrentOffset = 0;
 
     // Show the requests-detail-modal with filtered requests
     document.getElementById('requests-detail-modal').classList.add('active');
@@ -263,13 +294,48 @@ async function openFilteredRequests(continuation, status) {
     const requeueAllBtn = document.getElementById('requeue-all-btn');
     requeueAllBtn.style.display = status === 'failed' ? 'inline-block' : 'none';
 
+    // Reset sort/page controls to defaults
+    document.getElementById('modal-sort').value = 'queue';
+    document.getElementById('modal-page-size').value = '50';
+    modalPageSize = 50;
+
+    await loadModalPage(0);
+}
+
+// Load a specific page of requests in the modal
+async function loadModalPage(offset) {
+    if (offset < 0) offset = 0;
+    modalCurrentOffset = offset;
+    modalPageSize = parseInt(document.getElementById('modal-page-size').value, 10);
+    const sort = document.getElementById('modal-sort').value;
+
+    document.getElementById('requests-detail-content').innerHTML = 'Loading...';
+
     try {
-        const response = await fetch(`/api/runs/${runId}/requests?continuation=${encodeURIComponent(continuation)}&status=${status}&limit=100`);
+        const params = new URLSearchParams({
+            continuation: currentModalContinuation,
+            status: currentModalStatus,
+            limit: modalPageSize,
+            offset: offset,
+            sort: sort,
+        });
+        const response = await fetch(`/api/runs/${runId}/requests?${params}`);
         if (!response.ok) {
             document.getElementById('requests-detail-content').innerHTML = '<p class="error">Failed to load requests</p>';
             return;
         }
         const data = await response.json();
+        modalTotal = data.total;
+
+        // Update pagination info
+        const start = offset + 1;
+        const end = Math.min(offset + data.items.length, modalTotal);
+        document.getElementById('modal-page-info').textContent =
+            modalTotal > 0 ? `${start}\u2013${end} of ${modalTotal}` : '0 results';
+
+        // Update prev/next buttons
+        document.getElementById('modal-prev-btn').disabled = offset === 0;
+        document.getElementById('modal-next-btn').disabled = !data.has_more;
 
         if (data.items.length === 0) {
             document.getElementById('requests-detail-content').innerHTML = '<p class="empty-state">No requests</p>';
@@ -279,9 +345,14 @@ async function openFilteredRequests(continuation, status) {
         const html = data.items.map(req => `
             <div class="request-item-expanded">
                 <div class="request-header">
+                    <span class="request-id">#${req.id}</span>
                     <span class="status status-${req.status}">${req.status}</span>
                     <span class="method">${req.method}</span>
                     ${req.retry_count > 0 ? `<span class="retries">Retries: ${req.retry_count}</span>` : ''}
+                    <span class="request-pills">
+                        <a class="pill pill-view" href="#" onclick="openResponseView(${req.id}, 'content', event)">View</a>
+                        <a class="pill pill-annotated" href="#" onclick="openResponseView(${req.id}, 'annotated', event)">Annotated</a>
+                    </span>
                     <button class="btn-requeue" onclick="requeueRequest(${req.id}, event)" title="Requeue this request">ReQ</button>
                 </div>
                 <div class="request-url-full">${escapeHtml(req.url)}</div>
@@ -300,6 +371,29 @@ function closeRequestsDetailModal() {
     document.getElementById('requests-detail-modal').classList.remove('active');
     currentModalContinuation = null;
     currentModalStatus = null;
+}
+
+// Open response view (content or annotated) for a given request
+async function openResponseView(requestId, view, event) {
+    event.preventDefault();
+    const pill = event.target;
+    const origText = pill.textContent;
+    pill.textContent = '...';
+    try {
+        const resp = await fetch(`/api/runs/${runId}/responses?request_id=${requestId}&limit=1`);
+        if (!resp.ok) { pill.textContent = origText; return; }
+        const data = await resp.json();
+        if (!data.items || data.items.length === 0) {
+            pill.textContent = 'N/A';
+            setTimeout(() => { pill.textContent = origText; }, 1500);
+            return;
+        }
+        const responseId = data.items[0].id;
+        window.open(`/api/runs/${runId}/responses/${responseId}/${view}`, '_blank');
+    } catch (err) {
+        console.error('Failed to open response view:', err);
+    }
+    pill.textContent = origText;
 }
 
 // Requeue all failed requests in the current modal view via errors batch-requeue

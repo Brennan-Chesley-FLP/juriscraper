@@ -807,6 +807,97 @@ main {
     color: #333;
 }
 
+/* Modal toolbar */
+.modal-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 16px;
+    background: #f5f7fa;
+    border-bottom: 1px solid #eee;
+    font-size: 0.85rem;
+}
+
+.modal-toolbar .toolbar-left {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.modal-toolbar label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #555;
+}
+
+.modal-toolbar select {
+    padding: 0.2rem 0.4rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    background: white;
+}
+
+.modal-toolbar .toolbar-right {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+/* Pagination controls in modal footer */
+.pagination-controls {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    margin-right: auto;
+}
+
+/* Request ID badge */
+.request-id {
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: #888;
+    background: #f0f0f0;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+}
+
+/* Response view pills */
+.request-pills {
+    display: inline-flex;
+    gap: 0.25rem;
+    margin-left: auto;
+}
+
+.pill {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.pill-view {
+    background: #2ecc71;
+    color: white;
+}
+
+.pill-view:hover {
+    background: #27ae60;
+}
+
+.pill-annotated {
+    background: #3498db;
+    color: white;
+}
+
+.pill-annotated:hover {
+    background: #2980b9;
+}
+
 /* Form styles */
 .form-section {
     padding: 1.5rem;

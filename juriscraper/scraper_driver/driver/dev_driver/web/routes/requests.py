@@ -155,6 +155,9 @@ async def list_requests(
     ),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=500, description="Pagination limit"),
+    sort: Literal["queue", "id_asc", "id_desc"] = Query(
+        "queue", description="Sort order: queue (priority), id_asc, id_desc"
+    ),
 ) -> RequestListResponse:
     """List requests for a run with optional filters.
 
@@ -176,6 +179,7 @@ async def list_requests(
         continuation=continuation,
         offset=offset,
         limit=limit,
+        sort=sort,
     )
 
     items = [

@@ -327,7 +327,7 @@ class SQL:
                created_at_ns, started_at_ns, completed_at_ns
         FROM requests
         {where_clause}
-        ORDER BY priority ASC, queue_counter ASC
+        {order_clause}
         LIMIT ? OFFSET ?
     """
 
@@ -1157,6 +1157,13 @@ class SQL:
 
     # Get responses for JSON validation
     SELECT_RESPONSES_FOR_JSON_VALIDATION = """
+        SELECT id, request_id, content_compressed, compression_dict_id
+        FROM responses
+        WHERE continuation = ?
+    """
+
+    # Get responses for XML/XSD validation
+    SELECT_RESPONSES_FOR_XML_VALIDATION = """
         SELECT id, request_id, content_compressed, compression_dict_id
         FROM responses
         WHERE continuation = ?

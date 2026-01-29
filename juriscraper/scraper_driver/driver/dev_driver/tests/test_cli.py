@@ -284,7 +284,7 @@ class TestInfoCommand:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test info command with table format."""
-        result = runner.invoke(cli, ["info", str(populated_db)])
+        result = runner.invoke(cli, ["info", "--db", str(populated_db)])
 
         assert result.exit_code == 0
         assert "Run Metadata" in result.output
@@ -297,7 +297,7 @@ class TestInfoCommand:
     ) -> None:
         """Test info command with JSON format."""
         result = runner.invoke(
-            cli, ["info", str(populated_db), "--format", "json"]
+            cli, ["info", "--db", str(populated_db), "--format", "json"]
         )
 
         assert result.exit_code == 0
@@ -308,7 +308,7 @@ class TestInfoCommand:
 
     def test_info_nonexistent_db(self, runner: CliRunner) -> None:
         """Test info command with non-existent database."""
-        result = runner.invoke(cli, ["info", "/nonexistent/path.db"])
+        result = runner.invoke(cli, ["info", "--db", "/nonexistent/path.db"])
 
         assert result.exit_code != 0
 
@@ -320,7 +320,9 @@ class TestRequestsCommands:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test requests list command."""
-        result = runner.invoke(cli, ["requests", "list", str(populated_db)])
+        result = runner.invoke(
+            cli, ["requests", "list", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "Total: 5" in result.output
@@ -334,7 +336,14 @@ class TestRequestsCommands:
         """Test filtering requests by status."""
         result = runner.invoke(
             cli,
-            ["requests", "list", str(populated_db), "--status", "completed"],
+            [
+                "requests",
+                "list",
+                "--db",
+                str(populated_db),
+                "--status",
+                "completed",
+            ],
         )
 
         assert result.exit_code == 0
@@ -346,7 +355,14 @@ class TestRequestsCommands:
         """Test filtering requests by continuation."""
         result = runner.invoke(
             cli,
-            ["requests", "list", str(populated_db), "--continuation", "step1"],
+            [
+                "requests",
+                "list",
+                "--db",
+                str(populated_db),
+                "--continuation",
+                "step1",
+            ],
         )
 
         assert result.exit_code == 0
@@ -357,7 +373,15 @@ class TestRequestsCommands:
     ) -> None:
         """Test requests list with JSON format."""
         result = runner.invoke(
-            cli, ["requests", "list", str(populated_db), "--format", "json"]
+            cli,
+            [
+                "requests",
+                "list",
+                "--db",
+                str(populated_db),
+                "--format",
+                "json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -375,6 +399,7 @@ class TestRequestsCommands:
             [
                 "requests",
                 "list",
+                "--db",
                 str(populated_db),
                 "--limit",
                 "2",
@@ -392,7 +417,7 @@ class TestRequestsCommands:
     ) -> None:
         """Test requests show command."""
         result = runner.invoke(
-            cli, ["requests", "show", str(populated_db), "1"]
+            cli, ["requests", "show", "--db", str(populated_db), "1"]
         )
 
         assert result.exit_code == 0
@@ -406,7 +431,15 @@ class TestRequestsCommands:
         """Test requests show with JSON format."""
         result = runner.invoke(
             cli,
-            ["requests", "show", str(populated_db), "1", "--format", "json"],
+            [
+                "requests",
+                "show",
+                "--db",
+                str(populated_db),
+                "1",
+                "--format",
+                "json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -419,7 +452,7 @@ class TestRequestsCommands:
     ) -> None:
         """Test requests show with non-existent request."""
         result = runner.invoke(
-            cli, ["requests", "show", str(populated_db), "9999"]
+            cli, ["requests", "show", "--db", str(populated_db), "9999"]
         )
 
         assert result.exit_code != 0
@@ -429,7 +462,9 @@ class TestRequestsCommands:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test requests summary command."""
-        result = runner.invoke(cli, ["requests", "summary", str(populated_db)])
+        result = runner.invoke(
+            cli, ["requests", "summary", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "step1" in result.output or "step2" in result.output
@@ -442,7 +477,9 @@ class TestResponsesCommands:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test responses list command."""
-        result = runner.invoke(cli, ["responses", "list", str(populated_db)])
+        result = runner.invoke(
+            cli, ["responses", "list", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "Total: 2" in result.output
@@ -456,6 +493,7 @@ class TestResponsesCommands:
             [
                 "responses",
                 "list",
+                "--db",
                 str(populated_db),
                 "--continuation",
                 "step1",
@@ -470,7 +508,7 @@ class TestResponsesCommands:
     ) -> None:
         """Test responses show command."""
         result = runner.invoke(
-            cli, ["responses", "show", str(populated_db), "1"]
+            cli, ["responses", "show", "--db", str(populated_db), "1"]
         )
 
         assert result.exit_code == 0
@@ -482,7 +520,7 @@ class TestResponsesCommands:
     ) -> None:
         """Test responses content command."""
         result = runner.invoke(
-            cli, ["responses", "content", str(populated_db), "1"]
+            cli, ["responses", "content", "--db", str(populated_db), "1"]
         )
 
         assert result.exit_code == 0
@@ -498,6 +536,7 @@ class TestResponsesCommands:
             [
                 "responses",
                 "content",
+                "--db",
                 str(populated_db),
                 "1",
                 "-o",
@@ -515,7 +554,9 @@ class TestErrorsCommands:
 
     def test_errors_list(self, runner: CliRunner, populated_db: Path) -> None:
         """Test errors list command."""
-        result = runner.invoke(cli, ["errors", "list", str(populated_db)])
+        result = runner.invoke(
+            cli, ["errors", "list", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "Total: 2" in result.output
@@ -525,7 +566,8 @@ class TestErrorsCommands:
     ) -> None:
         """Test filtering errors by type."""
         result = runner.invoke(
-            cli, ["errors", "list", str(populated_db), "--type", "xpath"]
+            cli,
+            ["errors", "list", "--db", str(populated_db), "--type", "xpath"],
         )
 
         assert result.exit_code == 0
@@ -536,7 +578,7 @@ class TestErrorsCommands:
     ) -> None:
         """Test filtering errors by resolution status."""
         result = runner.invoke(
-            cli, ["errors", "list", str(populated_db), "--unresolved"]
+            cli, ["errors", "list", "--db", str(populated_db), "--unresolved"]
         )
 
         assert result.exit_code == 0
@@ -544,7 +586,9 @@ class TestErrorsCommands:
 
     def test_errors_show(self, runner: CliRunner, populated_db: Path) -> None:
         """Test errors show command."""
-        result = runner.invoke(cli, ["errors", "show", str(populated_db), "1"])
+        result = runner.invoke(
+            cli, ["errors", "show", "--db", str(populated_db), "1"]
+        )
 
         assert result.exit_code == 0
         assert "ID: 1" in result.output
@@ -555,7 +599,9 @@ class TestErrorsCommands:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test errors summary command."""
-        result = runner.invoke(cli, ["errors", "summary", str(populated_db)])
+        result = runner.invoke(
+            cli, ["errors", "summary", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "Totals" in result.output or "By Type" in result.output
@@ -566,7 +612,15 @@ class TestErrorsCommands:
         """Test errors resolve command."""
         result = runner.invoke(
             cli,
-            ["errors", "resolve", str(populated_db), "1", "--notes", "Fixed"],
+            [
+                "errors",
+                "resolve",
+                "--db",
+                str(populated_db),
+                "1",
+                "--notes",
+                "Fixed",
+            ],
         )
 
         assert result.exit_code == 0
@@ -581,6 +635,7 @@ class TestErrorsCommands:
             [
                 "errors",
                 "requeue",
+                "--db",
                 str(populated_db),
                 "1",
                 "--notes",
@@ -597,7 +652,9 @@ class TestResultsCommands:
 
     def test_results_list(self, runner: CliRunner, populated_db: Path) -> None:
         """Test results list command."""
-        result = runner.invoke(cli, ["results", "list", str(populated_db)])
+        result = runner.invoke(
+            cli, ["results", "list", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "Total: 2" in result.output
@@ -607,7 +664,7 @@ class TestResultsCommands:
     ) -> None:
         """Test filtering results by validity."""
         result = runner.invoke(
-            cli, ["results", "list", str(populated_db), "--valid"]
+            cli, ["results", "list", "--db", str(populated_db), "--valid"]
         )
 
         assert result.exit_code == 0
@@ -616,7 +673,7 @@ class TestResultsCommands:
     def test_results_show(self, runner: CliRunner, populated_db: Path) -> None:
         """Test results show command."""
         result = runner.invoke(
-            cli, ["results", "show", str(populated_db), "1"]
+            cli, ["results", "show", "--db", str(populated_db), "1"]
         )
 
         assert result.exit_code == 0
@@ -627,7 +684,9 @@ class TestResultsCommands:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test results summary command."""
-        result = runner.invoke(cli, ["results", "summary", str(populated_db)])
+        result = runner.invoke(
+            cli, ["results", "summary", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "TestResult" in result.output
@@ -641,7 +700,7 @@ class TestRequeueCommands:
     ) -> None:
         """Test requeue request command."""
         result = runner.invoke(
-            cli, ["requeue", "request", str(populated_db), "2"]
+            cli, ["requeue", "request", "--db", str(populated_db), "2"]
         )
 
         assert result.exit_code == 0
@@ -656,6 +715,7 @@ class TestRequeueCommands:
             [
                 "requeue",
                 "request",
+                "--db",
                 str(populated_db),
                 "2",
                 "--no-clear-downstream",
@@ -670,7 +730,8 @@ class TestRequeueCommands:
     ) -> None:
         """Test requeue continuation command."""
         result = runner.invoke(
-            cli, ["requeue", "continuation", str(populated_db), "step1"]
+            cli,
+            ["requeue", "continuation", "--db", str(populated_db), "step1"],
         )
 
         assert result.exit_code == 0
@@ -681,7 +742,15 @@ class TestRequeueCommands:
     ) -> None:
         """Test requeue errors command."""
         result = runner.invoke(
-            cli, ["requeue", "errors", str(populated_db), "--type", "xpath"]
+            cli,
+            [
+                "requeue",
+                "errors",
+                "--db",
+                str(populated_db),
+                "--type",
+                "xpath",
+            ],
         )
 
         assert result.exit_code == 0
@@ -696,7 +765,7 @@ class TestCancelCommands:
     ) -> None:
         """Test cancel request command."""
         result = runner.invoke(
-            cli, ["cancel", "request", str(populated_db), "1"]
+            cli, ["cancel", "request", "--db", str(populated_db), "1"]
         )
 
         assert result.exit_code == 0
@@ -707,7 +776,7 @@ class TestCancelCommands:
     ) -> None:
         """Test cancel request that is not pending."""
         result = runner.invoke(
-            cli, ["cancel", "request", str(populated_db), "2"]
+            cli, ["cancel", "request", "--db", str(populated_db), "2"]
         )
 
         assert result.exit_code != 0
@@ -717,7 +786,7 @@ class TestCancelCommands:
     ) -> None:
         """Test cancel continuation command."""
         result = runner.invoke(
-            cli, ["cancel", "continuation", str(populated_db), "step2"]
+            cli, ["cancel", "continuation", "--db", str(populated_db), "step2"]
         )
 
         assert result.exit_code == 0
@@ -732,7 +801,7 @@ class TestCompressionCommands:
     ) -> None:
         """Test compression stats command."""
         result = runner.invoke(
-            cli, ["compression", "stats", str(populated_db)]
+            cli, ["compression", "stats", "--db", str(populated_db)]
         )
 
         assert result.exit_code == 0
@@ -747,7 +816,14 @@ class TestCompressionCommands:
         """Test compression stats with JSON format."""
         result = runner.invoke(
             cli,
-            ["compression", "stats", str(populated_db), "--format", "json"],
+            [
+                "compression",
+                "stats",
+                "--db",
+                str(populated_db),
+                "--format",
+                "json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -763,6 +839,7 @@ class TestCompressionCommands:
             [
                 "compression",
                 "train",
+                "--db",
                 str(populated_db),
                 "step1",
                 "--samples",
@@ -778,7 +855,8 @@ class TestCompressionCommands:
     ) -> None:
         """Test compression recompress command."""
         result = runner.invoke(
-            cli, ["compression", "recompress", str(populated_db), "step1"]
+            cli,
+            ["compression", "recompress", "--db", str(populated_db), "step1"],
         )
 
         assert result.exit_code == 0
@@ -793,7 +871,8 @@ class TestExportCommands:
         """Test export jsonl command."""
         output_file = tmp_path / "results.jsonl"
         result = runner.invoke(
-            cli, ["export", "jsonl", str(populated_db), str(output_file)]
+            cli,
+            ["export", "jsonl", "--db", str(populated_db), str(output_file)],
         )
 
         assert result.exit_code == 0
@@ -817,6 +896,7 @@ class TestExportCommands:
             [
                 "export",
                 "jsonl",
+                "--db",
                 str(populated_db),
                 str(output_file),
                 "--valid",
@@ -832,7 +912,8 @@ class TestExportCommands:
         """Test export warc command."""
         output_file = tmp_path / "archive.warc.gz"
         result = runner.invoke(
-            cli, ["export", "warc", str(populated_db), str(output_file)]
+            cli,
+            ["export", "warc", "--db", str(populated_db), str(output_file)],
         )
 
         assert result.exit_code == 0
@@ -849,6 +930,7 @@ class TestExportCommands:
             [
                 "export",
                 "warc",
+                "--db",
                 str(populated_db),
                 str(output_file),
                 "--no-compress",
@@ -866,7 +948,9 @@ class TestDiagnoseCommand:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test diagnose command on error without response."""
-        result = runner.invoke(cli, ["diagnose", str(populated_db), "1"])
+        result = runner.invoke(
+            cli, ["diagnose", "--db", str(populated_db), "1"]
+        )
 
         # Should fail because error 1 doesn't have a response
         assert result.exit_code != 0
@@ -875,7 +959,9 @@ class TestDiagnoseCommand:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test diagnose command on non-existent error."""
-        result = runner.invoke(cli, ["diagnose", str(populated_db), "9999"])
+        result = runner.invoke(
+            cli, ["diagnose", "--db", str(populated_db), "9999"]
+        )
 
         assert result.exit_code != 0
         assert "not found" in result.output
@@ -888,7 +974,9 @@ class TestOutputFormats:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test that table format is the default."""
-        result = runner.invoke(cli, ["requests", "list", str(populated_db)])
+        result = runner.invoke(
+            cli, ["requests", "list", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         # Table format should have column separators
@@ -897,7 +985,15 @@ class TestOutputFormats:
     def test_json_format(self, runner: CliRunner, populated_db: Path) -> None:
         """Test JSON output format."""
         result = runner.invoke(
-            cli, ["requests", "list", str(populated_db), "--format", "json"]
+            cli,
+            [
+                "requests",
+                "list",
+                "--db",
+                str(populated_db),
+                "--format",
+                "json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -912,6 +1008,7 @@ class TestOutputFormats:
             [
                 "errors",
                 "list",
+                "--db",
                 str(populated_db),
                 "--format",
                 "jsonl",
@@ -938,20 +1035,36 @@ class TestIntegration:
         """Test workflow: inspect failed request, then requeue it."""
         # First, list failed requests
         result = runner.invoke(
-            cli, ["requests", "list", str(populated_db), "--status", "failed"]
+            cli,
+            [
+                "requests",
+                "list",
+                "--db",
+                str(populated_db),
+                "--status",
+                "failed",
+            ],
         )
         assert result.exit_code == 0
         assert "Total: 1" in result.output
 
         # Then requeue it (request ID 3 is failed)
         result = runner.invoke(
-            cli, ["requeue", "request", str(populated_db), "3"]
+            cli, ["requeue", "request", "--db", str(populated_db), "3"]
         )
         assert result.exit_code == 0
 
         # Verify it was requeued by checking pending requests increased
         result = runner.invoke(
-            cli, ["requests", "list", str(populated_db), "--status", "pending"]
+            cli,
+            [
+                "requests",
+                "list",
+                "--db",
+                str(populated_db),
+                "--status",
+                "pending",
+            ],
         )
         assert result.exit_code == 0
 
@@ -960,20 +1073,30 @@ class TestIntegration:
     ) -> None:
         """Test workflow: inspect error, then resolve it."""
         # First, show the error details
-        result = runner.invoke(cli, ["errors", "show", str(populated_db), "1"])
+        result = runner.invoke(
+            cli, ["errors", "show", "--db", str(populated_db), "1"]
+        )
         assert result.exit_code == 0
         assert "xpath" in result.output
 
         # Then resolve it
         result = runner.invoke(
             cli,
-            ["errors", "resolve", str(populated_db), "1", "--notes", "Fixed"],
+            [
+                "errors",
+                "resolve",
+                "--db",
+                str(populated_db),
+                "1",
+                "--notes",
+                "Fixed",
+            ],
         )
         assert result.exit_code == 0
 
         # Verify it was resolved
         result = runner.invoke(
-            cli, ["errors", "list", str(populated_db), "--unresolved"]
+            cli, ["errors", "list", "--db", str(populated_db), "--unresolved"]
         )
         assert result.exit_code == 0
         # Should now have 0 unresolved (previously was 1)
@@ -983,7 +1106,9 @@ class TestIntegration:
     ) -> None:
         """Test workflow: inspect results, then export them."""
         # First, check results summary
-        result = runner.invoke(cli, ["results", "summary", str(populated_db)])
+        result = runner.invoke(
+            cli, ["results", "summary", "--db", str(populated_db)]
+        )
         assert result.exit_code == 0
 
         # Then export only valid results
@@ -993,6 +1118,7 @@ class TestIntegration:
             [
                 "export",
                 "jsonl",
+                "--db",
                 str(populated_db),
                 str(output_file),
                 "--valid",
@@ -1013,7 +1139,9 @@ class TestDoctorCommand:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test base doctor command with table format."""
-        result = runner.invoke(cli, ["doctor", str(populated_db)])
+        result = runner.invoke(
+            cli, ["doctor", "health", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "Health Report" in result.output
@@ -1027,7 +1155,15 @@ class TestDoctorCommand:
     ) -> None:
         """Test base doctor command with JSON format."""
         result = runner.invoke(
-            cli, ["doctor", "--format", "json", str(populated_db)]
+            cli,
+            [
+                "doctor",
+                "health",
+                "--db",
+                str(populated_db),
+                "--format",
+                "json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -1042,7 +1178,15 @@ class TestDoctorCommand:
     ) -> None:
         """Test base doctor command with JSONL format."""
         result = runner.invoke(
-            cli, ["doctor", "--format", "jsonl", str(populated_db)]
+            cli,
+            [
+                "doctor",
+                "health",
+                "--db",
+                str(populated_db),
+                "--format",
+                "jsonl",
+            ],
         )
 
         assert result.exit_code == 0
@@ -1054,11 +1198,24 @@ class TestDoctorCommand:
             data = json.loads(line)
             assert "section" in data
 
+    def test_doctor_db_on_group(
+        self, runner: CliRunner, populated_db: Path
+    ) -> None:
+        """Test --db on the doctor group propagates to subcommands."""
+        result = runner.invoke(
+            cli, ["doctor", "--db", str(populated_db), "health"]
+        )
+
+        assert result.exit_code == 0
+        assert "Health Report" in result.output
+
     def test_doctor_orphans_table_format(
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test doctor orphans command with table format."""
-        result = runner.invoke(cli, ["doctor", str(populated_db), "orphans"])
+        result = runner.invoke(
+            cli, ["doctor", "orphans", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "Orphaned Requests" in result.output
@@ -1069,7 +1226,15 @@ class TestDoctorCommand:
     ) -> None:
         """Test doctor orphans command with JSON format."""
         result = runner.invoke(
-            cli, ["doctor", str(populated_db), "orphans", "--format", "json"]
+            cli,
+            [
+                "doctor",
+                "orphans",
+                "--db",
+                str(populated_db),
+                "--format",
+                "json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -1084,7 +1249,15 @@ class TestDoctorCommand:
     ) -> None:
         """Test doctor orphans command with JSONL format."""
         result = runner.invoke(
-            cli, ["doctor", str(populated_db), "orphans", "--format", "jsonl"]
+            cli,
+            [
+                "doctor",
+                "orphans",
+                "--db",
+                str(populated_db),
+                "--format",
+                "jsonl",
+            ],
         )
 
         assert result.exit_code == 0
@@ -1095,7 +1268,9 @@ class TestDoctorCommand:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test doctor pending command with table format."""
-        result = runner.invoke(cli, ["doctor", str(populated_db), "pending"])
+        result = runner.invoke(
+            cli, ["doctor", "pending", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "Total Pending:" in result.output
@@ -1107,7 +1282,15 @@ class TestDoctorCommand:
     ) -> None:
         """Test doctor pending command with JSON format."""
         result = runner.invoke(
-            cli, ["doctor", str(populated_db), "pending", "--format", "json"]
+            cli,
+            [
+                "doctor",
+                "pending",
+                "--db",
+                str(populated_db),
+                "--format",
+                "json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -1122,7 +1305,7 @@ class TestDoctorCommand:
         """Test doctor pending command with limit option."""
         result = runner.invoke(
             cli,
-            ["doctor", str(populated_db), "pending", "--limit", "50"],
+            ["doctor", "pending", "--db", str(populated_db), "--limit", "50"],
         )
 
         assert result.exit_code == 0
@@ -1131,7 +1314,9 @@ class TestDoctorCommand:
         self, runner: CliRunner, populated_db: Path
     ) -> None:
         """Test doctor ghosts command with table format."""
-        result = runner.invoke(cli, ["doctor", str(populated_db), "ghosts"])
+        result = runner.invoke(
+            cli, ["doctor", "ghosts", "--db", str(populated_db)]
+        )
 
         assert result.exit_code == 0
         assert "Ghost Requests" in result.output
@@ -1142,7 +1327,15 @@ class TestDoctorCommand:
     ) -> None:
         """Test doctor ghosts command with JSON format."""
         result = runner.invoke(
-            cli, ["doctor", str(populated_db), "ghosts", "--format", "json"]
+            cli,
+            [
+                "doctor",
+                "ghosts",
+                "--db",
+                str(populated_db),
+                "--format",
+                "json",
+            ],
         )
 
         assert result.exit_code == 0
@@ -1156,7 +1349,15 @@ class TestDoctorCommand:
     ) -> None:
         """Test doctor ghosts command with JSONL format."""
         result = runner.invoke(
-            cli, ["doctor", str(populated_db), "ghosts", "--format", "jsonl"]
+            cli,
+            [
+                "doctor",
+                "ghosts",
+                "--db",
+                str(populated_db),
+                "--format",
+                "jsonl",
+            ],
         )
 
         assert result.exit_code == 0
@@ -1170,8 +1371,9 @@ class TestDoctorCommand:
             cli,
             [
                 "doctor",
-                str(populated_db),
                 "ghosts",
+                "--db",
+                str(populated_db),
                 "--continuation",
                 "step1",
             ],
@@ -1187,8 +1389,9 @@ class TestDoctorCommand:
             cli,
             [
                 "doctor",
-                str(populated_db),
                 "ghosts",
+                "--db",
+                str(populated_db),
                 "--continuation",
                 "nonexistent",
             ],
@@ -1203,7 +1406,7 @@ class TestErrorHandling:
 
     def test_invalid_database_path(self, runner: CliRunner) -> None:
         """Test commands with invalid database path."""
-        result = runner.invoke(cli, ["info", "/invalid/path.db"])
+        result = runner.invoke(cli, ["info", "--db", "/invalid/path.db"])
         assert result.exit_code != 0
 
     def test_invalid_format_option(
@@ -1211,7 +1414,7 @@ class TestErrorHandling:
     ) -> None:
         """Test commands with invalid format option."""
         result = runner.invoke(
-            cli, ["info", str(populated_db), "--format", "invalid"]
+            cli, ["info", "--db", str(populated_db), "--format", "invalid"]
         )
         assert result.exit_code != 0
 
@@ -1225,6 +1428,6 @@ class TestErrorHandling:
     ) -> None:
         """Test commands with invalid request ID."""
         result = runner.invoke(
-            cli, ["requests", "show", str(populated_db), "abc"]
+            cli, ["requests", "show", "--db", str(populated_db), "abc"]
         )
         assert result.exit_code != 0

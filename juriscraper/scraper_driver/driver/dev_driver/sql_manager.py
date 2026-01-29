@@ -1902,6 +1902,7 @@ class SQLManager:
         continuation: str | None = None,
         offset: int = 0,
         limit: int = 50,
+        sort: str = "queue",
     ) -> Page[RequestRecord]:
         """List requests with optional filters and pagination.
 
@@ -1910,6 +1911,8 @@ class SQLManager:
             continuation: Filter by continuation method name.
             offset: Number of records to skip.
             limit: Maximum number of records to return.
+            sort: Sort order - "queue" (default: priority, queue_counter),
+                  "id_asc" (by id ascending), or "id_desc" (by id descending).
 
         Returns:
             Page of RequestRecord instances.
@@ -1938,9 +1941,19 @@ class SQLManager:
         row = await cursor.fetchone()
         total = row[0] if row else 0
 
+        # Build ORDER BY clause based on sort parameter
+        order_clauses = {
+            "queue": "ORDER BY priority ASC, queue_counter ASC",
+            "id_asc": "ORDER BY id ASC",
+            "id_desc": "ORDER BY id DESC",
+        }
+        order_clause = order_clauses.get(sort, order_clauses["queue"])
+
         # Get page of records
         cursor = await self._db.execute(
-            SQL.SELECT_REQUESTS_PAGE.format(where_clause=where_clause),
+            SQL.SELECT_REQUESTS_PAGE.format(
+                where_clause=where_clause, order_clause=order_clause
+            ),
             params + [limit, offset],
         )
         rows = await cursor.fetchall()
@@ -2520,6 +2533,89 @@ class SQLManager:
 
             except Exception:
                 # Any error (decompression, JSON parse, validation) means invalid
+                invalid_request_ids.append(request_id)
+
+        return invalid_request_ids
+
+    # --- XML/XSD Response Validation ---
+
+    async def validate_xml_responses(
+        self,
+        continuation: str,
+        xsd_path: str,
+    ) -> list[int]:
+        """Validate stored HTML responses against an XSD schema.
+
+        This diagnostic function retrieves all stored responses for a continuation,
+        decompresses them, parses as HTML, converts to XHTML, and validates against
+        the provided XSD schema.
+
+        Args:
+            continuation: The continuation method name to filter responses.
+            xsd_path: Absolute path to the XSD schema file.
+
+        Returns:
+            List of request_id values for responses that failed validation.
+            Empty list if all responses are valid or if no responses exist.
+
+        Example::
+
+            async with SQLManager.open(db_path) as manager:
+                invalid_ids = await manager.validate_xml_responses(
+                    "parse_opinions_page",
+                    "/path/to/xsds/parse_opinions_page.xsd"
+                )
+                if invalid_ids:
+                    print(f"Invalid responses: {invalid_ids}")
+        """
+        from lxml import etree
+        from lxml import html as lxml_html
+
+        from juriscraper.scraper_driver.driver.dev_driver.compression import (
+            decompress_response,
+        )
+
+        # Load and compile the XSD schema
+        schema_doc = etree.parse(xsd_path)  # noqa: S320
+        schema = etree.XMLSchema(schema_doc)
+
+        # Get all responses for this continuation
+        cursor = await self._db.execute(
+            SQL.SELECT_RESPONSES_FOR_XML_VALIDATION,
+            (continuation,),
+        )
+        rows = await cursor.fetchall()
+
+        if not rows:
+            return []
+
+        invalid_request_ids = []
+
+        for row in rows:
+            response_id, request_id, compressed_content, dict_id = row
+
+            # Skip empty responses
+            if compressed_content is None:
+                continue
+
+            try:
+                # Decompress the response
+                content = await decompress_response(
+                    self._db, compressed_content, dict_id
+                )
+
+                # Parse HTML and convert to XHTML for XML schema validation
+                html_tree = lxml_html.fromstring(content)
+                xhtml_str = etree.tostring(
+                    html_tree, encoding="unicode", method="xml"
+                )
+                xml_doc = etree.fromstring(xhtml_str)  # noqa: S320
+
+                # Validate against the XSD schema
+                schema.validate(xml_doc)
+
+            except Exception:
+                # Any error (decompression, parse, validation) means invalid
                 invalid_request_ids.append(request_id)
 
         return invalid_request_ids

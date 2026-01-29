@@ -78,6 +78,7 @@ from .models import (
     ConnOralArgument,
     ConnPreliminaryPaper,
     ConnTranscriptInfo,
+    ConnTrialCaseUnavailable,
     ConnTrialCourtDocket,
     ConnTrialCourtDocketEntry,
     ConnTrialCourtParty,
@@ -140,6 +141,7 @@ class ConnScraper(
         | ConnOralArgument
         | ConnDocket
         | ConnDocketUnavailable
+        | ConnTrialCaseUnavailable
         | ConnTrialCourtDocket
         | ConnTrialCourtDocketEntry
     ]
@@ -2215,7 +2217,11 @@ class ConnScraper(
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
-        ScraperYield[ConnTrialCourtDocket | ConnTrialCourtDocketEntry],
+        ScraperYield[
+            ConnTrialCourtDocket
+            | ConnTrialCourtDocketEntry
+            | ConnTrialCaseUnavailable
+        ],
         None,
         None,
     ]:
@@ -2226,10 +2232,44 @@ class ConnScraper(
         - Parties and attorneys
         - Docket entries (motions/pleadings/documents/case status)
 
+        Many older trial court cases are no longer in civilinquiry and return
+        a redirect or empty page. These yield ConnTrialCaseUnavailable instead.
+
         Entries with documents trigger ArchiveRequest for download.
         """
         appellate_docket_id = accumulated_data.get("appellate_docket_id")
         trial_docket_number = accumulated_data.get("trial_docket_number")
+
+        # Check if the page has actual case detail content.
+        # Unavailable cases (e.g., old cases purged from civilinquiry) return
+        # a 302 redirect stub with no case detail elements.
+        case_banner = page.query_xpath(
+            "//span[contains(@class, 'casenamebanner')] | //td[contains(@class, 'casenamebanner')]",
+            "case name banner",
+            min_count=0,
+        )
+        has_case_type = page.query_xpath(
+            self.XPATH_TC_CASE_TYPE,
+            "case type",
+            min_count=0,
+        )
+        if not case_banner and not has_case_type:
+            # No case content found — this trial court case is unavailable
+            trial_docket_id = trial_docket_number
+            if not trial_docket_id and "DocketNo=" in response.url:
+                trial_docket_id = response.url.split("DocketNo=")[-1].split(
+                    "&"
+                )[0]
+            if trial_docket_id:
+                yield ParsedData(
+                    ConnTrialCaseUnavailable(
+                        trial_docket_id=trial_docket_id,
+                        appellate_docket_id=appellate_docket_id,
+                        source_url=response.url,
+                        message="Trial court case not available in civilinquiry",
+                    )
+                )
+            return
 
         # Extract trial docket ID from page title or URL
         # Page title format: "Case Detail - HHD-CV23-5076142-S"

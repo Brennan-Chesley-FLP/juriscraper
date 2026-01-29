@@ -12,6 +12,7 @@ from .models import (
     ConnOpinion,
     ConnOpinionCluster,
     ConnOralArgument,
+    ConnTrialCaseUnavailable,
 )
 from .scraper import ConnScraper
 
@@ -25,4 +26,5 @@ __all__ = [
     "ConnOpinion",
     "ConnOpinionCluster",
     "ConnOralArgument",
+    "ConnTrialCaseUnavailable",
 ]

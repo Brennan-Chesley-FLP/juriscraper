@@ -398,6 +398,28 @@ class ConnDocket(Docket):
     """Whether the case was e-filed"""
 
 
+class ConnTrialCaseUnavailable(Docket):
+    """Represents an unavailable trial court case from civilinquiry.jud.ct.gov.
+
+    When an appellate docket links to a trial court case that no longer exists
+    in the civil inquiry system, the page returns a redirect or empty content.
+    This model captures the trial court docket number (from the appellate docket)
+    so we know which cases are unavailable.
+    """
+
+    trial_docket_id: str
+    """Trial court docket number (e.g., 'HHDCV910391250S')"""
+
+    appellate_docket_id: str | None = None
+    """Associated appellate docket number that linked to this trial case"""
+
+    source_url: str | None = None
+    """URL of the trial court page that was attempted"""
+
+    message: str | None = None
+    """Description of why the case is unavailable"""
+
+
 class ConnTrialCourtParty(BaseModel):
     """Party information from Connecticut trial court docket.
 

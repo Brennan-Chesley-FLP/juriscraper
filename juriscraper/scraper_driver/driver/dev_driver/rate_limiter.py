@@ -1,122 +1,21 @@
 """Rate limiting with jitter for LocalDevDriver.
 
-This module provides a rate limiting interceptor that adds randomized delays
-between requests to avoid detection and reduce server load during development.
-
-Also provides AioSQLiteBucket for pyrate_limiter integration with persistent
+Provides AioSQLiteBucket for pyrate_limiter integration with persistent
 storage in SQLite.
 """
 
 from __future__ import annotations
 
 import asyncio
-import random
 import time
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from pyrate_limiter import AbstractBucket, Rate, RateItem
 
-from juriscraper.scraper_driver.data_types import BaseRequest, Response
 from juriscraper.scraper_driver.driver.dev_driver.sql_queries import SQL
 
 if TYPE_CHECKING:
     import aiosqlite
-
-
-class JitterRateLimitInterceptor:
-    """Rate limiter with randomized jitter for natural request patterns.
-
-    Implements the AsyncInterceptor protocol, adding a delay before each
-    request with randomized jitter to simulate human browsing patterns.
-
-    The actual delay for each request will be:
-        base_delay + random.uniform(-jitter, +jitter)
-
-    Example with defaults (base_delay=10.0, jitter=2.0):
-        Delays will range from 8.0 to 12.0 seconds
-
-    Attributes:
-        base_delay_seconds: Base delay between requests.
-        jitter_seconds: Maximum jitter to add/subtract from base delay.
-        last_request_time: Timestamp of last request (for tracking).
-    """
-
-    def __init__(
-        self,
-        base_delay_seconds: float = 10.0,
-        jitter_seconds: float = 2.0,
-    ) -> None:
-        """Initialize the rate limiter.
-
-        Args:
-            base_delay_seconds: Base delay between requests in seconds.
-                Default is 10.0 seconds.
-            jitter_seconds: Maximum jitter to add/subtract from base delay.
-                Default is 2.0 seconds (so delays range from 8.0 to 12.0).
-
-        Raises:
-            ValueError: If base_delay_seconds < jitter_seconds (would allow negative delays).
-        """
-        if base_delay_seconds < jitter_seconds:
-            raise ValueError(
-                f"base_delay_seconds ({base_delay_seconds}) must be >= "
-                f"jitter_seconds ({jitter_seconds}) to avoid negative delays"
-            )
-
-        self.base_delay_seconds = base_delay_seconds
-        self.jitter_seconds = jitter_seconds
-        self.last_request_time: datetime | None = None
-        self._lock = asyncio.Lock()
-
-    def _calculate_delay(self) -> float:
-        """Calculate the delay with jitter for the next request.
-
-        Returns:
-            Delay in seconds (always positive due to validation in __init__).
-        """
-        jitter = random.uniform(-self.jitter_seconds, self.jitter_seconds)
-        return self.base_delay_seconds + jitter
-
-    async def modify_request(self, request: BaseRequest) -> BaseRequest:
-        """Apply jittered delay before allowing the request to proceed.
-
-        This method is called before each HTTP request. It calculates a
-        randomized delay and sleeps for that duration.
-
-        Args:
-            request: The request about to be sent.
-
-        Returns:
-            The unmodified request (rate limiting doesn't change the request).
-        """
-        async with self._lock:
-            # Calculate delay with jitter
-            delay = self._calculate_delay()
-
-            # Sleep for the calculated delay
-            await asyncio.sleep(delay)
-
-            # Track when this request was made
-            self.last_request_time = datetime.now(timezone.utc)
-
-        return request
-
-    async def modify_response(
-        self, response: Response, request: BaseRequest
-    ) -> Response:
-        """Pass-through for responses (no modification needed).
-
-        Rate limiting only affects outgoing requests, not responses.
-
-        Args:
-            response: The response received.
-            request: The original request.
-
-        Returns:
-            The unmodified response.
-        """
-        return response
 
 
 class AioSQLiteBucket(AbstractBucket):

@@ -13,8 +13,6 @@ It evolves across the 29 steps of the design documentation.
 - Step 7: Adds on_data callback for side effects (persistence, logging) when data yielded.
 - Step 9: Adds on_invalid_data callback for handling validation failures.
 - Step 10: Adds on_transient_exception callback for handling transient errors.
-- Step 11: Adds interceptors for request/response transformation with short-circuit support.
-- Step 12: Adds rate limiting interceptor with adaptive rate reduction.
 - Step 13: Adds on_archive callback for customizing file archival behavior.
 - Step 14: Adds on_run_start and on_run_complete lifecycle hooks for tracking scraper runs.
 - Step 15: Replaces list queue with heapq priority queue for memory optimization.
@@ -30,7 +28,7 @@ from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import Generic, TypeVar
 from urllib.parse import urlparse
 
 from typing_extensions import assert_never
@@ -65,9 +63,6 @@ from juriscraper.scraper_driver.data_types import (
     ScraperYield,
     SkipDeduplicationCheck,
 )
-
-if TYPE_CHECKING:
-    from juriscraper.scraper_driver.common.interceptors import SyncInterceptor
 
 # =============================================================================
 # Step 2: Class-based Driver with HTTP Support
@@ -193,7 +188,6 @@ class SyncDriver(Generic[ScraperReturnDatatype]):
         scraper: BaseScraper[ScraperReturnDatatype],
         storage_dir: Path | None = None,
         request_manager: SyncRequestManager | None = None,
-        interceptors: list[SyncInterceptor] | None = None,
         on_data: Callable[
             [ScraperReturnDatatype],
             None,
@@ -217,12 +211,7 @@ class SyncDriver(Generic[ScraperReturnDatatype]):
         Args:
             scraper: Scraper instance with continuation methods.
             storage_dir: Directory for storing downloaded files. If None, uses system temp directory.
-            request_manager: SyncRequestManager for handling HTTP requests. If provided,
-                interceptors parameter is ignored. If None, a default manager is created
-                using the interceptors parameter.
-            interceptors: List of interceptors to apply to requests and responses.
-                Only used if request_manager is None. Interceptors are applied in order
-                for requests, and in reverse order for responses.
+            request_manager: SyncRequestManager for handling HTTP requests.
             on_data: Optional callback invoked when ParsedData is yielded and validated. Useful for
                 persistence, logging, or other side effects. The callback receives the
                 unwrapped data from ParsedData.
@@ -267,9 +256,7 @@ class SyncDriver(Generic[ScraperReturnDatatype]):
             self.request_manager = request_manager
             self._owns_request_manager = False
         else:
-            # Create default request manager with interceptors
             self.request_manager = SyncRequestManager(
-                interceptors=interceptors,
                 ssl_context=scraper.get_ssl_context(),
             )
             self._owns_request_manager = True

@@ -55,7 +55,6 @@ from juriscraper.scraper_driver.driver.dev_driver.errors import (
 )
 from juriscraper.scraper_driver.driver.dev_driver.rate_limiter import (
     AioSQLiteBucket,
-    JitterRateLimitInterceptor,
 )
 from juriscraper.scraper_driver.driver.dev_driver.schema import (
     SCHEMA_VERSION,
@@ -111,7 +110,6 @@ __all__ = [
     "store_error",
     # Rate limiting
     "AioSQLiteBucket",
-    "JitterRateLimitInterceptor",
     # Schema
     "SCHEMA_VERSION",
     "get_next_queue_counter",

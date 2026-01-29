@@ -259,6 +259,7 @@ class LocalDevDriver(
         max_backoff_time = kwargs.pop("max_backoff_time", 3600.0)
         resume = kwargs.pop("resume", True)
         timeout = kwargs.pop("timeout", None)  # Request timeout in seconds
+        custom_request_manager = kwargs.pop("request_manager", None)
 
         # Initialize database and SQLManager
         aiosqlite_db = await init_database(db_path)
@@ -284,23 +285,27 @@ class LocalDevDriver(
                     f"Restored {pending_count} pending requests from database"
                 )
 
-        # Set up ATB rate limiter request manager
-        from juriscraper.scraper_driver.driver.dev_driver.atb_rate_limiter import (
-            ATBAsyncRequestManager,
-            ATBConfig,
-        )
+        # Use custom request manager if provided (e.g., for testing)
+        # Otherwise, set up ATB rate limiter request manager
+        if custom_request_manager is not None:
+            request_manager = custom_request_manager
+        else:
+            from juriscraper.scraper_driver.driver.dev_driver.atb_rate_limiter import (
+                ATBAsyncRequestManager,
+                ATBConfig,
+            )
 
-        atb_config = ATBConfig(
-            bucket_size=bucket_size,
-            initial_rate=initial_rate,
-        )
-        request_manager = ATBAsyncRequestManager(
-            config=atb_config,
-            sql_manager=sql_manager,
-            ssl_context=scraper.get_ssl_context(),
-            timeout=timeout,
-        )
-        await request_manager.initialize()
+            atb_config = ATBConfig(
+                bucket_size=bucket_size,
+                initial_rate=initial_rate,
+            )
+            request_manager = ATBAsyncRequestManager(
+                config=atb_config,
+                sql_manager=sql_manager,
+                ssl_context=scraper.get_ssl_context(),
+                timeout=timeout,
+            )
+            await request_manager.initialize()
 
         driver = cls(
             scraper,

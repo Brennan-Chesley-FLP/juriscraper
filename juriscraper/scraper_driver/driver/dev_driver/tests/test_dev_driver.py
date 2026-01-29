@@ -3793,7 +3793,7 @@ class TestRequestLineageTracking:
             LocalDevDriver,
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
-            TestingInterceptor,
+            TestRequestManager,
             create_html_response,
         )
 
@@ -3830,25 +3830,26 @@ class TestRequestLineageTracking:
                 """Parse detail page (no further requests)."""
                 yield None
 
-        # Create interceptor with mock responses
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        # Create request manager with mock responses
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/listing",
             create_html_response("<html>Listing</html>"),
         )
         for i in range(3):
-            interceptor.add_response(
+            request_manager.add_response(
                 f"https://example.com/detail/{i}",
                 create_html_response(f"<html>Detail {i}</html>"),
             )
 
         scraper = MultiStepScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            # Add interceptor
-            driver.request_manager.interceptors.append(interceptor)
-
             # Run the scraper
             await driver.run()
 
@@ -3901,7 +3902,7 @@ class TestRequestStatusMarking:
             LocalDevDriver,
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
-            TestingInterceptor,
+            TestRequestManager,
             create_html_response,
         )
 
@@ -3919,17 +3920,20 @@ class TestRequestStatusMarking:
             def parse(self, response: Response) -> Generator[None, None, None]:
                 yield None
 
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/page",
             create_html_response("<html>Success</html>"),
         )
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
             assert driver.db.db is not None
@@ -3962,7 +3966,7 @@ class TestRequestStatusMarking:
             LocalDevDriver,
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
-            TestingInterceptor,
+            TestRequestManager,
             create_html_response,
         )
 
@@ -3989,17 +3993,20 @@ class TestRequestStatusMarking:
                     request_url=response.url,
                 )
 
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/fail",
             create_html_response("<html>No element here</html>"),
         )
 
         scraper = FailingScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
             assert driver.db.db is not None
@@ -4049,14 +4056,14 @@ class TestExponentialBackoff:
             def parse(self, response: Response) -> Generator[None, None, None]:
                 yield None
 
-        # Create a custom flaky interceptor that fails once then succeeds
-        class FlakyInterceptor:
-            """Interceptor that fails on first request, then succeeds."""
+        # Create a custom flaky request manager that fails once then succeeds
+        class FlakyRequestManager:
+            """Request manager that fails on first request, then succeeds."""
 
             def __init__(self) -> None:
                 self.request_count = 0
 
-            async def modify_request(self, request: Any) -> Any:
+            async def resolve_request(self, request: Any) -> Any:
                 url = request.request.url
                 if url == "https://example.com/flaky":
                     self.request_count += 1
@@ -4073,14 +4080,12 @@ class TestExponentialBackoff:
                         text="<html>Success</html>",
                         url=url,
                     )
-                return request
+                raise ValueError(f"No mock response configured for URL: {url}")
 
-            async def modify_response(
-                self, response: Any, request: Any
-            ) -> Any:
-                return response
+            async def close(self) -> None:
+                pass
 
-        interceptor = FlakyInterceptor()
+        request_manager = FlakyRequestManager()
 
         scraper = RetryScraper()
         # Use low max_backoff_time so the test is fast
@@ -4090,8 +4095,8 @@ class TestExponentialBackoff:
             max_backoff_time=60.0,
             initial_rate=10.0,
             enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
             assert driver.db.db is not None
@@ -4130,7 +4135,7 @@ class TestExponentialBackoff:
             LocalDevDriver,
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         class AlwaysFailScraper(BaseScraper[str]):
@@ -4147,8 +4152,8 @@ class TestExponentialBackoff:
             def parse(self, response: Response) -> Generator[None, None, None]:
                 yield None
 
-        interceptor = TestingInterceptor()
-        interceptor.add_error(
+        request_manager = TestRequestManager()
+        request_manager.add_error(
             "https://example.com/always-fail",
             RequestTimeoutException(
                 url="https://example.com/always-fail",
@@ -4164,8 +4169,8 @@ class TestExponentialBackoff:
             max_backoff_time=0.5,
             initial_rate=10.0,
             enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
             assert driver.db.db is not None
@@ -4204,7 +4209,7 @@ class TestCompressionRoundTrip:
             LocalDevDriver,
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
-            TestingInterceptor,
+            TestRequestManager,
             create_html_response,
         )
 
@@ -4225,17 +4230,20 @@ class TestCompressionRoundTrip:
             def parse(self, response: Response) -> Generator[None, None, None]:
                 yield None
 
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/large",
             create_html_response(large_html),
         )
 
         scraper = SimpleScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
             assert driver.db.db is not None
@@ -4282,7 +4290,7 @@ class TestDataStorage:
             LocalDevDriver,
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
-            TestingInterceptor,
+            TestRequestManager,
             create_html_response,
         )
 
@@ -4317,17 +4325,20 @@ class TestDataStorage:
                     }
                 )
 
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/case",
             create_html_response("<html>Case data</html>"),
         )
 
         scraper = DataScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
             assert driver.db.db is not None
@@ -4373,7 +4384,7 @@ class TestRequeueErroredRequests:
             LocalDevDriver,
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
-            TestingInterceptor,
+            TestRequestManager,
             create_html_response,
         )
 
@@ -4404,18 +4415,20 @@ class TestRequeueErroredRequests:
                     )
                 yield None
 
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/requeue-test",
             create_html_response("<html>Test</html>"),
         )
 
         scraper = FailThenSucceedScraper()
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
-
             # First run - will fail
             await driver.run()
 
@@ -4698,7 +4711,7 @@ class TestHeadersOnlyResponse:
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
             MockResponse,
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         class SimpleScraper(BaseScraper[str]):
@@ -4717,10 +4730,10 @@ class TestHeadersOnlyResponse:
                 return []
 
         scraper = SimpleScraper()
-        interceptor = TestingInterceptor()
+        request_manager = TestRequestManager()
 
         # Add a mock response with no content (headers only)
-        interceptor.add_response(
+        request_manager.add_response(
             "https://example.com/resource",
             MockResponse(
                 content=b"",  # Empty body
@@ -4734,9 +4747,12 @@ class TestHeadersOnlyResponse:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
             assert driver.db.db is not None
@@ -4801,7 +4817,7 @@ class TestGracefulShutdownSigterm:
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
             MockResponse,
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         # Track how many requests were processed
@@ -4839,11 +4855,11 @@ class TestGracefulShutdownSigterm:
                 return []
 
         scraper = MultiPageScraper()
-        interceptor = TestingInterceptor()
+        request_manager = TestRequestManager()
 
         # Add mock responses for many pages
         for i in range(1, 20):
-            interceptor.add_response(
+            request_manager.add_response(
                 f"https://example.com/page{i}",
                 MockResponse(
                     content=f"<html>Page {i}</html>".encode(),
@@ -4852,10 +4868,12 @@ class TestGracefulShutdownSigterm:
             )
 
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
-
             # Start the driver and stop it after a short delay
             async def stop_after_delay():
                 await asyncio.sleep(0.1)  # Let some requests process
@@ -4913,7 +4931,7 @@ class TestGracefulShutdownSigterm:
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
             MockResponse,
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         class SimpleScraper(BaseScraper[str]):
@@ -4931,17 +4949,19 @@ class TestGracefulShutdownSigterm:
                 return []
 
         scraper = SimpleScraper()
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com",
             MockResponse(content=b"<html></html>", status_code=200),
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
-
             # Verify _setup_signal_handlers and _restore_signal_handlers work
             # Set known handlers first
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
@@ -4980,7 +5000,7 @@ class TestGracefulShutdownSigterm:
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
             MockResponse,
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         completed_urls: list[str] = []
@@ -5014,15 +5034,15 @@ class TestGracefulShutdownSigterm:
                 return []
 
         scraper = MultiStepScraper()
-        interceptor = TestingInterceptor()
+        request_manager = TestRequestManager()
 
         # Add responses
-        interceptor.add_response(
+        request_manager.add_response(
             "https://example.com/start",
             MockResponse(content=b"<html>Start</html>", status_code=200),
         )
         for i in range(5):
-            interceptor.add_response(
+            request_manager.add_response(
                 f"https://example.com/item{i}",
                 MockResponse(
                     content=f"<html>Item {i}</html>".encode(), status_code=200
@@ -5031,9 +5051,12 @@ class TestGracefulShutdownSigterm:
 
         # First run - interrupt early
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
 
             async def stop_early():
                 await asyncio.sleep(0.05)
@@ -5055,14 +5078,14 @@ class TestGracefulShutdownSigterm:
         # Second run - should pick up where we left off
         # Need a fresh scraper instance
         scraper2 = MultiStepScraper()
-        interceptor2 = TestingInterceptor()
+        request_manager2 = TestRequestManager()
 
-        interceptor2.add_response(
+        request_manager2.add_response(
             "https://example.com/start",
             MockResponse(content=b"<html>Start</html>", status_code=200),
         )
         for i in range(5):
-            interceptor2.add_response(
+            request_manager2.add_response(
                 f"https://example.com/item{i}",
                 MockResponse(
                     content=f"<html>Item {i}</html>".encode(), status_code=200
@@ -5075,8 +5098,8 @@ class TestGracefulShutdownSigterm:
             resume=True,
             initial_rate=100.0,
             enable_monitor=False,
+            request_manager=request_manager2,
         ) as driver2:
-            driver2.request_manager.interceptors.append(interceptor2)
             await driver2.run(setup_signal_handlers=False)
 
             assert driver2.db.db is not None
@@ -5115,7 +5138,7 @@ class TestDevDriverVsOtherDrivers:
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
             MockResponse,
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         # Track results from each driver
@@ -5156,9 +5179,9 @@ class TestDevDriverVsOtherDrivers:
                     }
                 )
 
-        def create_interceptor() -> TestingInterceptor:
-            interceptor = TestingInterceptor()
-            interceptor.add_response(
+        def create_request_manager() -> TestRequestManager:
+            request_manager = TestRequestManager()
+            request_manager.add_response(
                 "https://example.com/cases",
                 MockResponse(
                     content=b"<html><body>Case Listing</body></html>",
@@ -5166,14 +5189,14 @@ class TestDevDriverVsOtherDrivers:
                 ),
             )
             for i in range(3):
-                interceptor.add_response(
+                request_manager.add_response(
                     f"https://example.com/case/{i}",
                     MockResponse(
                         content=f"<html><body>Case {i} Details</body></html>".encode(),
                         status_code=200,
                     ),
                 )
-            return interceptor
+            return request_manager
 
         # Run with AsyncDriver
         scraper1 = TestScraper()
@@ -5181,8 +5204,9 @@ class TestDevDriverVsOtherDrivers:
         async def collect_async_result(data: dict) -> None:
             async_driver_results.append(data)
 
-        async_driver = AsyncDriver(scraper=scraper1)
-        async_driver.request_manager.interceptors.append(create_interceptor())
+        async_driver = AsyncDriver(
+            scraper=scraper1, request_manager=create_request_manager()
+        )
         async_driver.on_data = collect_async_result
         await async_driver.run()
 
@@ -5193,11 +5217,12 @@ class TestDevDriverVsOtherDrivers:
             dev_driver_results.append(data)
 
         async with LocalDevDriver.open(
-            scraper2, db_path, initial_rate=100.0, enable_monitor=False
+            scraper2,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=create_request_manager(),
         ) as dev_driver:
-            dev_driver.request_manager.interceptors.append(
-                create_interceptor()
-            )
             dev_driver.on_data = collect_dev_result
             await dev_driver.run()
 
@@ -5231,7 +5256,7 @@ class TestDevDriverVsOtherDrivers:
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
             MockResponse,
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         class ResultProducingScraper(BaseScraper[dict]):
@@ -5250,16 +5275,19 @@ class TestDevDriverVsOtherDrivers:
                     yield ParsedData({"id": i, "value": f"item_{i}"})
 
         scraper = ResultProducingScraper()
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/data",
             MockResponse(content=b"<html>Data</html>", status_code=200),
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             await driver.run()
 
             assert driver.db.db is not None
@@ -5324,7 +5352,7 @@ class TestDeferredValidationHandling:
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
             MockResponse,
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         class CaseData(BaseModel):
@@ -5363,8 +5391,8 @@ class TestDeferredValidationHandling:
             received_data.append(data)
 
         scraper = ValidDataScraper()
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/case",
             MockResponse(
                 content=b"<html>Case details</html>", status_code=200
@@ -5372,9 +5400,12 @@ class TestDeferredValidationHandling:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             driver.on_data = collect_result
             await driver.run()
 
@@ -5419,7 +5450,7 @@ class TestDeferredValidationHandling:
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
             MockResponse,
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         class StrictCaseData(BaseModel):
@@ -5465,8 +5496,8 @@ class TestDeferredValidationHandling:
             invalid_data_received.append(data)
 
         scraper = InvalidDataScraper()
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/case",
             MockResponse(
                 content=b"<html>Case details</html>", status_code=200
@@ -5474,9 +5505,12 @@ class TestDeferredValidationHandling:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             driver.on_invalid_data = collect_invalid
             await driver.run()
 
@@ -5527,7 +5561,7 @@ class TestNonNavigatingRequestHandling:
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
             MockResponse,
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         collected_data: list[dict] = []
@@ -5568,12 +5602,12 @@ class TestNonNavigatingRequestHandling:
             collected_data.append(data)
 
         scraper = NonNavScraper()
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/main",
             MockResponse(content=b"<html>Main page</html>", status_code=200),
         )
-        interceptor.add_response(
+        request_manager.add_response(
             "https://example.com/api/metadata",
             MockResponse(
                 content=b'{"status": "ok"}',
@@ -5583,9 +5617,12 @@ class TestNonNavigatingRequestHandling:
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             driver.on_data = collect_result
             await driver.run()
 
@@ -5628,7 +5665,7 @@ class TestNonNavigatingRequestHandling:
         )
         from juriscraper.scraper_driver.driver.dev_driver.testing import (
             MockResponse,
-            TestingInterceptor,
+            TestRequestManager,
         )
 
         class AccumulatingScraper(BaseScraper[dict]):
@@ -5673,20 +5710,23 @@ class TestNonNavigatingRequestHandling:
             results.append(data)
 
         scraper = AccumulatingScraper()
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        request_manager = TestRequestManager()
+        request_manager.add_response(
             "https://example.com/listing",
             MockResponse(content=b"<html>Listing</html>", status_code=200),
         )
-        interceptor.add_response(
+        request_manager.add_response(
             "https://example.com/detail/1",
             MockResponse(content=b"<html>Detail</html>", status_code=200),
         )
 
         async with LocalDevDriver.open(
-            scraper, db_path, initial_rate=100.0, enable_monitor=False
+            scraper,
+            db_path,
+            initial_rate=100.0,
+            enable_monitor=False,
+            request_manager=request_manager,
         ) as driver:
-            driver.request_manager.interceptors.append(interceptor)
             driver.on_data = collect_result
             await driver.run()
 

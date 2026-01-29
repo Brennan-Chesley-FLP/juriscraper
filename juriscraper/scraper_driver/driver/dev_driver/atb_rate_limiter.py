@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any
 
 import zstandard as zstd
 
-from juriscraper.scraper_driver.common.interceptors import AsyncInterceptor
 from juriscraper.scraper_driver.common.request_manager import (
     AsyncRequestManager,
 )
@@ -103,7 +102,6 @@ class ATBAsyncRequestManager(AsyncRequestManager):
         self,
         config: ATBConfig,
         sql_manager: SQLManager,
-        interceptors: list[AsyncInterceptor] | None = None,
         ssl_context: ssl.SSLContext | None = None,
         timeout: float | None = None,
     ) -> None:
@@ -112,13 +110,10 @@ class ATBAsyncRequestManager(AsyncRequestManager):
         Args:
             config: ATB configuration parameters.
             sql_manager: SQLManager for database operations.
-            interceptors: List of async interceptors to apply to requests and
-                responses (in addition to ATB rate limiting).
             ssl_context: Optional SSL context for HTTPS connections.
             timeout: Request timeout in seconds. None means no timeout.
         """
         super().__init__(
-            interceptors=interceptors,
             ssl_context=ssl_context,
             timeout=timeout,
         )

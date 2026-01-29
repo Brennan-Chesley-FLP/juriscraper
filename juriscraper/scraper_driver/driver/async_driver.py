@@ -17,7 +17,7 @@ import logging
 from collections.abc import Awaitable, Callable, Generator
 from pathlib import Path
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import Generic, TypeVar
 from urllib.parse import urlparse
 
 from typing_extensions import assert_never
@@ -54,9 +54,6 @@ from juriscraper.scraper_driver.data_types import (
     SkipDeduplicationCheck,
 )
 from juriscraper.scraper_driver.driver.sync_driver import SpeculationState
-
-if TYPE_CHECKING:
-    from juriscraper.scraper_driver.common.interceptors import AsyncInterceptor
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +146,6 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
         scraper: BaseScraper[ScraperReturnDatatype],
         storage_dir: Path | None = None,
         request_manager: AsyncRequestManager | None = None,
-        interceptors: list[AsyncInterceptor] | None = None,
         on_data: Callable[
             [ScraperReturnDatatype],
             Awaitable[None],
@@ -179,12 +175,7 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
         Args:
             scraper: Scraper instance with continuation methods.
             storage_dir: Directory for storing downloaded files. If None, uses system temp directory.
-            request_manager: AsyncRequestManager for handling HTTP requests. If provided,
-                interceptors parameter is ignored. If None, a default manager is created
-                using the interceptors parameter.
-            interceptors: List of async interceptors to apply to requests and responses.
-                Only used if request_manager is None. Interceptors are applied in order
-                for requests, and in reverse order for responses.
+            request_manager: AsyncRequestManager for handling HTTP requests.
             on_data: Optional async callback invoked when ParsedData is yielded and validated. Useful
                 for persistence, logging, or other side effects. The callback receives the
                 unwrapped data from ParsedData.
@@ -232,9 +223,7 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
             self.request_manager = request_manager
             self._owns_request_manager = False
         else:
-            # Create default request manager with interceptors
             self.request_manager = AsyncRequestManager(
-                interceptors=interceptors,
                 ssl_context=scraper.get_ssl_context(),
             )
             self._owns_request_manager = True

@@ -1,7 +1,7 @@
 """Testing utilities for LocalDevDriver.
 
 This module provides testing infrastructure for LocalDevDriver tests:
-- TestingInterceptor: An async interceptor for mocking HTTP responses
+- TestRequestManager: A mock request manager for testing
 - Helper functions for creating test fixtures
 """
 
@@ -13,6 +13,9 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+from juriscraper.scraper_driver.common.request_manager import (
+    AsyncRequestManager,
+)
 from juriscraper.scraper_driver.data_types import BaseRequest, Response
 
 
@@ -38,32 +41,39 @@ class MockResponse:
             self.text = self.content.decode("utf-8", errors="replace")
 
 
-class TestingInterceptor:
-    """Async interceptor for testing that provides mock responses.
+class TestRequestManager(AsyncRequestManager):
+    """Mock request manager for testing that provides canned responses.
 
-    This interceptor allows tests to:
+    This request manager allows tests to:
     - Supply canned responses for specific URLs
     - Raise exceptions for specific URLs (to test error handling)
     - Track which requests were made
     - Verify request ordering and parameters
 
     Example:
-        interceptor = TestingInterceptor()
-        interceptor.add_response(
+        manager = TestRequestManager()
+        manager.add_response(
             "https://example.com/page1",
             MockResponse(content=b"<html>Page 1</html>")
         )
-        interceptor.add_error(
+        manager.add_error(
             "https://example.com/error",
             RequestTimeoutException(url="...", timeout_seconds=30.0)
         )
 
         # Use with LocalDevDriver
-        driver.interceptors.append(interceptor)
+        async with LocalDevDriver.open(
+            scraper, db_path, request_manager=manager
+        ) as driver:
+            await driver.run()
     """
 
     def __init__(self) -> None:
-        """Initialize the testing interceptor."""
+        """Initialize the test request manager.
+
+        Note: We intentionally skip the parent __init__ to avoid creating
+        an httpx client, since we provide mock responses directly.
+        """
         # Map of URL -> MockResponse
         self._responses: dict[str, MockResponse] = {}
         # Map of URL -> Exception to raise
@@ -127,19 +137,18 @@ class TestingInterceptor:
         """
         return self.request_counts.get(url, 0)
 
-    async def modify_request(
-        self, request: BaseRequest
-    ) -> BaseRequest | Response:
-        """Process a request and return a mock response if configured.
+    async def resolve_request(self, request: BaseRequest) -> Response:
+        """Process a request and return a mock response.
 
         Args:
             request: The request to process.
 
         Returns:
-            Response if a mock is configured, otherwise the original request.
+            Response with mocked data.
 
         Raises:
             Exception: If an error is configured for this URL.
+            ValueError: If no mock is configured for this URL.
         """
         url = request.request.url
 
@@ -178,24 +187,19 @@ class TestingInterceptor:
                     url=url,
                 )
 
-        # No mock configured - let request pass through
-        # In tests, this would typically mean the real HTTP would be made
-        # For isolated tests, you should configure all expected URLs
-        return request
+        # No mock configured - raise error for better test isolation
+        raise ValueError(
+            f"No mock response configured for URL: {url}. "
+            "Use add_response() or add_response_generator() to configure a mock."
+        )
 
-    async def modify_response(
-        self, response: Response, request: BaseRequest
-    ) -> Response:
-        """Pass through response unchanged.
+    async def close(self) -> None:
+        """No-op close for compatibility with real request managers."""
+        pass
 
-        Args:
-            response: The response to pass through.
-            request: The original request.
 
-        Returns:
-            The unmodified response.
-        """
-        return response
+# Keep old name as alias for backwards compatibility during migration
+TestingInterceptor = TestRequestManager
 
 
 def create_html_response(

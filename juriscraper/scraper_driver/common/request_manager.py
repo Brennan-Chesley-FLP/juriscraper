@@ -1,12 +1,10 @@
-"""Request managers for handling HTTP requests with interceptor chains.
+"""Request managers for handling HTTP requests.
 
 This module provides SyncRequestManager and AsyncRequestManager classes that
-encapsulate the HTTP client, interceptor chain, and request resolution logic.
+encapsulate the HTTP client, and request resolution logic.
 
 The request manager is responsible for:
 - Maintaining the HTTP client (httpx.Client or httpx.AsyncClient)
-- Applying interceptor chains to requests and responses
-- Handling short-circuit responses from interceptors
 - Converting HTTP responses to Response objects
 
 This separation allows drivers to focus on queue management and scraper
@@ -26,10 +24,6 @@ from juriscraper.scraper_driver.common.exceptions import (
     RequestTimeoutException,
     TransientException,
 )
-from juriscraper.scraper_driver.common.interceptors import (
-    AsyncInterceptor,
-    SyncInterceptor,
-)
 from juriscraper.scraper_driver.data_types import BaseRequest, Response
 
 if TYPE_CHECKING:
@@ -41,19 +35,17 @@ logger = logging.getLogger(__name__)
 
 
 class SyncRequestManager:
-    """Manages HTTP requests with interceptor support for synchronous drivers.
+    """Manages HTTP requests for synchronous drivers.
 
     This class encapsulates:
 
     - httpx.Client lifecycle
-    - Interceptor chain application
     - Request resolution (URL fetching)
     - Response transformation
 
     Example::
 
         manager = SyncRequestManager(
-            interceptors=[cache, rate_limiter],
             ssl_context=scraper.get_ssl_context(),
             timeout=30.0,
         )
@@ -62,22 +54,16 @@ class SyncRequestManager:
 
     def __init__(
         self,
-        interceptors: list[SyncInterceptor] | None = None,
         ssl_context: ssl.SSLContext | None = None,
         timeout: float | None = None,
     ) -> None:
         """Initialize the request manager.
 
         Args:
-            interceptors: List of interceptors to apply to requests and responses.
-                Interceptors are applied in order for requests, and in reverse
-                order for responses. Order matters - cache should come before
-                rate limiter.
             ssl_context: Optional SSL context for HTTPS connections. Use this
                 for servers requiring specific cipher suites.
             timeout: Request timeout in seconds. None means no timeout (default).
         """
-        self.interceptors = interceptors or []
         self.timeout = timeout
 
         # Initialize httpx client
@@ -101,9 +87,6 @@ class SyncRequestManager:
     def resolve_request(self, request: BaseRequest) -> Response:
         """Fetch a BaseRequest and return the Response.
 
-        Applies the interceptor chain, makes the HTTP request (unless
-        short-circuited), and transforms the response.
-
         Args:
             request: The BaseRequest to fetch. URL should be absolute.
 
@@ -114,23 +97,8 @@ class SyncRequestManager:
             HTMLResponseAssumptionException: If server returns 5xx status code.
             httpx.TimeoutException: If request times out (for retry handling).
         """
-        # Apply modify_request interceptor chain
-        modified_request = request
-        for interceptor in self.interceptors:
-            result = interceptor.modify_request(modified_request)
-            if isinstance(result, Response):
-                # Short-circuit! Skip HTTP and remaining request interceptors
-                response = result
-                # Still apply modify_response chain to short-circuited response
-                for resp_interceptor in reversed(self.interceptors):
-                    response = resp_interceptor.modify_response(
-                        response, request
-                    )
-                return response
-            modified_request = result
-
         # Use the modified request for HTTP
-        http_params = modified_request.request
+        http_params = request.request
 
         try:
             http_response = self._client.request(
@@ -151,7 +119,6 @@ class SyncRequestManager:
             )
 
         # Check for server errors (5xx status codes)
-        # 429 (Too Many Requests) is handled by rate limiter interceptor
         if http_response.status_code >= 500:
             raise HTMLResponseAssumptionException(
                 status_code=http_response.status_code,
@@ -165,30 +132,24 @@ class SyncRequestManager:
             content=http_response.content,
             text=http_response.text,
             url=http_params.url,
-            request=modified_request,
+            request=request,
         )
-
-        # Apply modify_response interceptor chain (in reverse order)
-        for interceptor in reversed(self.interceptors):
-            response = interceptor.modify_response(response, request)
 
         return response
 
 
 class AsyncRequestManager:
-    """Manages HTTP requests with interceptor support for asynchronous drivers.
+    """Manages HTTP requests for asynchronous drivers.
 
     This class encapsulates:
 
     - httpx.AsyncClient lifecycle
-    - Interceptor chain application
     - Request resolution (URL fetching)
     - Response transformation
 
     Example::
 
         manager = AsyncRequestManager(
-            interceptors=[cache, rate_limiter],
             ssl_context=scraper.get_ssl_context(),
             timeout=30.0,
         )
@@ -197,22 +158,16 @@ class AsyncRequestManager:
 
     def __init__(
         self,
-        interceptors: list[AsyncInterceptor] | None = None,
         ssl_context: ssl.SSLContext | None = None,
         timeout: float | None = None,
     ) -> None:
         """Initialize the request manager.
 
         Args:
-            interceptors: List of async interceptors to apply to requests and
-                responses. Interceptors are applied in order for requests, and
-                in reverse order for responses. Order matters - cache should
-                come before rate limiter.
             ssl_context: Optional SSL context for HTTPS connections. Use this
                 for servers requiring specific cipher suites.
             timeout: Request timeout in seconds. None means no timeout (default).
         """
-        self.interceptors = interceptors or []
         self.timeout = timeout
 
         # Initialize httpx async client
@@ -238,9 +193,6 @@ class AsyncRequestManager:
     async def resolve_request(self, request: BaseRequest) -> Response:
         """Fetch a BaseRequest and return the Response.
 
-        Applies the interceptor chain, makes the HTTP request (unless
-        short-circuited), and transforms the response.
-
         Args:
             request: The BaseRequest to fetch. URL should be absolute.
 
@@ -251,23 +203,9 @@ class AsyncRequestManager:
             HTMLResponseAssumptionException: If server returns 5xx status code.
             httpx.TimeoutException: If request times out (for retry handling).
         """
-        # Apply modify_request interceptor chain
-        modified_request = request
-        for interceptor in self.interceptors:
-            result = await interceptor.modify_request(modified_request)
-            if isinstance(result, Response):
-                # Short-circuit! Skip HTTP and remaining request interceptors
-                response = result
-                # Still apply modify_response chain to short-circuited response
-                for resp_interceptor in reversed(self.interceptors):
-                    response = await resp_interceptor.modify_response(
-                        response, request
-                    )
-                return response
-            modified_request = result
 
         # Use the modified request for HTTP
-        http_params = modified_request.request
+        http_params = request.request
 
         # Prepare content and data parameters for httpx
         request_data = http_params.data
@@ -297,7 +235,6 @@ class AsyncRequestManager:
             )
 
         # Check for server errors (5xx status codes)
-        # 429 (Too Many Requests) is handled by rate limiter interceptor
         if http_response.status_code >= 500:
             raise HTMLResponseAssumptionException(
                 status_code=http_response.status_code,
@@ -311,12 +248,8 @@ class AsyncRequestManager:
             content=http_response.content,
             text=http_response.text,
             url=http_params.url,
-            request=modified_request,
+            request=request,
         )
-
-        # Apply modify_response interceptor chain (in reverse order)
-        for interceptor in reversed(self.interceptors):
-            response = await interceptor.modify_response(response, request)
 
         return response
 
@@ -343,7 +276,6 @@ class SQLBackedAsyncRequestManager(AsyncRequestManager):
         manager = SQLBackedAsyncRequestManager(
             sql_manager=sql_manager,
             max_backoff_time=3600.0,  # 1 hour max
-            interceptors=[rate_limiter],
             ssl_context=scraper.get_ssl_context(),
             timeout=30.0,
         )
@@ -359,7 +291,6 @@ class SQLBackedAsyncRequestManager(AsyncRequestManager):
         sql_manager: SQLManager,
         max_backoff_time: float = 3600.0,
         retry_base_delay: float = 1.0,
-        interceptors: list[AsyncInterceptor] | None = None,
         ssl_context: ssl.SSLContext | None = None,
         timeout: float | None = None,
     ) -> None:
@@ -372,13 +303,10 @@ class SQLBackedAsyncRequestManager(AsyncRequestManager):
                 marking a request as failed. Default: 3600.0 (1 hour).
             retry_base_delay: Base delay for exponential backoff calculation.
                 Default: 1.0 second.
-            interceptors: List of async interceptors to apply to requests and
-                responses.
             ssl_context: Optional SSL context for HTTPS connections.
             timeout: Request timeout in seconds. None means no timeout.
         """
         super().__init__(
-            interceptors=interceptors,
             ssl_context=ssl_context,
             timeout=timeout,
         )

@@ -119,8 +119,26 @@ def _format_data_diff(orig: dict[str, Any], new: dict[str, Any]) -> str:
 
     Returns a human-readable diff showing changed fields.
     Aggregates list item changes to show field-level summary.
+    Handles type changes (e.g., ConnTrialCourtDocket → ConnTrialCaseUnavailable).
     """
     import jsondiff
+
+    # Detect type change by checking if the sets of keys are fundamentally different
+    # This catches cases like ConnTrialCourtDocket -> ConnTrialCaseUnavailable
+    orig_keys = set(orig.keys())
+    new_keys = set(new.keys())
+
+    # If there's very little overlap in keys, it's likely a type change
+    common_keys = orig_keys & new_keys
+    all_keys = orig_keys | new_keys
+
+    # If less than 30% of keys are shared, treat as type change
+    if all_keys and len(common_keys) / len(all_keys) < 0.3:
+        return (
+            f"      Result type changed:\n"
+            f"      - Removed fields: {sorted(orig_keys - new_keys)}\n"
+            f"      + Added fields: {sorted(new_keys - orig_keys)}"
+        )
 
     diff = jsondiff.diff(orig, new, syntax="symmetric")
     if not diff:
@@ -153,8 +171,24 @@ def _format_jsondiff_aggregated(diff: Any, indent: int = 0) -> str:
 
     for key, value in diff.items():
         if key == jsondiff.symbols.insert:
-            for pos, val in value:
-                scalar_changes.append(f"+ [{pos}]: {_truncate_repr(val)}")
+            # Handle inserts - can be list of tuples or dict when type changes
+            if isinstance(value, dict):
+                # Type change scenario - show as nested dict
+                nested = _format_jsondiff_aggregated(value, indent)
+                if nested:
+                    scalar_changes.append("+ inserted:")
+                    scalar_changes.append(nested.lstrip())
+            elif isinstance(value, list):
+                try:
+                    for pos, val in value:
+                        scalar_changes.append(
+                            f"+ [{pos}]: {_truncate_repr(val)}"
+                        )
+                except (ValueError, TypeError):
+                    # If unpacking fails, just show the value as-is
+                    scalar_changes.append(f"+ {_truncate_repr(value)}")
+            else:
+                scalar_changes.append(f"+ {_truncate_repr(value)}")
         elif key == jsondiff.symbols.delete:
             if isinstance(value, list):
                 for pos in value:

@@ -58,7 +58,7 @@ The driver receives these requests and decides how to execute them:
 This preserves the generator-based architecture where steps yield requests and drivers execute them. The step doesn't know or care how the request is fulfilled.
 
 **Alternatives considered:**
-- Forms/Links that directly perform navigation: Would bypass the driver's request queue, deduplication, rate limiting, interceptors, and break purity.
+- Forms/Links that directly perform navigation: Would bypass the driver's request queue, deduplication, rate limiting, and break purity.
 - Returning raw URL strings: Doesn't capture form encoding, method, hidden fields.
 - Omitting submit selector: Drivers that need it would have to guess which button to click.
 

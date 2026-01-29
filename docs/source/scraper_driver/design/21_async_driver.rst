@@ -30,7 +30,7 @@ The AsyncDriver closely mirrors the SyncDriver with three key differences:
 
 This design ensures:
 
-- **API compatibility** - Same callbacks, interceptors, and scraper interface (modulo async)
+- **API compatibility** - Same callbacks and scraper interface (modulo async)
 - **Behavioral equivalence** - Same priority ordering and deduplication
 
 
@@ -46,7 +46,6 @@ Implementation
             self,
             scraper: BaseScraper[ScraperReturnDatatype],
             storage_dir: Path | None = None,
-            interceptors: list["AsyncInterceptor"] | None = None,
             on_data: Callable[[ScraperReturnDatatype], None] | None = None,
             on_structural_error: Callable[[HTMLStructuralAssumptionException], bool] | None = None,
             on_invalid_data: Callable[[DeferredValidation], None] | None = None,
@@ -140,30 +139,6 @@ Each worker processes requests from the shared queue:
                         # ... other cases ...
             finally:
                 self.request_queue.task_done()
-
-
-AsyncInterceptor Protocol
--------------------------
-
-Async interceptors use async/await instead of sync methods:
-
-.. code-block:: python
-
-    class AsyncInterceptor(Protocol):
-        async def modify_request(
-            self, request: BaseRequest
-        ) -> BaseRequest | Response:
-            """Modify request or short-circuit with cached response."""
-            ...
-
-        async def modify_response(
-            self, response: Response, request: BaseRequest
-        ) -> Response:
-            """Transform response after receiving."""
-            ...
-
-Existing interceptors (rate limiter, WARC cache, etc.) have async variants
-that can be used with AsyncDriver.
 
 
 Thread Safety

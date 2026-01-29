@@ -19,8 +19,8 @@ The LocalDevDriver is a SQLite-backed subclass of AsyncDriver designed for local
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐  │
-│  │ JitterRate   │    │ SQLite DB    │    │ Compression          │  │
-│  │ Interceptor  │    │ (aiosqlite)  │    │ Manager              │  │
+│  │ Rate Limiter │    │ SQLite DB    │    │ Compression          │  │
+│  │ (pyrate)     │    │ (aiosqlite)  │    │ Manager              │  │
 │  │              │    │              │    │                      │  │
 │  │ • 10s base   │    │ • requests   │    │ • zstd dictionaries  │  │
 │  │ • ±2s jitter │    │ • responses  │    │ • per-continuation   │  │
@@ -265,38 +265,35 @@ CREATE INDEX idx_errors_unresolved ON errors(is_resolved) WHERE is_resolved = FA
 
 ## Core Components
 
-### 1. JitterRateLimitInterceptor
+### 1. AioSQLiteBucket Rate Limiter
 
-A new async interceptor that enforces rate limiting with randomized jitter.
+An async SQLite-backed bucket for pyrate_limiter integration with persistent storage.
 
 ```python
-class JitterRateLimitInterceptor(AsyncInterceptor):
-    """Rate limiter with randomized jitter for natural request patterns.
+class AioSQLiteBucket(AbstractBucket):
+    """Async SQLite-backed bucket for pyrate_limiter.
+
+    Implements the AbstractBucket interface using aiosqlite for persistent
+    rate limiting state that survives process restarts.
+
+    The bucket stores rate items in the rate_items table, allowing the
+    rate limiter to track request timestamps across restarts.
 
     Args:
-        base_delay_seconds: Base delay between requests (default: 10.0)
-        jitter_seconds: Maximum jitter to add/subtract (default: 2.0)
+        db: Database connection (should be same as LocalDevDriver's).
+        rates: List of Rate objects defining rate limits.
 
-    The actual delay for each request will be:
-        base_delay + random.uniform(-jitter, +jitter)
-
-    Example with defaults:
-        Delays will range from 8.0 to 12.0 seconds
+    Example:
+        rates = [Rate(5, Duration.SECOND)]  # 5 requests per second
+        bucket = AioSQLiteBucket(db, rates)
+        limiter = Limiter(bucket)
     """
 
     def __init__(
         self,
-        base_delay_seconds: float = 10.0,
-        jitter_seconds: float = 2.0,
+        db: aiosqlite.Connection,
+        rates: list[Rate],
     ) -> None: ...
-
-    async def modify_request(self, request: BaseRequest) -> BaseRequest:
-        """Apply jittered delay before request."""
-        ...
-
-    async def modify_response(self, response: Response, request: BaseRequest) -> Response:
-        """Pass-through (no modification)."""
-        ...
 ```
 
 ### 2. LocalDevDriver Class
@@ -1164,7 +1161,7 @@ class BaseScraper(Generic[ScraperReturnType]):
 - [ ] Scraper run tracking with params
 
 ### Phase 2: Rate Limiting
-- [ ] JitterRateLimitInterceptor
+- [ ] AioSQLiteBucket rate limiter
 - [ ] Integration with LocalDevDriver
 
 ### Phase 3: Error Tracking
@@ -1831,7 +1828,7 @@ juriscraper/scraper_driver/driver/dev_driver/
 ├── stats.py               # Statistics dataclasses
 ├── errors.py              # Error tracking and requeue
 ├── warc_export.py         # WARC export
-├── rate_limiter.py        # AioSQLiteBucket and JitterRateLimitInterceptor
+├── rate_limiter.py        # AioSQLiteBucket rate limiter
 ├── run.py                 # CLI runner
 └── web/
     ├── __init__.py
@@ -1862,7 +1859,7 @@ juriscraper/scraper_driver/driver/dev_driver/
 
 1. **Unit tests**: Individual components (compression, rate limiter, etc.)
 2. **Integration tests**: Full driver with mock scraper
-3. **WARC validation**: Export and re-import via WarcCacheInterceptor
+3. **WARC validation**: Export and validate WARC format
 4. **Resumability tests**: Interrupt and resume scenarios
 5. **Compression tests**: Dictionary training, ratio verification
 6. **Web interface tests**: FastAPI TestClient for REST endpoints

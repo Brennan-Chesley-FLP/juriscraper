@@ -51,7 +51,7 @@ The flow is:
 1. **Discovery**: Driver introspects the scraper class using ``list_speculators()`` to find all ``@speculate`` decorated functions
 2. **Configuration**: Driver reads decorator metadata (``highest_observed``, ``largest_observed_gap``) and optional consumer params (``definite_range``, ``plus``)
 3. **Request Generation**: Driver calls the speculate function with sequential IDs to generate requests
-4. **Request Execution**: Requests flow through normal pipeline (queue, interceptors, deduplication)
+4. **Request Execution**: Requests flow through normal pipeline (queue, deduplication)
 5. **Success Tracking**: Driver tracks which IDs succeed (2xx responses) vs fail (non-2xx or deduplication)
 6. **Stopping Criteria**: Driver stops when consecutive failures exceed the configured gap threshold
 

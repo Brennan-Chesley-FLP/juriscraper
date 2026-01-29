@@ -167,7 +167,7 @@ And the driver:
         2. Iterates through the generator
         3. Collects doc_data from each ParsedData yielded
 
-        No HTTP, no queues, no interceptors - just running and collecting.
+        No HTTP, no queues - just running and collecting.
 
         Args:
             scraper_fn: A function that takes HTML and yields ParsedData.

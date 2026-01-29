@@ -16,12 +16,9 @@ juriscraper/scraper_driver/
 │   ├── decorators.py            # @step decorator
 │   ├── deferred_validation.py   # DeferredValidation wrapper
 │   ├── exceptions.py            # Exception hierarchy
-│   ├── interceptors.py          # Interceptor protocol
 │   ├── models/base.py           # ScrapedData base model
-│   ├── rate_limit_interceptor.py
 │   ├── request_manager.py       # HTTP request handling
 │   ├── searchable.py            # Searchable field metadata
-│   ├── warc_interceptors.py     # WARC recording/replay
 │   └── xpath_observer.py        # XPath observation tools
 ├── driver/
 │   ├── async_driver.py          # Async multi-worker driver
@@ -123,31 +120,13 @@ Driver enqueues request(s)
 Main loop:
     1. Pop from priority queue
     2. Check deduplication
-    3. Apply request interceptors
-    4. Execute HTTP (unless short-circuited)
-    5. Apply response interceptors (reverse)
-    6. Call continuation method
-    7. Process yields (ParsedData, *Request, None)
-    8. Repeat until queue empty
+    3. Execute HTTP request
+    4. Call continuation method
+    5. Process yields (ParsedData, *Request, None)
+    6. Repeat until queue empty
     ↓
 on_run_complete callback
 ```
-
-### Interceptor Chain
-
-Request flow: `interceptor[0] → interceptor[1] → ... → HTTP`
-Response flow: `HTTP → interceptor[n-1] → ... → interceptor[0]`
-
-```python
-class SyncInterceptor(Protocol):
-    def modify_request(self, request: BaseRequest) -> BaseRequest | Response:
-        """Modify request or short-circuit with cached Response"""
-
-    def modify_response(self, response: Response, request: BaseRequest) -> Response:
-        """Transform response after receiving"""
-```
-
-Short-circuit: If `modify_request` returns a `Response`, HTTP is skipped but the response chain still applies (in reverse order).
 
 ### Speculation Pattern
 
@@ -214,44 +193,6 @@ Benefits:
 - Validation errors include source URL
 - All data collected before validation
 - Invalid data can be inspected/logged
-
-## Rate Limiting
-
-Adaptive rate limiting with pyrate_limiter:
-
-```python
-class RateLimitInterceptor:
-    def __init__(
-        self,
-        requests_per_second: float | None = None,
-        requests_per_minute: float | None = None,
-        adaptive: bool = True,
-        adaptive_increase: float = 0.10,  # 10% slower on 429
-    )
-```
-
-On 429 response with `adaptive=True`:
-1. Interval increased by `adaptive_increase` factor
-2. Logged as adaptation event
-3. Subsequent requests use new slower rate
-
-## WARC Integration
-
-ISO-standard Web ARChive format for recording/replay:
-
-```python
-# Recording
-WarcCaptureInterceptor(warc_path="/tmp/scrape.warc.gz")
-
-# Replay
-WarcCacheInterceptor(warc_path="/tmp/scrape.warc.gz")
-```
-
-Cache key: SHA256 of `method + URL + body`
-
-Workflow:
-1. Record real traffic during development
-2. Replay for tests (fast, deterministic, offline)
 
 ## Searchable Fields
 
@@ -355,8 +296,7 @@ Location: `driver/dev_driver/`
 | `data_types.py` | All request/response types |
 | `common/checked_html.py` | CheckedHtmlElement wrapper |
 | `common/exceptions.py` | Exception hierarchy |
-| `common/interceptors.py` | Interceptor protocol |
-| `common/request_manager.py` | HTTP with interceptor chain |
+| `common/request_manager.py` | HTTP request handling |
 | `driver/sync_driver.py` | Synchronous driver |
 | `driver/async_driver.py` | Async concurrent driver |
 | `driver/playwright_driver.py` | Browser-based driver |

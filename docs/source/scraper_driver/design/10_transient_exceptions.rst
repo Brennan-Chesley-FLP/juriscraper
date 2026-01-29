@@ -284,5 +284,5 @@ transient exceptions and invoke the ``on_transient_exception`` callback:
 Next Steps
 ----------
 
-In :doc:`11_interceptor_pattern`, we'll introduce the Interceptor Pattern for
-request/response transformation.
+In :doc:`13_archive_callback`, we'll introduce archive callbacks for handling
+file storage and archival during scraping.

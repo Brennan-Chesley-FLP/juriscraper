@@ -97,13 +97,10 @@ design and extensibility of the system
    design/08_structural_errors
    design/09_data_validation
    design/10_transient_exceptions
-   design/11_interceptor_pattern
-   design/12_rate_limiting
    design/13_archive_callback
    design/14_lifecycle_hooks
    design/15_priority_queue
    design/16_deduplication
-   design/17_warc_interceptors
    design/18_permanent_data
    design/19_step_decorators
    design/20_search_and_standardization
@@ -125,7 +122,6 @@ Inspiration
 
     - Spiders yield items and requests (our scrapers yield data and requests)
     - Engine handles scheduling, HTTP, and middleware (our driver does this)
-    - Middleware pipeline for request/response transformation (our interceptors)
 
 
 

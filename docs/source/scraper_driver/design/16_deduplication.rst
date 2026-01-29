@@ -114,7 +114,7 @@ The ``duplicate_check`` callback allows custom deduplication logic:
 Next Steps
 ----------
 
-In :doc:`17_warc_interceptors`, we introduce WARC interceptors for recording
-and replaying HTTP traffic. This enables deterministic testing, offline
-development, and reproducible scraper runs by caching responses in WARC
-(Web ARChive) files.
+In :doc:`18_permanent_data`, we introduce permanent request data - headers
+and cookies that persist across the entire request chain. This simplifies
+authentication workflows where session cookies or auth tokens must flow
+through all requests.

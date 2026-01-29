@@ -24,8 +24,7 @@ The new design inverts control: scrapers declare *which functions* generate spec
 
 1. Changing how HTTP responses are processed (same continuation mechanism)
 2. Altering the deduplication system
-3. Modifying the interceptor chain
-4. Cross-run learning (each run is isolated)
+3. Cross-run learning (each run is isolated)
 
 ## Decisions
 

@@ -198,10 +198,6 @@ class TestRequestManager(AsyncRequestManager):
         pass
 
 
-# Keep old name as alias for backwards compatibility during migration
-TestingInterceptor = TestRequestManager
-
-
 def create_html_response(
     body: str,
     status_code: int = 200,

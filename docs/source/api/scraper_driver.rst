@@ -67,26 +67,6 @@ Field annotations for search and filter capabilities.
    :undoc-members:
    :show-inheritance:
 
-Interceptors
-~~~~~~~~~~~~
-
-Request/response interceptor middleware pattern.
-
-.. automodule:: juriscraper.scraper_driver.common.interceptors
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: juriscraper.scraper_driver.common.rate_limit_interceptor
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: juriscraper.scraper_driver.common.warc_interceptors
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Request Manager
 ~~~~~~~~~~~~~~~
 

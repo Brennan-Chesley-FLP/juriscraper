@@ -211,47 +211,13 @@ The system SHALL distinguish temporary failures (retryable) from permanent error
 
 #### Scenario: Rate limit (429) detected as transient
 - **WHEN** an HTTP response has status 429
-- **THEN** the rate limit interceptor SHALL handle adaptive backoff
+- **THEN** a `RateLimitedException` SHALL be raised
 - **AND** the request MAY be retried based on callback decision
 
 #### Scenario: Server error (5xx) handling
 - **WHEN** an HTTP response has status 5xx
 - **THEN** an `HTMLResponseAssumptionException` SHALL be raised
 - **AND** it SHALL be classified as transient for retry purposes
-
-<!-- Interceptor Pattern -->
-
-### Requirement: Request/Response Interceptor Chain
-
-The system SHALL provide an interceptor middleware pattern for request/response transformation.
-
-#### Scenario: Interceptor order for requests
-- **WHEN** interceptors [A, B, C] are configured
-- **THEN** request modification order SHALL be A.modify_request → B.modify_request → C.modify_request → HTTP
-
-#### Scenario: Interceptor order for responses
-- **WHEN** interceptors [A, B, C] are configured
-- **THEN** response modification order SHALL be HTTP → C.modify_response → B.modify_response → A.modify_response
-
-#### Scenario: Short-circuit with cached response
-- **WHEN** an interceptor's `modify_request` returns a Response instead of a modified request
-- **THEN** HTTP fetch SHALL be skipped
-- **AND** remaining request interceptors SHALL be skipped
-- **AND** the response chain SHALL still apply in reverse order
-
-### Requirement: Rate Limit Interceptor
-
-The system SHALL provide a rate limiting interceptor with adaptive backoff.
-
-#### Scenario: Rate limiting applied
-- **WHEN** a `RateLimitInterceptor` is configured with `requests_per_second=2`
-- **THEN** requests SHALL be delayed to maintain the rate limit
-- **AND** statistics SHALL track total requests, wait time, and adaptations
-
-#### Scenario: Adaptive rate reduction on 429
-- **WHEN** a 429 response is received with `adaptive=True` configured
-- **THEN** the rate limit interval SHALL increase by `adaptive_increase` factor (default 10%)
-- **AND** this adaptation SHALL persist for subsequent requests
 
 <!-- Callbacks and Lifecycle -->
 
@@ -287,26 +253,6 @@ The system SHALL provide lifecycle callbacks for run start and completion.
 - **WHEN** a scraper run begins
 - **THEN** `on_run_start` SHALL be called with the scraper ID
 - **AND** this SHALL occur before any requests are processed
-
-<!-- WARC Recording and Replay -->
-
-### Requirement: WARC Capture Interceptor
-
-The system SHALL provide an interceptor for recording HTTP traffic to WARC files.
-
-#### Scenario: Record HTTP traffic
-- **WHEN** `WarcCaptureInterceptor` is configured with a WARC file path
-- **THEN** all HTTP responses SHALL be recorded to the WARC file
-- **AND** the cache key SHALL be SHA256 of method + URL + body
-
-### Requirement: WARC Cache Interceptor
-
-The system SHALL provide an interceptor for replaying from WARC cache.
-
-#### Scenario: Replay from WARC
-- **WHEN** `WarcCacheInterceptor` is configured with a WARC file path
-- **THEN** matching requests SHALL return cached responses without HTTP fetch
-- **AND** this SHALL enable fast, deterministic testing
 
 <!-- Driver Implementations -->
 

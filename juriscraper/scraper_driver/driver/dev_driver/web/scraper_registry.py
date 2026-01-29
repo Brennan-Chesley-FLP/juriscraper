@@ -65,12 +65,14 @@ class SpeculativeStepSchema:
 
     name: str
     default_starting_id: int = 1
+    largest_observed_gap: int = 10
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "name": self.name,
             "default_starting_id": self.default_starting_id,
+            "largest_observed_gap": self.largest_observed_gap,
         }
 
 
@@ -318,6 +320,9 @@ class ScraperRegistry:
         Returns:
             List of SpeculativeStepSchema objects.
         """
+        from juriscraper.scraper_driver.common.decorators import (
+            get_speculate_metadata,
+        )
         from juriscraper.scraper_driver.common.searchable import (
             _find_speculate_functions,
         )
@@ -327,10 +332,16 @@ class ScraperRegistry:
         try:
             step_names = _find_speculate_functions(scraper_class)
             for step_name in sorted(step_names):
+                # Get the decorator metadata for largest_observed_gap
+                func = getattr(scraper_class, step_name, None)
+                metadata = get_speculate_metadata(func) if func else None
+                largest_gap = metadata.largest_observed_gap if metadata else 10
+
                 speculative_steps.append(
                     SpeculativeStepSchema(
                         name=step_name,
                         default_starting_id=1,
+                        largest_observed_gap=largest_gap,
                     )
                 )
         except Exception as e:

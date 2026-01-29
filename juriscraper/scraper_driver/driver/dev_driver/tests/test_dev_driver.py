@@ -168,7 +168,8 @@ class TestRequestTypeRoundTrip:
             SELECT id, request_type, method, url, headers_json, cookies_json, body,
                    continuation, current_location,
                    accumulated_data_json, aux_data_json, permanent_json,
-                   expected_type, priority
+                   expected_type, priority,
+                   is_speculative, speculation_id
             FROM requests WHERE id = 1
             """
         )
@@ -272,7 +273,8 @@ class TestRequestTypeRoundTrip:
             SELECT id, request_type, method, url, headers_json, cookies_json, body,
                    continuation, current_location,
                    accumulated_data_json, aux_data_json, permanent_json,
-                   expected_type, priority
+                   expected_type, priority,
+                   is_speculative, speculation_id
             FROM requests WHERE id = 1
             """
         )
@@ -374,7 +376,8 @@ class TestRequestTypeRoundTrip:
             SELECT id, request_type, method, url, headers_json, cookies_json, body,
                    continuation, current_location,
                    accumulated_data_json, aux_data_json, permanent_json,
-                   expected_type, priority
+                   expected_type, priority,
+                   is_speculative, speculation_id
             FROM requests WHERE id = 1
             """
         )
@@ -469,7 +472,8 @@ class TestRequestTypeRoundTrip:
             SELECT id, request_type, method, url, headers_json, cookies_json, body,
                    continuation, current_location,
                    accumulated_data_json, aux_data_json, permanent_json,
-                   expected_type, priority
+                   expected_type, priority,
+                   is_speculative, speculation_id
             FROM requests WHERE id = 1
             """
         )
@@ -547,7 +551,8 @@ class TestRequestTypeRoundTrip:
             SELECT id, request_type, method, url, headers_json, cookies_json, body,
                    continuation, current_location,
                    accumulated_data_json, aux_data_json, permanent_json,
-                   expected_type, priority
+                   expected_type, priority,
+                   is_speculative, speculation_id
             FROM requests WHERE id = 1
             """
         )
@@ -632,7 +637,8 @@ class TestRequestTypeRoundTrip:
             SELECT id, request_type, method, url, headers_json, cookies_json, body,
                    continuation, current_location,
                    accumulated_data_json, aux_data_json, permanent_json,
-                   expected_type, priority
+                   expected_type, priority,
+                   is_speculative, speculation_id
             FROM requests WHERE id = 1
             """
         )

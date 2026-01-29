@@ -2608,3 +2608,260 @@ class TestGhostRequestDetection:
 
             # Failed requests should not be ghosts
             assert result["total_count"] == 0
+
+
+class TestSeedSpeculativeRequests:
+    """Tests for seed_speculative_requests method."""
+
+    async def test_seed_speculative_requests_creates_pending_requests(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test that seed_speculative_requests creates pending requests in the database."""
+        from unittest.mock import MagicMock, patch
+
+        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        # Create run metadata pointing to our test scraper
+        await sql_manager.init_run_metadata(
+            scraper_name="test_module.TestSpeculateScraper",
+            scraper_version="1.0.0",
+            num_workers=1,
+            max_backoff_time=60.0,
+        )
+
+        await db.commit()
+        await db.close()
+
+        # Create a simple test scraper with a @speculate function
+        class TestSpeculateScraper(BaseScraper):
+            @speculate(highest_observed=100)
+            def fetch_item(self, item_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url=f"https://example.com/items/{item_id}",
+                    ),
+                    continuation="parse_item",
+                )
+
+        # Mock the registry
+        mock_scraper_info = MagicMock()
+        mock_scraper_info.module_path = "test_module.TestSpeculateScraper"
+        mock_scraper_info.full_path = "test_module:TestSpeculateScraper"
+        mock_scraper_info.class_name = "TestSpeculateScraper"
+
+        mock_registry = MagicMock()
+        mock_registry.list_scrapers.return_value = [mock_scraper_info]
+        mock_registry.instantiate_scraper.return_value = TestSpeculateScraper()
+
+        with patch(
+            "juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry.get_registry",
+            return_value=mock_registry,
+        ):
+            async with LocalDevDriverDebugger.open(
+                db_path, read_only=False
+            ) as debugger:
+                # Seed requests for IDs 1-5
+                count = await debugger.seed_speculative_requests(
+                    step_name="fetch_item",
+                    from_id=1,
+                    to_id=5,
+                )
+
+        assert count == 5
+
+        # Verify requests are in the database
+        async with LocalDevDriverDebugger.open(db_path) as debugger:
+            page = await debugger.list_requests(status="pending")
+            assert page.total == 5
+            assert len(page.items) == 5
+
+            # Check the URLs are correct
+            urls = {r.url for r in page.items}
+            expected_urls = {
+                f"https://example.com/items/{i}" for i in range(1, 6)
+            }
+            assert urls == expected_urls
+
+            # Verify continuation is set
+            for r in page.items:
+                assert r.continuation == "parse_item"
+
+    async def test_seed_speculative_requests_requires_write_mode(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test that seed_speculative_requests fails in read-only mode."""
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        await sql_manager.init_run_metadata(
+            scraper_name="test_module.TestScraper",
+            scraper_version="1.0.0",
+            num_workers=1,
+            max_backoff_time=60.0,
+        )
+        await db.commit()
+        await db.close()
+
+        async with LocalDevDriverDebugger.open(
+            db_path, read_only=True
+        ) as debugger:
+            with pytest.raises(PermissionError):
+                await debugger.seed_speculative_requests(
+                    step_name="fetch_item",
+                    from_id=1,
+                    to_id=5,
+                )
+
+    async def test_seed_speculative_requests_fails_for_non_speculate_function(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test that seed_speculative_requests fails for functions without @speculate."""
+        from unittest.mock import MagicMock, patch
+
+        from juriscraper.scraper_driver.data_types import (
+            BaseScraper,
+            HttpMethod,
+            HTTPRequestParams,
+            NavigatingRequest,
+        )
+
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        await sql_manager.init_run_metadata(
+            scraper_name="test_module.TestNonSpeculateScraper",
+            scraper_version="1.0.0",
+            num_workers=1,
+            max_backoff_time=60.0,
+        )
+        await db.commit()
+        await db.close()
+
+        # Create a scraper without @speculate decorator
+        class TestNonSpeculateScraper(BaseScraper):
+            def fetch_item(self, item_id: int) -> NavigatingRequest:
+                return NavigatingRequest(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url=f"https://example.com/items/{item_id}",
+                    ),
+                    continuation="parse_item",
+                )
+
+        mock_scraper_info = MagicMock()
+        mock_scraper_info.module_path = "test_module.TestNonSpeculateScraper"
+        mock_scraper_info.full_path = "test_module:TestNonSpeculateScraper"
+        mock_scraper_info.class_name = "TestNonSpeculateScraper"
+
+        mock_registry = MagicMock()
+        mock_registry.list_scrapers.return_value = [mock_scraper_info]
+        mock_registry.instantiate_scraper.return_value = (
+            TestNonSpeculateScraper()
+        )
+
+        with patch(
+            "juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry.get_registry",
+            return_value=mock_registry,
+        ):
+            async with LocalDevDriverDebugger.open(
+                db_path, read_only=False
+            ) as debugger:
+                with pytest.raises(
+                    ValueError, match="is not a @speculate function"
+                ):
+                    await debugger.seed_speculative_requests(
+                        step_name="fetch_item",
+                        from_id=1,
+                        to_id=5,
+                    )
+
+    async def test_seed_speculative_requests_fails_for_nonexistent_step(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test that seed_speculative_requests fails when step doesn't exist."""
+        from unittest.mock import MagicMock, patch
+
+        from juriscraper.scraper_driver.data_types import BaseScraper
+
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        await sql_manager.init_run_metadata(
+            scraper_name="test_module.TestEmptyScraper",
+            scraper_version="1.0.0",
+            num_workers=1,
+            max_backoff_time=60.0,
+        )
+        await db.commit()
+        await db.close()
+
+        class TestEmptyScraper(BaseScraper):
+            pass
+
+        mock_scraper_info = MagicMock()
+        mock_scraper_info.module_path = "test_module.TestEmptyScraper"
+        mock_scraper_info.full_path = "test_module:TestEmptyScraper"
+        mock_scraper_info.class_name = "TestEmptyScraper"
+
+        mock_registry = MagicMock()
+        mock_registry.list_scrapers.return_value = [mock_scraper_info]
+        mock_registry.instantiate_scraper.return_value = TestEmptyScraper()
+
+        with patch(
+            "juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry.get_registry",
+            return_value=mock_registry,
+        ):
+            async with LocalDevDriverDebugger.open(
+                db_path, read_only=False
+            ) as debugger:
+                with pytest.raises(ValueError, match="not found on scraper"):
+                    await debugger.seed_speculative_requests(
+                        step_name="nonexistent_step",
+                        from_id=1,
+                        to_id=5,
+                    )
+
+    async def test_seed_speculative_requests_fails_for_unknown_scraper(
+        self, db_path: Path, initialized_db: aiosqlite.Connection
+    ) -> None:
+        """Test that seed_speculative_requests fails when scraper not in registry."""
+        from unittest.mock import MagicMock, patch
+
+        db = initialized_db
+        sql_manager = SQLManager(db)
+
+        await sql_manager.init_run_metadata(
+            scraper_name="unknown_module.UnknownScraper",
+            scraper_version="1.0.0",
+            num_workers=1,
+            max_backoff_time=60.0,
+        )
+        await db.commit()
+        await db.close()
+
+        mock_registry = MagicMock()
+        mock_registry.list_scrapers.return_value = []  # No scrapers registered
+
+        with patch(
+            "juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry.get_registry",
+            return_value=mock_registry,
+        ):
+            async with LocalDevDriverDebugger.open(
+                db_path, read_only=False
+            ) as debugger:
+                with pytest.raises(ValueError, match="not found in registry"):
+                    await debugger.seed_speculative_requests(
+                        step_name="fetch_item",
+                        from_id=1,
+                        to_id=5,
+                    )

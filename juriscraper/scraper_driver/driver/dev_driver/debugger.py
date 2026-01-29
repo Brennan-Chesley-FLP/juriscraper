@@ -901,7 +901,7 @@ class LocalDevDriverDebugger:
             print(f"Progress: {summary['progress']}")
         """
         config = await self.sql.get_speculation_config()
-        progress = await self.sql.get_all_speculative_progress()
+        progress = await self.sql.get_all_speculation_progress()
         tracking = await self.sql.load_all_speculation_states()
 
         return {
@@ -914,14 +914,192 @@ class LocalDevDriverDebugger:
         """Get current speculative progress for all steps.
 
         Returns:
-            Dictionary mapping step_name -> latest_speculative_id.
+            Dictionary mapping step_name -> highest_successful_id.
 
         Example:
             progress = await debugger.get_speculative_progress()
             for step, latest_id in progress.items():
                 print(f"{step}: up to ID {latest_id}")
         """
-        return await self.sql.get_all_speculative_progress()
+        return await self.sql.get_all_speculation_progress()
+
+    async def seed_speculative_requests(
+        self,
+        step_name: str,
+        from_id: int,
+        to_id: int,
+    ) -> int:
+        """Seed pending requests for a speculative step ID range.
+
+        Creates new pending requests by invoking the @speculate function
+        for each ID in the specified range. This works without requiring
+        the driver to be loaded - it instantiates the scraper temporarily
+        from the registry.
+
+        Args:
+            step_name: Name of the @speculate decorated function.
+            from_id: Starting ID (inclusive).
+            to_id: Ending ID (inclusive).
+
+        Returns:
+            Number of requests seeded.
+
+        Raises:
+            PermissionError: If debugger is in read-only mode.
+            ValueError: If scraper not found in registry or step not found.
+
+        Example:
+            async with LocalDevDriverDebugger.open("run.db", read_only=False) as debugger:
+                count = await debugger.seed_speculative_requests("fetch_case", 1, 100)
+                print(f"Seeded {count} requests")
+        """
+        import json
+
+        from juriscraper.scraper_driver.common.decorators import (
+            get_speculate_metadata,
+        )
+        from juriscraper.scraper_driver.data_types import (
+            ArchiveRequest,
+            NonNavigatingRequest,
+        )
+
+        self._require_write_mode()
+
+        # Get scraper info from metadata
+        metadata = await self.sql.get_run_metadata()
+        if metadata is None:
+            raise ValueError("No run metadata found in database")
+
+        scraper_name = metadata.get("scraper_name")
+        if not scraper_name:
+            raise ValueError("No scraper_name in run metadata")
+
+        # Import registry and find scraper
+        from juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry import (
+            get_registry,
+        )
+
+        registry = get_registry()
+
+        # Find scraper by module path (primary), full path, or class name
+        matching = [
+            s
+            for s in registry.list_scrapers()
+            if s.module_path == scraper_name
+        ]
+        if not matching:
+            matching = [
+                s
+                for s in registry.list_scrapers()
+                if s.full_path == scraper_name
+            ]
+        if not matching:
+            matching = [
+                s
+                for s in registry.list_scrapers()
+                if s.class_name == scraper_name
+            ]
+
+        if not matching:
+            raise ValueError(
+                f"Scraper '{scraper_name}' not found in registry. "
+                "Make sure the web server is running with the correct sd_dir."
+            )
+
+        scraper_info = matching[0]
+
+        # Instantiate the scraper
+        scraper = registry.instantiate_scraper(scraper_info.full_path)
+        if scraper is None:
+            raise ValueError(
+                f"Failed to instantiate scraper '{scraper_info.full_path}'"
+            )
+
+        # Get the speculate function
+        func = getattr(scraper, step_name, None)
+        if func is None:
+            raise ValueError(f"Step '{step_name}' not found on scraper")
+
+        # Verify it's a speculate function
+        if get_speculate_metadata(func) is None:
+            raise ValueError(
+                f"Step '{step_name}' is not a @speculate function"
+            )
+
+        # Seed requests for the range
+        seeded_count = 0
+        for id_value in range(from_id, to_id + 1):
+            # Call the speculate function to generate the request
+            request = func(id_value)
+
+            # Serialize the request (similar to driver._serialize_request)
+            http_request = request.request
+
+            # Get continuation name
+            continuation = request.continuation
+            if callable(continuation) and not isinstance(continuation, str):
+                continuation = continuation.__name__
+
+            # Determine request type and expected_type
+            if isinstance(request, ArchiveRequest):
+                request_type = "archive"
+                expected_type = request.expected_type
+            elif isinstance(request, NonNavigatingRequest):
+                request_type = "non_navigating"
+                expected_type = None
+            else:
+                request_type = "navigating"
+                expected_type = None
+
+            # Build permanent data
+            permanent_data = (
+                dict(request.permanent) if request.permanent else {}
+            )
+
+            # Serialize speculation_id as JSON tuple ["func_name", spec_id]
+            speculation_id_json = None
+            if request.speculation_id is not None:
+                speculation_id_json = json.dumps(list(request.speculation_id))
+
+            # Insert the request
+            await self.sql.insert_request(
+                priority=request.priority,
+                request_type=request_type,
+                method=http_request.method.value,
+                url=http_request.url,
+                headers_json=json.dumps(http_request.headers)
+                if http_request.headers
+                else None,
+                cookies_json=json.dumps(http_request.cookies)
+                if http_request.cookies
+                else None,
+                body=http_request.data
+                if isinstance(http_request.data, bytes)
+                else (
+                    json.dumps(http_request.data).encode()
+                    if http_request.data
+                    else None
+                ),
+                continuation=continuation,
+                current_location=request.current_location,
+                accumulated_data_json=json.dumps(request.accumulated_data)
+                if request.accumulated_data
+                else None,
+                aux_data_json=json.dumps(request.aux_data)
+                if request.aux_data
+                else None,
+                permanent_json=json.dumps(permanent_data)
+                if permanent_data
+                else None,
+                expected_type=expected_type,
+                dedup_key=None,
+                parent_id=None,
+                is_speculative=request.is_speculative,
+                speculation_id=speculation_id_json,
+            )
+            seeded_count += 1
+
+        return seeded_count
 
     # =========================================================================
     # Rate Limiter Inspection
@@ -1656,13 +1834,19 @@ class LocalDevDriverDebugger:
                 raise ValueError("No scraper_name in run metadata")
 
             # Import scraper dynamically
-            # scraper_name format: "juriscraper.opinions.united_states.federal_appellate.ca1"
+            # New format: "module.path:ClassName"
+            # Old format: "module.path" (assumes Site class)
             try:
                 import importlib
 
-                module = importlib.import_module(scraper_name)
-                # Convention: module contains a Site class
-                scraper_class = module.Site
+                if ":" in scraper_name:
+                    module_path, class_name = scraper_name.rsplit(":", 1)
+                    module = importlib.import_module(module_path)
+                    scraper_class = getattr(module, class_name)
+                else:
+                    module = importlib.import_module(scraper_name)
+                    # Convention: module contains a Site class
+                    scraper_class = module.Site
             except (ImportError, AttributeError) as e:
                 raise ImportError(
                     f"Cannot import scraper '{scraper_name}': {e}"

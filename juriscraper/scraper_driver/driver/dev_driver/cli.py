@@ -1807,8 +1807,15 @@ def compare(
 
                 scraper_name = metadata["scraper_name"]
                 try:
-                    module = importlib.import_module(scraper_name)
-                    scraper_cls = module.Site
+                    # Handle both new format (module:class) and old format (module only)
+                    if ":" in scraper_name:
+                        module_path, class_name = scraper_name.rsplit(":", 1)
+                        module = importlib.import_module(module_path)
+                        scraper_cls = getattr(module, class_name)
+                    else:
+                        # Old format - assume Site class
+                        module = importlib.import_module(scraper_name)
+                        scraper_cls = module.Site
                 except (ImportError, AttributeError) as e:
                     click.echo(
                         f"Error: Cannot import scraper '{scraper_name}': {e}",

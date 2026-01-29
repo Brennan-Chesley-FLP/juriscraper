@@ -627,6 +627,65 @@ main {
     margin-bottom: 2rem;
 }
 
+/* Speculation section - styled like queue-section */
+.speculation-section {
+    margin-bottom: 2rem;
+}
+
+.speculation-section h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.speculation-section .section-help {
+    color: #666;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+/* Speculation table */
+.speculation-table {
+    width: 100%;
+}
+
+.speculation-table th {
+    text-align: center;
+}
+
+.speculation-table th:first-child {
+    text-align: left;
+}
+
+.speculation-table .input-cell {
+    text-align: center;
+    width: 100px;
+}
+
+.speculation-table .input-cell input[type="number"] {
+    width: 80px;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+.speculation-table .input-cell input[type="number"]:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.speculation-table .submit-cell {
+    text-align: center;
+    width: 80px;
+}
+
+.speculation-table .seed-btn {
+    white-space: nowrap;
+}
+
 /* WebSocket events */
 .ws-status {
     display: inline-block;

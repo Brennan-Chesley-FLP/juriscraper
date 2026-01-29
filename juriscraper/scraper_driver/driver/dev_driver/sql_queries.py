@@ -119,13 +119,15 @@ class SQL:
             continuation, current_location,
             accumulated_data_json, aux_data_json, permanent_json,
             expected_type, deduplication_key, parent_request_id,
-            created_at_ns, cache_key
+            created_at_ns, cache_key,
+            is_speculative, speculation_id
         ) VALUES (
             'pending', ?, ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?,
             ?, ?, ?,
             ?, ?, ?,
+            ?, ?,
             ?, ?
         )
     """
@@ -170,7 +172,8 @@ class SQL:
         SELECT id, request_type, method, url, headers_json, cookies_json, body,
                continuation, current_location,
                accumulated_data_json, aux_data_json, permanent_json,
-               expected_type, priority
+               expected_type, priority,
+               is_speculative, speculation_id
         FROM requests
         WHERE status = 'pending'
           AND (started_at IS NULL OR started_at <= datetime('now'))
@@ -198,7 +201,8 @@ class SQL:
         RETURNING id, request_type, method, url, headers_json, cookies_json, body,
                   continuation, current_location,
                   accumulated_data_json, aux_data_json, permanent_json,
-                  expected_type, priority
+                  expected_type, priority,
+                  is_speculative, speculation_id
     """
 
     UPDATE_REQUEST_IN_PROGRESS = """
@@ -943,24 +947,6 @@ class SQL:
             COUNT(*) as total_files,
             COALESCE(SUM(file_size), 0) as total_size
         FROM archived_files
-    """
-
-    # --- Speculative Progress Tracking ---
-
-    UPSERT_SPECULATIVE_PROGRESS = """
-        INSERT INTO speculative_progress (step_name, latest_speculative_id, updated_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(step_name) DO UPDATE SET
-            latest_speculative_id = MAX(latest_speculative_id, excluded.latest_speculative_id),
-            updated_at = CURRENT_TIMESTAMP
-    """
-
-    SELECT_SPECULATIVE_PROGRESS = """
-        SELECT latest_speculative_id FROM speculative_progress WHERE step_name = ?
-    """
-
-    SELECT_ALL_SPECULATIVE_PROGRESS = """
-        SELECT step_name, latest_speculative_id, updated_at FROM speculative_progress
     """
 
     # --- Speculative Start IDs (for restart-speculative feature) ---

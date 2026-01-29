@@ -623,6 +623,8 @@ class SQLManager:
         expected_type: str | None,
         dedup_key: str | None,
         parent_id: int | None,
+        is_speculative: bool = False,
+        speculation_id: str | None = None,
     ) -> int:
         """Insert a new request into the queue.
 
@@ -642,6 +644,8 @@ class SQLManager:
             expected_type: Expected type for archive requests.
             dedup_key: Deduplication key.
             parent_id: Parent request ID.
+            is_speculative: Whether this is a speculative request.
+            speculation_id: JSON tuple ["func_name", spec_id] for speculative requests.
 
         Returns:
             The ID of the newly inserted request.
@@ -674,6 +678,8 @@ class SQLManager:
                     parent_id,
                     created_at_ns,
                     cache_key,
+                    is_speculative,
+                    speculation_id,
                 ),
             )
             await self._db.commit()
@@ -1610,50 +1616,6 @@ class SQLManager:
 
         return new_request_ids
 
-    # --- Speculative Progress ---
-
-    async def update_speculative_progress(
-        self, step_name: str, speculative_id: int
-    ) -> None:
-        """Update the latest speculative_id for a step.
-
-        Uses MAX to ensure we only track forward progress.
-
-        Args:
-            step_name: The name of the speculative step method.
-            speculative_id: The speculative_id that was just processed.
-        """
-        async with self._lock:
-            await self._db.execute(
-                SQL.UPSERT_SPECULATIVE_PROGRESS, (step_name, speculative_id)
-            )
-            await self._db.commit()
-
-    async def get_speculative_progress(self, step_name: str) -> int | None:
-        """Get the latest speculative_id for a step.
-
-        Args:
-            step_name: The name of the speculative step method.
-
-        Returns:
-            The latest speculative_id, or None if no progress recorded.
-        """
-        cursor = await self._db.execute(
-            SQL.SELECT_SPECULATIVE_PROGRESS, (step_name,)
-        )
-        row = await cursor.fetchone()
-        return row[0] if row else None
-
-    async def get_all_speculative_progress(self) -> dict[str, int]:
-        """Get all speculative progress entries.
-
-        Returns:
-            Dict mapping step names to their latest speculative_id.
-        """
-        cursor = await self._db.execute(SQL.SELECT_ALL_SPECULATIVE_PROGRESS)
-        rows = await cursor.fetchall()
-        return {row[0]: row[1] for row in rows}
-
     # --- Speculative Start IDs (for restart-speculative feature) ---
 
     async def set_speculative_start_id(
@@ -1786,6 +1748,21 @@ class SQLManager:
                 "stopped": bool(row[4]),
             }
             for row in rows
+        }
+
+    async def get_all_speculation_progress(self) -> dict[str, int]:
+        """Get highest_successful_id for all speculation tracking entries.
+
+        This is a convenience method that returns just the highest_successful_id
+        for each @speculate function, suitable for UI progress display.
+
+        Returns:
+            Dict mapping func_name to their highest_successful_id.
+        """
+        states = await self.load_all_speculation_states()
+        return {
+            func_name: state["highest_successful_id"]
+            for func_name, state in states.items()
         }
 
     async def clear_speculation_state(self, func_name: str) -> None:

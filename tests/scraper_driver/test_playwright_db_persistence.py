@@ -79,9 +79,9 @@ async def test_schema_includes_browser_config_json_field():
 
 
 @pytest.mark.asyncio
-async def test_schema_version_is_11():
-    """Verify schema version is updated to 11."""
-    assert SCHEMA_VERSION == 11
+async def test_schema_version_is_12():
+    """Verify schema version is updated to 12."""
+    assert SCHEMA_VERSION == 12
 
 
 @pytest.mark.asyncio

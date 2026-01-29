@@ -4,7 +4,7 @@ This module defines the database schema for the LocalDevDriver and PlaywrightDri
 which provides persistent storage for request queuing, response archival, compression
 dictionaries, results, and error tracking.
 
-The schema consists of 14 tables:
+The schema consists of 13 tables:
 - requests: HTTP request queue with status tracking and retry logic
 - responses: Compressed HTTP responses with dictionary references
 - compression_dicts: Versioned zstd dictionaries per-continuation
@@ -15,7 +15,6 @@ The schema consists of 14 tables:
 - rate_bucket: Token bucket state for pyrate_limiter (legacy)
 - rate_items: Rate limiting items for pyrate_limiter
 - rate_limiter_state: Rate limiter state for adaptive rate limiting
-- speculative_progress: Tracks latest speculative_id per step for recovery (legacy)
 - speculative_start_ids: Starting IDs for speculative steps
 - speculation_tracking: Tracks @speculate function state for the new pattern
 - incidental_requests: Browser-initiated network requests (Playwright driver)
@@ -26,7 +25,7 @@ from pathlib import Path
 import aiosqlite
 
 # Schema version for migrations
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 # SQL statements for creating tables
 _CREATE_REQUESTS = """
@@ -78,6 +77,10 @@ CREATE TABLE IF NOT EXISTS requests (
 
     -- Parent tracking
     parent_request_id INTEGER REFERENCES requests(id),
+
+    -- Speculation tracking (@speculate decorator)
+    is_speculative BOOLEAN NOT NULL DEFAULT FALSE,  -- Whether this is a speculative request
+    speculation_id TEXT,                            -- JSON tuple: ["func_name", spec_id]
 
     -- Indexing
     UNIQUE(deduplication_key) ON CONFLICT IGNORE
@@ -290,19 +293,6 @@ _CREATE_RATE_ITEMS_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_rate_items_timestamp ON rate_items(timestamp)",
 ]
 
-_CREATE_SPECULATIVE_PROGRESS = """
-CREATE TABLE IF NOT EXISTS speculative_progress (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    step_name TEXT NOT NULL UNIQUE,          -- Name of the speculative step method
-    latest_speculative_id INTEGER NOT NULL,  -- Last speculative_id processed
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-"""
-
-_CREATE_SPECULATIVE_PROGRESS_INDEXES = [
-    "CREATE INDEX IF NOT EXISTS idx_speculative_progress_step ON speculative_progress(step_name)",
-]
-
 _CREATE_SPECULATIVE_START_IDS = """
 CREATE TABLE IF NOT EXISTS speculative_start_ids (
     step_name TEXT PRIMARY KEY,
@@ -423,7 +413,6 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     await db.execute(_CREATE_ERRORS)
     await db.execute(_CREATE_RATE_BUCKET)
     await db.execute(_CREATE_RATE_ITEMS)
-    await db.execute(_CREATE_SPECULATIVE_PROGRESS)
     await db.execute(_CREATE_SPECULATIVE_START_IDS)
     await db.execute(_CREATE_RATE_LIMITER_STATE)
     await db.execute(_CREATE_SPECULATION_TRACKING)
@@ -447,8 +436,6 @@ async def init_database(db_path: Path) -> aiosqlite.Connection:
     for index_sql in _CREATE_ERRORS_INDEXES:
         await db.execute(index_sql)
     for index_sql in _CREATE_RATE_ITEMS_INDEXES:
-        await db.execute(index_sql)
-    for index_sql in _CREATE_SPECULATIVE_PROGRESS_INDEXES:
         await db.execute(index_sql)
     for index_sql in _CREATE_SPECULATION_TRACKING_INDEXES:
         await db.execute(index_sql)
@@ -629,6 +616,29 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
             "INSERT INTO schema_info (version) VALUES (?)",
             (11,),
         )
+        current_version = 11
+
+    # Migration 11 -> 12: Add speculation fields to requests table
+    if current_version < 12:
+        # Check if columns exist
+        cursor = await db.execute("PRAGMA table_info(requests)")
+        columns = [row[1] for row in await cursor.fetchall()]
+
+        if "is_speculative" not in columns:
+            await db.execute(
+                "ALTER TABLE requests ADD COLUMN is_speculative BOOLEAN NOT NULL DEFAULT FALSE"
+            )
+        if "speculation_id" not in columns:
+            await db.execute(
+                "ALTER TABLE requests ADD COLUMN speculation_id TEXT"
+            )
+
+        # Update schema version
+        await db.execute(
+            "INSERT INTO schema_info (version) VALUES (?)",
+            (12,),
+        )
+        current_version = 12
 
     # Record initial schema version if not present
     if current_version == 0:

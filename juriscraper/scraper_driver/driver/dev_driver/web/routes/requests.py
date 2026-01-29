@@ -257,6 +257,220 @@ async def get_request_summary(
     )
 
 
+class SpeculativeStepInfo(BaseModel):
+    """Info about a speculative step."""
+
+    name: str
+    default_starting_id: int = 1
+    largest_observed_gap: int = 10
+    last_successful_id: int | None = None
+
+
+class SpeculativeStepsResponse(BaseModel):
+    """Response model for listing speculative steps."""
+
+    items: list[SpeculativeStepInfo]
+    run_loaded: bool
+
+
+@router.get("/speculative-steps", response_model=SpeculativeStepsResponse)
+async def get_speculative_steps(
+    run_id: str,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> SpeculativeStepsResponse:
+    """Get the speculative steps available for a run.
+
+    Returns the list of @speculate decorated functions from the scraper,
+    including the last successful ID from the database and the largest
+    observed gap from the decorator metadata.
+
+    Args:
+        run_id: The run identifier.
+
+    Returns:
+        List of speculative step info with progress data.
+
+    Raises:
+        HTTPException: 404 if run not found.
+    """
+    from juriscraper.scraper_driver.common.decorators import (
+        get_speculate_metadata,
+    )
+    from juriscraper.scraper_driver.common.searchable import (
+        _find_speculate_functions,
+    )
+    from juriscraper.scraper_driver.driver.dev_driver.web.app import (
+        get_sql_manager_for_run,
+    )
+    from juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry import (
+        get_registry,
+    )
+
+    # Get run info
+    run_info = await manager.get_run(run_id)
+    if run_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run '{run_id}' not found",
+        )
+
+    # Get speculative progress from database
+    progress: dict[str, int] = {}
+    try:
+        sql_manager = await get_sql_manager_for_run(run_id, manager)
+        progress = await sql_manager.get_all_speculation_progress()
+    except Exception:
+        pass  # Progress will be empty dict
+
+    # If run is loaded, get steps from the live scraper
+    if run_info.driver is not None:
+        scraper = run_info.driver.scraper
+        step_names = _find_speculate_functions(scraper.__class__)
+        items = []
+        for name in sorted(step_names):
+            # Get metadata from decorator
+            func = getattr(scraper, name, None)
+            metadata = get_speculate_metadata(func) if func else None
+            largest_gap = metadata.largest_observed_gap if metadata else 10
+
+            items.append(
+                SpeculativeStepInfo(
+                    name=name,
+                    default_starting_id=1,
+                    largest_observed_gap=largest_gap,
+                    last_successful_id=progress.get(name),
+                )
+            )
+        return SpeculativeStepsResponse(items=items, run_loaded=True)
+
+    # If not loaded, try to get from registry using scraper_name from DB
+    try:
+        sql_manager = await get_sql_manager_for_run(run_id, manager)
+        run_metadata = await sql_manager.get_run_metadata()
+        if run_metadata is None:
+            return SpeculativeStepsResponse(items=[], run_loaded=False)
+
+        scraper_name = run_metadata.get("scraper_name")
+        if not scraper_name:
+            return SpeculativeStepsResponse(items=[], run_loaded=False)
+
+        # Find scraper in registry
+        # scraper_name in DB is the module path (e.g., juriscraper.sd.state.connecticut...)
+        registry = get_registry()
+        matching = [
+            s
+            for s in registry.list_scrapers()
+            if s.module_path == scraper_name
+        ]
+        if not matching:
+            # Try full path match (module:class format)
+            matching = [
+                s
+                for s in registry.list_scrapers()
+                if s.full_path == scraper_name
+            ]
+        if not matching:
+            # Try class name match as last resort
+            matching = [
+                s
+                for s in registry.list_scrapers()
+                if s.class_name == scraper_name
+            ]
+
+        if matching:
+            items = [
+                SpeculativeStepInfo(
+                    name=step.name,
+                    default_starting_id=step.default_starting_id,
+                    largest_observed_gap=step.largest_observed_gap,
+                    last_successful_id=progress.get(step.name),
+                )
+                for step in matching[0].speculative_steps
+            ]
+            return SpeculativeStepsResponse(items=items, run_loaded=False)
+
+        return SpeculativeStepsResponse(items=[], run_loaded=False)
+
+    except Exception:
+        return SpeculativeStepsResponse(items=[], run_loaded=False)
+
+
+class SeedSpeculativeRequest(BaseModel):
+    """Request model for seeding speculative requests."""
+
+    step_name: str = Field(..., description="Name of the @speculate step")
+    from_id: int = Field(..., ge=1, description="Starting ID (inclusive)")
+    to_id: int = Field(..., ge=1, description="Ending ID (inclusive)")
+
+
+class SeedSpeculativeResponse(BaseModel):
+    """Response model for seeding speculative requests."""
+
+    seeded_count: int
+    step_name: str
+    from_id: int
+    to_id: int
+    message: str
+
+
+@router.post("/seed-speculative", response_model=SeedSpeculativeResponse)
+async def seed_speculative_requests(
+    run_id: str,
+    request: SeedSpeculativeRequest,
+    manager: Annotated[RunManager, Depends(get_run_manager)],
+) -> SeedSpeculativeResponse:
+    """Seed pending requests for a speculative step ID range.
+
+    Creates new pending requests by invoking the @speculate function
+    for each ID in the specified range. This allows manually extending
+    speculation or re-running specific ID ranges.
+
+    This endpoint works regardless of whether the run is currently loaded.
+    It uses the debugger to instantiate the scraper temporarily from
+    the registry and seed requests directly to the database.
+
+    Args:
+        run_id: The run identifier.
+        request: Contains step_name, from_id, and to_id.
+
+    Returns:
+        Count of requests seeded.
+
+    Raises:
+        HTTPException: 404 if run not found or step not found.
+        HTTPException: 400 if invalid range or scraper not found.
+    """
+    # Validate range
+    if request.from_id > request.to_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"from_id ({request.from_id}) must be <= to_id ({request.to_id})",
+        )
+
+    # Get debugger in write mode to seed requests
+    debugger = await _get_debugger(run_id, manager, read_only=False)
+
+    try:
+        seeded_count = await debugger.seed_speculative_requests(
+            step_name=request.step_name,
+            from_id=request.from_id,
+            to_id=request.to_id,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return SeedSpeculativeResponse(
+        seeded_count=seeded_count,
+        step_name=request.step_name,
+        from_id=request.from_id,
+        to_id=request.to_id,
+        message=f"Seeded {seeded_count} requests for {request.step_name} IDs {request.from_id}-{request.to_id}",
+    )
+
+
 @router.get("/{request_id}", response_model=RequestResponse)
 async def get_request(
     run_id: str,

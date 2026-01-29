@@ -266,9 +266,11 @@ class LocalDevDriver(
         sql_manager = SQLManager(aiosqlite_db)
 
         # Initialize run metadata
-        # Use __module__ to get full path (e.g., juriscraper.opinions...ca1)
-        # This is needed for the debugger's compare command to import the scraper
-        scraper_name = scraper.__class__.__module__
+        # Store full path as module:class_name format for registry lookup
+        # e.g., "juriscraper.sd.state.connecticut.jud_ct_gov.scraper:ConnScraper"
+        scraper_name = (
+            f"{scraper.__class__.__module__}:{scraper.__class__.__name__}"
+        )
         scraper_version = getattr(scraper, "__version__", None)
         await sql_manager.init_run_metadata(
             scraper_name=scraper_name,
@@ -467,6 +469,8 @@ class LocalDevDriver(
                     expected_type=request_data["expected_type"],
                     dedup_key=None,
                     parent_id=None,
+                    is_speculative=request_data["is_speculative"],
+                    speculation_id=request_data["speculation_id"],
                 )
 
             # Update current_ceiling to the highest seeded ID
@@ -535,6 +539,8 @@ class LocalDevDriver(
                     expected_type=request_data["expected_type"],
                     dedup_key=None,
                     parent_id=None,
+                    is_speculative=request_data["is_speculative"],
+                    speculation_id=request_data["speculation_id"],
                 )
 
             spec_state.current_ceiling = new_ceiling
@@ -651,6 +657,8 @@ class LocalDevDriver(
             expected_type=request_data["expected_type"],
             dedup_key=dedup_key,
             parent_id=parent_id,
+            is_speculative=request_data["is_speculative"],
+            speculation_id=request_data["speculation_id"],
         )
 
         # Emit progress event
@@ -696,6 +704,11 @@ class LocalDevDriver(
         # Build permanent data
         permanent_data = dict(request.permanent) if request.permanent else {}
 
+        # Serialize speculation_id as JSON tuple ["func_name", spec_id]
+        speculation_id_json = None
+        if request.speculation_id is not None:
+            speculation_id_json = json.dumps(list(request.speculation_id))
+
         return {
             "request_type": request_type,
             "method": http_request.method.value,
@@ -725,6 +738,8 @@ class LocalDevDriver(
             if permanent_data
             else None,
             "expected_type": expected_type,
+            "is_speculative": request.is_speculative,
+            "speculation_id": speculation_id_json,
         }
 
     async def _get_next_request(self) -> tuple[int, BaseRequest] | None:
@@ -778,6 +793,8 @@ class LocalDevDriver(
             permanent_json,
             expected_type,
             priority,
+            is_speculative,
+            speculation_id_json,
         ) = row
 
         # Parse JSON fields
@@ -788,6 +805,12 @@ class LocalDevDriver(
         )
         aux_data = json.loads(aux_data_json) if aux_data_json else {}
         permanent = json.loads(permanent_json) if permanent_json else {}
+
+        # Parse speculation_id from JSON tuple ["func_name", spec_id]
+        speculation_id: tuple[str, int] | None = None
+        if speculation_id_json:
+            parsed = json.loads(speculation_id_json)
+            speculation_id = (parsed[0], parsed[1])
 
         # Decode body - if it's bytes that look like JSON, decode to dict
         # This handles form data that was serialized as JSON
@@ -843,6 +866,8 @@ class LocalDevDriver(
                 aux_data=aux_data,
                 permanent=permanent,
                 priority=priority,
+                is_speculative=bool(is_speculative),
+                speculation_id=speculation_id,
             )
 
     async def _mark_request_completed(self, request_id: int) -> None:
@@ -2015,40 +2040,27 @@ class LocalDevDriver(
 
     # --- Speculative Progress Tracking ---
 
-    async def _update_speculative_progress(
-        self, step_name: str, speculative_id: int
-    ) -> None:
-        """Update the latest speculative_id for a step.
-
-        Uses MAX to ensure we only track forward progress (higher IDs).
-
-        Args:
-            step_name: The name of the speculative step method.
-            speculative_id: The speculative_id that was just processed.
-        """
-        await self.db.update_speculative_progress(step_name, speculative_id)
-        logger.debug(
-            f"Updated speculative progress: {step_name} -> {speculative_id}"
-        )
-
     async def get_speculative_progress(self, step_name: str) -> int | None:
-        """Get the latest speculative_id for a step.
+        """Get the highest_successful_id for a speculative step.
 
         Args:
             step_name: The name of the speculative step method.
 
         Returns:
-            The latest speculative_id, or None if no progress recorded.
+            The highest_successful_id, or None if no progress recorded.
         """
-        return await self.db.get_speculative_progress(step_name)
+        state = await self.db.load_speculation_state(step_name)
+        if state is None:
+            return None
+        return state["highest_successful_id"]
 
     async def get_all_speculative_progress(self) -> dict[str, int]:
         """Get all speculative progress entries.
 
         Returns:
-            Dict mapping step names to their latest speculative_id.
+            Dict mapping step names to their highest_successful_id.
         """
-        return await self.db.get_all_speculative_progress()
+        return await self.db.get_all_speculation_progress()
 
     async def _recover_speculative_step(
         self,
@@ -2067,17 +2079,14 @@ class LocalDevDriver(
             step_name: The name of the speculative step method.
             current_speculative_id: The speculative_id from the current request.
         """
-        # Get the latest progress for this step
+        # Get the latest progress for this step from speculation_tracking
         latest_id = await self.get_speculative_progress(step_name)
 
         # Use the maximum of current request ID and stored progress
         # This handles cases where progress wasn't stored yet
         recovery_id = max(current_speculative_id, latest_id or 0)
 
-        # Update progress to the current request's ID (it was processed)
-        await self._update_speculative_progress(
-            step_name, current_speculative_id
-        )
+        # Progress is tracked via save_speculation_state in _track_speculation_outcome
 
         logger.info(
             f"Recovering speculative step '{step_name}': "

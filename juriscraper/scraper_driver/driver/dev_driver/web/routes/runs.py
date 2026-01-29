@@ -61,6 +61,23 @@ class ParamsData(BaseModel):
     """Full parameter configuration."""
 
     models: dict[str, ParamsModelData] = Field(default_factory=dict)
+    speculative: dict[str, int] = Field(
+        default_factory=dict,
+        description="Starting IDs for speculative steps (step_name -> start_id)",
+    )
+
+
+class SpeculationStepConfig(BaseModel):
+    """Speculation configuration for a single step."""
+
+    threshold: int = Field(
+        default=0,
+        description="IDs <= threshold always continue (no speculation stop)",
+    )
+    speculation: int = Field(
+        default=5,
+        description="Number of consecutive failures above threshold before stopping",
+    )
 
 
 class CreateRunRequest(BaseModel):
@@ -72,6 +89,10 @@ class CreateRunRequest(BaseModel):
     )
     params: ParamsData | None = Field(
         default=None, description="Optional scraper parameters"
+    )
+    speculation_config: dict[str, SpeculationStepConfig] | None = Field(
+        default=None,
+        description="Speculation settings per step (step_name -> {threshold, speculation})",
     )
     # ATB Rate Limiter config
     initial_rate: float = Field(
@@ -300,7 +321,8 @@ async def create_run(
                     },
                 }
                 for model_name, model_data in request.params.models.items()
-            }
+            },
+            "speculative": request.params.speculative,
         }
 
     # Instantiate scraper with parameters
@@ -310,6 +332,17 @@ async def create_run(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to instantiate scraper '{request.scraper_path}'",
         )
+
+    # Convert speculation_config to dict format for driver
+    speculation_config_dict = None
+    if request.speculation_config:
+        speculation_config_dict = {
+            step_name: {
+                "threshold": step_config.threshold,
+                "speculation": step_config.speculation,
+            }
+            for step_name, step_config in request.speculation_config.items()
+        }
 
     # Create run
     try:
@@ -325,6 +358,7 @@ async def create_run(
             # Other config
             num_workers=request.num_workers,
             max_backoff_time=request.max_backoff_time,
+            speculation_config=speculation_config_dict,
         )
     except ValueError as e:
         raise HTTPException(
@@ -424,10 +458,18 @@ async def load_run(
                 detail="Scraper registry not initialized",
             ) from e
 
-        # Search for scraper by name (class name matches)
+        # Search for scraper by full_path first (new format: module:class)
+        # Fall back to module_path match (old format: just module)
         matching_scrapers = [
-            s for s in registry.list_scrapers() if s.class_name == scraper_name
+            s for s in registry.list_scrapers() if s.full_path == scraper_name
         ]
+        if not matching_scrapers:
+            # Try matching by module_path (backward compatibility)
+            matching_scrapers = [
+                s
+                for s in registry.list_scrapers()
+                if s.module_path == scraper_name
+            ]
         if not matching_scrapers:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -653,9 +695,18 @@ async def resume_run(
                 detail="Scraper registry not initialized",
             ) from e
 
+        # Search for scraper by full_path first (new format: module:class)
+        # Fall back to module_path match (old format: just module)
         matching_scrapers = [
-            s for s in registry.list_scrapers() if s.class_name == scraper_name
+            s for s in registry.list_scrapers() if s.full_path == scraper_name
         ]
+        if not matching_scrapers:
+            # Try matching by module_path (backward compatibility)
+            matching_scrapers = [
+                s
+                for s in registry.list_scrapers()
+                if s.module_path == scraper_name
+            ]
         if not matching_scrapers:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

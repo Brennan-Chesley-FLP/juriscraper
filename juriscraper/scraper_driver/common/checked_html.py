@@ -128,6 +128,7 @@ class CheckedHtmlElement:
                     expected_max=max_count,
                     actual_count=actual_count,
                     request_url=self._request_url,
+                    is_element_query=False,
                 )
             return filtered
         else:

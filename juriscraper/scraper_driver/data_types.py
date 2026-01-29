@@ -612,6 +612,8 @@ class BaseRequest:
         is_speculative: Whether this request is speculative (probing for content existence).
         speculation_id: Tuple of (function_name, integer_id) identifying which @speculate
                        function generated this request. None for non-speculative requests.
+        via: Optional description of how the request was produced (ViaLink, ViaFormSubmit).
+             Enables the Playwright driver to replay the browser action. HTTP driver ignores.
     """
 
     request: HTTPRequestParams
@@ -625,6 +627,7 @@ class BaseRequest:
     permanent: dict[str, Any] = field(default_factory=dict)
     is_speculative: bool = False
     speculation_id: tuple[str, int] | None = None
+    via: Any = None  # ViaLink | ViaFormSubmit | None - using Any to avoid circular import
 
     def __post_init__(self) -> None:
         """Deep copy accumulated_data, aux_data, and permanent to prevent unintended sharing.
@@ -862,6 +865,7 @@ class NavigatingRequest(BaseRequest):
             permanent=merged_permanent,
             is_speculative=self.is_speculative,
             speculation_id=self.speculation_id,
+            via=self.via,
         )
 
     def speculative(self, func_name: str, spec_id: int) -> NavigatingRequest:
@@ -889,6 +893,7 @@ class NavigatingRequest(BaseRequest):
             permanent=self.permanent,
             is_speculative=True,
             speculation_id=(func_name, spec_id),
+            via=self.via,
         )
 
 
@@ -938,6 +943,7 @@ class NonNavigatingRequest(BaseRequest):
             priority=self.priority,
             deduplication_key=self.deduplication_key,
             permanent=merged_permanent,
+            via=self.via,
         )
 
 
@@ -996,6 +1002,7 @@ class ArchiveRequest(NonNavigatingRequest):
             priority=self.priority,
             deduplication_key=self.deduplication_key,
             permanent=merged_permanent,
+            via=self.via,
         )
 
 

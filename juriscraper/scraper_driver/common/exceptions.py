@@ -59,6 +59,11 @@ class HTMLStructuralAssumptionException(ScraperAssumptionException):
     This exception is raised when XPath or CSS selectors return a different
     number of elements than expected. This usually indicates that the website's
     HTML structure has changed.
+
+    Attributes:
+        selector: The XPath or CSS selector that was used.
+        selector_type: Type of selector ("xpath" or "css").
+        is_element_query: True if querying for elements, False for strings/attributes.
     """
 
     def __init__(
@@ -70,6 +75,7 @@ class HTMLStructuralAssumptionException(ScraperAssumptionException):
         expected_max: int | None,
         actual_count: int,
         request_url: str,
+        is_element_query: bool = True,
     ) -> None:
         """Initialize the exception.
 
@@ -81,6 +87,7 @@ class HTMLStructuralAssumptionException(ScraperAssumptionException):
             expected_max: Maximum number of elements expected (None = unlimited).
             actual_count: Actual number of elements found.
             request_url: The URL of the request that triggered this error.
+            is_element_query: True if querying for elements (default), False for strings.
         """
         self.selector = selector
         self.selector_type = selector_type
@@ -88,6 +95,7 @@ class HTMLStructuralAssumptionException(ScraperAssumptionException):
         self.expected_min = expected_min
         self.expected_max = expected_max
         self.actual_count = actual_count
+        self.is_element_query = is_element_query
 
         # Build expected count string
         if expected_max is None:
@@ -110,6 +118,7 @@ class HTMLStructuralAssumptionException(ScraperAssumptionException):
             if expected_max is not None
             else "unlimited",
             "actual_count": actual_count,
+            "is_element_query": is_element_query,
         }
 
         super().__init__(message, request_url, context)

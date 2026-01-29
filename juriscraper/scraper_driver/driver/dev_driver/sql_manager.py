@@ -2604,15 +2604,13 @@ class SQLManager:
                     self._db, compressed_content, dict_id
                 )
 
-                # Parse HTML and convert to XHTML for XML schema validation
+                # Parse HTML and validate tree directly against XSD.
+                # We avoid the string round-trip (tostring → fromstring)
+                # because lxml's XML serialization can produce invalid XML
+                # from valid HTML (double-hyphens in comments, redefined
+                # xmlns attrs, undefined namespace prefixes like o:p).
                 html_tree = lxml_html.fromstring(content)
-                xhtml_str = etree.tostring(
-                    html_tree, encoding="unicode", method="xml"
-                )
-                xml_doc = etree.fromstring(xhtml_str)  # noqa: S320
-
-                # Validate against the XSD schema
-                schema.validate(xml_doc)
+                schema.validate(html_tree)
 
             except Exception:
                 # Any error (decompression, parse, validation) means invalid

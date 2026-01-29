@@ -2103,11 +2103,7 @@ class LocalDevDriverDebugger:
                 schema_doc = etree.parse(xsd_path)  # noqa: S320
                 schema = etree.XMLSchema(schema_doc)
                 html_tree = lxml_html.fromstring(content)
-                xhtml_str = etree.tostring(
-                    html_tree, encoding="unicode", method="xml"
-                )
-                xml_doc = etree.fromstring(xhtml_str)  # noqa: S320
-                if not schema.validate(xml_doc):
+                if not schema.validate(html_tree):
                     for log_entry in schema.error_log:
                         errors.append(str(log_entry))
             except Exception as e:

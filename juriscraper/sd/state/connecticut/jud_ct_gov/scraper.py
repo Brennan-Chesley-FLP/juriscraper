@@ -1337,7 +1337,7 @@ class ConnScraper(
     # Dockets Scraping Steps
     # =========================================================================
 
-    @speculate(highest_observed=1000, largest_observed_gap=20)
+    @speculate(highest_observed=105336, largest_observed_gap=20)
     def fetch_docket(self, crn: int) -> NavigatingRequest:
         """Generate a speculative request for a docket by CRN.
 

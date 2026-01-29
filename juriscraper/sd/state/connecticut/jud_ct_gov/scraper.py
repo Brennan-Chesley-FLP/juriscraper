@@ -51,11 +51,11 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
-from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.decorators import speculate, step
 from juriscraper.scraper_driver.common.exceptions import (
     HTMLStructuralAssumptionException,
 )
+from juriscraper.scraper_driver.common.page_element import PageElement
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -288,7 +288,7 @@ class ConnScraper(
 
     @staticmethod
     def _extract_aspnet_viewstate(
-        lxml_tree: CheckedHtmlElement,
+        page: PageElement,
     ) -> dict[str, str]:
         """Extract ASP.NET ViewState fields required for postbacks.
 
@@ -296,7 +296,7 @@ class ConnScraper(
         POST requests for server-side postbacks to work correctly.
 
         Args:
-            lxml_tree: The parsed HTML tree.
+            page: The parsed HTML tree.
 
         Returns:
             Dict with __VIEWSTATE, __VIEWSTATEGENERATOR, and __EVENTVALIDATION
@@ -310,11 +310,10 @@ class ConnScraper(
         ]
 
         for field_name in field_names:
-            inputs = lxml_tree.checked_xpath(
+            inputs = page.query_xpath_strings(
                 f"//input[@name='{field_name}']/@value",
                 f"ASP.NET {field_name} field",
                 min_count=0,
-                type=str,
             )
             if inputs:
                 viewstate_fields[field_name] = inputs[0]
@@ -587,7 +586,7 @@ class ConnScraper(
     @step(xsd="xsds/parse_archive_index.xsd")
     def parse_archive_index(
         self,
-        lxml_tree: CheckedHtmlElement,
+        page: PageElement,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
@@ -599,7 +598,7 @@ class ConnScraper(
         start_year, end_year = self._get_opinions_year_range()
 
         # Find all year links
-        year_links = lxml_tree.checked_xpath(
+        year_links = page.query_xpath(
             self.XPATH_YEAR_LINKS,
             "year links",
             min_count=1,
@@ -615,7 +614,7 @@ class ConnScraper(
             if year < start_year or year > end_year:
                 continue
 
-            href = link.get("href")
+            href = link.get_attribute("href")
             if not href:
                 continue
 
@@ -652,7 +651,7 @@ class ConnScraper(
     @step(xsd="xsds/parse_year_page.xsd")
     def parse_year_page(
         self,
-        lxml_tree: CheckedHtmlElement,
+        page: PageElement,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
@@ -667,7 +666,7 @@ class ConnScraper(
 
         expected_prefix = OPINIONS_CONFIG[court_id]["docket_prefix"]
 
-        headers = lxml_tree.checked_xpath(
+        headers = page.query_xpath(
             self.XPATH_PUBLICATION_HEADERS,
             "publication date headers",
             min_count=1,
@@ -718,7 +717,7 @@ class ConnScraper(
             if date_lte and pub_date > date_lte:
                 continue
 
-            opinion_items = header.checked_xpath(
+            opinion_items = header.query_xpath(
                 "following-sibling::*[self::p or self::ul][position() <= 2]"
                 "/self::ul/li | following-sibling::ul[1]/li",
                 "opinion list items",
@@ -728,9 +727,7 @@ class ConnScraper(
             case_opinions: dict[str, list[tuple[str, str, str]]] = {}
 
             for item in opinion_items:
-                links = item.checked_xpath(
-                    ".//a", "opinion links", min_count=0
-                )
+                links = item.query_xpath(".//a", "opinion links", min_count=0)
                 if not links:
                     continue
 
@@ -746,7 +743,7 @@ class ConnScraper(
                 if not docket_number.startswith(expected_prefix):
                     continue
 
-                pdf_href = first_link.get("href")
+                pdf_href = first_link.get_attribute("href")
                 if not pdf_href:
                     continue
                 pdf_url = urljoin(response.url, pdf_href)
@@ -900,7 +897,7 @@ class ConnScraper(
     @step(xsd="xsds/parse_oral_arguments_index.xsd")
     def parse_oral_arguments_index(
         self,
-        lxml_tree: CheckedHtmlElement,
+        page: PageElement,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
@@ -912,9 +909,9 @@ class ConnScraper(
         start_year, end_year = self._get_oral_args_court_year_range()
 
         # Extract ASP.NET ViewState fields for postback requests
-        viewstate = self._extract_aspnet_viewstate(lxml_tree)
+        viewstate = self._extract_aspnet_viewstate(page)
 
-        year_links = lxml_tree.checked_xpath(
+        year_links = page.query_xpath(
             "//a[contains(@href, 'doPostBack') and contains(text(), '-')]",
             "court year links",
             min_count=0,
@@ -937,7 +934,7 @@ class ConnScraper(
                 continue
             processed_years.add(link_text)
 
-            href = link.get("href", "")
+            href = link.get_attribute("href") or ""
             event_target_match = re.search(r"__doPostBack\('([^']+)'", href)
             if not event_target_match:
                 continue
@@ -982,7 +979,7 @@ class ConnScraper(
 
     def _process_oral_args_entries(
         self,
-        lxml_tree: CheckedHtmlElement,
+        page: PageElement,
         response: Response,
         court_id: str,
         court_year: str | None,
@@ -999,7 +996,7 @@ class ConnScraper(
         New format: article.ResponseCaseList with section.fullWidth entries
         """
         # Try old format first: term buttons followed by article sections
-        term_buttons = lxml_tree.checked_xpath(
+        term_buttons = page.query_xpath(
             "//button[contains(text(), 'Term:')]",
             "oral args term buttons",
             min_count=0,
@@ -1022,7 +1019,7 @@ class ConnScraper(
 
                 # The article.ResponseCaseList is inside a sibling div, not
                 # a direct sibling article
-                content_sections = button.checked_xpath(
+                content_sections = button.query_xpath(
                     "following-sibling::div[1]//article[@class='ResponseCaseList']"
                     "//section[@class='fullWidth']"
                     " | following-sibling::article[1]//section[@class='fullWidth']",
@@ -1046,7 +1043,7 @@ class ConnScraper(
             # New format: article.ResponseCaseList with section.fullWidth
             # entries The sections directly contain header.HeaderText with
             # Date Argued
-            sections = lxml_tree.checked_xpath(
+            sections = page.query_xpath(
                 "//article[@class='ResponseCaseList']//section[@class='fullWidth']"
                 " | //section[header[contains(@class, 'HeaderText')]]",
                 "oral args case sections",
@@ -1068,7 +1065,7 @@ class ConnScraper(
 
     def _parse_oral_arg_section(
         self,
-        section: CheckedHtmlElement,
+        section: PageElement,
         response: Response,
         court_id: str,
         court_year: str | None,
@@ -1085,7 +1082,7 @@ class ConnScraper(
         Works with both old format (div-based) and new format (header-based).
         """
         # Find date - try both old format (div) and new format (header)
-        date_elements = section.checked_xpath(
+        date_elements = section.query_xpath(
             ".//header[contains(@class, 'HeaderText') and "
             "contains(text(), 'Date Argued:')]"
             " | .//div[contains(text(), 'Date Argued:')]",
@@ -1122,7 +1119,7 @@ class ConnScraper(
             return
 
         # Find docket link - works for both formats
-        docket_links = section.checked_xpath(
+        docket_links = section.query_xpath(
             ".//a[contains(@href, 'appellateinquiry') or "
             "contains(@href, 'CaseDetail')]",
             "docket link",
@@ -1133,7 +1130,7 @@ class ConnScraper(
 
         docket_link = docket_links[0]
         docket_text = docket_link.text_content().strip()
-        case_detail_url = docket_link.get("href", "")
+        case_detail_url = docket_link.get_attribute("href") or ""
 
         # Parse docket number
         docket_match = self.ORAL_ARGS_DOCKET_PATTERN.match(docket_text)
@@ -1155,7 +1152,7 @@ class ConnScraper(
             return
 
         # Find case name - try both formats
-        case_name_elements = section.checked_xpath(
+        case_name_elements = section.query_xpath(
             ".//div[@class='CaseName']"
             " | .//div[contains(@class, 'Col_7of10')]"
             " | .//div[a[contains(@href, 'appellateinquiry')]]"
@@ -1174,7 +1171,7 @@ class ConnScraper(
                 case_name = raw_name
 
         # Find audio link - works for both formats
-        audio_links = section.checked_xpath(
+        audio_links = section.query_xpath(
             ".//a[contains(@href, 'PlayAudio')]",
             "audio link",
             min_count=0,
@@ -1183,7 +1180,7 @@ class ConnScraper(
             return
 
         audio_link = audio_links[0]
-        audio_href = audio_link.get("href", "")
+        audio_href = audio_link.get_attribute("href") or ""
         audio_url = urljoin(response.url, audio_href)
 
         audio_id_match = self.AUDIO_ID_PATTERN.search(audio_href)
@@ -1211,7 +1208,7 @@ class ConnScraper(
     @step(xsd="xsds/parse_court_year_page.xsd")
     def parse_court_year_page(
         self,
-        lxml_tree: CheckedHtmlElement,
+        page: PageElement,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
@@ -1229,7 +1226,7 @@ class ConnScraper(
         expected_prefix = ORAL_ARGS_CONFIG[court_id]["docket_prefix"]
 
         if not court_year:
-            selected_tab = lxml_tree.checked_xpath(
+            selected_tab = page.query_xpath(
                 "//a[contains(@class, 'ui-tabs-anchor') and ancestor::li[contains(@class, 'ui-tabs-active')]]",
                 "selected court year tab",
                 min_count=0,
@@ -1242,7 +1239,7 @@ class ConnScraper(
         # Process oral argument entries from the page
         # Support both old format (with term buttons) and new format (direct sections)
         yield from self._process_oral_args_entries(
-            lxml_tree=lxml_tree,
+            page=page,
             response=response,
             court_id=court_id,
             court_year=court_year,
@@ -1271,20 +1268,20 @@ class ConnScraper(
     @step(xsd="xsds/parse_audio_player_page.xsd")
     def parse_audio_player_page(
         self,
-        lxml_tree: CheckedHtmlElement,
+        page: PageElement,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
         ScraperYield[ConnOpinionCluster | ConnOralArgument], None, None
     ]:
         """Parse the audio player page to extract the actual MP3 URL."""
-        audio_sources = lxml_tree.checked_xpath(
+        audio_sources = page.query_xpath(
             "//audio/source[@src]",
             "audio source element",
             min_count=0,
         )
         if not audio_sources:
-            audio_sources = lxml_tree.checked_xpath(
+            audio_sources = page.query_xpath(
                 "//source[@type='audio/mpeg']",
                 "mpeg audio source",
                 min_count=0,
@@ -1293,7 +1290,7 @@ class ConnScraper(
         if not audio_sources:
             return
 
-        mp3_url = audio_sources[0].get("src", "")
+        mp3_url = audio_sources[0].get_attribute("src") or ""
         if not mp3_url:
             return
 
@@ -1379,7 +1376,7 @@ class ConnScraper(
     @step(xsd="xsds/parse_docket_page.xsd")
     def parse_docket_page(
         self,
-        lxml_tree: CheckedHtmlElement,
+        page: PageElement,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
@@ -1414,7 +1411,7 @@ class ConnScraper(
         # Check if case is marked as "not available at this time"
         # These are unpublished cases that show a message like:
         # "SC 140295 - This case is not available at this time."
-        not_available_elems = lxml_tree.checked_xpath(
+        not_available_elems = page.query_xpath(
             self.XPATH_NOT_AVAILABLE,
             "not available message",
             min_count=0,
@@ -1454,7 +1451,7 @@ class ConnScraper(
             return
 
         # Extract docket number from page - this is required
-        docket_elems = lxml_tree.checked_xpath(
+        docket_elems = page.query_xpath(
             self.XPATH_DOCKET_NUMBER,
             "docket number",
             min_count=1,
@@ -1490,7 +1487,7 @@ class ConnScraper(
             return  # Skip this docket - not in requested courts
 
         # Extract case name - required
-        case_name_elems = lxml_tree.checked_xpath(
+        case_name_elems = page.query_xpath(
             self.XPATH_CASE_NAME,
             "case name",
             min_count=1,
@@ -1499,7 +1496,7 @@ class ConnScraper(
         case_name = case_name_elems[0].text_content().strip() or "Unknown"
 
         # Extract status - required
-        status_elems = lxml_tree.checked_xpath(
+        status_elems = page.query_xpath(
             self.XPATH_STATUS,
             "case status",
             min_count=1,
@@ -1509,9 +1506,7 @@ class ConnScraper(
 
         # Helper to extract date from element (optional fields - min_count=0)
         def extract_date(xpath_expr: str, description: str) -> date | None:
-            elems = lxml_tree.checked_xpath(
-                xpath_expr, description, min_count=0
-            )
+            elems = page.query_xpath(xpath_expr, description, min_count=0)
             if elems:
                 date_text = elems[0].text_content().strip()
                 match = self.DOCKET_DATE_PATTERN.search(date_text)
@@ -1526,9 +1521,7 @@ class ConnScraper(
 
         # Helper to extract text from element (optional fields - min_count=0)
         def extract_text(xpath_expr: str, description: str) -> str | None:
-            elems = lxml_tree.checked_xpath(
-                xpath_expr, description, min_count=0
-            )
+            elems = page.query_xpath(xpath_expr, description, min_count=0)
             if elems:
                 text = elems[0].text_content().strip()
                 return text if text else None
@@ -1574,7 +1567,7 @@ class ConnScraper(
 
         # === Trial Court Information ===
         # Trial court docket is in a table with links (dlTCDockets)
-        trial_docket_links = lxml_tree.checked_xpath(
+        trial_docket_links = page.query_xpath(
             "//table[@id='dlTCDockets']//a[contains(@id, 'hlnkDocketNumber')]",
             "trial court docket links",
             min_count=0,
@@ -1582,7 +1575,9 @@ class ConnScraper(
         trial_court_docket_number = None
         trial_court_docket_url = None
         if trial_docket_links:
-            trial_court_docket_url = trial_docket_links[0].get("href")
+            trial_court_docket_url = trial_docket_links[0].get_attribute(
+                "href"
+            )
             trial_court_docket_number = (
                 trial_docket_links[0].text_content().strip()
             )
@@ -1612,7 +1607,7 @@ class ConnScraper(
         )
 
         # Check for e-filed indicator (optional - min_count=0)
-        is_efiled_elem = lxml_tree.checked_xpath(
+        is_efiled_elem = page.query_xpath(
             "//span[contains(@id, 'EFiled')] | //img[contains(@alt, 'eFiled')]",
             "e-filed indicator",
             min_count=0,
@@ -1620,21 +1615,19 @@ class ConnScraper(
         is_efiled = bool(is_efiled_elem)
 
         # === Parse Parties ===
-        parties = self._parse_parties(lxml_tree)
+        parties = self._parse_parties(page)
 
         # === Parse Case Activity (Docket Entries) ===
-        entries = self._parse_docket_entries(lxml_tree)
+        entries = self._parse_docket_entries(page)
 
         # === Parse Preliminary Papers ===
-        preliminary_papers = self._parse_preliminary_papers(lxml_tree)
+        preliminary_papers = self._parse_preliminary_papers(page)
 
         # === Parse Transcripts and Exhibits ===
-        transcripts, exhibits_received_by_court = self._parse_transcripts(
-            lxml_tree
-        )
+        transcripts, exhibits_received_by_court = self._parse_transcripts(page)
 
         # === Extract Subscription URL ===
-        subscription_url = self._extract_subscription_url(lxml_tree)
+        subscription_url = self._extract_subscription_url(page)
 
         # === Yield the ConnDocket (without embedded entries) ===
         docket = ConnDocket(
@@ -1758,7 +1751,7 @@ class ConnScraper(
 
         yield ParsedData(entry)
 
-    def _parse_parties(self, lxml_tree: CheckedHtmlElement) -> list[dict]:
+    def _parse_parties(self, page: PageElement) -> list[dict]:
         """Parse party information from the docket page.
 
         Returns a list of dicts with party details including attorneys.
@@ -1766,7 +1759,7 @@ class ConnScraper(
         parties = []
 
         # Party rows are typically in a table or grid structure (optional - min_count=0)
-        party_rows = lxml_tree.checked_xpath(
+        party_rows = page.query_xpath(
             "//table[contains(@id, 'Party')]//tr | "
             "//div[contains(@id, 'Party')]//div[@class='row'] | "
             "//div[contains(@class, 'party')]",
@@ -1776,16 +1769,16 @@ class ConnScraper(
 
         for row in party_rows:
             # Skip header rows
-            if row.checked_xpath(".//th", "header cells", min_count=0):
+            if row.query_xpath(".//th", "header cells", min_count=0):
                 continue
 
-            cells = row.checked_xpath(
+            cells = row.query_xpath(
                 ".//td | .//div[contains(@class, 'col')]",
                 "party row cells",
                 min_count=0,
             )
             if len(cells) >= 3:
-                party = {
+                party: dict[str, Any] = {
                     "name": cells[0].text_content().strip()
                     if cells[0].text_content()
                     else None,
@@ -1809,9 +1802,7 @@ class ConnScraper(
 
         return parties
 
-    def _parse_docket_entries(
-        self, lxml_tree: CheckedHtmlElement
-    ) -> list[dict]:
+    def _parse_docket_entries(self, page: PageElement) -> list[dict]:
         """Parse case activity (docket entries) from the page.
 
         Returns a list of dicts with entry data (without docket_id).
@@ -1830,7 +1821,7 @@ class ConnScraper(
         entries: list[dict] = []
 
         # Find the Case Activity table by ID (gvActivities)
-        activity_tables = lxml_tree.checked_xpath(
+        activity_tables = page.query_xpath(
             "//table[@id='gvActivities']",
             "case activity table",
             min_count=0,
@@ -1840,7 +1831,7 @@ class ConnScraper(
             return entries
 
         # Get all rows from the table
-        rows = activity_tables[0].checked_xpath(
+        rows = activity_tables[0].query_xpath(
             ".//tr",
             "case activity rows",
             min_count=0,
@@ -1848,7 +1839,7 @@ class ConnScraper(
 
         for row in rows:
             # Skip header rows (rows containing th elements)
-            header_cells = row.checked_xpath(
+            header_cells = row.query_xpath(
                 ".//th",
                 "header cells",
                 min_count=0,
@@ -1857,7 +1848,7 @@ class ConnScraper(
                 continue
 
             # Get data cells - need at least 6 columns for valid entry
-            cells = row.checked_xpath(
+            cells = row.query_xpath(
                 ".//td",
                 "data cells",
                 min_count=0,
@@ -1866,7 +1857,7 @@ class ConnScraper(
                 continue
 
             # Column 0: Activity type - extract from lblActivity span or text
-            activity_spans = cells[0].checked_xpath(
+            activity_spans = cells[0].query_xpath(
                 ".//span[contains(@id, 'lblActivity')]",
                 "activity type span",
                 min_count=0,
@@ -1910,7 +1901,7 @@ class ConnScraper(
             # Column 4: Description - extract from lblDescription span or text
             description = None
             if len(cells) > 4:
-                desc_spans = cells[4].checked_xpath(
+                desc_spans = cells[4].query_xpath(
                     ".//span[contains(@id, 'lblDescription')]",
                     "description span",
                     min_count=0,
@@ -1963,20 +1954,20 @@ class ConnScraper(
 
             # Check for PDF document link in the Activity column (first cell)
             document_url = None
-            pdf_links = cells[0].checked_xpath(
+            pdf_links = cells[0].query_xpath(
                 ".//a[contains(@href, 'Document')]",
                 "document PDF link",
                 min_count=0,
             )
             if pdf_links:
-                href = pdf_links[0].get("href")
+                href = pdf_links[0].get_attribute("href")
                 # Resolve relative URLs against base URL
                 document_url = (
                     urljoin(DOCKET_CONFIG["base_url"], href) if href else None
                 )
 
             # Check for paperless filing indicator
-            paperless_indicators = row.checked_xpath(
+            paperless_indicators = row.query_xpath(
                 ".//img[contains(@alt, 'aperless') or @title='Paperless']",
                 "paperless filing indicator",
                 min_count=0,
@@ -2000,7 +1991,7 @@ class ConnScraper(
         return entries
 
     def _parse_preliminary_papers(
-        self, lxml_tree: CheckedHtmlElement
+        self, page: PageElement
     ) -> list[ConnPreliminaryPaper]:
         """Parse preliminary papers section from the page.
 
@@ -2020,7 +2011,7 @@ class ConnScraper(
         papers: list[ConnPreliminaryPaper] = []
 
         # Find the Preliminary Papers table by ID
-        prelim_tables = lxml_tree.checked_xpath(
+        prelim_tables = page.query_xpath(
             "//table[@id='gvPrelimPapers']",
             "preliminary papers table",
             min_count=0,
@@ -2029,7 +2020,7 @@ class ConnScraper(
         if not prelim_tables:
             return papers
 
-        rows = prelim_tables[0].checked_xpath(
+        rows = prelim_tables[0].query_xpath(
             ".//tr",
             "preliminary papers rows",
             min_count=0,
@@ -2054,10 +2045,10 @@ class ConnScraper(
 
         for row in rows:
             # Skip header rows
-            if row.checked_xpath(".//th", "header cells", min_count=0):
+            if row.query_xpath(".//th", "header cells", min_count=0):
                 continue
 
-            cells = row.checked_xpath(".//td", "table cells", min_count=0)
+            cells = row.query_xpath(".//td", "table cells", min_count=0)
             if len(cells) < 1:
                 continue
 
@@ -2082,7 +2073,7 @@ class ConnScraper(
         return papers
 
     def _parse_transcripts(
-        self, lxml_tree: CheckedHtmlElement
+        self, page: PageElement
     ) -> tuple[list[ConnTranscriptInfo], date | None]:
         """Parse transcripts and exhibits section from the page.
 
@@ -2102,7 +2093,7 @@ class ConnScraper(
         exhibits_received: date | None = None
 
         # Extract Exhibits Received By Court date
-        exhibits_elem = lxml_tree.checked_xpath(
+        exhibits_elem = page.query_xpath(
             "//span[@id='lblExhbitsRecByCourt']",
             "exhibits received by court",
             min_count=0,
@@ -2120,7 +2111,7 @@ class ConnScraper(
                         pass
 
         # Find the Transcripts table by ID
-        transcript_tables = lxml_tree.checked_xpath(
+        transcript_tables = page.query_xpath(
             "//table[@id='gvTranscripts']",
             "transcripts table",
             min_count=0,
@@ -2129,7 +2120,7 @@ class ConnScraper(
         if not transcript_tables:
             return transcripts, exhibits_received
 
-        rows = transcript_tables[0].checked_xpath(
+        rows = transcript_tables[0].query_xpath(
             ".//tr",
             "transcript rows",
             min_count=0,
@@ -2154,10 +2145,10 @@ class ConnScraper(
 
         for row in rows:
             # Skip header rows
-            if row.checked_xpath(".//th", "header cells", min_count=0):
+            if row.query_xpath(".//th", "header cells", min_count=0):
                 continue
 
-            cells = row.checked_xpath(".//td", "table cells", min_count=0)
+            cells = row.query_xpath(".//td", "table cells", min_count=0)
             if len(cells) < 1:
                 continue
 
@@ -2188,21 +2179,19 @@ class ConnScraper(
 
         return transcripts, exhibits_received
 
-    def _extract_subscription_url(
-        self, lxml_tree: CheckedHtmlElement
-    ) -> str | None:
+    def _extract_subscription_url(self, page: PageElement) -> str | None:
         """Extract the email subscription URL from the page.
 
         Looks for the "To receive an email when there is activity on this case"
         link (hlnkSubscribe).
         """
-        subscribe_links = lxml_tree.checked_xpath(
+        subscribe_links = page.query_xpath(
             "//a[@id='hlnkSubscribe']",
             "subscription link",
             min_count=0,
         )
         if subscribe_links:
-            return subscribe_links[0].get("href")
+            return subscribe_links[0].get_attribute("href")
         return None
 
     # =========================================================================
@@ -2222,7 +2211,7 @@ class ConnScraper(
     @step
     def parse_trial_court_docket(
         self,
-        lxml_tree: CheckedHtmlElement,
+        page: PageElement,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
@@ -2244,7 +2233,7 @@ class ConnScraper(
 
         # Extract trial docket ID from page title or URL
         # Page title format: "Case Detail - HHD-CV23-5076142-S"
-        title_elem = lxml_tree.checked_xpath(
+        title_elem = page.query_xpath(
             "//title",
             "page title",
             min_count=0,
@@ -2264,7 +2253,7 @@ class ConnScraper(
             return  # Cannot parse without docket ID
 
         # Extract case name from header
-        case_name_elems = lxml_tree.checked_xpath(
+        case_name_elems = page.query_xpath(
             "//span[contains(@class, 'casenamebanner') and contains(text(), 'v.')]"
             " | //td[contains(@class, 'casenamebanner')]",
             "case name",
@@ -2281,9 +2270,7 @@ class ConnScraper(
 
         # Helper to extract text
         def extract_text(xpath_expr: str) -> str | None:
-            elems = lxml_tree.checked_xpath(
-                xpath_expr, "text field", min_count=0
-            )
+            elems = page.query_xpath(xpath_expr, "text field", min_count=0)
             if elems:
                 text = elems[0].text_content().strip()
                 # Clean up text - remove label prefix if present
@@ -2333,10 +2320,10 @@ class ConnScraper(
                     pass
 
         # Parse parties
-        parties = self._parse_trial_court_parties(lxml_tree)
+        parties = self._parse_trial_court_parties(page)
 
         # Parse docket entries
-        entries = self._parse_trial_court_entries(lxml_tree)
+        entries = self._parse_trial_court_entries(page)
 
         # Yield the ConnTrialCourtDocket (without embedded entries)
         docket = ConnTrialCourtDocket(
@@ -2424,7 +2411,7 @@ class ConnScraper(
         yield ParsedData(entry)
 
     def _parse_trial_court_parties(
-        self, lxml_tree: CheckedHtmlElement
+        self, page: PageElement
     ) -> list[ConnTrialCourtParty]:
         """Parse party information from trial court docket page.
 
@@ -2438,7 +2425,7 @@ class ConnScraper(
         parties: list[ConnTrialCourtParty] = []
 
         # Find the parties table
-        party_tables = lxml_tree.checked_xpath(
+        party_tables = page.query_xpath(
             self.XPATH_TC_PARTIES_TABLE,
             "parties table",
             min_count=0,
@@ -2448,7 +2435,7 @@ class ConnScraper(
             return parties
 
         # Find all party rows (look for rows with party number spans)
-        party_rows = party_tables[0].checked_xpath(
+        party_rows = party_tables[0].query_xpath(
             ".//tr[.//span[contains(@id, 'lblPlaintDefPartyNo')]]",
             "party rows",
             min_count=0,
@@ -2456,7 +2443,7 @@ class ConnScraper(
 
         for row in party_rows:
             # Extract party number
-            party_num_elems = row.checked_xpath(
+            party_num_elems = row.query_xpath(
                 ".//span[contains(@id, 'lblPlaintDefPartyNo')]",
                 "party number",
                 min_count=0,
@@ -2467,7 +2454,7 @@ class ConnScraper(
             party_number = party_num_elems[0].text_content().strip()
 
             # Extract party name
-            party_name_elems = row.checked_xpath(
+            party_name_elems = row.query_xpath(
                 ".//span[contains(@id, 'lblPtyPartyName')]",
                 "party name",
                 min_count=0,
@@ -2487,7 +2474,7 @@ class ConnScraper(
                 party_type = "For Notice Only"
 
             # Check for self-represented
-            self_rep_elems = row.checked_xpath(
+            self_rep_elems = row.query_xpath(
                 ".//span[contains(@id, 'lblAppearanceTitle') and contains(text(), 'Self-Rep')]",
                 "self-rep indicator",
                 min_count=0,
@@ -2496,7 +2483,7 @@ class ConnScraper(
 
             # Extract attorney info
             attorneys: list[dict] = []
-            atty_info_elems = row.checked_xpath(
+            atty_info_elems = row.query_xpath(
                 ".//span[contains(@id, 'lblAppearanceInfo1')]",
                 "attorney info",
                 min_count=0,
@@ -2542,9 +2529,7 @@ class ConnScraper(
 
         return parties
 
-    def _parse_trial_court_entries(
-        self, lxml_tree: CheckedHtmlElement
-    ) -> list[dict]:
+    def _parse_trial_court_entries(self, page: PageElement) -> list[dict]:
         """Parse docket entries from trial court docket page.
 
         Returns a list of dicts with entry data.
@@ -2558,7 +2543,7 @@ class ConnScraper(
         entries: list[dict] = []
 
         # Find the documents table
-        doc_tables = lxml_tree.checked_xpath(
+        doc_tables = page.query_xpath(
             self.XPATH_TC_DOCUMENTS_TABLE,
             "documents table",
             min_count=0,
@@ -2568,19 +2553,19 @@ class ConnScraper(
             return entries
 
         # Get all data rows (skip header row)
-        rows = doc_tables[0].checked_xpath(
+        rows = doc_tables[0].query_xpath(
             ".//tr[td]",
             "document rows",
             min_count=0,
         )
 
         for row in rows:
-            cells = row.checked_xpath(".//td", "table cells", min_count=0)
+            cells = row.query_xpath(".//td", "table cells", min_count=0)
             if len(cells) < 4:
                 continue
 
             # Column 0: Entry Number
-            conn_entry_number = cells[0].text_content().strip()
+            conn_entry_number: str | None = cells[0].text_content().strip()
             if conn_entry_number == "\xa0" or not conn_entry_number:
                 conn_entry_number = None
 
@@ -2598,7 +2583,7 @@ class ConnScraper(
                         pass
 
             # Column 2: Filed By
-            filed_by_elems = cells[2].checked_xpath(
+            filed_by_elems = cells[2].query_xpath(
                 ".//span[contains(@id, 'lblFiledBy')]",
                 "filed by",
                 min_count=0,
@@ -2616,14 +2601,14 @@ class ConnScraper(
             result = None
 
             # Look for document link
-            doc_links = cells[3].checked_xpath(
+            doc_links = cells[3].query_xpath(
                 ".//a[contains(@id, 'hlnkDocument')]",
                 "document link",
                 min_count=0,
             )
             if doc_links:
                 description = doc_links[0].text_content().strip()
-                href = doc_links[0].get("href")
+                href = doc_links[0].get_attribute("href")
                 if href:
                     # Resolve relative URL
                     document_url = urljoin(
@@ -2636,7 +2621,7 @@ class ConnScraper(
                     description = desc_text
 
             # Look for additional description
-            add_desc_elems = cells[3].checked_xpath(
+            add_desc_elems = cells[3].query_xpath(
                 ".//span[contains(@id, 'lblAddDesc')]",
                 "additional description",
                 min_count=0,
@@ -2647,7 +2632,7 @@ class ConnScraper(
                     additional_description = add_text
 
             # Look for result
-            result_elems = cells[3].checked_xpath(
+            result_elems = cells[3].query_xpath(
                 ".//span[contains(@id, 'lblResult')]",
                 "result",
                 min_count=0,

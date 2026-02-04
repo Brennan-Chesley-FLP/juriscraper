@@ -1,5 +1,5 @@
 [meta]
-generated = "2026-01-29"
+generated = "2026-02-03"
 description = "Auto-generated court scraper registry"
 
 [stats]
@@ -294,7 +294,7 @@ data_types = [
     "opinions",
     "oral_arguments",
 ]
-return_type = "ConnOpinionCluster | ConnOralArgument | ConnDocket | ConnDocketUnavailable | ConnTrialCourtDocket | ConnTrialCourtDocketEntry"
+return_type = "ConnOpinionCluster | ConnOralArgument | ConnDocket | ConnDocketUnavailable | ConnTrialCaseUnavailable | ConnTrialCourtDocket | ConnTrialCourtDocketEntry"
 parent_model = "Audio, Docket, DocketEntry, OpinionCluster"
 model_hierarchy = [
     "ConnOpinionCluster",
@@ -306,6 +306,7 @@ model_hierarchy = [
     "ConnDocket",
     "Docket",
     "ConnDocketUnavailable",
+    "ConnTrialCaseUnavailable",
     "ConnTrialCourtDocket",
     "ConnTrialCourtDocketEntry",
     "DocketEntry",

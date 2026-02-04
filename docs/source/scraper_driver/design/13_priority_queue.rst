@@ -144,6 +144,6 @@ The counter ensures that requests with the same priority are processed in FIFO o
 Next Steps
 ----------
 
-In :doc:`16_deduplication`, we'll explore request deduplication to avoid
+In :doc:`14_deduplication`, we'll explore request deduplication to avoid
 fetching the same URL multiple times when navigating complex site structures
 with cyclic links.

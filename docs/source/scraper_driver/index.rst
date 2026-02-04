@@ -97,16 +97,15 @@ design and extensibility of the system
    design/08_structural_errors
    design/09_data_validation
    design/10_transient_exceptions
-   design/13_archive_callback
-   design/14_lifecycle_hooks
-   design/15_priority_queue
-   design/16_deduplication
-   design/18_permanent_data
-   design/19_step_decorators
-   design/20_search_and_standardization
-   design/21_async_driver
-   design/22_speculative_request
-   design/23_playwright_driver
+   design/11_archive_callback
+   design/12_lifecycle_hooks
+   design/13_priority_queue
+   design/14_deduplication
+   design/15_permanent_data
+   design/16_step_decorators
+   design/17_search_and_standardization
+   design/18_async_driver
+   design/19_speculative_request
 
 
 Inspiration

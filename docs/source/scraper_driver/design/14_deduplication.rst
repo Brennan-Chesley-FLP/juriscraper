@@ -114,7 +114,7 @@ The ``duplicate_check`` callback allows custom deduplication logic:
 Next Steps
 ----------
 
-In :doc:`18_permanent_data`, we introduce permanent request data - headers
+In :doc:`15_permanent_data`, we introduce permanent request data - headers
 and cookies that persist across the entire request chain. This simplifies
 authentication workflows where session cookies or auth tokens must flow
 through all requests.

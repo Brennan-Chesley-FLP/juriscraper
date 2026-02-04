@@ -420,6 +420,6 @@ Testing
 Next Steps
 ----------
 
-In :doc:`21_async_driver`, we introduce the AsyncDriver - an asynchronous
+In :doc:`18_async_driver`, we introduce the AsyncDriver - an asynchronous
 implementation that processes multiple requests concurrently using worker
 coroutines for improved performance on I/O-bound workloads.

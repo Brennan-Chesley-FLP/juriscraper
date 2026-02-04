@@ -133,7 +133,7 @@ JSON API
 Next Steps
 ----------
 
-In :doc:`20_search_and_standardization`, we introduce standardized metadata
+In :doc:`17_search_and_standardization`, we introduce standardized metadata
 on scrapers, a ConsumerModel hierarchy for return types, and the params()
 interface for configuring scraper filters.
 

@@ -20,16 +20,10 @@ CONTENTdm Collection IDs:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Collection ID to court ID mapping
@@ -101,13 +95,13 @@ class OregonOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Case number (e.g., 'S070647' for Supreme Court, 'A181627' for Court of Appeals)"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'or' (Supreme Court), 'orctapp' (Court of Appeals)"""
 
-    date_decided: Annotated[date, DateRange()]
+    date_decided: date
     """Date the opinion was decided"""
 
     # === Required fields ===

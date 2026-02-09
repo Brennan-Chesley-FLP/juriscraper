@@ -20,16 +20,10 @@ Citation formats:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    SpeculativeID,
 )
 
 # Court ID mapping
@@ -84,13 +78,13 @@ class ArkOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    item_id: Annotated[int, SpeculativeID()]
+    item_id: int
     """Unique item ID from Lexum database (used for speculative scraping)"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'ark' or 'arkctapp'"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the opinion was filed/published"""
 
     # === Required fields ===

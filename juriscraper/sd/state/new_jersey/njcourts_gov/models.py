@@ -18,16 +18,10 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping to CourtListener IDs
@@ -36,7 +30,6 @@ COURT_IDS = {
     "njsuperctappdiv": "New Jersey Superior Court Appellate Division",
 }
 
-
 # Opinion type to court_id mapping
 # Based on the "badge" shown on the opinions page
 OPINION_TYPE_TO_COURT = {
@@ -44,7 +37,6 @@ OPINION_TYPE_TO_COURT = {
     "Published Appellate": "njsuperctappdiv",
     "Unpublished Appellate": "njsuperctappdiv",
 }
-
 
 # Precedential status mapping
 OPINION_TYPE_TO_PRECEDENTIAL_STATUS = {
@@ -80,13 +72,13 @@ class NewJerseyOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_id: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_id: str  # type: ignore[assignment]
     """Docket number (e.g., 'A-45-24' or 'A-2236-23')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'nj' (Supreme) or 'njsuperctappdiv' (Appellate Div)"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Publication date of the opinion"""
 
     # === Required fields from base ===

@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -217,6 +217,7 @@ class WestVirginiaScraper(BaseScraper[WVOpinionCluster]):
     # Entry Point
     # =========================================================================
 
+    @entry(WVOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial requests for opinion scraping.
 

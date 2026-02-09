@@ -29,7 +29,7 @@ from urllib.parse import urljoin
 
 from juriscraper.lib.string_utils import titlecase
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -197,6 +197,7 @@ class ArizScraper(BaseScraper[ArizOpinionCluster]):
     # Entry Point
     # =========================================================================
 
+    @entry(ArizOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial requests for opinion scraping.
 

@@ -24,7 +24,6 @@ Supported courts:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Audio,
@@ -32,12 +31,6 @@ from juriscraper.scraper_driver.common.models.base import (
     DocketEntry,
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    SpeculativeID,
-    UniqueMatch,
 )
 
 # Court ID mapping - maps case number prefix to court_id
@@ -137,13 +130,13 @@ class CalOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    case_number: Annotated[str, UniqueMatch()]  # Required, searchable
+    case_number: str  # Required, searchable
     """Case number (e.g., 'S275272M' for Supreme Court, 'A172153' for 1st DCA)"""
 
-    court_id: Annotated[str, SetFilter()]  # Required, searchable
+    court_id: str  # Required, searchable
     """Court identifier: 'cal', 'calctapp1d', 'calctapp2d', etc."""
 
-    date_filed: Annotated[date, DateRange()]  # Required, searchable
+    date_filed: date  # Required, searchable
     """Date the opinion was filed/published"""
 
     # === Required fields from base ===
@@ -216,13 +209,13 @@ class CalSupremeBriefDocket(Docket):
     """
 
     # === Searchable fields ===
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Case number (e.g., 'S289430')"""
 
-    court_id: Annotated[str, SetFilter()] = "cal"
+    court_id: str = "cal"
     """Court identifier - always 'cal' for Supreme Court"""
 
-    oral_argument_date: Annotated[date, DateRange()]
+    oral_argument_date: date
     """Date of the oral argument session"""
 
     # === Required fields ===
@@ -263,13 +256,13 @@ class CalSupremeOralArgument(Audio):
     """
 
     # === Searchable fields ===
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Case number (e.g., 'S286493')"""
 
-    court_id: Annotated[str, SetFilter()] = "cal"
+    court_id: str = "cal"
     """Court identifier - always 'cal' for Supreme Court"""
 
-    date_argued: Annotated[date, DateRange()]
+    date_argued: date
     """Date the oral argument was held"""
 
     # === Required fields ===
@@ -432,13 +425,13 @@ class CalAppellateDocket(Docket):
     """
 
     # === Searchable fields ===
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Case number (e.g., 'S275000', 'A170000', 'B330000')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'cal', 'calctapp1d', 'calctapp2d', etc."""
 
-    speculative_case_num: Annotated[int, SpeculativeID()]
+    speculative_case_num: int
     """Numeric portion of case number for speculative enumeration"""
 
     # === Case Summary fields ===

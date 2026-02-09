@@ -23,16 +23,10 @@ Case number format: {PREFIX} {YY}-{NNNN}
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping to CourtListener IDs
@@ -66,13 +60,13 @@ class MontanaOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_id: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_id: str  # type: ignore[assignment]
     """Case number (e.g., 'DA 25-0142')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'mont' (Montana Supreme Court)"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Filing date of the order/opinion"""
 
     # === Required fields from base ===

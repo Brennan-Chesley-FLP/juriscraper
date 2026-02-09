@@ -24,16 +24,10 @@ RSS Feeds:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping to CourtListener IDs
@@ -93,13 +87,13 @@ class IllinoisOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_id: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_id: str  # type: ignore[assignment]
     """Citation number (e.g., '2025 IL 131564' or '2026 IL App (1st) 240123')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'ill' (Supreme Court) or 'illappct' (Appellate Court)"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Publication date of the opinion"""
 
     # === Required fields from base ===

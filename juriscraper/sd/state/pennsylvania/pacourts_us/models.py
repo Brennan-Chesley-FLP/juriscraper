@@ -17,16 +17,11 @@ Supported courts:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping to CourtListener IDs
@@ -90,13 +85,13 @@ class PennsylvaniaOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_number: Annotated[str, UniqueMatch()]
+    docket_number: str
     """Case docket number (e.g., '95 MAP 2024', '876 WDA 2024', '918 C.D. 2024')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'pa' (Supreme), 'pasuperct' (Superior), 'pacommwct' (Commonwealth)"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Publication date of the opinion (from RSS pubDate)"""
 
     # === Required fields from base ===

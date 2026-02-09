@@ -33,7 +33,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, ClassVar
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -229,6 +229,7 @@ class NorthCarolinaScraper(BaseScraper[NCOpinionCluster]):
     # Entry Point
     # =========================================================================
 
+    @entry(NCOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial requests to slip opinions pages."""
         requested = self._get_requested_data_types()

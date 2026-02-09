@@ -27,15 +27,10 @@ Citation formats:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
 )
 
 # Court ID mapping
@@ -118,10 +113,10 @@ class GaOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'ga' or 'gactapp'"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the opinion was filed/published"""
 
     # === Required fields ===

@@ -15,16 +15,10 @@ Supported courts:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping to CourtListener IDs
@@ -78,13 +72,13 @@ class NCOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_id: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_id: str  # type: ignore[assignment]
     """Case number (e.g., 'COA25-263' for COA, '123P24' for Supreme)"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'nc' (Supreme Court) or 'ncctapp' (Court of Appeals)"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Filing date of the opinion"""
 
     # === Required fields from base ===

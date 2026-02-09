@@ -18,15 +18,10 @@ Wyoming uses:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    UniqueMatch,
 )
 
 # Court ID mapping for Wyoming
@@ -58,13 +53,13 @@ class WyomingOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    opinion_id: Annotated[str, UniqueMatch()]
+    opinion_id: str
     """Opinion ID citation (e.g., '2026 WY 11') - unique identifier"""
 
     court_id: str = "wyo"
     """Court identifier: 'wyo' for Wyoming Supreme Court"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the opinion was published/decided"""
 
     # === Required fields ===

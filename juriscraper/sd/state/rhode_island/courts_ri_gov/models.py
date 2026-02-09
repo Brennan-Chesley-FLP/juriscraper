@@ -17,16 +17,10 @@ All appeals go directly to the Supreme Court.
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping to CourtListener IDs
@@ -62,13 +56,13 @@ class RhodeIslandOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_number: Annotated[str, UniqueMatch()]
+    docket_number: str
     """Case number (e.g., '2025-0021-Appeal.')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'ri' (Supreme Court of Rhode Island)"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Publication date of the opinion"""
 
     # === Required fields from base ===

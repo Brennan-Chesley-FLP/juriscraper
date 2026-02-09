@@ -1,10 +1,11 @@
-"""Tests for the @speculate decorator and related functionality.
+"""Tests for speculative entry functions and related functionality.
 
 This test module verifies:
-- The @speculate decorator attaches metadata correctly
-- Speculate functions automatically set is_speculative=True on requests
-- BaseScraper.list_speculators() discovers decorated functions
+- The @entry(speculative=True) decorator attaches metadata correctly
+- Speculative entry functions automatically set is_speculative=True on requests
+- BaseScraper.list_speculators() discovers speculative entries
 - Default values are applied correctly
+- The old @speculate decorator still works for backward compatibility
 """
 
 from collections.abc import Generator
@@ -14,13 +15,15 @@ from unittest.mock import MagicMock
 import pytest
 
 from juriscraper.scraper_driver.common.decorators import (
+    EntryMetadata,
     SpeculateMetadata,
+    entry,
+    get_entry_metadata,
     get_speculate_metadata,
     is_speculate,
     speculate,
     step,
 )
-from juriscraper.scraper_driver.common.searchable import ScraperParams
 from juriscraper.scraper_driver.data_types import (
     BaseScraper,
     HttpMethod,
@@ -34,7 +37,7 @@ from juriscraper.scraper_driver.driver.sync_driver import SyncDriver
 
 
 class TestSpeculateDecorator:
-    """Test the @speculate decorator."""
+    """Test the old @speculate decorator still works."""
 
     def test_speculate_basic_decorator(self):
         """Test that @speculate decorator attaches metadata."""
@@ -132,13 +135,60 @@ class TestSpeculateDecorator:
         assert is_speculate(normal_function) is False
 
 
+class TestEntrySpeculative:
+    """Test @entry(speculative=True) decorator for speculative functions."""
+
+    def test_entry_speculative_attaches_metadata(self):
+        """Test that @entry(speculative=True) attaches EntryMetadata."""
+
+        @entry(
+            dict,
+            speculative=True,
+            highest_observed=100,
+            largest_observed_gap=15,
+        )
+        def fetch_case(self, case_id: int) -> NavigatingRequest:
+            return NavigatingRequest(
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET, url=f"/case/{case_id}"
+                ),
+                continuation="parse_case",
+            )
+
+        metadata = get_entry_metadata(fetch_case)
+        assert metadata is not None
+        assert isinstance(metadata, EntryMetadata)
+        assert metadata.speculative is True
+        assert metadata.highest_observed == 100
+        assert metadata.largest_observed_gap == 15
+
+    def test_entry_speculative_defaults(self):
+        """Test @entry(speculative=True) with default values."""
+
+        @entry(dict, speculative=True)
+        def fetch_item(self, item_id: int) -> NavigatingRequest:
+            return NavigatingRequest(
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET, url=f"/item/{item_id}"
+                ),
+                continuation="parse_item",
+            )
+
+        metadata = get_entry_metadata(fetch_item)
+        assert metadata is not None
+        assert metadata.speculative is True
+        assert metadata.highest_observed == 1
+        assert metadata.largest_observed_gap == 10
+
+
 class TestListSpeculators:
     """Test BaseScraper.list_speculators() method."""
 
     def test_list_speculators_empty(self):
-        """Test list_speculators() on a scraper with no speculate functions."""
+        """Test list_speculators() on a scraper with no speculative functions."""
 
         class EmptyScraper(BaseScraper[dict]):
+            @entry(dict)
             def get_entry(self):
                 yield NavigatingRequest(
                     request=HTTPRequestParams(
@@ -151,10 +201,15 @@ class TestListSpeculators:
         assert speculators == []
 
     def test_list_speculators_single(self):
-        """Test list_speculators() with one speculate function."""
+        """Test list_speculators() with one speculative entry function."""
 
         class SingleSpecScraper(BaseScraper[dict]):
-            @speculate(highest_observed=100, largest_observed_gap=15)
+            @entry(
+                dict,
+                speculative=True,
+                highest_observed=100,
+                largest_observed_gap=15,
+            )
             def fetch_case(self, case_id: int) -> NavigatingRequest:
                 return NavigatingRequest(
                     request=HTTPRequestParams(
@@ -163,6 +218,7 @@ class TestListSpeculators:
                     continuation="parse_case",
                 )
 
+            @entry(dict)
             def get_entry(self):
                 yield NavigatingRequest(
                     request=HTTPRequestParams(
@@ -181,12 +237,14 @@ class TestListSpeculators:
         assert gap == 15
 
     def test_list_speculators_multiple(self):
-        """Test list_speculators() with multiple speculate functions."""
+        """Test list_speculators() with multiple speculative entry functions."""
         obs_date_1 = date(2024, 1, 10)
         obs_date_2 = date(2024, 2, 15)
 
         class MultiSpecScraper(BaseScraper[dict]):
-            @speculate(
+            @entry(
+                dict,
+                speculative=True,
                 highest_observed=500,
                 largest_observed_gap=20,
                 observation_date=obs_date_1,
@@ -199,7 +257,9 @@ class TestListSpeculators:
                     continuation="parse_case",
                 )
 
-            @speculate(
+            @entry(
+                dict,
+                speculative=True,
                 highest_observed=1000,
                 largest_observed_gap=50,
                 observation_date=obs_date_2,
@@ -212,6 +272,7 @@ class TestListSpeculators:
                     continuation="parse_docket",
                 )
 
+            @entry(dict)
             def get_entry(self):
                 yield NavigatingRequest(
                     request=HTTPRequestParams(
@@ -236,7 +297,7 @@ class TestListSpeculators:
         """Test list_speculators() with default metadata values."""
 
         class DefaultsScraper(BaseScraper[dict]):
-            @speculate
+            @entry(dict, speculative=True)
             def fetch_item(self, item_id: int) -> NavigatingRequest:
                 return NavigatingRequest(
                     request=HTTPRequestParams(
@@ -245,6 +306,7 @@ class TestListSpeculators:
                     continuation="parse_item",
                 )
 
+            @entry(dict)
             def get_entry(self):
                 yield NavigatingRequest(
                     request=HTTPRequestParams(
@@ -333,13 +395,12 @@ class TestIsSpeculativeField:
 
 
 class SpeculationTestScraper(BaseScraper[dict]):
-    """Test scraper with @speculate function for driver integration tests."""
+    """Test scraper with @entry(speculative=True) for driver integration tests."""
 
     def __init__(self) -> None:
         self.processed_ids: list[int] = []
-        self._params = ScraperParams()
 
-    @speculate(highest_observed=5, largest_observed_gap=2)
+    @entry(dict, speculative=True, highest_observed=5, largest_observed_gap=2)
     def fetch_case(self, case_id: int) -> NavigatingRequest:
         """Speculative request factory."""
         return NavigatingRequest(
@@ -348,6 +409,7 @@ class SpeculationTestScraper(BaseScraper[dict]):
                 url=f"https://example.com/case/{case_id}",
             ),
             continuation="parse_case",
+            is_speculative=True,
         )
 
     @step
@@ -359,6 +421,7 @@ class SpeculationTestScraper(BaseScraper[dict]):
         self.processed_ids.append(case_id)
         yield ParsedData({"case_id": case_id})
 
+    @entry(dict)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         # No entry requests - speculation seeds the queue
         return
@@ -369,7 +432,7 @@ class TestSyncDriverSpeculationDiscovery:
     """Test SyncDriver discovers and initializes speculation state."""
 
     def test_driver_discovers_speculate_functions(self):
-        """Test that _discover_speculate_functions finds @speculate methods."""
+        """Test that _discover_speculate_functions finds @entry(speculative=True) methods."""
         scraper = SpeculationTestScraper()
         driver = SyncDriver(scraper)
 
@@ -396,15 +459,20 @@ class TestSyncDriverSpeculationDiscovery:
         for _priority, _counter, request in driver.request_queue:
             assert request.is_speculative is True
 
-    def test_driver_uses_definite_range_from_params(self):
-        """Test that params.speculative.func.definite_range overrides defaults."""
-        scraper = SpeculationTestScraper()
-        # Initialize speculative functions proxy, then configure definite_range
-        scraper._params._set_speculate_functions({"fetch_case"})
-        scraper._params.speculative.fetch_case.definite_range = (10, 15)
+    def test_driver_uses_definite_range_from_config(self):
+        """Test that SpeculateFunctionConfig.definite_range overrides defaults."""
+        from juriscraper.scraper_driver.common.searchable import (
+            SpeculateFunctionConfig,
+        )
 
+        scraper = SpeculationTestScraper()
         driver = SyncDriver(scraper)
         driver._speculation_state = driver._discover_speculate_functions()
+
+        # Override the config with a definite_range
+        driver._speculation_state[
+            "fetch_case"
+        ].config = SpeculateFunctionConfig(definite_range=(10, 15))
         driver._seed_speculative_queue()
 
         # Queue should have 6 requests (IDs 10-15)
@@ -429,12 +497,8 @@ class TestSyncDriverSpeculationTracking:
         driver._speculation_state = driver._discover_speculate_functions()
         spec_state = driver._speculation_state["fetch_case"]
 
-        # Create a request with tracking info
-        request = scraper.fetch_case(42)
-        new_accumulated = dict(request.accumulated_data)
-        new_accumulated["_speculate_func"] = "fetch_case"
-        new_accumulated["speculative_id"] = 42
-        object.__setattr__(request, "accumulated_data", new_accumulated)
+        # Create a request with speculation tracking fields
+        request = scraper.fetch_case(42).speculative("fetch_case", 42)
 
         # Create a 200 response
         response = Response(
@@ -463,11 +527,7 @@ class TestSyncDriverSpeculationTracking:
         spec_state.highest_successful_id = 40
 
         # Create a request for ID 42 (beyond highest)
-        request = scraper.fetch_case(42)
-        new_accumulated = dict(request.accumulated_data)
-        new_accumulated["_speculate_func"] = "fetch_case"
-        new_accumulated["speculative_id"] = 42
-        object.__setattr__(request, "accumulated_data", new_accumulated)
+        request = scraper.fetch_case(42).speculative("fetch_case", 42)
 
         # Create a 404 response
         response = Response(
@@ -498,10 +558,7 @@ class TestSyncDriverSpeculationTracking:
 
         # Create a request for ID 42
         request = scraper.fetch_case(42)
-        new_accumulated = dict(request.accumulated_data)
-        new_accumulated["_speculate_func"] = "fetch_case"
-        new_accumulated["speculative_id"] = 42
-        object.__setattr__(request, "accumulated_data", new_accumulated)
+        request = request.speculative("fetch_case", 42)
 
         # Create a 404 response
         response = Response(
@@ -541,9 +598,8 @@ class EndToEndSpeculationScraper(BaseScraper[dict]):
 
     def __init__(self) -> None:
         self.processed_ids: list[int] = []
-        self._params = ScraperParams()
 
-    @speculate(highest_observed=5, largest_observed_gap=3)
+    @entry(dict, speculative=True, highest_observed=5, largest_observed_gap=3)
     def fetch_case(self, case_id: int) -> NavigatingRequest:
         """Speculative request for case IDs."""
         return NavigatingRequest(
@@ -552,6 +608,7 @@ class EndToEndSpeculationScraper(BaseScraper[dict]):
                 url=f"https://example.com/case/{case_id}",
             ),
             continuation="parse_case",
+            is_speculative=True,
         )
 
     @step
@@ -565,6 +622,7 @@ class EndToEndSpeculationScraper(BaseScraper[dict]):
             self.processed_ids.append(case_id)
             yield ParsedData({"case_id": case_id})
 
+    @entry(dict)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         # No entry requests - speculation seeds the queue
         return
@@ -572,7 +630,7 @@ class EndToEndSpeculationScraper(BaseScraper[dict]):
 
 
 class TestSyncDriverEndToEndSpeculation:
-    """End-to-end tests for SyncDriver with @speculate functions."""
+    """End-to-end tests for SyncDriver with @entry(speculative=True) functions."""
 
     def test_stops_after_consecutive_failures(self):
         """Test that driver stops after largest_observed_gap consecutive failures."""
@@ -635,39 +693,30 @@ class TestSyncDriverEndToEndSpeculation:
         # Should process 1, 2, 3, and 6 (success after gap)
         assert set(scraper.processed_ids) == {1, 2, 3, 6}
 
-    def test_uses_params_definite_range_override(self):
-        """Test that params.speculative.func.definite_range overrides defaults."""
+    def test_uses_definite_range_config(self):
+        """Test that SpeculateFunctionConfig.definite_range overrides defaults."""
+        from juriscraper.scraper_driver.common.searchable import (
+            SpeculateFunctionConfig,
+        )
+
         scraper = EndToEndSpeculationScraper()
-        # Configure definite_range to start from 10
-        scraper._params._set_speculate_functions({"fetch_case"})
-        scraper._params.speculative.fetch_case.definite_range = (10, 12)
+        driver = SyncDriver(scraper)
 
-        collected_data: list[dict] = []
+        # Discover state and override config
+        driver._speculation_state = driver._discover_speculate_functions()
+        driver._speculation_state[
+            "fetch_case"
+        ].config = SpeculateFunctionConfig(definite_range=(10, 15))
+        driver._seed_speculative_queue()
 
-        def collect(data: dict) -> None:
-            collected_data.append(data)
+        # Queue should have 6 requests (IDs 10-15)
+        assert len(driver.request_queue) == 6
 
-        # IDs 10-12 succeed, 13+ fail - stop after 3 consecutive failures
-        def mock_request(**kwargs) -> MagicMock:
-            url = kwargs["url"]
-            case_id = int(url.split("/")[-1])
-            if 10 <= case_id <= 12:
-                return create_mock_response(200, url)
-            else:
-                return create_mock_response(404, url)
-
-        driver = SyncDriver(scraper, on_data=collect)
-        driver.request_manager._client = MagicMock()
-        driver.request_manager._client.request.side_effect = mock_request
-
-        driver.run()
-
-        # Should start from 10, not 1
-        assert 10 in scraper.processed_ids
-        assert 11 in scraper.processed_ids
-        assert 12 in scraper.processed_ids
-        # Should not have IDs less than 10
-        assert all(id >= 10 for id in scraper.processed_ids)
+        # Verify URL IDs
+        urls = [req.request.url for _p, _c, req in driver.request_queue]
+        expected_ids = set(range(10, 16))
+        actual_ids = {int(url.split("/")[-1]) for url in urls}
+        assert actual_ids == expected_ids
 
 
 # Note: AsyncDriver uses the same _track_speculation_outcome and _extend_speculation

@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -284,6 +284,7 @@ class MississippiScraper(BaseScraper[MississippiOpinionCluster]):
     # Entry Point
     # =========================================================================
 
+    @entry(MississippiOpinionCluster)
     def get_entry(  # type: ignore[override]
         self,
     ) -> Generator[ScraperYield[MississippiOpinionCluster], None, None]:

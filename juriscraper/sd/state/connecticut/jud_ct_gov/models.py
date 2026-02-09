@@ -19,7 +19,6 @@ Supported courts:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from pydantic import BaseModel
 
@@ -29,12 +28,6 @@ from juriscraper.scraper_driver.common.models.base import (
     DocketEntry,
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    SpeculativeID,
-    UniqueMatch,
 )
 
 # Court ID mapping
@@ -84,13 +77,13 @@ class ConnOpinionCluster(OpinionCluster):
 
     # === Searchable fields ===
     # Note: Base OpinionCluster has docket_id: int | None but CT uses string docket numbers
-    docket_id: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_id: str  # type: ignore[assignment]
     """Docket number (e.g., 'SC21125' for Supreme Court, 'AC12345' for Appellate)"""
 
-    court_id: Annotated[str, SetFilter()]  # Required, searchable
+    court_id: str  # Required, searchable
     """Court identifier: 'conn' (Supreme Court) or 'connappct' (Appellate Court)"""
 
-    date_filed: Annotated[date, DateRange()]  # Required, searchable
+    date_filed: date  # Required, searchable
     """Publication date in Connecticut Law Journal"""
 
     # === Required fields from base ===
@@ -123,13 +116,13 @@ class ConnOralArgument(Audio):
 
     # === Searchable fields ===
     # Note: Using docket_number (str) instead of base docket_id (int) for CT docket strings
-    docket_number: Annotated[str, UniqueMatch()]  # Required, searchable
+    docket_number: str  # Required, searchable
     """Docket number (e.g., 'SC21125' for Supreme Court, 'AC47230' for Appellate)"""
 
-    court_id: Annotated[str, SetFilter()]  # Required, searchable
+    court_id: str  # Required, searchable
     """Court identifier: 'conn' (Supreme Court) or 'connappct' (Appellate Court)"""
 
-    date_argued: Annotated[date, DateRange()]  # Required, searchable
+    date_argued: date  # Required, searchable
     """Date the oral argument was heard"""
 
     # === Required fields ===
@@ -227,7 +220,7 @@ class ConnDocketEntry(DocketEntry):
     """
 
     # === Foreign key to parent docket ===
-    docket_id: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_id: str  # type: ignore[assignment]
     """Parent docket number (e.g., 'AC 48343' for Appellate, 'SC 21125' for Supreme)"""
 
     # === Required fields ===
@@ -278,13 +271,13 @@ class ConnDocketUnavailable(Docket):
     """
 
     # === Searchable fields ===
-    crn: Annotated[int, SpeculativeID()]  # Required, searchable
+    crn: int  # Required, searchable
     """Case Record Number - internal monotonically increasing ID used by CT courts"""
 
-    docket_id: Annotated[str, UniqueMatch()]  # Required, searchable
+    docket_id: str  # Required, searchable
     """Docket number (e.g., 'AC 48343' for Appellate, 'SC 21125' for Supreme)"""
 
-    court_id: Annotated[str, SetFilter()]  # Required, searchable
+    court_id: str  # Required, searchable
     """Court identifier: 'conn' (Supreme Court) or 'connappct' (Appellate Court)"""
 
     # === Source tracking ===
@@ -303,18 +296,16 @@ class ConnDocket(Docket):
     """
 
     # === Searchable fields ===
-    crn: Annotated[int, SpeculativeID()]  # Required, searchable
+    crn: int  # Required, searchable
     """Case Record Number - internal monotonically increasing ID used by CT courts"""
 
-    docket_id: Annotated[str, UniqueMatch()]  # Required, searchable
+    docket_id: str  # Required, searchable
     """Docket number (e.g., 'AC 48343' for Appellate, 'SC 21125' for Supreme)"""
 
-    court_id: Annotated[str, SetFilter()]  # Required, searchable
+    court_id: str  # Required, searchable
     """Court identifier: 'conn' (Supreme Court) or 'connappct' (Appellate Court)"""
 
-    date_filed: Annotated[date | None, DateRange()] = (
-        None  # Optional, searchable
-    )
+    date_filed: date | None = None  # Optional, searchable
     """Date the appeal was filed"""
 
     # === Required fields ===
@@ -451,7 +442,7 @@ class ConnTrialCourtDocketEntry(DocketEntry):
     """
 
     # === Foreign key to parent docket ===
-    trial_docket_id: Annotated[str, UniqueMatch()]
+    trial_docket_id: str
     """Parent trial court docket number (e.g., 'HHD-CV23-5076142-S')"""
 
     # === Entry fields ===
@@ -491,7 +482,7 @@ class ConnTrialCourtDocket(Docket):
     """
 
     # === Searchable fields ===
-    trial_docket_id: Annotated[str, UniqueMatch()]
+    trial_docket_id: str
     """Trial court docket number (e.g., 'HHD-CV23-5076142-S')"""
 
     appellate_docket_id: str | None = None

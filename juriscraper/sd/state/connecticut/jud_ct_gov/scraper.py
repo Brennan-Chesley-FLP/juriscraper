@@ -31,7 +31,7 @@ Oral Arguments Flow::
 
 Dockets Flow::
 
-    1. @speculate fetch_docket -> generates requests for CRN IDs (seeded by driver)
+    1. @entry(speculative=True) fetch_docket -> generates requests for CRN IDs
     2. parse_docket_page -> parses case detail, yields ConnDocket
 
 Design decisions:
@@ -39,7 +39,7 @@ Design decisions:
     - Uses restrictive checked_xpaths to catch structural changes early
     - Uses DateRange filter on date_argued/date_filed for searching
     - Uses SetFilter on court_id to select which courts to scrape
-    - Uses @speculate fetch_docket for speculative docket scraping
+    - Uses @entry(speculative=True) fetch_docket for speculative docket scraping
     - Downloads all files via ArchiveRequest
 """
 
@@ -51,7 +51,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
-from juriscraper.scraper_driver.common.decorators import speculate, step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.common.exceptions import (
     HTMLStructuralAssumptionException,
 )
@@ -526,6 +526,7 @@ class ConnScraper(
     # Entry Point
     # =========================================================================
 
+    @entry(ConnOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial requests for each enabled data type.
 
@@ -1339,21 +1340,25 @@ class ConnScraper(
     # Dockets Scraping Steps
     # =========================================================================
 
-    @speculate(highest_observed=105336, largest_observed_gap=20)
-    def fetch_docket(self, crn: int) -> NavigatingRequest:
+    @entry(
+        ConnDocket,
+        speculative=True,
+        highest_observed=105336,
+        largest_observed_gap=20,
+    )
+    def fetch_docket(
+        self, crn: int
+    ) -> Generator[NavigatingRequest, None, None]:
         """Generate a speculative request for a docket by CRN.
 
         The driver calls this function for each CRN in the speculative range.
-        Configure the range via params.speculative.fetch_docket:
-            - definite_range = (start, end) to specify exact range
-            - plus = N to probe N IDs beyond highest successful
 
         The request is processed by parse_docket_page.
         """
         # Get court_ids filter from params (if set)
         _, _, court_ids = self._get_docket_search_params()
 
-        return NavigatingRequest(
+        yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
                 url=f"{DOCKET_CONFIG['case_detail_url']}?CRN={crn}",
@@ -1363,6 +1368,8 @@ class ConnScraper(
                 "crn": crn,
                 "court_ids": list(court_ids) if court_ids else None,
             },
+            is_speculative=True,
+            speculation_id=("fetch_docket", crn),
         )
 
     # XPath patterns for docket page elements

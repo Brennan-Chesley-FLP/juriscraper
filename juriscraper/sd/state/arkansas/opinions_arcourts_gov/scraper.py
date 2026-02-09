@@ -26,7 +26,7 @@ from datetime import date
 from typing import TYPE_CHECKING, ClassVar
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -223,7 +223,7 @@ class ArkansasScraper(BaseScraper[ArkOpinionCluster]):
     # Entry Point
     # =========================================================================
 
-    @step()
+    @entry(ArkOpinionCluster)
     def get_entry(
         self,
     ) -> Generator[ScraperYield[ArkOpinionCluster], bool | None, None]:

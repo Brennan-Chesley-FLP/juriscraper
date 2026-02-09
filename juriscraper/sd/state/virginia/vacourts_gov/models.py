@@ -36,16 +36,10 @@ PDF URL patterns::
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court IDs from courts.toml
@@ -91,13 +85,13 @@ class VaOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_number: Annotated[str, UniqueMatch()]
+    docket_number: str
     """Case/record number (e.g., '240736' for Supreme Court, '0350251' for Court of Appeals)"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'va' or 'vactapp'"""
 
-    date_filed: Annotated[date | None, DateRange()] = None
+    date_filed: date | None = None
     """Date the opinion was filed/decided"""
 
     # === Required fields ===

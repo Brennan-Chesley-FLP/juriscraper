@@ -27,16 +27,10 @@ The Court of Appeals has four geographic districts:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping
@@ -87,13 +81,13 @@ class WisconsinOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_number: Annotated[str, UniqueMatch()]
+    docket_number: str
     """Case number (e.g., '2023AP002319-CR', '2025AP001744')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'wis' (Supreme Court), 'wisctapp' (Court of Appeals)"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Release date of the opinion"""
 
     # === Required fields from base ===

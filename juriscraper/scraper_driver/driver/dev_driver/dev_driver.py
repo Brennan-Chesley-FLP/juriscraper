@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from juriscraper.scraper_driver.common.decorators import (
-    get_speculate_metadata,
+    SpeculateMetadata,
+    get_entry_metadata,
 )
 from juriscraper.scraper_driver.common.exceptions import (
     RequestFailedHalt,
@@ -346,20 +347,18 @@ class LocalDevDriver(
             await self.db.close_run()
             await self.db.db.close()
 
-    # --- Speculation Support (new @speculate pattern) ---
+    # --- Speculation Support ---
 
     def _discover_speculate_functions(self) -> dict[str, SpeculationState]:
-        """Discover @speculate functions on the scraper and initialize tracking state.
+        """Discover speculative functions on the scraper and initialize tracking state.
+
+        Finds methods decorated with @entry(speculative=True) and creates
+        SpeculationState for each.
 
         Returns:
             Dictionary mapping function names to their SpeculationState.
         """
-        from juriscraper.scraper_driver.common.searchable import (
-            SpeculativeFunctionsProxy,
-        )
-
         state: dict[str, SpeculationState] = {}
-        params = self.scraper.get_params()
 
         for name in dir(self.scraper):
             if name.startswith("_"):
@@ -367,28 +366,19 @@ class LocalDevDriver(
             func = getattr(self.scraper, name, None)
             if func is None:
                 continue
-            metadata = get_speculate_metadata(func)
-            if metadata is None:
-                continue
 
-            # Get config from params (or use empty config)
-            config = SpeculateFunctionConfig()
-            if params is not None:
-                try:
-                    if isinstance(
-                        params.speculative, SpeculativeFunctionsProxy
-                    ):
-                        proxy = getattr(params.speculative, name, None)
-                        if proxy is not None:
-                            config = proxy.get_config()
-                except AttributeError:
-                    pass
-
-            state[name] = SpeculationState(
-                func_name=name,
-                metadata=metadata,
-                config=config,
-            )
+            entry_meta = get_entry_metadata(func)
+            if entry_meta is not None and entry_meta.speculative:
+                metadata = SpeculateMetadata(
+                    observation_date=entry_meta.observation_date,
+                    highest_observed=entry_meta.highest_observed,
+                    largest_observed_gap=entry_meta.largest_observed_gap,
+                )
+                state[name] = SpeculationState(
+                    func_name=name,
+                    metadata=metadata,
+                    config=SpeculateFunctionConfig(),
+                )
 
         return state
 
@@ -445,9 +435,9 @@ class LocalDevDriver(
 
             # Seed the queue
             for id_value in range(start, end + 1):
-                # The @speculate decorator sets is_speculative=True and
-                # speculation_id=(func_name, id_value) automatically
                 request = func(id_value)
+                # Ensure speculative fields are set
+                request = request.speculative(func_name, id_value)
 
                 # Serialize and enqueue via DB
                 request_data = self._serialize_request(request)
@@ -515,9 +505,9 @@ class LocalDevDriver(
             for id_value in range(
                 spec_state.current_ceiling + 1, new_ceiling + 1
             ):
-                # The @speculate decorator sets is_speculative=True and
-                # speculation_id=(func_name, id_value) automatically
                 request = func(id_value)
+                # Ensure speculative fields are set
+                request = request.speculative(func_name, id_value)
 
                 # Serialize and enqueue via DB
                 request_data = self._serialize_request(request)
@@ -1287,8 +1277,8 @@ class LocalDevDriver(
             has_requests = await self.db.has_any_requests()
 
             if not has_requests:
-                # Seed queue with entry points from get_entry generator
-                for entry_request in self.scraper.get_entry():
+                # Seed queue with entry points.
+                for entry_request in self._get_entry_requests():
                     request_data = self._serialize_request(entry_request)
                     dedup_key = (
                         entry_request.deduplication_key

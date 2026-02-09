@@ -20,16 +20,11 @@ Supported courts:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, TypedDict
+from typing import TypedDict
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping (CourtListener IDs)
@@ -130,13 +125,13 @@ class FloridaOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Case number (e.g., 'SC24-123' or '1D24-1234')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'fla' or 'fladistctapp1' through 'fladistctapp6'"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the opinion was filed/released"""
 
     # === Required fields ===

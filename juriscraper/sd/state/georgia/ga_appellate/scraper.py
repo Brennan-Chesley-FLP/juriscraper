@@ -28,7 +28,7 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING, ClassVar
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -240,7 +240,7 @@ class GeorgiaScraper(BaseScraper[GaOpinionCluster]):
     # Entry Point
     # =========================================================================
 
-    @step()
+    @entry(GaOpinionCluster)
     def get_entry(
         self,
     ) -> Generator[ScraperYield[GaOpinionCluster], None, None]:

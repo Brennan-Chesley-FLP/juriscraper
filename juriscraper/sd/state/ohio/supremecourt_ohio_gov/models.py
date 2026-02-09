@@ -24,16 +24,10 @@ The Ohio opinion search system uses a "source" parameter:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping from source number to CourtListener court_id
@@ -113,13 +107,13 @@ class OhioOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    webcite: Annotated[str, UniqueMatch()]
+    webcite: str
     """WebCite citation (e.g., '2026-Ohio-148') - unique identifier"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'ohio', 'ohctapp1'-'ohctapp12', 'ohioctcl'"""
 
-    date_decided: Annotated[date, DateRange()]
+    date_decided: date
     """Date the opinion was decided/filed"""
 
     # === Required fields ===

@@ -17,7 +17,7 @@ from collections.abc import Generator
 from datetime import date, datetime
 from typing import TYPE_CHECKING, ClassVar
 
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     BaseScraper,
@@ -36,7 +36,6 @@ from .models import (
 )
 
 if TYPE_CHECKING:
-    from juriscraper.scraper_driver.common.scraper import ScraperParams
     from juriscraper.scraper_driver.data_types import (
         ArchiveResponse,
         ScraperYield,
@@ -61,59 +60,19 @@ class FloridaScraper(BaseScraper[FloridaOpinionCluster]):
     # API pagination settings
     PAGE_SIZE: ClassVar[int] = 50
 
-    def __init__(self, params: ScraperParams | None = None) -> None:
-        """Initialize the scraper with optional parameters."""
-        self._params = params
-
     def _get_requested_court_ids(self) -> set[str]:
-        """Get the set of court IDs to scrape based on params.
+        """Get the set of court IDs to scrape.
 
-        Returns all court IDs if no filter is set.
+        Returns all court IDs (filtering via @entry params not yet implemented).
         """
-        if not self._params:
-            return set(COURT_IDS.keys())
-
-        model_params = getattr(self._params, "FloridaOpinionCluster", None)
-        if model_params is None:
-            return set()
-
-        searchable = model_params.get_searchable_fields()
-        court_filter = searchable.get("court_id")
-
-        if court_filter and court_filter.is_set():
-            return court_filter.values
         return set(COURT_IDS.keys())
 
     def _get_date_range(self) -> tuple[date | None, date | None]:
-        """Get date range filter from params."""
-        if not self._params:
-            return None, None
-
-        model_params = getattr(self._params, "FloridaOpinionCluster", None)
-        if model_params is None:
-            return None, None
-
-        searchable = model_params.get_searchable_fields()
-        date_filter = searchable.get("date_filed")
-
-        if date_filter and date_filter.is_set():
-            return date_filter.gte, date_filter.lte
+        """Get date range filter (not yet implemented via @entry params)."""
         return None, None
 
     def _get_case_number_filter(self) -> str | None:
-        """Get specific case number to look up."""
-        if not self._params:
-            return None
-
-        model_params = getattr(self._params, "FloridaOpinionCluster", None)
-        if model_params is None:
-            return None
-
-        searchable = model_params.get_searchable_fields()
-        case_filter = searchable.get("case_number")
-
-        if case_filter and case_filter.is_set():
-            return case_filter.value
+        """Get specific case number to look up (not yet implemented via @entry params)."""
         return None
 
     def _build_api_url(
@@ -164,6 +123,7 @@ class FloridaScraper(BaseScraper[FloridaOpinionCluster]):
 
         return f"{API_CONFIG['search_endpoint']}?{'&'.join(params)}"
 
+    @entry(FloridaOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Entry point - fetch opinions for each requested court."""
         requested_courts = self._get_requested_court_ids()

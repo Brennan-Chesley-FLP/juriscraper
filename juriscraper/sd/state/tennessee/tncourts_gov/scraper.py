@@ -61,7 +61,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import speculate, step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -401,6 +401,7 @@ class TennScraper(
     # Entry Point
     # =========================================================================
 
+    @entry(TennJudge | TennOpinionCluster | TennOralArgument | TennDocket)
     def get_entry(
         self,
     ) -> Generator[NavigatingRequest, None, None]:
@@ -1230,7 +1231,12 @@ class TennScraper(
     # Dockets Scraping Steps (Speculative)
     # =========================================================================
 
-    @speculate(highest_observed=1000, largest_observed_gap=20)
+    @entry(
+        TennJudge | TennOpinionCluster | TennOralArgument | TennDocket,
+        speculative=True,
+        highest_observed=1000,
+        largest_observed_gap=20,
+    )
     def fetch_docket(self, pch_id: int) -> NavigatingRequest:
         """Generate a speculative request for a docket by PCH ID.
 

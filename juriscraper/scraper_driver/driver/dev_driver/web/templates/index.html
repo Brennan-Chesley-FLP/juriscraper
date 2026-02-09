@@ -187,7 +187,27 @@ function buildSpeculativeForm(scraper) {
     const container = document.getElementById('speculative-container');
     const section = document.getElementById('speculative-section');
 
-    if (!scraper.speculative_steps || scraper.speculative_steps.length === 0) {
+    // Collect speculative steps from either old or new schema
+    let speculativeSteps = [];
+
+    if (scraper.entry_schema && scraper.entry_schema.entries) {
+        // New @entry system: find entries with speculative=true
+        for (const [name, entry] of Object.entries(scraper.entry_schema.entries)) {
+            if (entry.speculative) {
+                speculativeSteps.push({
+                    name: name,
+                    default_starting_id: 1,
+                    highest_observed: entry.highest_observed || 1,
+                    largest_observed_gap: entry.largest_observed_gap || 10,
+                });
+            }
+        }
+    } else if (scraper.speculative_steps && scraper.speculative_steps.length > 0) {
+        // Old system
+        speculativeSteps = scraper.speculative_steps;
+    }
+
+    if (speculativeSteps.length === 0) {
         section.style.display = 'none';
         container.innerHTML = '';
         return;
@@ -196,11 +216,12 @@ function buildSpeculativeForm(scraper) {
     section.style.display = 'block';
     container.innerHTML = '';
 
-    for (const step of scraper.speculative_steps) {
+    for (const step of speculativeSteps) {
         const stepDiv = document.createElement('div');
         stepDiv.className = 'speculative-step';
+        const highestInfo = step.highest_observed ? ` (highest observed: ${step.highest_observed})` : '';
         stepDiv.innerHTML = `
-            <h4>${step.name}</h4>
+            <h4>${step.name}${highestInfo}</h4>
             <div class="form-row">
                 <div class="form-group">
                     <label for="speculative-${step.name}-start">Starting ID</label>
@@ -220,14 +241,14 @@ function buildSpeculativeForm(scraper) {
                            value="0"
                            min="0"
                            placeholder="Threshold">
-                    <small>IDs ≤ threshold always continue</small>
+                    <small>IDs &le; threshold always continue</small>
                 </div>
                 <div class="form-group">
                     <label for="speculative-${step.name}-speculation">Speculation</label>
                     <input type="number"
                            id="speculative-${step.name}-speculation"
                            name="speculative.${step.name}.speculation"
-                           value="5"
+                           value="${step.largest_observed_gap || 5}"
                            min="1"
                            placeholder="Speculation limit">
                     <small>Failed attempts above threshold before stopping</small>
@@ -246,6 +267,13 @@ function buildParamsForm(scraper) {
     // Also build speculative form
     buildSpeculativeForm(scraper);
 
+    // Use new @entry schema if available
+    if (scraper.entry_schema && scraper.entry_schema.entries) {
+        buildEntrySchemaForm(scraper.entry_schema, container, section);
+        return;
+    }
+
+    // Fall back to old models-based form
     if (!scraper.models || scraper.models.length === 0) {
         section.style.display = 'none';
         container.innerHTML = '';
@@ -325,6 +353,106 @@ function buildParamsForm(scraper) {
     }
 }
 
+// Build form from new @entry JSON Schema
+function buildEntrySchemaForm(entrySchema, container, section) {
+    const entries = entrySchema.entries;
+    const defs = entrySchema.$defs || {};
+
+    // Filter to non-speculative entries with parameters
+    const paramEntries = Object.entries(entries).filter(([name, entry]) =>
+        !entry.speculative && Object.keys(entry.parameters.properties || {}).length > 0
+    );
+
+    if (paramEntries.length === 0) {
+        section.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    section.style.display = 'block';
+    container.innerHTML = '';
+
+    for (const [entryName, entry] of paramEntries) {
+        const entryDiv = document.createElement('div');
+        entryDiv.className = 'model-section';
+        entryDiv.innerHTML = `
+            <div class="model-header">
+                <label class="checkbox-label">
+                    <input type="checkbox"
+                           id="entry-${entryName}-enabled"
+                           name="entry.${entryName}.enabled"
+                           checked>
+                    <strong>${entryName}</strong>
+                    <small class="entry-return-type">→ ${entry.returns}</small>
+                </label>
+            </div>
+            <div class="model-fields" id="entry-${entryName}-fields">
+            </div>
+        `;
+
+        const fieldsDiv = entryDiv.querySelector('.model-fields');
+        const props = entry.parameters.properties || {};
+
+        for (const [paramName, paramSchema] of Object.entries(props)) {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'form-group field-group';
+
+            // Resolve $ref to get actual schema
+            let resolvedSchema = paramSchema;
+            if (paramSchema.$ref) {
+                const refName = paramSchema.$ref.replace('#/$defs/', '');
+                resolvedSchema = defs[refName] || paramSchema;
+            }
+
+            let fieldHtml = `<label>${paramName}</label>`;
+            fieldHtml += buildJsonSchemaInput(entryName, paramName, resolvedSchema, defs);
+
+            fieldDiv.innerHTML = fieldHtml;
+            fieldsDiv.appendChild(fieldDiv);
+        }
+
+        // Toggle fields when checkbox changes
+        const checkbox = entryDiv.querySelector(`#entry-${entryName}-enabled`);
+        checkbox.addEventListener('change', () => {
+            fieldsDiv.style.display = checkbox.checked ? 'block' : 'none';
+        });
+
+        container.appendChild(entryDiv);
+    }
+}
+
+// Build input element from JSON Schema type
+function buildJsonSchemaInput(entryName, paramName, schema, defs) {
+    if (schema.type === 'string' && schema.format === 'date') {
+        return `<input type="date" name="entry.${entryName}.params.${paramName}">`;
+    }
+    if (schema.type === 'string') {
+        return `<input type="text" name="entry.${entryName}.params.${paramName}" placeholder="${paramName}">`;
+    }
+    if (schema.type === 'integer') {
+        return `<input type="number" name="entry.${entryName}.params.${paramName}" placeholder="${paramName}">`;
+    }
+    if (schema.type === 'object' && schema.properties) {
+        // Render nested object (Pydantic model) as grouped fields
+        let html = '<div class="nested-model">';
+        for (const [propName, propSchema] of Object.entries(schema.properties)) {
+            let resolved = propSchema;
+            if (propSchema.$ref) {
+                const refName = propSchema.$ref.replace('#/$defs/', '');
+                resolved = defs[refName] || propSchema;
+            }
+            html += `<div class="form-group">`;
+            html += `<label>${propName}</label>`;
+            html += buildJsonSchemaInput(entryName, `${paramName}.${propName}`, resolved, defs);
+            html += `</div>`;
+        }
+        html += '</div>';
+        return html;
+    }
+    // Fallback
+    return `<input type="text" name="entry.${entryName}.params.${paramName}" placeholder="${paramName}">`;
+}
+
 // Modal functions
 function openModal() {
     document.getElementById('new-run-modal').classList.add('active');
@@ -369,7 +497,53 @@ document.getElementById('new-run-form').addEventListener('submit', async (e) => 
         speculation_config: {}
     };
 
-    // Process params from form
+    // Check if this scraper uses the new @entry system
+    const selectedOption = document.getElementById('scraper-select').selectedOptions[0];
+    const scraperData = selectedOption ? JSON.parse(selectedOption.dataset.scraperData || '{}') : {};
+    const usesEntrySchema = !!(scraperData.entry_schema && scraperData.entry_schema.entries);
+
+    // Build seed_params for new @entry system
+    if (usesEntrySchema) {
+        body.seed_params = [];
+
+        // Collect entry params from form
+        const entryParams = {};
+        for (const [key, value] of formData.entries()) {
+            if (key.startsWith('entry.')) {
+                const parts = key.split('.');
+                // entry.<entryName>.params.<paramName>
+                const entryName = parts[1];
+                if (parts[2] === 'params' && value) {
+                    if (!entryParams[entryName]) entryParams[entryName] = {};
+                    const paramName = parts.slice(3).join('.');
+                    entryParams[entryName][paramName] = value;
+                }
+            }
+        }
+
+        // Check which entries are enabled
+        const entries = scraperData.entry_schema.entries;
+        for (const [entryName, entry] of Object.entries(entries)) {
+            if (entry.speculative) continue; // Speculative entries handled separately
+
+            // Check if entry is enabled (checkbox)
+            const checkbox = e.target.querySelector(`#entry-${entryName}-enabled`);
+            if (checkbox && !checkbox.checked) continue;
+
+            const params = entryParams[entryName] || {};
+
+            // Convert numeric params
+            for (const [pName, pSchema] of Object.entries(entry.parameters.properties || {})) {
+                if (pSchema.type === 'integer' && params[pName]) {
+                    params[pName] = parseInt(params[pName]);
+                }
+            }
+
+            body.seed_params.push({[entryName]: params});
+        }
+    }
+
+    // Process params from form (old system and speculative config)
     for (const [key, value] of formData.entries()) {
         // Handle speculative step configuration
         // Format: speculative.<stepName>.<property> where property is start, threshold, or speculation
@@ -421,23 +595,29 @@ document.getElementById('new-run-form').addEventListener('submit', async (e) => 
         }
     }
 
-    // Handle unchecked checkboxes (not in formData)
-    const checkboxes = e.target.querySelectorAll('input[type="checkbox"][name$=".enabled"]');
-    for (const checkbox of checkboxes) {
-        const parts = checkbox.name.split('.');
-        const modelName = parts[1];
-        if (!checkbox.checked) {
-            if (!body.params.models[modelName]) {
-                body.params.models[modelName] = { enabled: false, fields: {} };
-            } else {
-                body.params.models[modelName].enabled = false;
+    // Handle unchecked checkboxes (not in formData) - old system only
+    if (!usesEntrySchema) {
+        const checkboxes = e.target.querySelectorAll('input[type="checkbox"][name$=".enabled"]');
+        for (const checkbox of checkboxes) {
+            const parts = checkbox.name.split('.');
+            const modelName = parts[1];
+            if (!checkbox.checked) {
+                if (!body.params.models[modelName]) {
+                    body.params.models[modelName] = { enabled: false, fields: {} };
+                } else {
+                    body.params.models[modelName].enabled = false;
+                }
             }
         }
     }
 
-    // Remove empty speculation_config
+    // Clean up empty sections
     if (Object.keys(body.speculation_config).length === 0) {
         delete body.speculation_config;
+    }
+    if (usesEntrySchema) {
+        // New system doesn't use old params format
+        delete body.params;
     }
 
     try {

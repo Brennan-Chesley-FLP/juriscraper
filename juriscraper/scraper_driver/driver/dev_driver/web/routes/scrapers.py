@@ -8,7 +8,7 @@ This module provides endpoints for:
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -59,6 +59,7 @@ class ScraperResponse(BaseModel):
     rate_limit_ms: int | None
     models: list[ModelSchemaResponse]
     speculative_steps: list[SpeculativeStepResponse]
+    entry_schema: dict[str, Any] | None = None
 
 
 class ScraperListResponse(BaseModel):
@@ -88,27 +89,9 @@ def _scraper_info_to_response(info: ScraperInfo) -> ScraperResponse:
         version=info.version,
         requires_auth=info.requires_auth,
         rate_limit_ms=info.rate_limit_ms,
-        models=[
-            ModelSchemaResponse(
-                name=m.name,
-                fields=[
-                    FieldSchemaResponse(
-                        name=f.name,
-                        filter_type=f.filter_type,
-                        description=f.description,
-                    )
-                    for f in m.fields
-                ],
-            )
-            for m in info.models
-        ],
-        speculative_steps=[
-            SpeculativeStepResponse(
-                name=s.name,
-                default_starting_id=s.default_starting_id,
-            )
-            for s in info.speculative_steps
-        ],
+        models=[],
+        speculative_steps=[],
+        entry_schema=info.entry_schema,
     )
 
 

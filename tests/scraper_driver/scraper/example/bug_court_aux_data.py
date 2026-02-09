@@ -20,6 +20,7 @@ from collections.abc import Generator
 
 from lxml import html
 
+from juriscraper.scraper_driver.common.decorators import entry
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -96,12 +97,9 @@ class BugCourtScraperWithAuxData(BaseScraper[dict]):
 
     BASE_URL = "http://127.0.0.1"
 
+    @entry(dict)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
-        """Create the initial request to start scraping.
-
-        Returns:
-            A NavigatingRequest that will call parse_list.
-        """
+        """Create the initial request to start scraping."""
         yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,

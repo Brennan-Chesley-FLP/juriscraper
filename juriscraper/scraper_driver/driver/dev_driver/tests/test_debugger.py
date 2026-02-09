@@ -2619,7 +2619,7 @@ class TestSeedSpeculativeRequests:
         """Test that seed_speculative_requests creates pending requests in the database."""
         from unittest.mock import MagicMock, patch
 
-        from juriscraper.scraper_driver.common.decorators import speculate
+        from juriscraper.scraper_driver.common.decorators import entry
         from juriscraper.scraper_driver.data_types import (
             BaseScraper,
             HttpMethod,
@@ -2641,9 +2641,9 @@ class TestSeedSpeculativeRequests:
         await db.commit()
         await db.close()
 
-        # Create a simple test scraper with a @speculate function
+        # Create a simple test scraper with a speculative @entry function
         class TestSpeculateScraper(BaseScraper):
-            @speculate(highest_observed=100)
+            @entry(dict, speculative=True, highest_observed=100)
             def fetch_item(self, item_id: int) -> NavigatingRequest:
                 return NavigatingRequest(
                     request=HTTPRequestParams(
@@ -2725,7 +2725,7 @@ class TestSeedSpeculativeRequests:
     async def test_seed_speculative_requests_fails_for_non_speculate_function(
         self, db_path: Path, initialized_db: aiosqlite.Connection
     ) -> None:
-        """Test that seed_speculative_requests fails for functions without @speculate."""
+        """Test that seed_speculative_requests fails for non-speculative functions."""
         from unittest.mock import MagicMock, patch
 
         from juriscraper.scraper_driver.data_types import (
@@ -2747,7 +2747,7 @@ class TestSeedSpeculativeRequests:
         await db.commit()
         await db.close()
 
-        # Create a scraper without @speculate decorator
+        # Create a scraper without speculative @entry decorator
         class TestNonSpeculateScraper(BaseScraper):
             def fetch_item(self, item_id: int) -> NavigatingRequest:
                 return NavigatingRequest(
@@ -2777,7 +2777,7 @@ class TestSeedSpeculativeRequests:
                 db_path, read_only=False
             ) as debugger:
                 with pytest.raises(
-                    ValueError, match="is not a @speculate function"
+                    ValueError, match="is not a speculative entry function"
                 ):
                     await debugger.seed_speculative_requests(
                         step_name="fetch_item",

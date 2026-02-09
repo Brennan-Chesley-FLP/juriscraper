@@ -23,16 +23,10 @@ Opinion types (from filename suffixes):
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping to CourtListener IDs
@@ -91,13 +85,13 @@ class NYOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_id: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_id: str  # type: ignore[assignment]
     """Opinion number (e.g., 'No. 112' or '112')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'ny' (Court of Appeals)"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Decision date"""
 
     # === Required fields from base ===

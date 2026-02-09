@@ -959,7 +959,7 @@ class LocalDevDriverDebugger:
         import json
 
         from juriscraper.scraper_driver.common.decorators import (
-            get_speculate_metadata,
+            get_entry_metadata,
         )
         from juriscraper.scraper_driver.data_types import (
             ArchiveRequest,
@@ -1018,15 +1018,16 @@ class LocalDevDriverDebugger:
                 f"Failed to instantiate scraper '{scraper_info.full_path}'"
             )
 
-        # Get the speculate function
+        # Get the speculative entry function
         func = getattr(scraper, step_name, None)
         if func is None:
             raise ValueError(f"Step '{step_name}' not found on scraper")
 
-        # Verify it's a speculate function
-        if get_speculate_metadata(func) is None:
+        # Verify it's a speculative entry function
+        entry_meta = get_entry_metadata(func)
+        if entry_meta is None or not entry_meta.speculative:
             raise ValueError(
-                f"Step '{step_name}' is not a @speculate function"
+                f"Step '{step_name}' is not a speculative entry function"
             )
 
         # Seed requests for the range

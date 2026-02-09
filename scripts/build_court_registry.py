@@ -18,6 +18,7 @@ import pkgutil
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 try:
     import tomllib  # ty: ignore[unresolved-import]
@@ -32,12 +33,6 @@ import tomli_w  # noqa: E402
 
 from juriscraper.scraper_driver.common.models.base import (  # noqa: E402
     ConsumerModel,
-)
-from juriscraper.scraper_driver.common.searchable import (  # noqa: E402
-    DateRange,
-    SetFilter,
-    UniqueMatch,
-    build_params_for_scraper,
 )
 from juriscraper.scraper_driver.data_types import BaseScraper  # noqa: E402
 
@@ -182,51 +177,34 @@ def get_data_types(scraper_class: type) -> list[str]:
     return sorted(data_types) if data_types else []
 
 
-def get_searchability(scraper_class: type) -> dict[str, dict[str, list[str]]]:
-    """Extract searchable field info from a scraper's data models.
+def get_searchability(scraper_class: Any) -> dict[str, dict[str, list[str]]]:
+    """Extract parameter info from a scraper's @entry methods.
 
-    Uses the searchable field metadata system to find fields annotated
-    with DateRange, SetFilter, or UniqueMatch markers.
+    Uses BaseScraper.schema() to find entry points and their parameters.
 
     Args:
         scraper_class: A scraper class that inherits from BaseScraper.
 
     Returns:
-        Dict mapping model name to dict of filter types to field names.
-        Example: {"CaseData": {"DateRange": ["date_filed"], "SetFilter": ["case_type"]}}
+        Dict mapping entry name to parameter info.
     """
     try:
-        params = build_params_for_scraper(scraper_class)
+        schema = scraper_class.schema()
     except Exception:
         return {}
 
+    entries = schema.get("entries", {})
+    if not entries:
+        return {}
+
     result: dict[str, dict[str, list[str]]] = {}
-
-    for model_name, model_proxy in params.get_models().items():
-        model_fields: dict[str, list[str]] = {
-            "DateRange": [],
-            "SetFilter": [],
-            "UniqueMatch": [],
-        }
-
-        for (
-            field_name,
-            field_proxy,
-        ) in model_proxy.get_searchable_fields().items():
-            marker = field_proxy.marker
-            if isinstance(marker, DateRange):
-                model_fields["DateRange"].append(field_name)
-            elif isinstance(marker, SetFilter):
-                model_fields["SetFilter"].append(field_name)
-            elif isinstance(marker, UniqueMatch):
-                model_fields["UniqueMatch"].append(field_name)
-
-        # Only include model if it has searchable fields
-        if any(model_fields.values()):
-            # Sort field names for consistent output
-            for key in model_fields:
-                model_fields[key] = sorted(model_fields[key])
-            result[model_name] = model_fields
+    for entry_name, entry_schema in entries.items():
+        params = entry_schema.get("parameters", {})
+        properties = params.get("properties", {})
+        if properties:
+            result[entry_name] = {
+                "parameters": sorted(properties.keys()),
+            }
 
     return result
 

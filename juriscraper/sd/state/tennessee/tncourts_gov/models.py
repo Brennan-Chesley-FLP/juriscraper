@@ -20,7 +20,7 @@ Supported courts:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, TypedDict
+from typing import TypedDict
 
 from juriscraper.scraper_driver.common.models.base import (
     Audio,
@@ -29,12 +29,6 @@ from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
     Person,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    SpeculativeID,
-    UniqueMatch,
 )
 
 # Court ID mapping
@@ -95,10 +89,10 @@ class TennJudge(Person):
     """
 
     # === Searchable fields ===
-    slug: Annotated[str, UniqueMatch()]
+    slug: str
     """URL slug for the judge (e.g., 'jeffrey-s-bivins')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'tenn', 'tennctapp', or 'tenncrimapp'"""
 
     # === Required fields ===
@@ -190,13 +184,13 @@ class TennOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Case number (e.g., 'M2023-01234-SC-R11-CV')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'tenn', 'tennctapp', or 'tenncrimapp'"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the opinion was filed/published"""
 
     # === Required fields ===
@@ -230,13 +224,13 @@ class TennOralArgument(Audio):
     """
 
     # === Searchable fields ===
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Case number"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'tenn', 'tennctapp', or 'tenncrimapp'"""
 
-    date_argued: Annotated[date, DateRange()]
+    date_argued: date
     """Date the oral argument was heard"""
 
     # === Required fields ===
@@ -289,16 +283,16 @@ class TennDocket(Docket):
     """
 
     # === Searchable fields ===
-    pch_id: Annotated[int, SpeculativeID()]
+    pch_id: int
     """PCH internal ID - the ?id= parameter (auto-incrementing)"""
 
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Intermediate Case Number (e.g., from 'Inter. Case No.' field)"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'tenn', 'tennctapp', or 'tenncrimapp'"""
 
-    date_filed: Annotated[date | None, DateRange()] = None
+    date_filed: date | None = None
     """Date the application was filed"""
 
     # === Required fields ===

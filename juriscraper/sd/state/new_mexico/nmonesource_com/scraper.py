@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -213,6 +213,7 @@ class NMOneSourceScraper(BaseScraper[NMOpinionCluster]):
     # Entry Point
     # =========================================================================
 
+    @entry(NMOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial requests to year listing pages for each court."""
         requested = self._get_requested_data_types()

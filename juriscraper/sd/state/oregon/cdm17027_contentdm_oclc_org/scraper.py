@@ -49,7 +49,7 @@ from datetime import date
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import quote
 
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -286,6 +286,7 @@ class OregonScraper(BaseScraper[OregonOpinionCluster]):
     # Entry Point
     # =========================================================================
 
+    @entry(OregonOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial requests for opinion scraping.
 

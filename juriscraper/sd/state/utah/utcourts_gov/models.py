@@ -26,16 +26,10 @@ Case number format: YYYYMMDD-CA or YYYYMMDD (e.g., "20220502-CA")
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court type to URL path mapping
@@ -88,13 +82,13 @@ class UtahOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    citation: Annotated[str, UniqueMatch()]
+    citation: str
     """Official citation (e.g., '2026 UT 1' or '2026 UT App 5') - unique identifier"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'utah' or 'utahctapp'"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the opinion was filed"""
 
     # === Required fields ===

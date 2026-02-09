@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlencode
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -265,6 +265,7 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
     # Entry Point
     # =========================================================================
 
+    @entry(KentuckyOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial request to opinion search."""
         requested = self._get_requested_data_types()
@@ -598,9 +599,9 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
         document_urls: list[dict[str, str]] = []
         judges_participating = None
 
-        for entry in opinion_entries:
+        for opinion_entry in opinion_entries:
             # Check if this entry has documents
-            doc_links = entry.checked_xpath(
+            doc_links = opinion_entry.checked_xpath(
                 ".//a[contains(@href, '/documents/')]/@href",
                 "document links",
                 min_count=0,
@@ -608,7 +609,7 @@ class KentuckyScraper(BaseScraper[KentuckyOpinionCluster]):
             )
 
             # Extract comments which may contain judge participation info
-            comments = entry.checked_xpath(
+            comments = opinion_entry.checked_xpath(
                 "td[4]/text() | td[4]//text()",
                 "comments",
                 min_count=0,

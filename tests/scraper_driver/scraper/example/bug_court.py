@@ -23,7 +23,7 @@ from pydantic import Field, HttpUrl
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.data_models import ScrapedData
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -58,15 +58,9 @@ class BugCourtScraper(BaseScraper[dict]):
 
     BASE_URL = "http://127.0.0.1"
 
+    @entry(dict)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
-        """Create the initial request to start scraping.
-
-        Args:
-            url: The entry URL (e.g., "http://bugcourt.example.com/cases").
-
-        Returns:
-            A NavigatingRequest that will call parse_list.
-        """
+        """Create the initial request to start scraping."""
         yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
@@ -175,12 +169,9 @@ class BugCourtScraperWithAPI(BaseScraper[dict]):
 
     BASE_URL = "http://127.0.0.1"
 
+    @entry(dict)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
-        """Create the initial request to start scraping.
-
-        Returns:
-            A NavigatingRequest that will call parse_list.
-        """
+        """Create the initial request to start scraping."""
         yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
@@ -347,12 +338,9 @@ class BugCourtScraperWithArchive(BaseScraper[dict]):
 
     BASE_URL = "http://127.0.0.1"
 
+    @entry(dict)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
-        """Create the initial request to start scraping.
-
-        Returns:
-            A NavigatingRequest that will call parse_list.
-        """
+        """Create the initial request to start scraping."""
         yield NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
@@ -544,6 +532,7 @@ class BugCourtScraperWithValidation(BaseScraper[BugCourtCaseData]):
 
     BASE_URL = "http://127.0.0.1"
 
+    @entry(BugCourtCaseData)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Get the entry request for the scraper."""
         yield NavigatingRequest(

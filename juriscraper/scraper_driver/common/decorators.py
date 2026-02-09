@@ -1,4 +1,4 @@
-"""Step decorators for scraper methods using argument inspection.
+"""Step and entry decorators for scraper methods.
 
 Step 19 introduces a flexible @step decorator that uses argument inspection
 to determine what to inject into scraper methods. Instead of having separate
@@ -23,16 +23,21 @@ The decorator also handles:
 - Attaching encoding, xsd, and json_model metadata for drivers to optionally use
 - Auto-resolving Callable continuations to string names
 - Automatic yielding from wrapped generators
+
+The @entry decorator marks scraper methods as entry points with typed
+parameters, replacing the old get_entry()/ScraperParams system.
 """
 
 import inspect
 import json
 from collections.abc import Callable, Generator
+from dataclasses import dataclass
 from datetime import date
 from functools import wraps
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast, get_type_hints
 
 from lxml import html as lxml_html
+from pydantic import BaseModel
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
 from juriscraper.scraper_driver.common.exceptions import (
@@ -575,3 +580,254 @@ def is_speculate(func: Callable[..., Any]) -> bool:
         True if the method has speculate decorator metadata.
     """
     return get_speculate_metadata(func) is not None
+
+
+# =============================================================================
+# @entry decorator for scraper entry points
+# =============================================================================
+
+# Allowed primitive types for @entry parameters
+_ENTRY_PRIMITIVE_TYPES = (str, int, date)
+
+
+@dataclass(frozen=True)
+class EntryMetadata:
+    """Metadata attached to scraper entry point methods by @entry decorator.
+
+    Attributes:
+        return_type: The data type this entry produces (e.g. Docket).
+        param_types: Mapping of parameter name to type (BaseModel subclass or primitive).
+        func_name: Name of the decorated function.
+        speculative: Whether this is a speculative entry point.
+        observation_date: For speculative: date when metadata was last updated.
+        highest_observed: For speculative: highest known ID.
+        largest_observed_gap: For speculative: largest gap in sequence.
+    """
+
+    return_type: type
+    param_types: dict[str, type]
+    func_name: str
+    speculative: bool = False
+    observation_date: date | None = None
+    highest_observed: int = 1
+    largest_observed_gap: int = 10
+
+    def validate_params(self, kwargs_dict: dict[str, Any]) -> dict[str, Any]:
+        """Validate and coerce parameters for this entry function.
+
+        For BaseModel parameters, uses model_validate() for full Pydantic
+        validation. For primitives (str, int, date), performs type coercion.
+
+        Args:
+            kwargs_dict: Raw parameter dict from JSON deserialization.
+
+        Returns:
+            Dict of validated/coerced parameter values ready for function call.
+
+        Raises:
+            pydantic.ValidationError: If a BaseModel parameter fails validation.
+            TypeError: If a primitive parameter can't be coerced.
+            ValueError: If unexpected parameters are provided.
+        """
+        validated: dict[str, Any] = {}
+
+        # Check for unexpected parameters
+        unexpected = set(kwargs_dict.keys()) - set(self.param_types.keys())
+        if unexpected:
+            raise ValueError(
+                f"Unexpected parameters for entry '{self.func_name}': "
+                f"{unexpected}. Expected: {list(self.param_types.keys())}"
+            )
+
+        for param_name, param_type in self.param_types.items():
+            if param_name not in kwargs_dict:
+                raise ValueError(
+                    f"Missing required parameter '{param_name}' "
+                    f"for entry '{self.func_name}'"
+                )
+
+            raw_value = kwargs_dict[param_name]
+
+            if isinstance(param_type, type) and issubclass(
+                param_type, BaseModel
+            ):
+                # Pydantic model: validate via model_validate
+                pydantic_type = cast(type[BaseModel], param_type)
+                validated[param_name] = pydantic_type.model_validate(raw_value)
+            elif param_type is date:
+                # date: accept date objects or ISO format strings
+                if isinstance(raw_value, date):
+                    validated[param_name] = raw_value
+                elif isinstance(raw_value, str):
+                    validated[param_name] = date.fromisoformat(raw_value)
+                else:
+                    raise TypeError(
+                        f"Parameter '{param_name}' for entry "
+                        f"'{self.func_name}' expected date or ISO string, "
+                        f"got {type(raw_value).__name__}"
+                    )
+            elif param_type in (str, int):
+                # Primitive: coerce
+                validated[param_name] = param_type(raw_value)
+            else:
+                # Shouldn't happen if decorator validation is correct
+                validated[param_name] = raw_value
+
+        return validated
+
+
+def entry(
+    return_type: type | Any,
+    *,
+    speculative: bool = False,
+    observation_date: date | None = None,
+    highest_observed: int = 1,
+    largest_observed_gap: int = 10,
+) -> Callable[..., Any]:
+    """Decorator for scraper entry point methods with typed parameters.
+
+    Marks a method as an entry point and attaches EntryMetadata describing
+    the return type and parameter schema. Does NOT modify the function's
+    runtime behavior.
+
+    Parameters can be Pydantic BaseModel subclasses or primitives
+    (str, int, date). Tuples are not supported.
+
+    Example::
+
+        @entry(Docket)
+        def search_by_number(self, docket_number: str) -> Generator[NavigatingRequest, None, None]:
+            ...
+
+        @entry(Docket, speculative=True, highest_observed=105336, largest_observed_gap=20)
+        def fetch_docket(self, crn: int) -> NavigatingRequest:
+            ...
+
+    Args:
+        return_type: The data type this entry produces.
+        speculative: Whether this is a speculative entry point.
+        observation_date: For speculative: date when metadata was last updated.
+        highest_observed: For speculative: highest known ID.
+        largest_observed_gap: For speculative: largest gap in sequence.
+
+    Returns:
+        Decorator that attaches EntryMetadata to the function.
+    """
+
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        # Inspect function signature to extract parameter types
+        # Skip 'self' for instance methods
+        # Use get_type_hints with the function's module globals for proper
+        # resolution when `from __future__ import annotations` is used
+        hints: dict[str, Any] = {}
+        try:
+            module = inspect.getmodule(fn)
+            globalns = getattr(module, "__dict__", None) if module else None
+            hints = get_type_hints(fn, globalns=globalns)
+        except Exception:
+            # Fallback: try raw annotations (may be strings with PEP 563)
+            try:
+                hints = get_type_hints(fn)
+            except Exception:
+                hints = {}
+
+        sig = inspect.signature(fn)
+        param_types: dict[str, type] = {}
+
+        for param_name, param in sig.parameters.items():
+            if param_name == "self":
+                continue
+            if param_name == "return":
+                continue
+
+            # Get the type from hints, fallback to annotation
+            param_type = hints.get(param_name)
+            if param_type is None:
+                # Try raw annotation (might be a string)
+                ann = param.annotation
+                if ann is inspect.Parameter.empty:
+                    raise TypeError(
+                        f"Entry function '{fn.__name__}' parameter "
+                        f"'{param_name}' must have a type annotation"
+                    )
+                # If annotation is a string, try to resolve it
+                if isinstance(ann, str):
+                    module = inspect.getmodule(fn)
+                    globalns = (
+                        getattr(module, "__dict__", {}) if module else {}
+                    )
+                    try:
+                        param_type = eval(ann, globalns)  # noqa: S307
+                    except Exception:
+                        raise TypeError(
+                            f"Entry function '{fn.__name__}' parameter "
+                            f"'{param_name}' has unresolvable type "
+                            f"annotation '{ann}'"
+                        ) from None
+                else:
+                    param_type = ann
+
+            # Validate the parameter type
+            if isinstance(param_type, type) and issubclass(
+                param_type, BaseModel
+            ):
+                pass  # BaseModel subclass is fine
+            elif param_type in _ENTRY_PRIMITIVE_TYPES:
+                pass  # Primitive is fine
+            elif param_type is tuple or (
+                hasattr(param_type, "__origin__")
+                and getattr(param_type, "__origin__", None) is tuple
+            ):
+                raise TypeError(
+                    f"Entry function '{fn.__name__}' parameter "
+                    f"'{param_name}' uses tuple type, which is not supported. "
+                    f"Use a Pydantic BaseModel instead."
+                )
+            else:
+                raise TypeError(
+                    f"Entry function '{fn.__name__}' parameter "
+                    f"'{param_name}' has unsupported type {param_type}. "
+                    f"Use a Pydantic BaseModel subclass or one of: "
+                    f"str, int, date"
+                )
+
+            param_types[param_name] = param_type
+
+        metadata = EntryMetadata(
+            return_type=return_type,
+            param_types=param_types,
+            func_name=fn.__name__,
+            speculative=speculative,
+            observation_date=observation_date,
+            highest_observed=highest_observed,
+            largest_observed_gap=largest_observed_gap,
+        )
+
+        fn._entry_metadata = metadata  # type: ignore[attr-defined]
+        return fn
+
+    return decorator
+
+
+def get_entry_metadata(func: Callable[..., Any]) -> EntryMetadata | None:
+    """Get entry metadata from a decorated method.
+
+    Args:
+        func: A potentially decorated scraper entry method.
+
+    Returns:
+        EntryMetadata if the method is decorated with @entry, None otherwise.
+    """
+    return getattr(func, "_entry_metadata", None)
+
+
+def is_entry(func: Callable[..., Any]) -> bool:
+    """Check if a method is a decorated entry point.
+
+    Args:
+        func: A method to check.
+
+    Returns:
+        True if the method has entry decorator metadata.
+    """
+    return get_entry_metadata(func) is not None

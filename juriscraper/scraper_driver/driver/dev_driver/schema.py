@@ -209,7 +209,8 @@ CREATE TABLE IF NOT EXISTS run_metadata (
     error_message TEXT,
 
     -- Invocation parameters (immutable after creation)
-    params_json TEXT,                        -- JSON-encoded ScraperParams filters
+    params_json TEXT,                        -- JSON-encoded parameter list for initial_seed()
+    seed_params_json TEXT,                   -- JSON list of {entry_name: kwargs} for initial_seed()
     base_delay REAL NOT NULL,
     jitter REAL NOT NULL,
     num_workers INTEGER NOT NULL,

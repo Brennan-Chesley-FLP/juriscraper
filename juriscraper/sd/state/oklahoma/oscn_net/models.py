@@ -22,16 +22,10 @@ Citation formats:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Database code to court_id mapping
@@ -89,13 +83,13 @@ class OklahomaOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    cite_id: Annotated[str, UniqueMatch()]
+    cite_id: str
     """OSCN CiteID - unique identifier for the opinion"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'okla', 'oklacrimapp', 'oklacivapp'"""
 
-    date_filed: Annotated[date | None, DateRange()] = None
+    date_filed: date | None = None
     """Date the opinion was filed/decided"""
 
     # === Required fields ===

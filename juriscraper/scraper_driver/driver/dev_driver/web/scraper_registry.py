@@ -3,77 +3,22 @@
 This module provides functionality for:
 - Scanning directories for BaseScraper subclasses
 - Extracting scraper metadata (courts, data types, status)
-- Extracting parameter schema from ScraperParams
-- Serializing/deserializing ScraperParams for web API
+- Extracting parameter schema via BaseScraper.schema() (@entry system)
+- Building initial_seed() invocation lists from web form data
 """
 
 from __future__ import annotations
 
 import importlib
-import importlib.util
 import logging
 from dataclasses import dataclass, field
-from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from juriscraper.scraper_driver.common.searchable import (
-        FieldProxy,
-        ScraperParams,
-    )
     from juriscraper.scraper_driver.data_types import BaseScraper
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class FieldSchema:
-    """Schema for a searchable field."""
-
-    name: str
-    filter_type: str  # "DateRange", "SetFilter", "UniqueMatch"
-    description: str | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "name": self.name,
-            "filter_type": self.filter_type,
-            "description": self.description,
-        }
-
-
-@dataclass
-class ModelSchema:
-    """Schema for a data model's searchable fields."""
-
-    name: str
-    fields: list[FieldSchema] = field(default_factory=list)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "name": self.name,
-            "fields": [f.to_dict() for f in self.fields],
-        }
-
-
-@dataclass
-class SpeculativeStepSchema:
-    """Schema for a speculative step."""
-
-    name: str
-    default_starting_id: int = 1
-    largest_observed_gap: int = 10
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "name": self.name,
-            "default_starting_id": self.default_starting_id,
-            "largest_observed_gap": self.largest_observed_gap,
-        }
 
 
 @dataclass
@@ -93,15 +38,12 @@ class ScraperInfo:
     requires_auth: bool = False
     rate_limit_ms: int | None = None
 
-    # Parameter schema
-    models: list[ModelSchema] = field(default_factory=list)
-    speculative_steps: list[SpeculativeStepSchema] = field(
-        default_factory=list
-    )
+    # Entry schema (from BaseScraper.schema())
+    entry_schema: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        return {
+        result: dict[str, Any] = {
             "module_path": self.module_path,
             "class_name": self.class_name,
             "full_path": self.full_path,
@@ -112,9 +54,10 @@ class ScraperInfo:
             "version": self.version,
             "requires_auth": self.requires_auth,
             "rate_limit_ms": self.rate_limit_ms,
-            "models": [m.to_dict() for m in self.models],
-            "speculative_steps": [s.to_dict() for s in self.speculative_steps],
         }
+        if self.entry_schema is not None:
+            result["entry_schema"] = self.entry_schema
+        return result
 
 
 class ScraperRegistry:
@@ -226,9 +169,7 @@ class ScraperRegistry:
             scraper_class, "msec_per_request_rate_limit", None
         )
 
-        # Extract parameter schema and speculative steps
-        models = self._extract_params_schema(scraper_class)
-        speculative_steps = self._extract_speculative_steps(scraper_class)
+        entry_schema = self._extract_entry_schema(scraper_class)
 
         return ScraperInfo(
             module_path=module_path,
@@ -241,116 +182,35 @@ class ScraperRegistry:
             version=version,
             requires_auth=requires_auth,
             rate_limit_ms=rate_limit_ms,
-            models=models,
-            speculative_steps=speculative_steps,
+            entry_schema=entry_schema,
         )
 
-    def _extract_params_schema(
+    def _extract_entry_schema(
         self, scraper_class: type[BaseScraper[Any]]
-    ) -> list[ModelSchema]:
-        """Extract parameter schema from scraper's data models.
+    ) -> dict[str, Any] | None:
+        """Extract schema from scraper's @entry-decorated methods.
+
+        Uses BaseScraper.schema() which generates JSON Schema from
+        @entry decorated methods and their Pydantic parameter models.
 
         Args:
             scraper_class: The scraper class.
 
         Returns:
-            List of ModelSchema objects.
+            Schema dict if scraper has @entry methods, None otherwise.
         """
-        from juriscraper.scraper_driver.common.searchable import (
-            DateRange,
-            SetFilter,
-            UniqueMatch,
-        )
-
-        models: list[ModelSchema] = []
-
         try:
-            params = scraper_class.params()
+            schema = scraper_class.schema()
+            # schema() returns {"scraper": name, "entries": {...}}
+            # If no @entry methods, entries will be empty
+            if schema.get("entries"):
+                return schema
         except Exception as e:
             logger.warning(
-                f"Could not build params for {scraper_class.__name__}: {e}"
-            )
-            return models
-
-        for model_name, model_proxy in params.get_models().items():
-            fields = []
-
-            for (
-                field_name,
-                field_proxy,
-            ) in model_proxy.get_searchable_fields().items():
-                marker = field_proxy.marker
-
-                if isinstance(marker, DateRange):
-                    filter_type = "DateRange"
-                elif isinstance(marker, SetFilter):
-                    filter_type = "SetFilter"
-                elif isinstance(marker, UniqueMatch):
-                    filter_type = "UniqueMatch"
-                else:
-                    filter_type = "unknown"
-
-                # Try to get field description from model
-                description = None
-                model_class = model_proxy.model_class
-                if field_name in model_class.model_fields:
-                    field_info = model_class.model_fields[field_name]
-                    description = field_info.description
-
-                fields.append(
-                    FieldSchema(
-                        name=field_name,
-                        filter_type=filter_type,
-                        description=description,
-                    )
-                )
-
-            models.append(ModelSchema(name=model_name, fields=fields))
-
-        return models
-
-    def _extract_speculative_steps(
-        self, scraper_class: type[BaseScraper[Any]]
-    ) -> list[SpeculativeStepSchema]:
-        """Extract speculative steps from scraper class.
-
-        Args:
-            scraper_class: The scraper class.
-
-        Returns:
-            List of SpeculativeStepSchema objects.
-        """
-        from juriscraper.scraper_driver.common.decorators import (
-            get_speculate_metadata,
-        )
-        from juriscraper.scraper_driver.common.searchable import (
-            _find_speculate_functions,
-        )
-
-        speculative_steps: list[SpeculativeStepSchema] = []
-
-        try:
-            step_names = _find_speculate_functions(scraper_class)
-            for step_name in sorted(step_names):
-                # Get the decorator metadata for largest_observed_gap
-                func = getattr(scraper_class, step_name, None)
-                metadata = get_speculate_metadata(func) if func else None
-                largest_gap = metadata.largest_observed_gap if metadata else 10
-
-                speculative_steps.append(
-                    SpeculativeStepSchema(
-                        name=step_name,
-                        default_starting_id=1,
-                        largest_observed_gap=largest_gap,
-                    )
-                )
-        except Exception as e:
-            logger.warning(
-                f"Could not extract speculative steps for "
+                f"Could not extract @entry schema for "
                 f"{scraper_class.__name__}: {e}"
             )
-
-        return speculative_steps
+        return None
 
     def list_scrapers(self) -> list[ScraperInfo]:
         """List all discovered scrapers.
@@ -384,14 +244,14 @@ class ScraperRegistry:
         """
         return self._classes.get(full_path)
 
-    def instantiate_scraper(
-        self, full_path: str, params_data: dict[str, Any] | None = None
-    ) -> BaseScraper[Any] | None:
-        """Instantiate a scraper with optional parameters.
+    def instantiate_scraper(self, full_path: str) -> BaseScraper[Any] | None:
+        """Instantiate a scraper.
+
+        Parameters are passed via initial_seed() at runtime, not at
+        instantiation time.
 
         Args:
             full_path: Full scraper path (module:class).
-            params_data: Optional parameter data from web form.
 
         Returns:
             Instantiated scraper or None if not found.
@@ -400,146 +260,44 @@ class ScraperRegistry:
         if scraper_class is None:
             return None
 
-        # Build ScraperParams if params_data provided
-        params = None
-        if params_data:
-            params = self._build_params(scraper_class, params_data)
+        return scraper_class()
 
-        # Instantiate scraper with params (BaseScraper accepts params in __init__)
-        return scraper_class(params=params)
-
-    def _build_params(
+    def build_seed_from_web_data(
         self,
-        scraper_class: type[BaseScraper[Any]],
-        params_data: dict[str, Any],
-    ) -> ScraperParams:
-        """Build ScraperParams from web form data.
+        full_path: str,
+        form_data: dict[str, Any],
+    ) -> list[dict[str, dict[str, Any]]]:
+        """Build initial_seed() invocation list from web form data.
+
+        Converts web form data into the format expected by
+        BaseScraper.initial_seed(): a list of single-key dicts
+        mapping entry function names to kwargs.
 
         Args:
-            scraper_class: The scraper class.
-            params_data: Parameter data from web form.
+            full_path: Full scraper path (module:class).
+            form_data: Parameter data from web form, keyed by entry name.
 
         Returns:
-            Configured ScraperParams.
+            Invocation list for initial_seed().
 
-        Expected params_data format:
-        {
-            "models": {
-                "NYSCEFDocket": {
-                    "enabled": true,
-                    "fields": {
-                        "date_filed": {
-                            "gte": "2024-01-01",
-                            "lte": "2024-12-31"
-                        },
-                        "court_id": {
-                            "values": ["nysupctbrnx", "nysupctkings"]
-                        },
-                        "docket_number": {
-                            "value": "2024-001"
-                        }
-                    }
-                }
-            },
-            "speculative": {
-                "parse_case": 100,
-                "parse_detail": 500
+        Example form_data::
+
+            {
+                "get_entry": {},
+                "fetch_docket": {"crn": 12345}
             }
-        }
+
+        Returns::
+
+            [
+                {"get_entry": {}},
+                {"fetch_docket": {"crn": 12345}}
+            ]
         """
-        params = scraper_class.params()
-
-        models_data = params_data.get("models", {})
-        for model_name, model_data in models_data.items():
-            try:
-                model_proxy = getattr(params, model_name)
-            except AttributeError:
-                logger.warning(f"Unknown model: {model_name}")
-                continue
-
-            # Handle model enable/disable
-            if not model_data.get("enabled", True):
-                setattr(params, model_name, None)
-                continue
-
-            # Set field values
-            fields_data = model_data.get("fields", {})
-            for field_name, field_data in fields_data.items():
-                try:
-                    field_proxy = getattr(model_proxy, field_name)
-                except AttributeError:
-                    logger.warning(f"Unknown field: {model_name}.{field_name}")
-                    continue
-
-                self._set_field_value(field_proxy, field_data)
-
-        # Set speculative step starting IDs
-        speculative_data = params_data.get("speculative", {})
-        for step_name, starting_id in speculative_data.items():
-            try:
-                if starting_id is not None:
-                    setattr(params.speculative, step_name, int(starting_id))
-            except AttributeError:
-                logger.warning(f"Unknown speculative step: {step_name}")
-            except (TypeError, ValueError) as e:
-                logger.warning(
-                    f"Invalid starting ID for {step_name}: {starting_id} ({e})"
-                )
-
-        return params
-
-    def _set_field_value(
-        self, field_proxy: FieldProxy[Any], field_data: dict[str, Any]
-    ) -> None:
-        """Set a field's filter value from form data.
-
-        Args:
-            field_proxy: The field proxy to configure.
-            field_data: Filter data from form.
-        """
-        from juriscraper.scraper_driver.common.searchable import (
-            DateRange,
-            SetFilter,
-            UniqueMatch,
-        )
-
-        marker = field_proxy.marker
-
-        if isinstance(marker, DateRange):
-            if "gte" in field_data and field_data["gte"]:
-                field_proxy.gte = self._parse_date(field_data["gte"])
-            if "lte" in field_data and field_data["lte"]:
-                field_proxy.lte = self._parse_date(field_data["lte"])
-
-        elif isinstance(marker, SetFilter):
-            if "values" in field_data and field_data["values"]:
-                values = field_data["values"]
-                if isinstance(values, list):
-                    field_proxy.values = set(values)
-                elif isinstance(values, str):
-                    # Handle comma-separated string
-                    field_proxy.values = {v.strip() for v in values.split(",")}
-
-        elif isinstance(marker, UniqueMatch):
-            if "value" in field_data and field_data["value"]:
-                field_proxy.value = field_data["value"]
-
-    def _parse_date(self, date_str: str) -> date | None:
-        """Parse a date string in ISO format.
-
-        Args:
-            date_str: Date string (YYYY-MM-DD).
-
-        Returns:
-            Parsed date or None if invalid.
-        """
-        if not date_str:
-            return None
-        try:
-            return date.fromisoformat(date_str)
-        except ValueError:
-            logger.warning(f"Invalid date format: {date_str}")
-            return None
+        invocations: list[dict[str, dict[str, Any]]] = []
+        for entry_name, kwargs in form_data.items():
+            invocations.append({entry_name: kwargs if kwargs else {}})
+        return invocations
 
 
 # Global registry instance

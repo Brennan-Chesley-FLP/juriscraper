@@ -195,10 +195,12 @@ def list_scrapers() -> None:
             courts = ", ".join(sorted(s.court_ids)) if s.court_ids else "N/A"
             print(f"  {s.class_name}")
             print(f"    Courts: {courts}")
-            if s.models:
-                for model in s.models:
-                    fields = [f.name for f in model.fields]
-                    print(f"    Params ({model.name}): {', '.join(fields)}")
+            if hasattr(s, "entry_schema") and s.entry_schema:
+                entries = s.entry_schema.get("entries", {})
+                for name, info in entries.items():
+                    params = info.get("parameters", {})
+                    props = list(params.get("properties", {}).keys())
+                    print(f"    Entry ({name}): {', '.join(props)}")
             print()
 
 
@@ -310,9 +312,6 @@ async def run_scraper(
         Exit code.
     """
     from juriscraper.scraper_driver.driver.async_driver import AsyncDriver
-    from juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry import (
-        init_registry,
-    )
 
     # Find the scraper
     result = find_scraper(scraper_name)
@@ -327,14 +326,14 @@ async def run_scraper(
     # Build params if provided
     scraper_params = None
     if params or disabled_models:
-        registry = init_registry()
         params_data = build_params_data(params, disabled_models)
         if verbose:
             print(f"Parameters: {json.dumps(params_data, indent=2)}")
-        scraper_params = registry._build_params(scraper_class, params_data)
+        # Legacy param building; will be replaced by initial_seed() params
+        scraper_params = scraper_class.params()  # type: ignore[assignment]
 
     # Instantiate scraper
-    scraper = scraper_class(params=scraper_params)
+    scraper = scraper_class(params=scraper_params)  # type: ignore[call-arg]
 
     if max_results:
         print(f"Max results: {max_results}")

@@ -30,16 +30,10 @@ Court suffixes:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping to CourtListener IDs
@@ -82,13 +76,13 @@ class MississippiOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_number: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_number: str  # type: ignore[assignment]
     """Case number (e.g., '2024-KA-01001-SCT')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'miss' (Supreme Court) or 'missctapp' (Court of Appeals)"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Hand down date of the opinion"""
 
     # === Required fields from base ===

@@ -77,7 +77,7 @@ from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -454,6 +454,7 @@ class AlabamaScraper(
     # Entry Point
     # =========================================================================
 
+    @entry(AlaOpinionCluster)
     def get_entry(
         self,
     ) -> Generator[NavigatingRequest, None, None]:

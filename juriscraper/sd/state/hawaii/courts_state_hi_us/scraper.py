@@ -26,7 +26,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -286,6 +286,7 @@ class HawaiiScraper(BaseScraper[HawaiiOpinionCluster]):
     # Entry Point
     # =========================================================================
 
+    @entry(HawaiiOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial request to RSS feed."""
         requested = self._get_requested_data_types()

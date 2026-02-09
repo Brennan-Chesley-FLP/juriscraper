@@ -297,12 +297,6 @@ async def get_speculative_steps(
     Raises:
         HTTPException: 404 if run not found.
     """
-    from juriscraper.scraper_driver.common.decorators import (
-        get_speculate_metadata,
-    )
-    from juriscraper.scraper_driver.common.searchable import (
-        _find_speculate_functions,
-    )
     from juriscraper.scraper_driver.driver.dev_driver.web.app import (
         get_sql_manager_for_run,
     )
@@ -329,20 +323,17 @@ async def get_speculative_steps(
     # If run is loaded, get steps from the live scraper
     if run_info.driver is not None:
         scraper = run_info.driver.scraper
-        step_names = _find_speculate_functions(scraper.__class__)
+        entries = scraper.__class__.list_entries()
         items = []
-        for name in sorted(step_names):
-            # Get metadata from decorator
-            func = getattr(scraper, name, None)
-            metadata = get_speculate_metadata(func) if func else None
-            largest_gap = metadata.largest_observed_gap if metadata else 10
-
+        for entry_info in entries:
+            if not entry_info.speculative:
+                continue
             items.append(
                 SpeculativeStepInfo(
-                    name=name,
+                    name=entry_info.name,
                     default_starting_id=1,
-                    largest_observed_gap=largest_gap,
-                    last_successful_id=progress.get(name),
+                    largest_observed_gap=entry_info.largest_observed_gap,
+                    last_successful_id=progress.get(entry_info.name),
                 )
             )
         return SpeculativeStepsResponse(items=items, run_loaded=True)
@@ -381,18 +372,8 @@ async def get_speculative_steps(
                 if s.class_name == scraper_name
             ]
 
-        if matching:
-            items = [
-                SpeculativeStepInfo(
-                    name=step.name,
-                    default_starting_id=step.default_starting_id,
-                    largest_observed_gap=step.largest_observed_gap,
-                    last_successful_id=progress.get(step.name),
-                )
-                for step in matching[0].speculative_steps
-            ]
-            return SpeculativeStepsResponse(items=items, run_loaded=False)
-
+        # speculative_steps were removed from ScraperInfo during @entry migration;
+        # speculative info is now in entry_schema
         return SpeculativeStepsResponse(items=[], run_loaded=False)
 
     except Exception:

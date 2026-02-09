@@ -16,17 +16,11 @@ Note: New Hampshire does not have an intermediate Court of Appeals.
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Citation,
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping to CourtListener IDs
@@ -72,13 +66,13 @@ class NHOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_number: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_number: str  # type: ignore[assignment]
     """Case number (e.g., '2025-0056')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: always 'nh' for NH Supreme Court"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Publication date of the opinion"""
 
     # === Required fields from base ===

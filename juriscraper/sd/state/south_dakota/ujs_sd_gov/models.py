@@ -23,16 +23,10 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID - South Dakota only has one appellate court
@@ -111,13 +105,13 @@ class SouthDakotaOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    citation: Annotated[str, UniqueMatch()]
+    citation: str
     """South Dakota citation (e.g., '2026 S.D. 2') - unique identifier"""
 
-    court_id: Annotated[str, SetFilter()] = COURT_ID
+    court_id: str = COURT_ID
     """Court identifier: always 'sd' for South Dakota Supreme Court"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the opinion was filed/decided"""
 
     # === Required fields ===

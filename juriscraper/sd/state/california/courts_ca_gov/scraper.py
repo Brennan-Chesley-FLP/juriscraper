@@ -57,7 +57,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import parse_qs, urljoin, urlparse
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import speculate, step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -235,6 +235,7 @@ class CalScraper(BaseScraper[CalOpinionCluster]):
     # Entry Point
     # =========================================================================
 
+    @entry(CalOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial requests for opinions pages.
 
@@ -713,6 +714,7 @@ class CalSupremeBriefsScraper(BaseScraper[CalSupremeBriefDocket]):
     # Entry Point
     # =========================================================================
 
+    @entry(CalSupremeBriefDocket)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial request for the briefs index page."""
         yield NavigatingRequest(
@@ -1202,6 +1204,7 @@ class CalSupremeOralArgumentsScraper(BaseScraper[CalSupremeOralArgument]):
     # Entry Point
     # =========================================================================
 
+    @entry(CalSupremeOralArgument)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial request for the webcast library page."""
         yield NavigatingRequest(
@@ -1563,6 +1566,7 @@ class CalDocketScraper(BaseScraper[CalAppellateDocket]):
     # Entry Point
     # =========================================================================
 
+    @entry(CalAppellateDocket)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial requests for docket scraping.
 
@@ -1617,7 +1621,12 @@ class CalDocketScraper(BaseScraper[CalAppellateDocket]):
             },
         )
 
-    @speculate(highest_observed=275000, largest_observed_gap=20)
+    @entry(
+        CalAppellateDocket,
+        speculative=True,
+        highest_observed=275000,
+        largest_observed_gap=20,
+    )
     def fetch_docket_cal(self, case_num: int) -> NavigatingRequest:
         """Generate a speculative request for California Supreme Court (S prefix).
 
@@ -1627,42 +1636,82 @@ class CalDocketScraper(BaseScraper[CalAppellateDocket]):
         """
         return self._create_docket_request("cal", case_num)
 
-    @speculate(highest_observed=170000, largest_observed_gap=20)
+    @entry(
+        CalAppellateDocket,
+        speculative=True,
+        highest_observed=170000,
+        largest_observed_gap=20,
+    )
     def fetch_docket_calctapp1d(self, case_num: int) -> NavigatingRequest:
         """Generate a speculative request for 1st District Court of Appeal (A prefix)."""
         return self._create_docket_request("calctapp1d", case_num)
 
-    @speculate(highest_observed=330000, largest_observed_gap=20)
+    @entry(
+        CalAppellateDocket,
+        speculative=True,
+        highest_observed=330000,
+        largest_observed_gap=20,
+    )
     def fetch_docket_calctapp2d(self, case_num: int) -> NavigatingRequest:
         """Generate a speculative request for 2nd District Court of Appeal (B prefix)."""
         return self._create_docket_request("calctapp2d", case_num)
 
-    @speculate(highest_observed=100000, largest_observed_gap=20)
+    @entry(
+        CalAppellateDocket,
+        speculative=True,
+        highest_observed=100000,
+        largest_observed_gap=20,
+    )
     def fetch_docket_calctapp3d(self, case_num: int) -> NavigatingRequest:
         """Generate a speculative request for 3rd District Court of Appeal (C prefix)."""
         return self._create_docket_request("calctapp3d", case_num)
 
-    @speculate(highest_observed=85000, largest_observed_gap=20)
+    @entry(
+        CalAppellateDocket,
+        speculative=True,
+        highest_observed=85000,
+        largest_observed_gap=20,
+    )
     def fetch_docket_calctapp4d_div1(self, case_num: int) -> NavigatingRequest:
         """Generate a speculative request for 4th District, Division 1 (D prefix)."""
         return self._create_docket_request("calctapp4d_div1", case_num)
 
-    @speculate(highest_observed=85000, largest_observed_gap=20)
+    @entry(
+        CalAppellateDocket,
+        speculative=True,
+        highest_observed=85000,
+        largest_observed_gap=20,
+    )
     def fetch_docket_calctapp4d_div2(self, case_num: int) -> NavigatingRequest:
         """Generate a speculative request for 4th District, Division 2 (E prefix)."""
         return self._create_docket_request("calctapp4d_div2", case_num)
 
-    @speculate(highest_observed=65000, largest_observed_gap=20)
+    @entry(
+        CalAppellateDocket,
+        speculative=True,
+        highest_observed=65000,
+        largest_observed_gap=20,
+    )
     def fetch_docket_calctapp4d_div3(self, case_num: int) -> NavigatingRequest:
         """Generate a speculative request for 4th District, Division 3 (G prefix)."""
         return self._create_docket_request("calctapp4d_div3", case_num)
 
-    @speculate(highest_observed=90000, largest_observed_gap=20)
+    @entry(
+        CalAppellateDocket,
+        speculative=True,
+        highest_observed=90000,
+        largest_observed_gap=20,
+    )
     def fetch_docket_calctapp5d(self, case_num: int) -> NavigatingRequest:
         """Generate a speculative request for 5th District Court of Appeal (F prefix)."""
         return self._create_docket_request("calctapp5d", case_num)
 
-    @speculate(highest_observed=55000, largest_observed_gap=20)
+    @entry(
+        CalAppellateDocket,
+        speculative=True,
+        highest_observed=55000,
+        largest_observed_gap=20,
+    )
     def fetch_docket_calctapp6d(self, case_num: int) -> NavigatingRequest:
         """Generate a speculative request for 6th District Court of Appeal (H prefix)."""
         return self._create_docket_request("calctapp6d", case_num)

@@ -19,16 +19,10 @@ Data sources:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping
@@ -93,13 +87,13 @@ class ArizOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_id: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_id: str  # type: ignore[assignment]
     """Docket number (e.g., 'CR-24-0064-PR' for Supreme Court, '1 CA-CV 23-0123' for COA)"""
 
-    court_id: Annotated[str, SetFilter()]  # Required, searchable
+    court_id: str  # Required, searchable
     """Court identifier: 'ariz' (Supreme Court) or 'arizctapp' (Court of Appeals)"""
 
-    date_filed: Annotated[date, DateRange()]  # Required, searchable
+    date_filed: date  # Required, searchable
     """Filing date of the opinion"""
 
     # === Required fields from base ===

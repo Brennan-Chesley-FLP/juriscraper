@@ -398,6 +398,7 @@ class SQLManager:
         max_backoff_time: float,
         speculation_config: dict[str, dict[str, int]] | None = None,
         browser_config: dict[str, Any] | None = None,
+        seed_params: list[dict[str, dict[str, Any]]] | None = None,
     ) -> None:
         """Initialize run metadata in database.
 
@@ -412,6 +413,8 @@ class SQLManager:
                 {"threshold": int, "speculation": int} for speculative handling.
             browser_config: Optional dict with browser configuration for Playwright
                 driver (browser_type, headless, viewport, user_agent, etc.).
+            seed_params: Optional list of {entry_name: kwargs} dicts for
+                initial_seed() invocation. Stored for run resumability.
         """
         async with self._lock:
             cursor = await self._db.execute(SQL.SELECT_RUN_METADATA_BY_ID)
@@ -423,6 +426,7 @@ class SQLManager:
             browser_config_json = (
                 json.dumps(browser_config) if browser_config else None
             )
+            seed_params_json = json.dumps(seed_params) if seed_params else None
 
             if row is None:
                 # base_delay and jitter kept for schema compatibility but not used
@@ -437,6 +441,7 @@ class SQLManager:
                         max_backoff_time,
                         speculation_config_json,
                         browser_config_json,
+                        seed_params_json,
                     ),
                 )
                 await self._db.commit()
@@ -449,6 +454,20 @@ class SQLManager:
             or None if not configured.
         """
         cursor = await self._db.execute(SQL.SELECT_SPECULATION_CONFIG)
+        row = await cursor.fetchone()
+        if row and row[0]:
+            return json.loads(row[0])
+        return None
+
+    async def get_seed_params(
+        self,
+    ) -> list[dict[str, dict[str, Any]]] | None:
+        """Get the seed parameters for initial_seed() from run metadata.
+
+        Returns:
+            List of {entry_name: kwargs} dicts, or None if not stored.
+        """
+        cursor = await self._db.execute(SQL.SELECT_SEED_PARAMS)
         row = await cursor.fetchone()
         if row and row[0]:
             return json.loads(row[0])

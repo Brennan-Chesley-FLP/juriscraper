@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlencode, urljoin
 
 from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import step
+from juriscraper.scraper_driver.common.decorators import entry, step
 from juriscraper.scraper_driver.data_types import (
     ArchiveRequest,
     ArchiveResponse,
@@ -211,6 +211,7 @@ class VermontScraper(BaseScraper[VermontOpinionCluster]):
     # Entry Point
     # =========================================================================
 
+    @entry(VermontOpinionCluster)
     def get_entry(self) -> Generator[NavigatingRequest, None, None]:
         """Yield initial request to opinions search page."""
         requested = self._get_requested_data_types()

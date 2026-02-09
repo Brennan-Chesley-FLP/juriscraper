@@ -17,13 +17,14 @@ import logging
 from collections.abc import Awaitable, Callable, Generator
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 from urllib.parse import urlparse
 
 from typing_extensions import assert_never
 
 from juriscraper.scraper_driver.common.decorators import (
-    get_speculate_metadata,
+    SpeculateMetadata,
+    get_entry_metadata,
 )
 from juriscraper.scraper_driver.common.deferred_validation import (
     DeferredValidation,
@@ -245,13 +246,15 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
         self._speculation_lock = asyncio.Lock()
 
     def _discover_speculate_functions(self) -> dict[str, SpeculationState]:
-        """Discover @speculate functions on the scraper and initialize tracking state.
+        """Discover speculative functions on the scraper and initialize tracking state.
+
+        Finds methods decorated with @entry(speculative=True) and creates
+        SpeculationState for each.
 
         Returns:
             Dictionary mapping function names to their SpeculationState.
         """
         state: dict[str, SpeculationState] = {}
-        params = self.scraper.get_params()
 
         for name in dir(self.scraper):
             if name.startswith("_"):
@@ -259,32 +262,19 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
             func = getattr(self.scraper, name, None)
             if func is None:
                 continue
-            metadata = get_speculate_metadata(func)
-            if metadata is None:
-                continue
 
-            # Get config from params (or use empty config)
-            config = SpeculateFunctionConfig()
-            if params is not None:
-                try:
-                    from juriscraper.scraper_driver.common.searchable import (
-                        SpeculativeFunctionsProxy,
-                    )
-
-                    if isinstance(
-                        params.speculative, SpeculativeFunctionsProxy
-                    ):
-                        proxy = getattr(params.speculative, name, None)
-                        if proxy is not None:
-                            config = proxy.get_config()
-                except AttributeError:
-                    pass
-
-            state[name] = SpeculationState(
-                func_name=name,
-                metadata=metadata,
-                config=config,
-            )
+            entry_meta = get_entry_metadata(func)
+            if entry_meta is not None and entry_meta.speculative:
+                metadata = SpeculateMetadata(
+                    observation_date=entry_meta.observation_date,
+                    highest_observed=entry_meta.highest_observed,
+                    largest_observed_gap=entry_meta.largest_observed_gap,
+                )
+                state[name] = SpeculationState(
+                    func_name=name,
+                    metadata=metadata,
+                    config=SpeculateFunctionConfig(),
+                )
 
         return state
 
@@ -311,9 +301,9 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
             # Seed the queue
             async with self._queue_lock:
                 for id_value in range(start, end + 1):
-                    # The @speculate decorator sets is_speculative=True and
-                    # speculation_id=(func_name, id_value) automatically
                     request = func(id_value)
+                    # Ensure speculative fields are set
+                    request = request.speculative(func_name, id_value)
                     await self.request_queue.put(
                         (request.priority, self._queue_counter, request)
                     )
@@ -362,9 +352,9 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
                 for id_value in range(
                     spec_state.current_ceiling + 1, new_ceiling + 1
                 ):
-                    # The @speculate decorator sets is_speculative=True and
-                    # speculation_id=(func_name, id_value) automatically
                     request = func(id_value)
+                    # Ensure speculative fields are set
+                    request = request.speculative(func_name, id_value)
                     await self.request_queue.put(
                         (request.priority, self._queue_counter, request)
                     )
@@ -420,6 +410,32 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
                     if spec_state.consecutive_failures >= plus:
                         spec_state.stopped = True
 
+    def _get_entry_requests(
+        self,
+    ) -> Generator[NavigatingRequest, None, None]:
+        """Get initial entry requests from the scraper.
+
+        Builds default invocations from @entry-decorated methods and
+        dispatches them via initial_seed(). Falls back to calling
+        get_entry() directly for scrapers without @entry decorators.
+
+        Yields:
+            NavigatingRequest instances for queue initialization.
+        """
+        entries = self.scraper.list_entries()
+        if entries:
+            # Build default invocation: call each non-speculative @entry
+            # with no params (speculative entries are handled separately)
+            invocations: list[dict[str, dict[str, Any]]] = []
+            for entry_info in entries:
+                if not entry_info.speculative and not entry_info.param_types:
+                    invocations.append({entry_info.name: {}})
+            if invocations:
+                yield from self.scraper.initial_seed(invocations)
+                return
+        # Fall back to get_entry() for scrapers without @entry decorators
+        yield from self.scraper.get_entry()
+
     async def run(self) -> None:
         """Run the scraper starting from the scraper's entry point.
 
@@ -441,10 +457,10 @@ class AsyncDriver(Generic[ScraperReturnDatatype]):
             if self.stop_event and self.stop_event.is_set():
                 return
 
-            # Initialize priority queue with entry requests from get_entry generator
+            # Initialize priority queue with entry requests.
             self.request_queue = asyncio.PriorityQueue()
             self._queue_counter = 0
-            for entry_request in self.scraper.get_entry():
+            for entry_request in self._get_entry_requests():
                 await self.request_queue.put(
                     (
                         entry_request.priority,

@@ -26,8 +26,9 @@ class SQL:
         INSERT INTO run_metadata (
             id, scraper_name, scraper_version, status,
             base_delay, jitter, num_workers, max_backoff_time,
-            speculation_config_json, browser_config_json
-        ) VALUES (1, ?, ?, 'created', ?, ?, ?, ?, ?, ?)
+            speculation_config_json, browser_config_json,
+            seed_params_json
+        ) VALUES (1, ?, ?, 'created', ?, ?, ?, ?, ?, ?, ?)
     """
 
     UPDATE_SPECULATION_CONFIG = """
@@ -36,6 +37,10 @@ class SQL:
 
     SELECT_SPECULATION_CONFIG = """
         SELECT speculation_config_json FROM run_metadata WHERE id = 1
+    """
+
+    SELECT_SEED_PARAMS = """
+        SELECT seed_params_json FROM run_metadata WHERE id = 1
     """
 
     UPDATE_RUN_STATUS_RUNNING = """

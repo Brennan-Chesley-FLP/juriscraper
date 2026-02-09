@@ -19,16 +19,10 @@ Supported courts:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping from site court names to CourtListener IDs
@@ -104,13 +98,13 @@ class DelOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_number: Annotated[str, UniqueMatch()]
+    docket_number: str
     """Docket/file number (e.g., 'C.A. No. 2024-1022-BWD', '340, 2024')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier from CourtListener (e.g., 'del', 'delch', 'delsuperct')"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the opinion was filed/published"""
 
     # === Required fields from base ===

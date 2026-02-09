@@ -38,7 +38,7 @@ from typing import (
 from urllib.parse import quote, unquote, urljoin, urlparse, urlunparse
 
 if TYPE_CHECKING:
-    from juriscraper.scraper_driver.common.searchable import ScraperParams
+    pass
 
 # =============================================================================
 # Step 1: ParsedData
@@ -81,6 +81,30 @@ class StepInfo:
     name: str
     priority: int
     encoding: str
+
+
+@dataclass(frozen=True)
+class EntryInfo:
+    """Metadata about a scraper entry point method.
+
+    Used by list_entries() to expose entry point metadata including
+    return type, parameter types, and speculative flags.
+
+    Attributes:
+        name: The method name.
+        return_type: The data type this entry produces.
+        param_types: Mapping of parameter name to type.
+        speculative: Whether this is a speculative entry.
+        highest_observed: For speculative entries: highest known ID.
+        largest_observed_gap: For speculative entries: largest gap.
+    """
+
+    name: str
+    return_type: type
+    param_types: dict[str, type]
+    speculative: bool = False
+    highest_observed: int = 1
+    largest_observed_gap: int = 10
 
 
 class BaseScraper(Generic[ScraperReturnType]):
@@ -141,6 +165,54 @@ class BaseScraper(Generic[ScraperReturnType]):
     #         return ctx
     ssl_context: ClassVar[ssl.SSLContext | None] = None
 
+    def __init__(self, params: Any | None = None) -> None:
+        """Initialize the scraper with optional search parameters.
+
+        Args:
+            params: Parameters for the scraper. During migration to @entry,
+                this accepts the legacy ScraperParams or None.
+        """
+        self._params = params
+
+    def get_params(self) -> Any | None:
+        """Return the params instance for this scraper."""
+        return self._params
+
+    def get_entry(self) -> Generator[NavigatingRequest, None, None]:
+        """Create the initial request(s) to start scraping.
+
+        Subclasses should override this method (or use @entry decorators)
+        to yield their entry point(s) and initial continuation method(s).
+
+        Yields:
+            NavigatingRequest for each entry point.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement get_entry() "
+            f"or use @entry decorators"
+        )
+
+    @classmethod
+    def params(cls) -> Any:
+        """Build a params object for configuring scraper filters.
+
+        Returns a stub params object for backward compat during
+        migration to @entry decorators.
+        """
+
+        class _StubSpeculative:
+            def __setattr__(self, name: str, value: Any) -> None:
+                object.__setattr__(self, name, value)
+
+        class _StubParams:
+            def __init__(self) -> None:
+                self.speculative = _StubSpeculative()
+
+            def get_enabled_models(self) -> list[str]:
+                return []
+
+        return _StubParams()
+
     @classmethod
     def get_ssl_context(cls) -> ssl.SSLContext | None:
         """Return an SSL context for HTTPS connections, if needed.
@@ -160,56 +232,6 @@ class BaseScraper(Generic[ScraperReturnType]):
                 return ctx
         """
         return cls.ssl_context
-
-    def __init__(self, params: ScraperParams | None = None) -> None:
-        """Initialize the scraper with optional search parameters.
-
-        Args:
-            params: ScraperParams instance with search filters configured.
-                Build via MyScraper.params() and set filters like::
-
-                    params.MyModel.date_filed.gte = date(2024, 1, 1)
-                    params.MyModel.court_id.values = {"court1", "court2"}
-                    params.MyModel.docket_number.value = "2024-001"
-        """
-        self._params = params
-
-    def get_params(self) -> ScraperParams | None:
-        """Return the params instance for this scraper."""
-        return self._params
-
-    def get_entry(self) -> Generator[NavigatingRequest, None, None]:
-        """Create the initial request(s) to start scraping.
-
-        Subclasses should override this method to yield their entry
-        point(s) and initial continuation method(s). This is a generator
-        to allow scrapers that support multiple data types to yield
-        separate entry requests for each type.
-
-        Yields:
-            NavigatingRequest for each entry point.
-
-        Raises:
-            NotImplementedError: If the subclass doesn't override this method.
-
-        Example::
-
-            def get_entry(self) -> Generator[NavigatingRequest, None, None]:
-                # Yield separate requests for each data type
-                if self._should_scrape_opinions():
-                    yield NavigatingRequest(
-                        request=HTTPRequestParams(method=HttpMethod.GET, url=OPINIONS_URL),
-                        continuation=self.parse_opinions_index,
-                    )
-                if self._should_scrape_dockets():
-                    yield NavigatingRequest(
-                        request=HTTPRequestParams(method=HttpMethod.GET, url=DOCKETS_URL),
-                        continuation=self.parse_dockets_index,
-                    )
-        """
-        raise NotImplementedError(
-            f"{self.__class__.__name__} must implement get_entry()"
-        )
 
     def get_continuation(
         self, name: str
@@ -240,44 +262,6 @@ class BaseScraper(Generic[ScraperReturnType]):
             ],
             method,
         )
-
-    @classmethod
-    def params(cls) -> ScraperParams:
-        """Build a params object for configuring scraper filters.
-
-        Introspects the scraper's generic type parameter(s) to find data
-        models, then creates a params container with filter proxies for
-        each model's searchable fields.
-
-        Searchable fields are annotated in Pydantic models using
-        typing.Annotated with DateRange, SetFilter, or UniqueMatch markers.
-
-        Example:
-            from typing import Annotated
-
-            class CaseData(ScrapedData):
-                date_filed: Annotated[date, DateRange()]
-                case_type: Annotated[str, SetFilter()]
-
-            class MyScraper(BaseScraper[CaseData]):
-                ...
-
-            # Build params and set filters
-            params = MyScraper.params()
-            params.CaseData.date_filed.gte = date(2024, 1, 1)
-            params.CaseData.case_type.values = {"civil", "criminal"}
-
-            # Disable a data type entirely
-            params.CaseData = None
-
-        Returns:
-            A ScraperParams instance with model proxies for each data type.
-        """
-        from juriscraper.scraper_driver.common.searchable import (
-            build_params_for_scraper,
-        )
-
-        return build_params_for_scraper(cls)
 
     @classmethod
     def list_steps(cls) -> list[StepInfo]:
@@ -331,18 +315,18 @@ class BaseScraper(Generic[ScraperReturnType]):
     def list_speculators(
         cls,
     ) -> list[tuple[str, int, date | None, int]]:
-        """List all speculate functions defined on this scraper.
+        """List all speculative entry functions defined on this scraper.
 
-        Introspects the class to find all methods decorated with @speculate
-        and returns their metadata.
+        Introspects the class to find all methods decorated with
+        @entry(speculative=True) and returns their metadata.
 
         Returns:
             List of tuples containing (name, highest_observed, observation_date, largest_observed_gap)
-            for each decorated speculate function.
+            for each speculative entry function.
 
         Example:
             >>> class MyScraper(BaseScraper[CaseData]):
-            ...     @speculate(highest_observed=500, largest_observed_gap=20)
+            ...     @entry(CaseData, speculative=True, highest_observed=500, largest_observed_gap=20)
             ...     def fetch_case(self, case_id: int) -> NavigatingRequest:
             ...         return NavigatingRequest(...)
             ...
@@ -350,7 +334,7 @@ class BaseScraper(Generic[ScraperReturnType]):
             [('fetch_case', 500, None, 20)]
         """
         from juriscraper.scraper_driver.common.decorators import (
-            get_speculate_metadata,
+            get_entry_metadata,
         )
 
         speculators = []
@@ -359,8 +343,8 @@ class BaseScraper(Generic[ScraperReturnType]):
                 continue
             try:
                 method = getattr(cls, name)
-                metadata = get_speculate_metadata(method)
-                if metadata is not None:
+                metadata = get_entry_metadata(method)
+                if metadata is not None and metadata.speculative:
                     speculators.append(
                         (
                             name,
@@ -372,6 +356,180 @@ class BaseScraper(Generic[ScraperReturnType]):
             except Exception:
                 continue
         return speculators
+
+    @classmethod
+    def list_entries(cls) -> list[EntryInfo]:
+        """List all entry point methods defined on this scraper.
+
+        Introspects the class to find all methods decorated with @entry
+        and returns their metadata.
+
+        Returns:
+            List of EntryInfo objects for each decorated entry method.
+        """
+        from juriscraper.scraper_driver.common.decorators import (
+            get_entry_metadata,
+        )
+
+        entries = []
+        for name in dir(cls):
+            if name.startswith("_"):
+                continue
+            try:
+                method = getattr(cls, name)
+                metadata = get_entry_metadata(method)
+                if metadata is not None:
+                    entries.append(
+                        EntryInfo(
+                            name=metadata.func_name,
+                            return_type=metadata.return_type,
+                            param_types=metadata.param_types,
+                            speculative=metadata.speculative,
+                            highest_observed=metadata.highest_observed,
+                            largest_observed_gap=metadata.largest_observed_gap,
+                        )
+                    )
+            except Exception:
+                continue
+        return entries
+
+    def _list_entry_info(
+        self,
+    ) -> list[tuple[Any, Any]]:
+        """List entry methods with their metadata for dispatch.
+
+        Returns:
+            List of (bound_method, EntryMetadata) tuples.
+        """
+        from juriscraper.scraper_driver.common.decorators import (
+            get_entry_metadata,
+        )
+
+        entries = []
+        for name in dir(self):
+            if name.startswith("_"):
+                continue
+            try:
+                method = getattr(self, name)
+                metadata = get_entry_metadata(method)
+                if metadata is not None:
+                    entries.append((method, metadata))
+            except Exception:
+                continue
+        return entries
+
+    def initial_seed(
+        self, params: list[dict[str, dict[str, Any]]]
+    ) -> Generator[NavigatingRequest, None, None]:
+        """Dispatch parameter list to entry functions and yield combined requests.
+
+        Takes a JSON-serializable list of parameter invocations and dispatches
+        them to the appropriate @entry functions.
+
+        Args:
+            params: List of single-key dicts mapping entry function name to kwargs.
+                Example: [{"search_by_number": {"docket_number": "A10"}}]
+
+        Yields:
+            NavigatingRequest instances from each dispatched entry function.
+
+        Raises:
+            ValueError: If params is empty/None or references unknown entry names.
+        """
+        if not params:
+            raise ValueError(
+                "initial_seed() requires at least one parameter invocation"
+            )
+
+        entry_map = {
+            info.func_name: (method, info)
+            for method, info in self._list_entry_info()
+        }
+
+        for invocation in params:
+            for func_name, kwargs_dict in invocation.items():
+                if func_name not in entry_map:
+                    available = list(entry_map.keys())
+                    raise ValueError(
+                        f"Unknown entry '{func_name}'. Available: {available}"
+                    )
+                method, meta = entry_map[func_name]
+                validated_kwargs = meta.validate_params(kwargs_dict)
+                yield from method(**validated_kwargs)
+
+    @classmethod
+    def schema(cls) -> dict[str, Any]:
+        """Generate JSON Schema for all entry points.
+
+        Returns a dict using Pydantic's model_json_schema() for BaseModel
+        parameters and standard JSON Schema types for primitives.
+
+        Returns:
+            Dict with scraper name, entries, and $defs for referenced models.
+        """
+        from pydantic import BaseModel as PydanticBaseModel
+
+        entries: dict[str, Any] = {}
+        all_defs: dict[str, Any] = {}
+
+        for entry_info in cls.list_entries():
+            # Build parameter schema
+            properties: dict[str, Any] = {}
+            required: list[str] = []
+
+            for param_name, param_type in entry_info.param_types.items():
+                required.append(param_name)
+
+                if isinstance(param_type, type) and issubclass(
+                    param_type, PydanticBaseModel
+                ):
+                    # Use Pydantic's schema generation
+                    pydantic_type = cast(type[PydanticBaseModel], param_type)
+                    model_schema = pydantic_type.model_json_schema()
+                    # Extract $defs and add to top-level
+                    if "$defs" in model_schema:
+                        all_defs.update(model_schema["$defs"])
+                        del model_schema["$defs"]
+                    # Store the model definition
+                    type_name = param_type.__name__
+                    all_defs[type_name] = model_schema
+                    properties[param_name] = {"$ref": f"#/$defs/{type_name}"}
+                elif param_type is str:
+                    properties[param_name] = {"type": "string"}
+                elif param_type is int:
+                    properties[param_name] = {"type": "integer"}
+                elif param_type is date:
+                    properties[param_name] = {
+                        "type": "string",
+                        "format": "date",
+                    }
+
+            entry_schema: dict[str, Any] = {
+                "returns": entry_info.return_type.__name__,
+                "speculative": entry_info.speculative,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                },
+            }
+
+            if entry_info.speculative:
+                entry_schema["highest_observed"] = entry_info.highest_observed
+                entry_schema["largest_observed_gap"] = (
+                    entry_info.largest_observed_gap
+                )
+
+            entries[entry_info.name] = entry_schema
+
+        result: dict[str, Any] = {
+            "scraper": cls.__name__,
+            "entries": entries,
+        }
+        if all_defs:
+            result["$defs"] = all_defs
+
+        return result
 
     def fails_successfully(self, response: Response) -> bool:
         """Detect hidden error states in successful HTTP responses.

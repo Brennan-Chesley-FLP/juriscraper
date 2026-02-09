@@ -20,7 +20,7 @@ Supported courts:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, TypedDict
+from typing import TypedDict
 
 from juriscraper.scraper_driver.common.models.base import (
     Audio,
@@ -28,12 +28,6 @@ from juriscraper.scraper_driver.common.models.base import (
     DocketEntry,
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    SpeculativeID,
-    UniqueMatch,
 )
 
 # Court ID mapping
@@ -122,13 +116,13 @@ class AlaOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Case number (e.g., 'SC-2023-0123')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'ala', 'alactapp', or 'alacrimapp'"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the opinion was filed/published (from release list scheduled date)"""
 
     # === Required fields ===
@@ -184,13 +178,13 @@ class AlaOralArgument(Audio):
     """
 
     # === Searchable fields ===
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Case number"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'ala', 'alactapp', or 'alacrimapp'"""
 
-    date_argued: Annotated[date, DateRange()]
+    date_argued: date
     """Date the oral argument is/was scheduled"""
 
     # === Required fields ===
@@ -249,16 +243,16 @@ class AlaDocket(Docket):
     """
 
     # === Searchable fields ===
-    case_instance_uuid: Annotated[str, SpeculativeID()]
+    case_instance_uuid: str
     """Case instance UUID - the unique identifier for the case"""
 
-    case_number: Annotated[str, UniqueMatch()]
+    case_number: str
     """Case number (e.g., 'SC-2023-0123')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'ala', 'alactapp', or 'alacrimapp'"""
 
-    date_filed: Annotated[date | None, DateRange()] = None
+    date_filed: date | None = None
     """Date the case was filed"""
 
     # === Required fields ===
@@ -314,10 +308,10 @@ class AlaHistoricalReleaseList(OpinionCluster):
     """
 
     # === Searchable fields ===
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'ala', 'alactapp', or 'alacrimapp'"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the release list was published (the Friday of release)"""
 
     # === Required fields ===

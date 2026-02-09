@@ -20,16 +20,10 @@ from __future__ import annotations
 
 from datetime import date
 from enum import Enum
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 
@@ -78,13 +72,13 @@ class MNOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    docket_id: Annotated[str, UniqueMatch()]  # type: ignore[assignment]
+    docket_id: str  # type: ignore[assignment]
     """Docket number (e.g., 'A25-0268')"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'minn' or 'minnctapp'"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Release date of the opinion"""
 
     # === Required fields from base ===

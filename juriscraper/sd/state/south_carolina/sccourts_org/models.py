@@ -24,16 +24,10 @@ Opinion URL patterns:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
-    UniqueMatch,
 )
 
 # Court ID mapping
@@ -84,13 +78,13 @@ class SCOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    opinion_number: Annotated[str, UniqueMatch()]
+    opinion_number: str
     """Opinion number (e.g., '28309' for SC, '6128' for COA) - unique identifier"""
 
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'sc' or 'scctapp'"""
 
-    date_filed: Annotated[date, DateRange()]
+    date_filed: date
     """Date the opinion was filed/published"""
 
     # === Required fields ===

@@ -19,15 +19,10 @@ Plus 15 intermediate Courts of Appeals.
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
 
 from juriscraper.scraper_driver.common.models.base import (
     Opinion,
     OpinionCluster,
-)
-from juriscraper.scraper_driver.common.searchable import (
-    DateRange,
-    SetFilter,
 )
 
 # Court codes used on search.txcourts.gov
@@ -129,10 +124,10 @@ class TexasOpinionCluster(OpinionCluster):
     """
 
     # === Searchable fields ===
-    court_id: Annotated[str, SetFilter()]
+    court_id: str
     """Court identifier: 'tex', 'texcrimapp', 'texapp'"""
 
-    date_decided: Annotated[date | None, DateRange()] = None
+    date_decided: date | None = None
     """Date the opinion was decided/filed"""
 
     # === Required fields ===

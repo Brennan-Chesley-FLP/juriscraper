@@ -10,7 +10,7 @@ This module provides endpoints for:
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -41,32 +41,6 @@ class RunListResponse(BaseModel):
     total: int
 
 
-class ParamsFieldData(BaseModel):
-    """Filter data for a single field."""
-
-    gte: str | None = None  # For DateRange
-    lte: str | None = None  # For DateRange
-    values: list[str] | None = None  # For SetFilter
-    value: str | None = None  # For UniqueMatch
-
-
-class ParamsModelData(BaseModel):
-    """Configuration for a single data model."""
-
-    enabled: bool = True
-    fields: dict[str, ParamsFieldData] = Field(default_factory=dict)
-
-
-class ParamsData(BaseModel):
-    """Full parameter configuration."""
-
-    models: dict[str, ParamsModelData] = Field(default_factory=dict)
-    speculative: dict[str, int] = Field(
-        default_factory=dict,
-        description="Starting IDs for speculative steps (step_name -> start_id)",
-    )
-
-
 class SpeculationStepConfig(BaseModel):
     """Speculation configuration for a single step."""
 
@@ -87,8 +61,9 @@ class CreateRunRequest(BaseModel):
     scraper_path: str = Field(
         ..., description="Full scraper path (module.path:ClassName)"
     )
-    params: ParamsData | None = Field(
-        default=None, description="Optional scraper parameters"
+    seed_params: list[dict[str, dict[str, Any]]] | None = Field(
+        default=None,
+        description="Parameter invocations for initial_seed() [{entry_name: kwargs}, ...]",
     )
     speculation_config: dict[str, SpeculationStepConfig] | None = Field(
         default=None,
@@ -303,30 +278,8 @@ async def create_run(
             detail=f"Scraper '{request.scraper_path}' not found",
         )
 
-    # Convert params to dict format for registry
-    params_data = None
-    if request.params:
-        params_data = {
-            "models": {
-                model_name: {
-                    "enabled": model_data.enabled,
-                    "fields": {
-                        field_name: {
-                            "gte": field_data.gte,
-                            "lte": field_data.lte,
-                            "values": field_data.values,
-                            "value": field_data.value,
-                        }
-                        for field_name, field_data in model_data.fields.items()
-                    },
-                }
-                for model_name, model_data in request.params.models.items()
-            },
-            "speculative": request.params.speculative,
-        }
-
-    # Instantiate scraper with parameters
-    scraper = registry.instantiate_scraper(request.scraper_path, params_data)
+    # Instantiate scraper (params passed via initial_seed() at runtime)
+    scraper = registry.instantiate_scraper(request.scraper_path)
     if scraper is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -54,7 +54,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from juriscraper.scraper_driver.data_types import BaseScraper
+    from kent.data_types import BaseScraper
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ def find_scraper(
     Returns:
         Tuple of (scraper_class, full_path) or None if not found.
     """
-    from juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry import (
+    from kent.driver.dev_driver.web.scraper_registry import (
         init_registry,
     )
 
@@ -170,7 +170,7 @@ def find_scraper(
 
 def list_scrapers() -> None:
     """List all available scrapers."""
-    from juriscraper.scraper_driver.driver.dev_driver.web.scraper_registry import (
+    from kent.driver.dev_driver.web.scraper_registry import (
         init_registry,
     )
 
@@ -220,7 +220,7 @@ def create_speculation_callback(
         Tuple of (callback, counter_dict) where counter_dict tracks approvals
         per speculative_id.
     """
-    from juriscraper.scraper_driver.data_types import Response
+    from kent.data_types import Response
 
     # Track how many times we've approved each speculative_id >= threshold
     approval_counts: dict[int, int] = {}
@@ -311,7 +311,7 @@ async def run_scraper(
     Returns:
         Exit code.
     """
-    from juriscraper.scraper_driver.driver.async_driver import AsyncDriver
+    from kent.driver.async_driver import AsyncDriver
 
     # Find the scraper
     result = find_scraper(scraper_name)

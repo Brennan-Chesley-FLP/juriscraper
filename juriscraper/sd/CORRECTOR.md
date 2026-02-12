@@ -59,5 +59,5 @@ After converting to `json_content`, check for and remove unnecessary imports:
 ```python
 # Remove if no longer needed:
 import json
-from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
+from kent.common.checked_html import CheckedHtmlElement
 ```

@@ -355,7 +355,7 @@ Here's the complete Step 4 scraper:
 
     from lxml import html
 
-    from juriscraper.scraper_driver.data_types import (
+    from kent.data_types import (
         ArchiveRequest,
         ArchiveResponse,
         BaseScraper,
@@ -511,7 +511,7 @@ Example: Using the Driver
 
     from pathlib import Path
 
-    from juriscraper.scraper_driver.driver.sync_driver import SyncDriver
+    from kent.driver.sync_driver import SyncDriver
     from tests.scraper_driver.scraper.example.bug_court import (
         BugCourtScraperWithArchive,
     )

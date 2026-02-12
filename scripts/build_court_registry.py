@@ -30,11 +30,10 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import tomli_w  # noqa: E402
-
-from juriscraper.scraper_driver.common.models.base import (  # noqa: E402
+from kent.common.models.base import (  # noqa: E402
     ConsumerModel,
 )
-from juriscraper.scraper_driver.data_types import BaseScraper  # noqa: E402
+from kent.data_types import BaseScraper  # noqa: E402
 
 
 def get_return_type_info(scraper_class: type) -> dict[str, str | list[str]]:

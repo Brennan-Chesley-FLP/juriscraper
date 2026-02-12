@@ -20,15 +20,14 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel
-
-from juriscraper.scraper_driver.common.models.base import (
+from kent.common.models.base import (
     Audio,
     Docket,
     DocketEntry,
     Opinion,
     OpinionCluster,
 )
+from pydantic import BaseModel
 
 # Court ID mapping
 COURT_IDS = {

@@ -142,7 +142,7 @@ Basic Usage
 .. code-block:: python
 
     from lxml import html
-    from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
+    from kent.common.checked_html import CheckedHtmlElement
 
     # Wrap the lxml element
     tree = CheckedHtmlElement(
@@ -284,8 +284,8 @@ Here's how the Bug Court scraper uses CheckedHtmlElement:
 .. code-block:: python
 
     from lxml import html
-    from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-    from juriscraper.scraper_driver.data_types import Response, ParsedData
+    from kent.common.checked_html import CheckedHtmlElement
+    from kent.data_types import Response, ParsedData
 
     class BugCourtScraper(BaseScraper[dict]):
         """Bug Court scraper with structural validation."""
@@ -345,8 +345,8 @@ Basic Usage
 
 .. code-block:: python
 
-    from juriscraper.scraper_driver.driver.sync_driver import SyncDriver
-    from juriscraper.scraper_driver.common.exceptions import (
+    from kent.driver.sync_driver import SyncDriver
+    from kent.common.exceptions import (
         HTMLStructuralAssumptionException
     )
 

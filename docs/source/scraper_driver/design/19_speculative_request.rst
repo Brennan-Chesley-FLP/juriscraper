@@ -18,7 +18,7 @@ The driver calls these functions with incrementing IDs, tracking successes and f
 
 .. code-block:: python
 
-    from juriscraper.scraper_driver.common.decorators import speculate
+    from kent.common.decorators import speculate
 
     class MyScraper(BaseScraper[CaseData]):
         @speculate(highest_observed=500, largest_observed_gap=20)

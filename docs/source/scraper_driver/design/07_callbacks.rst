@@ -103,8 +103,8 @@ Here's a complete example using callbacks for multiple purposes:
 .. code-block:: python
 
     from pathlib import Path
-    from juriscraper.scraper_driver.driver.sync_driver import SyncDriver
-    from juriscraper.scraper_driver.driver.callbacks import (
+    from kent.driver.sync_driver import SyncDriver
+    from kent.driver.callbacks import (
         combine_callbacks,
         save_to_jsonl_file,
         count_data,

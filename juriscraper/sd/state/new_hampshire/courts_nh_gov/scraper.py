@@ -26,9 +26,9 @@ import re
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from juriscraper.scraper_driver.common.checked_html import CheckedHtmlElement
-from juriscraper.scraper_driver.common.decorators import entry, step
-from juriscraper.scraper_driver.data_types import (
+from kent.common.checked_html import CheckedHtmlElement
+from kent.common.decorators import entry, step
+from kent.data_types import (
     ArchiveRequest,
     ArchiveResponse,
     BaseScraper,
@@ -48,7 +48,7 @@ from .models import (
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from juriscraper.scraper_driver.data_types import ScraperYield
+    from kent.data_types import ScraperYield
 
 
 # Base URL for opinion year pages

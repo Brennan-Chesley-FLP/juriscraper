@@ -233,7 +233,7 @@ Here's the complete Step 6 scraper:
     from collections.abc import Generator
     from lxml import html
 
-    from juriscraper.scraper_driver.data_types import (
+    from kent.data_types import (
         ArchiveRequest,
         ArchiveResponse,
         BaseScraper,

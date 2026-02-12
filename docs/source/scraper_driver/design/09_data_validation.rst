@@ -100,7 +100,7 @@ type checking that does what we'd like without extraordinary measures.
 
 .. code-block:: python
 
-    from juriscraper.scraper_driver.common.data_models import ScrapedData
+    from kent.common.data_models import ScrapedData
 
     class BugCourtCaseData(ScrapedData):
         """Data model inheriting from ScrapedData for deferred validation."""
@@ -208,7 +208,7 @@ validation errors at the error level:
 
 .. code-block:: python
 
-    from juriscraper.scraper_driver.driver.sync_driver import (
+    from kent.driver.sync_driver import (
         SyncDriver,
         log_and_validate_invalid_data,
     )
@@ -238,7 +238,7 @@ Basic Usage
 
 .. code-block:: python
 
-    from juriscraper.scraper_driver.common.data_models import ScrapedData
+    from kent.common.data_models import ScrapedData
 
     class CaseData(ScrapedData):
         docket: str
@@ -271,7 +271,7 @@ Here's the complete Bug Court scraper with deferred data validation:
 
     from datetime import date
     from pydantic import Field, HttpUrl
-    from juriscraper.scraper_driver.common.data_models import ScrapedData
+    from kent.common.data_models import ScrapedData
 
     # Data model defined in scraper (not imported)
     class BugCourtCaseData(ScrapedData):

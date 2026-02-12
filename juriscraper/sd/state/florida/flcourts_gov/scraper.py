@@ -17,8 +17,8 @@ from collections.abc import Generator
 from datetime import date, datetime
 from typing import TYPE_CHECKING, ClassVar
 
-from juriscraper.scraper_driver.common.decorators import entry, step
-from juriscraper.scraper_driver.data_types import (
+from kent.common.decorators import entry, step
+from kent.data_types import (
     ArchiveRequest,
     BaseScraper,
     HttpMethod,
@@ -36,7 +36,7 @@ from .models import (
 )
 
 if TYPE_CHECKING:
-    from juriscraper.scraper_driver.data_types import (
+    from kent.data_types import (
         ArchiveResponse,
         ScraperYield,
     )

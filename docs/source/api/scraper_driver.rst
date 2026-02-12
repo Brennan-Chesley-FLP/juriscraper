@@ -13,7 +13,7 @@ Data Types
 
 Core data types including request types, parsed data, and the base scraper class.
 
-.. automodule:: juriscraper.scraper_driver.data_types
+.. automodule:: kent.data_types
    :members:
    :undoc-members:
    :show-inheritance:
@@ -24,7 +24,7 @@ Common Utilities
 Base Classes and Models
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: juriscraper.scraper_driver.common.models.base
+.. automodule:: kent.common.models.base
    :members:
    :undoc-members:
    :show-inheritance:
@@ -34,7 +34,7 @@ Decorators
 
 The ``@step`` decorator for defining scraper parsing steps.
 
-.. automodule:: juriscraper.scraper_driver.common.decorators
+.. automodule:: kent.common.decorators
    :members:
    :undoc-members:
    :show-inheritance:
@@ -42,7 +42,7 @@ The ``@step`` decorator for defining scraper parsing steps.
 Exceptions
 ~~~~~~~~~~
 
-.. automodule:: juriscraper.scraper_driver.common.exceptions
+.. automodule:: kent.common.exceptions
    :members:
    :undoc-members:
    :show-inheritance:
@@ -52,7 +52,7 @@ Checked HTML
 
 Validated HTML element wrapper for safe XPath operations.
 
-.. automodule:: juriscraper.scraper_driver.common.checked_html
+.. automodule:: kent.common.checked_html
    :members:
    :undoc-members:
    :show-inheritance:
@@ -62,7 +62,7 @@ Searchable Annotations
 
 Field annotations for search and filter capabilities.
 
-.. automodule:: juriscraper.scraper_driver.common.searchable
+.. automodule:: kent.common.searchable
    :members:
    :undoc-members:
    :show-inheritance:
@@ -70,7 +70,7 @@ Field annotations for search and filter capabilities.
 Request Manager
 ~~~~~~~~~~~~~~~
 
-.. automodule:: juriscraper.scraper_driver.common.request_manager
+.. automodule:: kent.common.request_manager
    :members:
    :undoc-members:
    :show-inheritance:
@@ -78,7 +78,7 @@ Request Manager
 Deferred Validation
 ~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: juriscraper.scraper_driver.common.deferred_validation
+.. automodule:: kent.common.deferred_validation
    :members:
    :undoc-members:
    :show-inheritance:
@@ -86,7 +86,7 @@ Deferred Validation
 XPath Observer
 ~~~~~~~~~~~~~~
 
-.. automodule:: juriscraper.scraper_driver.common.xpath_observer
+.. automodule:: kent.common.xpath_observer
    :members:
    :undoc-members:
    :show-inheritance:
@@ -99,7 +99,7 @@ Driver implementations that handle I/O operations.
 Async Driver
 ~~~~~~~~~~~~
 
-.. automodule:: juriscraper.scraper_driver.driver.async_driver
+.. automodule:: kent.driver.async_driver
    :members:
    :undoc-members:
    :show-inheritance:
@@ -107,7 +107,7 @@ Async Driver
 Sync Driver
 ~~~~~~~~~~~
 
-.. automodule:: juriscraper.scraper_driver.driver.sync_driver
+.. automodule:: kent.driver.sync_driver
    :members:
    :undoc-members:
    :show-inheritance:
@@ -115,7 +115,7 @@ Sync Driver
 Playwright Driver
 ~~~~~~~~~~~~~~~~~
 
-.. automodule:: juriscraper.scraper_driver.driver.playwright_driver
+.. automodule:: kent.driver.playwright_driver
    :members:
    :undoc-members:
    :show-inheritance:
@@ -123,7 +123,7 @@ Playwright Driver
 Callbacks
 ~~~~~~~~~
 
-.. automodule:: juriscraper.scraper_driver.driver.callbacks
+.. automodule:: kent.driver.callbacks
    :members:
    :undoc-members:
    :show-inheritance:
@@ -133,24 +133,24 @@ Development Driver
 
 The development driver provides debugging and testing capabilities.
 
-.. automodule:: juriscraper.scraper_driver.driver.dev_driver.dev_driver
+.. automodule:: kent.driver.dev_driver.dev_driver
    :members:
    :undoc-members:
    :show-inheritance:
    :no-index:
 
-.. automodule:: juriscraper.scraper_driver.driver.dev_driver.schema
+.. automodule:: kent.driver.dev_driver.schema
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: juriscraper.scraper_driver.driver.dev_driver.errors
+.. automodule:: kent.driver.dev_driver.errors
    :members:
    :undoc-members:
    :show-inheritance:
    :no-index:
 
-.. automodule:: juriscraper.scraper_driver.driver.dev_driver.speculation
+.. automodule:: kent.driver.dev_driver.speculation
    :members:
    :undoc-members:
    :show-inheritance:

@@ -171,7 +171,7 @@ scraper = AlabamaScraper(params=params)
 
 ### Models
 
-All models in `models.py` extend base types from `juriscraper.scraper_driver.common.models.base`:
+All models in `models.py` extend base types from `kent.common.models.base`:
 
 - `AlaOpinionCluster` → `OpinionCluster`
 - `AlaOpinion` → `Opinion`

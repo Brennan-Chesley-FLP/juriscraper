@@ -37,7 +37,7 @@ Every scraper should define these class variables for documentation:
     from datetime import date
     from typing import ClassVar
 
-    from juriscraper.scraper_driver.data_types import BaseScraper, ScraperStatus
+    from kent.data_types import BaseScraper, ScraperStatus
 
 
     class MyScraper(BaseScraper[MyDataModel]):
@@ -112,7 +112,7 @@ specialized subclasses. This provides:
 
 .. code-block:: python
 
-    from juriscraper.scraper_driver.common.models.base import (
+    from kent.common.models.base import (
         ConsumerModel,  # Abstract base for all data
         Docket,         # Case/docket metadata
         DocketEntry,    # Individual filings within a docket
@@ -126,7 +126,7 @@ specialized subclasses. This provides:
 .. code-block:: python
 
     from pydantic import Field
-    from juriscraper.scraper_driver.common.models.base import Docket, DocketEntry
+    from kent.common.models.base import Docket, DocketEntry
 
 
     class BugCourtDocket(Docket):
@@ -178,8 +178,8 @@ This enables:
 
     from pydantic import Field
 
-    from juriscraper.scraper_driver.common.models.base import Docket
-    from juriscraper.scraper_driver.common.searchable import (
+    from kent.common.models.base import Docket
+    from kent.common.searchable import (
         DateRange,      # gte/lte date bounds
         SetFilter,      # Set of allowed values
         UniqueMatch,    # Exact single value match

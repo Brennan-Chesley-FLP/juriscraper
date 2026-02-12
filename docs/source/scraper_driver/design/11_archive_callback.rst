@@ -59,7 +59,7 @@ The ``default_archive_callback`` function provides a standard file saving behavi
 
 .. code-block:: python
 
-    from juriscraper.scraper_driver.driver.sync_driver import (
+    from kent.driver.sync_driver import (
         default_archive_callback,
     )
 

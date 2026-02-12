@@ -200,7 +200,7 @@ Annotations for filterable parameters:
 
 ```python
 from typing import Annotated
-from juriscraper.scraper_driver.common.searchable import DateRange, SetFilter, UniqueMatch
+from kent.common.searchable import DateRange, SetFilter, UniqueMatch
 
 class CaseData(ScrapedData):
     date_filed: Annotated[date, DateRange()]

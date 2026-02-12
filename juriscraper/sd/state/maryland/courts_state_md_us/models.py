@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from juriscraper.scraper_driver.common.models.base import (
+from kent.common.models.base import (
     Opinion,
     OpinionCluster,
 )

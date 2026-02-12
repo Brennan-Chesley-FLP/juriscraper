@@ -51,12 +51,12 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
-from juriscraper.scraper_driver.common.decorators import entry, step
-from juriscraper.scraper_driver.common.exceptions import (
+from kent.common.decorators import entry, step
+from kent.common.exceptions import (
     HTMLStructuralAssumptionException,
 )
-from juriscraper.scraper_driver.common.page_element import PageElement
-from juriscraper.scraper_driver.data_types import (
+from kent.common.page_element import PageElement
+from kent.data_types import (
     ArchiveRequest,
     ArchiveResponse,
     BaseScraper,
@@ -87,7 +87,7 @@ from .models import (
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from juriscraper.scraper_driver.data_types import ScraperYield
+    from kent.data_types import ScraperYield
 
 
 # Court configuration for opinions

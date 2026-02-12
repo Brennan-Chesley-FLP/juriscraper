@@ -370,7 +370,7 @@ Here's the complete Step 3 scraper:
 
     from lxml import html
 
-    from juriscraper.scraper_driver.data_types import (
+    from kent.data_types import (
         BaseScraper,
         HttpMethod,
         HTTPRequestParams,
@@ -528,7 +528,7 @@ Example: Using the Driver
 
 .. code-block:: python
 
-    from juriscraper.scraper_driver.driver.sync_driver import SyncDriver
+    from kent.driver.sync_driver import SyncDriver
     from tests.scraper_driver.scraper.example.bug_court import BugCourtScraperWithAPI
 
     # Create scraper and driver

@@ -141,7 +141,7 @@ Use `typing.Annotated` with markers from `searchable.py` to enable filtering:
 
 ```python
 from typing import Annotated
-from juriscraper.scraper_driver.common.searchable import (
+from kent.common.searchable import (
     DateRange,    # Filter by date range (gte/lte)
     SetFilter,    # Filter by set of allowed values
     UniqueMatch,  # Filter by exact single value
@@ -511,10 +511,10 @@ The LocalDevDriver web interface provides:
 
 ```bash
 # Start the web interface
-uv run python -m juriscraper.scraper_driver.driver.dev_driver.run --serve --port 8001
+uv run python -m kent.driver.dev_driver.run --serve --port 8001
 
 # With reload for development
-uv run uvicorn juriscraper.scraper_driver.driver.dev_driver.web.app:app --reload --port 8001
+uv run uvicorn kent.driver.dev_driver.web.app:app --reload --port 8001
 ```
 
 Then visit http://127.0.0.1:8001
@@ -779,7 +779,7 @@ def search_by_date_range(self, lxml_tree):
 Some sites only allow search by docket number or case ID, with no date-based filtering. When that's the case, use the `@speculate` decorator to enumerate potential cases:
 
 ```python
-from juriscraper.scraper_driver.common.decorators import speculate
+from kent.common.decorators import speculate
 
 class MyScraper(BaseScraper[MyCase]):
 

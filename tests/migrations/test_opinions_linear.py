@@ -644,7 +644,7 @@ def run_old_scraper(scraper: Any) -> list[OldScraperResult]:
 
 async def run_new_scraper(scraper: Any) -> list[Any]:
     """Run a BaseScraper and collect results."""
-    from juriscraper.scraper_driver.driver.async_driver import AsyncDriver
+    from kent.driver.async_driver import AsyncDriver
 
     results: list[Any] = []
 

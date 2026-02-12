@@ -35,6 +35,7 @@ classifiers = [
 urls.Repository = "https://github.com/freelawproject/juriscraper"
 
 dependencies = [
+  "kent[dev-driver,playwright,web]",
   "certifi>=2017.4.17",
   "chardet>=3.0.2",
   "charset-normalizer>=3.1.0",
@@ -56,8 +57,8 @@ dependencies = [
   "typing-extensions>=4.0.0",
 ]
 
-[project.scripts]
-ldd-debug = "juriscraper.scraper_driver.driver.dev_driver.cli:main"
+[tool.uv.sources]
+kent = { path = "../kent" }
 
 [dependency-groups]
 dev = [

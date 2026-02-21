@@ -1,6 +1,6 @@
 """Data models for Oregon appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Oregon Supreme Court and Court of Appeals opinions from the
 State of Oregon Law Library's CONTENTdm digital collection.
 

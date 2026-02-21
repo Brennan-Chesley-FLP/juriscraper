@@ -1,6 +1,6 @@
 """Data models for Delaware courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Delaware court opinion data.
 
 Mapping to base.py types:

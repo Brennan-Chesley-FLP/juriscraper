@@ -1,6 +1,6 @@
 """Data models for South Dakota Supreme Court scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 South Dakota Supreme Court opinions.
 
 Mapping to base.py types:

@@ -21,7 +21,7 @@ Overview
 This step introduces:
 
 1. **BaseScraper ClassVars** - Standardized metadata fields for autodoc
-2. **ConsumerModel hierarchy** - Common base classes for return types
+2. **Model hierarchy** - Common base classes for return types
 3. **Searchable field annotations** - Declarative filter specifications
 4. **params() interface** - Attribute-style filter configuration
 5. **Registry builder** - Auto-generates documentation from metadata
@@ -98,11 +98,12 @@ Every scraper should define these class variables for documentation:
      - Rate limiter configuration
 
 
-ConsumerModel Hierarchy
------------------------
+Model Hierarchy
+---------------
 
-All scraper return types should inherit from ``ConsumerModel`` or its
-specialized subclasses. This provides:
+All scraper return types should inherit from the base model types
+(``Docket``, ``Opinion``, ``Audio``, etc.) defined in
+``kent.common.models.base``. This provides:
 
 1. **Consistent field names** across scrapers
 2. **Automatic documentation** of available fields
@@ -113,7 +114,6 @@ specialized subclasses. This provides:
 .. code-block:: python
 
     from kent.common.models.base import (
-        ConsumerModel,  # Abstract base for all data
         Docket,         # Case/docket metadata
         DocketEntry,    # Individual filings within a docket
         Opinion,        # Judicial opinions
@@ -326,7 +326,7 @@ metadata from all scrapers and generates:
     # Return type information
     return_type = "BugCourtDocket | BugCourtDocketEntry"
     parent_model = "Docket, DocketEntry"
-    model_hierarchy = ["BugCourtDocket", "Docket", "ConsumerModel"]
+    model_hierarchy = ["BugCourtDocket", "Docket", "SQLModel"]
 
     # Lifecycle metadata
     status = "active"
@@ -360,9 +360,9 @@ Best Practices
 3. Update ``version`` and ``last_verified`` regularly
 4. Set ``oldest_record`` if known - Helps users set date filters
 
-**ConsumerModel:**
+**Model Hierarchy:**
 
-1. Inherit from specific base classes (Docket, Opinion) not ConsumerModel
+1. Inherit from specific base classes (Docket, Opinion) not SQLModel directly
 2. Add court-specific fields but keep common field names
 3. Use Union types when returning multiple model types
 
@@ -382,14 +382,14 @@ Best Practices
 Testing
 -------
 
-**ConsumerModel Compliance:**
+**Model Hierarchy Compliance:**
 
 .. code-block:: python
 
-    def test_scraper_return_type_is_consumer_model():
-        """Scraper return types shall inherit from ConsumerModel."""
+    def test_scraper_return_type_is_sqlmodel():
+        """Scraper return types shall inherit from SQLModel."""
         return_type = get_return_type_from_generic(MyScraper)
-        assert is_consumer_model_subclass(return_type)
+        assert issubclass(return_type, SQLModel)
 
 **Searchability:**
 

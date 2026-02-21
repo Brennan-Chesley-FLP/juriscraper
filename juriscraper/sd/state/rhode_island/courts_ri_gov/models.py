@@ -1,6 +1,6 @@
 """Data models for Rhode Island appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Rhode Island Supreme Court opinion data.
 
 Mapping to base.py types:

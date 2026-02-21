@@ -1,6 +1,6 @@
 """Data models for Tennessee appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Tennessee Supreme Court, Court of Appeals, and Court of Criminal Appeals data.
 
 Mapping to base.py types:

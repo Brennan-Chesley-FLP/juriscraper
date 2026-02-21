@@ -6,7 +6,7 @@ the new scraper-driver architecture.
 
 Each state's scrapers are organized by domain and contain:
 
-- ``models.py`` - Pydantic data models (subclasses of :class:`~kent.common.models.base.ConsumerModel`)
+- ``models.py`` - Data models (subclasses of base types like Docket, Opinion, and Audio)
 - ``scraper.py`` - :class:`~kent.data_types.BaseScraper` implementations
 
 .. contents:: State Scrapers

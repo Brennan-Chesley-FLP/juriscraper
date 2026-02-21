@@ -1,6 +1,6 @@
 """Data models for Washington appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 opinions from Washington Supreme Court and Court of Appeals.
 
 Mapping to base.py types:

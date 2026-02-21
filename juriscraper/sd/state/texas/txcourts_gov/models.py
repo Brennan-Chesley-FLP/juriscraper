@@ -1,6 +1,6 @@
 """Data models for Texas appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Texas Supreme Court, Court of Criminal Appeals, and Courts of Appeals
 opinions and orders.
 

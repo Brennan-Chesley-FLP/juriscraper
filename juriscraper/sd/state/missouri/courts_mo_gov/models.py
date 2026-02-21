@@ -1,6 +1,6 @@
 """Data models for Missouri appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Missouri appellate courts opinion data.
 
 Mapping to base.py types:

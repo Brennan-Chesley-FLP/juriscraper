@@ -1,6 +1,6 @@
 """Data models for New Hampshire Supreme Court scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 New Hampshire Supreme Court opinion data.
 
 Mapping to base.py types:

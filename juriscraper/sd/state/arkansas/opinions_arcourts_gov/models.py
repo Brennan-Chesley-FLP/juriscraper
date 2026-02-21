@@ -1,6 +1,6 @@
 """Data models for Arkansas appellate courts opinions scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Arkansas Supreme Court and Court of Appeals opinion data from
 the Lexum/Norma platform at https://opinions.arcourts.gov/
 

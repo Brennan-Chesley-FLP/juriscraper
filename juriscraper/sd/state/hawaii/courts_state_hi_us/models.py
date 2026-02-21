@@ -1,6 +1,6 @@
 """Data models for Hawaii appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Hawaii Supreme Court and Intermediate Court of Appeals opinion data.
 
 Mapping to base.py types:

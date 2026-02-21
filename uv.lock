@@ -166,21 +166,6 @@ wheels = [
 ]
 
 [[package]]
-name = "alembic"
-version = "1.18.4"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "mako" },
-    { name = "sqlalchemy" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/94/13/8b084e0f2efb0275a1d534838844926f798bd766566b1375174e2448cd31/alembic-1.18.4.tar.gz", hash = "sha256:cb6e1fd84b6174ab8dbb2329f86d631ba9559dd78df550b57804d607672cedbc", size = 2056725 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d2/29/6533c317b74f707ea28f8d633734dbda2119bbadfc61b2f3640ba835d0f7/alembic-1.18.4-py3-none-any.whl", hash = "sha256:a5ed4adcf6d8a4cb575f3d759f071b03cd6e5c7618eb796cb52497be25bfe19a", size = 263893 },
-]
-
-[[package]]
 name = "annotated-doc"
 version = "0.0.4"
 source = { registry = "https://pypi.org/simple" }
@@ -926,7 +911,7 @@ dependencies = [
     { name = "geonamescache" },
     { name = "html5lib" },
     { name = "httpx" },
-    { name = "kent", extra = ["dev-driver", "playwright", "web"] },
+    { name = "kent", extra = ["playwright", "web"] },
     { name = "lxml" },
     { name = "nh3" },
     { name = "playwright" },
@@ -1036,22 +1021,14 @@ dependencies = [
     { name = "httpx" },
     { name = "lxml" },
     { name = "pydantic" },
+    { name = "pyrate-limiter" },
     { name = "sqlmodel" },
     { name = "typing-extensions" },
 ]
 
 [package.optional-dependencies]
-dev-driver = [
-    { name = "aiosqlite" },
-    { name = "alembic" },
-    { name = "click" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
-    { name = "warcio" },
-    { name = "zstandard" },
-]
 playwright = [
     { name = "playwright" },
-    { name = "pyrate-limiter" },
 ]
 web = [
     { name = "fastapi" },
@@ -1060,34 +1037,42 @@ web = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosqlite", marker = "extra == 'dev-driver'", specifier = ">=0.22.1" },
-    { name = "alembic", marker = "extra == 'dev-driver'", specifier = ">=1.13" },
-    { name = "click", marker = "extra == 'dev-driver'", specifier = ">=8.0.0" },
+    { name = "aiosqlite", marker = "extra == 'persistent-driver'", specifier = ">=0.22.1" },
+    { name = "alembic", marker = "extra == 'persistent-driver'", specifier = ">=1.13" },
+    { name = "click", marker = "extra == 'persistent-driver'", specifier = ">=8.0.0" },
     { name = "cssselect" },
+    { name = "fastapi", marker = "extra == 'demo'", specifier = ">=0.128.0" },
     { name = "fastapi", marker = "extra == 'web'", specifier = ">=0.128.0" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jinja2", marker = "extra == 'demo'" },
     { name = "jinja2", marker = "extra == 'web'" },
     { name = "lxml", specifier = ">=5.2" },
     { name = "playwright", marker = "extra == 'playwright'", specifier = ">=1.57.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "pyrate-limiter", marker = "extra == 'playwright'", specifier = ">=3.9.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'dev-driver'", specifier = ">=2.0" },
+    { name = "pyrate-limiter", specifier = ">=3.9.0" },
+    { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'persistent-driver'", specifier = ">=2.0" },
     { name = "sqlmodel", specifier = ">=0.0.32" },
     { name = "typing-extensions", specifier = ">=4.0.0" },
-    { name = "warcio", marker = "extra == 'dev-driver'", specifier = ">=1.7.5" },
-    { name = "zstandard", marker = "extra == 'dev-driver'", specifier = ">=0.25.0" },
+    { name = "uvicorn", marker = "extra == 'demo'", specifier = ">=0.34.0" },
+    { name = "warcio", marker = "extra == 'persistent-driver'", specifier = ">=1.7.5" },
+    { name = "zstandard", marker = "extra == 'persistent-driver'", specifier = ">=0.25.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "aiohttp", specifier = ">=3.13.3" },
+    { name = "freezegun", specifier = ">=1.5.5" },
     { name = "jsondiff", specifier = ">=2.2.1" },
-    { name = "kent", extras = ["playwright", "dev-driver", "web"] },
+    { name = "kent", extras = ["playwright", "persistent-driver", "web", "demo"] },
     { name = "mypy", specifier = ">=1.19.0" },
     { name = "pytest" },
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "ruff", specifier = ">=0.15.0" },
+    { name = "sphinx-autobuild", specifier = ">=2024.10.3" },
+    { name = "sphinx-immaterial", specifier = ">=0.13.9" },
+    { name = "sphinxcontrib-mermaid", specifier = ">=2.0.0" },
     { name = "types-lxml", specifier = ">=2025.11.25" },
 ]
 
@@ -1286,18 +1271,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/7a/c1/27428a2ff348e994ab4f8777d3a0ad510b6b92d37718e5887d2da99952a2/lxml-6.0.2-pp311-pypy311_pp73-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:60fa43be34f78bebb27812ed90f1925ec99560b0fa1decdb7d12b84d857d31e9", size = 4272119 },
     { url = "https://files.pythonhosted.org/packages/f0/d0/3020fa12bcec4ab62f97aab026d57c2f0cfd480a558758d9ca233bb6a79d/lxml-6.0.2-pp311-pypy311_pp73-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:21c73b476d3cfe836be731225ec3421fa2f048d84f6df6a8e70433dff1376d5a", size = 4417314 },
     { url = "https://files.pythonhosted.org/packages/6c/77/d7f491cbc05303ac6801651aabeb262d43f319288c1ea96c66b1d2692ff3/lxml-6.0.2-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:27220da5be049e936c3aca06f174e8827ca6445a4353a1995584311487fc4e3e", size = 3518768 },
-]
-
-[[package]]
-name = "mako"
-version = "1.3.10"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "markupsafe" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9e/38/bd5b78a920a64d708fe6bc8e0a2c075e1389d53bef8413725c63ba041535/mako-1.3.10.tar.gz", hash = "sha256:99579a6f39583fa7e5630a28c3c1f440e4e97a414b80372649c0ce338da2ea28", size = 392474 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/87/fb/99f81ac72ae23375f22b7afdb7642aba97c00a713c217124420147681a2f/mako-1.3.10-py3-none-any.whl", hash = "sha256:baef24a52fc4fc514a0887ac600f9f1cff3d82c61d4d700a1fa84d597b88db59", size = 78509 },
 ]
 
 [[package]]
@@ -2501,11 +2474,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/33/75/f28622ba6dde79cd545055ea7bd4062dc934e0621f7b3be2891f8563f8de/sqlalchemy-2.0.46-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:ff33c6e6ad006bbc0f34f5faf941cfc62c45841c64c0a058ac38c799f15b5ede", size = 3470008 },
     { url = "https://files.pythonhosted.org/packages/a9/42/4afecbbc38d5e99b18acef446453c76eec6fbd03db0a457a12a056836e22/sqlalchemy-2.0.46-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:82ec52100ec1e6ec671563bbd02d7c7c8d0b9e71a0723c72f22ecf52d1755330", size = 3476137 },
     { url = "https://files.pythonhosted.org/packages/fc/a1/9c4efa03300926601c19c18582531b45aededfb961ab3c3585f1e24f120b/sqlalchemy-2.0.46-py3-none-any.whl", hash = "sha256:f9c11766e7e7c0a2767dda5acb006a118640c9fc0a4104214b96269bfb78399e", size = 1937882 },
-]
-
-[package.optional-dependencies]
-asyncio = [
-    { name = "greenlet" },
 ]
 
 [[package]]

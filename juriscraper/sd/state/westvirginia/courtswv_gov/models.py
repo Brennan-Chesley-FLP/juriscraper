@@ -1,6 +1,6 @@
 """Data models for West Virginia appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 West Virginia Supreme Court of Appeals (SCA) and Intermediate Court
 of Appeals (ICA) opinions.
 

@@ -202,7 +202,7 @@ class ConnScraper(
     """
 
     # === Metadata ===
-    court_ids: ClassVar[set[str]] = {"conn", "connappct"}
+    court_ids: ClassVar[set[str]] = {"conn", "connappct", "connsuperct"}
     court_url: ClassVar[str] = "https://www.jud.ct.gov/"
     data_types: ClassVar[set[str]] = {"opinions", "oral_arguments", "dockets"}
     status: ClassVar[ScraperStatus] = ScraperStatus.IN_DEVELOPMENT
@@ -1346,10 +1346,8 @@ class ConnScraper(
         highest_observed=105336,
         largest_observed_gap=20,
     )
-    def fetch_docket(
-        self, crn: int
-    ) -> Generator[NavigatingRequest, None, None]:
-        """Generate a speculative request for a docket by CRN.
+    def fetch_docket(self, crn: int) -> NavigatingRequest:
+        """Create a speculative request for a docket by CRN.
 
         The driver calls this function for each CRN in the speculative range.
 
@@ -1358,7 +1356,7 @@ class ConnScraper(
         # Get court_ids filter from params (if set)
         _, _, court_ids = self._get_docket_search_params()
 
-        yield NavigatingRequest(
+        return NavigatingRequest(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
                 url=f"{DOCKET_CONFIG['case_detail_url']}?CRN={crn}",
@@ -1368,8 +1366,6 @@ class ConnScraper(
                 "crn": crn,
                 "court_ids": list(court_ids) if court_ids else None,
             },
-            is_speculative=True,
-            speculation_id=("fetch_docket", crn),
         )
 
     # XPath patterns for docket page elements
@@ -1678,6 +1674,7 @@ class ConnScraper(
             # Build ConnDocketEntry with docket_id foreign key
             entry = ConnDocketEntry(
                 docket_id=docket_id,
+                court_id=court_id,
                 activity_type=entry_data["activity_type"],
                 number=entry_data["number"],
                 date_filed=entry_data["date_filed"],
@@ -1745,6 +1742,7 @@ class ConnScraper(
         # Rebuild entry with local path
         entry = ConnDocketEntry(
             docket_id=entry_data["docket_id"],
+            court_id=entry_data["court_id"],
             activity_type=entry_data["activity_type"],
             number=entry_data.get("number"),
             date_filed=iso_to_date(entry_data.get("date_filed")),
@@ -2270,6 +2268,7 @@ class ConnScraper(
             if trial_docket_id:
                 yield ParsedData(
                     ConnTrialCaseUnavailable(
+                        court_id="connsuperct",
                         trial_docket_id=trial_docket_id,
                         appellate_docket_id=appellate_docket_id,
                         source_url=response.url,
@@ -2374,6 +2373,7 @@ class ConnScraper(
 
         # Yield the ConnTrialCourtDocket (without embedded entries)
         docket = ConnTrialCourtDocket(
+            court_id="connsuperct",
             trial_docket_id=trial_docket_id,
             appellate_docket_id=appellate_docket_id,
             case_name=case_name,
@@ -2394,6 +2394,7 @@ class ConnScraper(
         for entry_data in entries:
             entry = ConnTrialCourtDocketEntry(
                 trial_docket_id=trial_docket_id,
+                court_id="connsuperct",
                 conn_entry_number=entry_data.get("conn_entry_number"),
                 date_filed=entry_data.get("date_filed"),
                 filed_by=entry_data.get("filed_by"),
@@ -2444,6 +2445,7 @@ class ConnScraper(
         # Rebuild entry with local path
         entry = ConnTrialCourtDocketEntry(
             trial_docket_id=entry_data["trial_docket_id"],
+            court_id=entry_data["court_id"],
             conn_entry_number=entry_data.get("conn_entry_number"),
             date_filed=iso_to_date(entry_data.get("date_filed")),
             filed_by=entry_data.get("filed_by"),

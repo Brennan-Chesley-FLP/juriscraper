@@ -1,6 +1,6 @@
 """Data models for Alabama appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Alabama Supreme Court, Court of Civil Appeals, and Court of Criminal Appeals data.
 
 Mapping to base.py types:

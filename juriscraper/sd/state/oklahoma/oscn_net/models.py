@@ -1,6 +1,6 @@
 """Data models for Oklahoma appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 opinions from Oklahoma appellate courts via OSCN (Oklahoma State Courts Network).
 
 Supported courts (from courts.toml):

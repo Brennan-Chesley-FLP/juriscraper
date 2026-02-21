@@ -1,6 +1,6 @@
 """Data models for Pennsylvania appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Pennsylvania Supreme Court, Superior Court, and Commonwealth Court
 opinion data from the RSS feeds at pacourts.us.
 

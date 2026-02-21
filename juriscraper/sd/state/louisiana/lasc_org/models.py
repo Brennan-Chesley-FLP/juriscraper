@@ -1,6 +1,6 @@
 """Data models for Louisiana Supreme Court scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Louisiana Supreme Court opinion data.
 
 Mapping to base.py types:

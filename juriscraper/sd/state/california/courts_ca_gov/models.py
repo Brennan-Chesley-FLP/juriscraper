@@ -1,6 +1,6 @@
 """Data models for California appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 California Supreme Court and Courts of Appeal data.
 
 Mapping to base.py types:

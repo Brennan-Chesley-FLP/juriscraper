@@ -1,6 +1,6 @@
 """Data models for Kentucky appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Kentucky Supreme Court and Court of Appeals opinion data from
 the C-Track Public Access system.
 

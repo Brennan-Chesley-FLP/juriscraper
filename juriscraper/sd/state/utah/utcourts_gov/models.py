@@ -1,6 +1,6 @@
 """Data models for Utah appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Utah Supreme Court and Court of Appeals opinions.
 
 Mapping to base.py types:

@@ -5,7 +5,7 @@ This guide documents how to develop scrapers using the scraper-driver architectu
 ## Quick Start
 
 1. **Explore the site with Playwright** - Use the MCP Playwright tools to understand page structure
-2. **Map data to base.py models** - Identify which `ConsumerModel` types match the data
+2. **Map data to base.py models** - Identify which base model types match the data
 3. **Create scraper-specific models** - Extend base models with site-specific fields
 4. **Implement with checked_xpaths** - Use restrictive validation to catch structural changes
 5. **Test with LocalDevDriver** - Run the scraper through the development driver
@@ -129,7 +129,7 @@ Map site data to `juriscraper/scraper_driver/common/models/base.py` types:
 ### 3. Create Scraper-Specific Models
 
 In `models.py`, create Pydantic models that:
-- **Subclass ConsumerModel types** from `base.py` (Docket, Party, Attorney, DocketEntry, etc.)
+- **Subclass base model types** from `base.py` (Docket, Party, Attorney, DocketEntry, etc.)
 - Make optional base fields required where appropriate
 - Add site-specific fields
 - Include **searchable field annotations** for filtering
@@ -732,7 +732,7 @@ def handle_download(self, response: ArchiveResponse, accumulated_data):
 
 - [ ] Explored site structure with Playwright
 - [ ] Documented URL patterns
-- [ ] Mapped data to base.py ConsumerModel types
+- [ ] Mapped data to base.py model types
 - [ ] Created scraper-specific models that subclass base.py types
 - [ ] Added searchable field annotations (DateRange, SetFilter, UniqueMatch)
 - [ ] Created court ID mapping to CourtListener IDs (from courts.toml)

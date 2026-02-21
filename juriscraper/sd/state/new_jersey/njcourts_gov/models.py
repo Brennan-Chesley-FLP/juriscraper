@@ -1,6 +1,6 @@
 """Data models for New Jersey appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 New Jersey court opinion data.
 
 Mapping to base.py types:

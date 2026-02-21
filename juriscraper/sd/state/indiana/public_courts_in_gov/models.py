@@ -1,6 +1,6 @@
 """Data models for Indiana appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Indiana appellate court opinion data from the decisions portal.
 
 Mapping to base.py types:

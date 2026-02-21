@@ -1,6 +1,6 @@
 """Data models for Connecticut appellate courts scraper.
 
-These models extend ConsumerModel types from base.py to capture
+These models extend base model types from kent to capture
 Connecticut Supreme Court and Appellate Court opinion, oral argument,
 and docket data.
 
@@ -33,6 +33,7 @@ from pydantic import BaseModel
 COURT_IDS = {
     "conn": "Connecticut Supreme Court",
     "connappct": "Connecticut Appellate Court",
+    "connsuperct": "Connecticut Superior Court",
 }
 
 # Docket prefixes by court
@@ -222,6 +223,9 @@ class ConnDocketEntry(DocketEntry):
     docket_id: str  # type: ignore[assignment]
     """Parent docket number (e.g., 'AC 48343' for Appellate, 'SC 21125' for Supreme)"""
 
+    court_id: str
+    """Court identifier: 'conn' (Supreme Court) or 'connappct' (Appellate Court)"""
+
     # === Required fields ===
     activity_type: str  # Required - e.g., "APPEAL", "MOTION", "ORDER"
     """Activity type (e.g., 'APPEAL', 'MOTION', 'ORDER', 'DISPOSITION')"""
@@ -397,6 +401,9 @@ class ConnTrialCaseUnavailable(Docket):
     so we know which cases are unavailable.
     """
 
+    court_id: str  # type: ignore[assignment]
+    """Court identifier: 'connsuperct' (Connecticut Superior Court)"""
+
     trial_docket_id: str
     """Trial court docket number (e.g., 'HHDCV910391250S')"""
 
@@ -444,6 +451,9 @@ class ConnTrialCourtDocketEntry(DocketEntry):
     trial_docket_id: str
     """Parent trial court docket number (e.g., 'HHD-CV23-5076142-S')"""
 
+    court_id: str
+    """Court identifier: 'connsuperct' (Connecticut Superior Court)"""
+
     # === Entry fields ===
     conn_entry_number: str | None = None
     """Entry number (e.g., '100.30', '101.00')"""
@@ -481,6 +491,9 @@ class ConnTrialCourtDocket(Docket):
     """
 
     # === Searchable fields ===
+    court_id: str  # type: ignore[assignment]
+    """Court identifier: 'connsuperct' (Connecticut Superior Court)"""
+
     trial_docket_id: str
     """Trial court docket number (e.g., 'HHD-CV23-5076142-S')"""
 

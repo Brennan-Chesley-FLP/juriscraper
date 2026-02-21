@@ -78,9 +78,9 @@ from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from kent.common.decorators import entry, step
+from kent.common.page_element import PageElement
 from kent.data_types import (
     ArchiveRequest,
-    ArchiveResponse,
     BaseScraper,
     HttpMethod,
     HTTPRequestParams,
@@ -707,7 +707,7 @@ class AlabamaScraper(
                     ),
                     continuation=self.handle_opinion_download,
                     accumulated_data={
-                        "cluster": cluster,
+                        "cluster": cluster.model_dump(mode="json"),
                         "opinion_index": 0,
                     },
                 )
@@ -749,7 +749,7 @@ class AlabamaScraper(
     @step()
     def handle_opinion_download(
         self,
-        archive_response: ArchiveResponse,
+        local_filepath: str | None,
         accumulated_data: dict,
     ) -> Generator[
         ScraperYield[
@@ -764,24 +764,22 @@ class AlabamaScraper(
         """Handle the downloaded opinion PDF and yield the final cluster.
 
         Args:
-            archive_response: Response from archiving the PDF
+            local_filepath: Local path where the PDF was archived
             accumulated_data: Contains cluster and opinion_index
         """
-        cluster = accumulated_data.get("cluster")
+        cluster_data = accumulated_data.get("cluster")
         opinion_index = accumulated_data.get("opinion_index", 0)
 
-        if (
-            not cluster
-            or not isinstance(cluster, AlaOpinionCluster)
-            or not cluster.opinions
-        ):
+        if not cluster_data:
+            return
+
+        cluster = AlaOpinionCluster.model_validate(cluster_data)
+        if not cluster.opinions:
             return
 
         # Update the opinion with the local path
         if opinion_index < len(cluster.opinions):
-            cluster.opinions[
-                opinion_index
-            ].local_path = archive_response.file_url
+            cluster.opinions[opinion_index].local_path = local_filepath
 
         # Yield the complete cluster
         yield ParsedData(data=cluster)
@@ -822,7 +820,7 @@ class AlabamaScraper(
     @step()
     def parse_historical_decisions_list(
         self,
-        html_content: str,
+        page: PageElement,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[
@@ -858,22 +856,18 @@ class AlabamaScraper(
         # Get date filter parameters
         date_gte, date_lte, _ = self._get_historical_search_params()
 
-        # Parse HTML to find all release list links
-        # Pattern: href="https://acis.alabama.gov/displaydocs2.cfm?no=...&event=..."
-        # followed by text like "Decisions on Friday, May 19, 2023"
-        link_pattern = re.compile(
-            r'<a\s+[^>]*href="(https://acis\.alabama\.gov/displaydocs2\.cfm\?[^"]+)"[^>]*>'
-            r"\s*(?:<[^>]+>\s*)*"  # Optional inner elements
-            r"(Decisions on [^<]+)"
-            r"</a>",
-            re.IGNORECASE | re.DOTALL,
+        # Find all links to acis.alabama.gov release list PDFs
+        links = page.query_xpath(
+            "//a[contains(@href, 'acis.alabama.gov/displaydocs2.cfm')]",
+            "historical decisions PDF links",
+            min_count=0,
         )
 
-        matches = link_pattern.findall(html_content)
-
-        for pdf_url, link_text in matches:
-            # Clean up the link text
-            link_text = link_text.strip()
+        for link_el in links:
+            pdf_url = link_el.get_attribute("href")
+            if not pdf_url:
+                continue
+            link_text = link_el.text_content().strip()
 
             # Parse the release date from link text
             release_date = self._parse_historical_release_date(link_text)
@@ -911,14 +905,14 @@ class AlabamaScraper(
                 ),
                 continuation=self.handle_historical_pdf_download,
                 accumulated_data={
-                    "release_list": release_list,
+                    "release_list": release_list.model_dump(mode="json"),
                 },
             )
 
     @step()
     def handle_historical_pdf_download(
         self,
-        archive_response: ArchiveResponse,
+        local_filepath: str | None,
         accumulated_data: dict,
     ) -> Generator[
         ScraperYield[
@@ -933,18 +927,19 @@ class AlabamaScraper(
         """Handle the downloaded historical PDF and yield the final release list.
 
         Args:
-            archive_response: Response from archiving the PDF
+            local_filepath: Local path where the PDF was archived
             accumulated_data: Contains release_list object
         """
-        release_list = accumulated_data.get("release_list")
-
-        if not release_list or not isinstance(
-            release_list, AlaHistoricalReleaseList
-        ):
+        release_list_data = accumulated_data.get("release_list")
+        if not release_list_data:
             return
 
+        release_list = AlaHistoricalReleaseList.model_validate(
+            release_list_data
+        )
+
         # Update the release list with the local path
-        release_list.local_path = archive_response.file_url
+        release_list.local_path = local_filepath
 
         # Yield the complete release list
         yield ParsedData(data=release_list)

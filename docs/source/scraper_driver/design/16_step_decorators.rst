@@ -134,6 +134,6 @@ Next Steps
 ----------
 
 In :doc:`17_search_and_standardization`, we introduce standardized metadata
-on scrapers, a ConsumerModel hierarchy for return types, and the params()
+on scrapers, a model hierarchy for return types, and the params()
 interface for configuring scraper filters.
 

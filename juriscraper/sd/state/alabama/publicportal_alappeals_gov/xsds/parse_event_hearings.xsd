@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<!--
+Alabama Appellate Courts - Event Hearings API Response
+=======================================================
+
+This XSD documents the JSON API response structure from the Alabama
+appellate courts event hearings endpoint.
+
+API Endpoint:
+https://publicportal-api.alappeals.gov/courts/{court-guid}/cms/events/{event-uuid}/hearings
+
+URL Parameters:
+- court-guid: Court GUID (e.g., "68f021c4-6a44-4735-9a76-5360b2e8af13")
+- event-uuid: Event UUID from the events API
+
+Query Parameters:
+- page: Page number (0-indexed)
+- size: Results per page (default: 100)
+- sort: Sort field and direction (e.g., "orderBy,asc")
+
+Response Format: JSON
+
+The response contains all cases (hearings) scheduled for a specific oral
+argument event/session.
+
+Example Response Structure:
+{
+    "_embedded": {
+        "results": [
+            {
+                "startDate": "2026-02-04T16:00:00.000+00:00",
+                "hearingType": "Oral Argument",
+                "hearingStatus": "Scheduled",
+                "orderBy": 1,
+                "event": {
+                    "panelFlag": true
+                },
+                "caseHeader": {
+                    "caseInstanceUUID": "1f4e6740-1e85-4099-b9c5-a187b5e46cea",
+                    "caseNumber": "SC-2024-0672",
+                    "caseTitle": "Ex parte Altonio Spencer (In re: Altonio Spencer v. State of Alabama)",
+                    "courtID": "1"
+                }
+            },
+            {
+                "startDate": "2026-02-04T17:00:00.000+00:00",
+                "hearingType": "Oral Argument",
+                "hearingStatus": "Scheduled",
+                "orderBy": 2,
+                "event": {
+                    "panelFlag": true
+                },
+                "caseHeader": {
+                    "caseInstanceUUID": "652f4897-6d5d-4ecf-9a8f-b420dd548bac",
+                    "caseNumber": "SC-2025-0370",
+                    "caseTitle": "The New York Times Company v. Kai Spears.",
+                    "courtID": "1"
+                }
+            }
+        ]
+    },
+    "page": {
+        "size": 100,
+        "totalElements": 2,
+        "totalPages": 1,
+        "number": 0
+    }
+}
+
+Hearing Fields:
+- startDate: Specific hearing date/time (ISO 8601, more precise than event date)
+- hearingType: Type of hearing (usually "Oral Argument")
+- hearingStatus: Status (e.g., "Scheduled", "Completed", "Cancelled")
+- orderBy: Order of hearing in the session (for sorting)
+
+Case Header Fields:
+- caseInstanceUUID: Unique identifier for the case (required)
+- caseNumber: Official case number (e.g., "SC-2024-0672")
+- caseTitle: Case name/title
+- courtID: Numeric court identifier
+
+Data Extraction:
+- case_number: From caseHeader.caseNumber
+- case_name: From caseHeader.caseTitle
+- date_argued: Parsed from startDate (prefer this over event startDate if available)
+- case_instance_uuid: From caseHeader.caseInstanceUUID
+- court_id: Inherited from accumulated_data (already mapped from event)
+
+Source URL Pattern:
+https://publicportal.alappeals.gov/portal/court/{court-guid}/case/{case-uuid}
+
+Output:
+For each hearing, yield an AlaOralArgument object with:
+- case_number
+- court_id
+- date_argued
+- case_name
+- source_url
+- calendar_uuid (event UUID)
+- case_instance_uuid
+
+Notes:
+- YouTube URLs are not provided in the API response
+- They may need to be discovered separately or added manually
+- The location is inherited from the parent event
+-->
+
+<xs:annotation>
+    <xs:documentation>
+        This is a documentation-only XSD for the Alabama Event Hearings API.
+        The actual response is JSON, not XML.
+    </xs:documentation>
+</xs:annotation>
+
+</xs:schema>

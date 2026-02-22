@@ -841,11 +841,14 @@ class AlabamaScraper(
             )
 
             # Yield archive request to download the PDF
+            # verify=False: acis.alabama.gov has a cert issued to
+            # www.acis.alabama.gov with no SAN for the bare domain
             yield Request(
                 archive=True,
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
                     url=pdf_url.strip(),
+                    verify=False,
                 ),
                 continuation=self.handle_historical_pdf_download,
                 accumulated_data={

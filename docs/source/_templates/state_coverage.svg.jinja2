@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 959 620" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <pattern id="unknown-pattern" patternUnits="userSpaceOnUse"
+             width="10" height="10" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="10" stroke="#999" stroke-width="2"/>
+    </pattern>
+  </defs>
+
+  <style>
+    .state {
+      stroke: #666;
+      stroke-width: 1;
+      cursor: pointer;
+      transition: stroke-width 0.2s;
+    }
+    .state:hover {
+      stroke: #000;
+      stroke-width: 2;
+    }
+    .covered {
+      fill: {{ covered_color }};
+    }
+    .not-covered {
+      fill: #e0e0e0;
+    }
+    .unknown {
+      fill: url(#unknown-pattern);
+    }
+    .legend-text {
+      font-family: sans-serif;
+      font-size: 12px;
+    }
+  </style>
+
+  {% for state_code, state_data in states.items() %}
+  {% if state_data.link %}
+  <a xlink:href="{{ state_data.link }}" href="{{ state_data.link }}">
+  {% endif %}
+  <path id="{{ state_code }}"
+        class="state{% if state_data.covered %} covered{% elif state_data.unknown %} unknown{% else %} not-covered{% endif %}"
+        d="{{ state_data.path_data }}">
+    <title>{{ state_data.name }}{% if state_data.covered %}: Covered{% elif state_data.unknown %}: No data{% else %}: Not covered{% endif %}</title>
+  </path>
+  {% if state_data.link %}
+  </a>
+  {% endif %}
+  {% endfor %}
+
+  <!-- Legend -->
+  <g transform="translate(700, 40)">
+    <text x="0" y="0" class="legend-text" font-weight="bold">{{ title }}</text>
+    <rect x="0" y="10" width="20" height="15" fill="{{ covered_color }}" stroke="#000"/>
+    <text x="25" y="23" class="legend-text">Covered</text>
+    <rect x="0" y="35" width="20" height="15" fill="#e0e0e0" stroke="#000"/>
+    <text x="25" y="48" class="legend-text">Not covered</text>
+  </g>
+</svg>

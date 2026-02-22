@@ -64,6 +64,11 @@ dev = [
   "types-requests>=2.32.4.20250913",
   "types-lxml>=2025.11.25",
   "responses>=0.25.8",
+  "sphinx>=7.4.7",
+  "sphinx-immaterial>=0.13.9",
+  "sphinxcontrib-mermaid>=2.0.0",
+  "sphinx-autobuild>=2024.10.3",
+  "courts-db>=0.10.26",
 ]
 
 [tool.setuptools]
@@ -110,3 +115,6 @@ lint.ignore = [
   # printf-string-formatting
   "UP031",
 ]
+
+[tool.uv.sources]
+kent = { path = "../kent", editable = true }

@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Connecticut Appellate Courts Oral Arguments Index Page
+
+  URL Patterns:
+  - Supreme Court: https://jud.ct.gov/supremecourt/Audio/OralArgumentsAudio.aspx
+  - Appellate Court: https://jud.ct.gov/appellatecourt/Audio/OralArgumentsAudio.aspx
+
+  This schema describes the expected structure of the oral arguments index page
+  which lists available court years and term sections.
+
+  Step: parse_oral_arguments_index
+  XPaths used:
+    - XPATH_COURT_YEAR_LINKS: //a[contains(@href, 'doPostBack') and contains(text(), '-')]
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Oral Arguments Index Page Structure
+      ====================================
+
+      Both courts' oral arguments pages have the same structure:
+      - Tabbed interface at top with "Court Year" and "Search" tabs
+      - Court year selector showing available years (e.g., "2025-2026", "2024-2025")
+      - Collapsible term sections (First Term, Second Term, Third Term, Fourth Term)
+
+      Page Title:
+      - Supreme Court: "CT Supreme Court"
+      - Appellate Court: "CT Appellate Court"
+
+      Page Heading:
+      - h1: "Oral Arguments Audio"
+
+      Tab Structure:
+      - Tab 1: "Court Year: 2025-2026" (selected by default)
+      - Tab 2: "Search" (contains docket/case name search)
+
+      Year Selector (inside Court Year tab):
+      - Text: "Select Year to view"
+      - Links: "2025-2026", "2024-2025", "2023-2024", etc.
+      - Links use __doPostBack() for ASP.NET postback
+
+      Term Sections (collapsible):
+      - Each term has a button: "First Term: (Expand to view) [+]"
+      - When expanded, shows list of oral argument entries
+      - Button text changes to "[-]" when expanded
+
+      Key Observations:
+      - This is an ASP.NET WebForms page with ViewState
+      - Year selection requires form POST with __EVENTTARGET
+      - Term sections are collapsed by default (need JavaScript or separate requests)
+      - Current court year shown by default on page load
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element representing the oral arguments index page -->
+  <xs:element name="oral-arguments-index">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Page title -->
+        <xs:element name="title">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="CT (Supreme|Appellate) Court"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+
+        <!-- Main heading -->
+        <xs:element name="h1" type="xs:string" fixed="Oral Arguments Audio"/>
+
+        <!-- Tab interface -->
+        <xs:element name="tabs">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="court-year-tab">
+                <xs:complexType>
+                  <xs:sequence>
+                    <!-- Year selector -->
+                    <xs:element name="year-selector">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="year-link" maxOccurs="unbounded">
+                            <xs:complexType>
+                              <xs:simpleContent>
+                                <xs:extension base="xs:string">
+                                  <!-- Pattern: YYYY-YYYY -->
+                                  <xs:attribute name="href" type="xs:string" use="required"/>
+                                  <!-- href contains: javascript:__doPostBack('ctl00$...','') -->
+                                </xs:extension>
+                              </xs:simpleContent>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="search-tab" minOccurs="0"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Term sections (collapsible) -->
+        <xs:element name="term-sections">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="term-section" maxOccurs="4">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="term-button">
+                      <xs:complexType>
+                        <xs:simpleContent>
+                          <xs:extension base="xs:string">
+                            <!-- Pattern: "First Term: (Expand to view) [+]" -->
+                            <xs:attribute name="expanded" type="xs:boolean" default="false"/>
+                          </xs:extension>
+                        </xs:simpleContent>
+                      </xs:complexType>
+                    </xs:element>
+                    <!-- Content article (visible when expanded) -->
+                    <xs:element name="content-article" minOccurs="0"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Court Year Pattern -->
+  <xs:simpleType name="courtYearType">
+    <xs:annotation>
+      <xs:documentation>
+        Court year format: YYYY-YYYY (e.g., "2025-2026")
+        Court years run from fall to summer (September to August)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{4}-\d{4}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Term Names -->
+  <xs:simpleType name="termNameType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="First Term"/>
+      <xs:enumeration value="Second Term"/>
+      <xs:enumeration value="Third Term"/>
+      <xs:enumeration value="Fourth Term"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Scraper XPath Assertions -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. Court year links:
+         //a[contains(@href, 'doPostBack') and contains(text(), '-')]
+         - Description: "court year links"
+         - min_count: 0 (current year may be shown inline without link)
+         - Expected: links with text like "2025-2026"
+
+      Data Extraction:
+      - Court year: from link text, pattern "YYYY-YYYY"
+      - Event target: from href, pattern __doPostBack('...','')
+
+      ASP.NET PostBack:
+      To select a different court year, POST to same URL with:
+      - __EVENTTARGET: extracted event target (e.g., "ctl00$cphTopPanel$rptCourtYears$ctl01$lbYear")
+      - __EVENTARGUMENT: empty string
+      - __VIEWSTATE: from hidden field (may be required)
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

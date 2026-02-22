@@ -565,6 +565,7 @@ name = "kent"
 version = "0.1.0"
 source = { editable = "../kent" }
 dependencies = [
+    { name = "click" },
     { name = "cssselect" },
     { name = "httpx" },
     { name = "lxml" },
@@ -578,7 +579,7 @@ dependencies = [
 requires-dist = [
     { name = "aiosqlite", marker = "extra == 'persistent-driver'", specifier = ">=0.22.1" },
     { name = "alembic", marker = "extra == 'persistent-driver'", specifier = ">=1.13" },
-    { name = "click", marker = "extra == 'persistent-driver'", specifier = ">=8.0.0" },
+    { name = "click", specifier = ">=8.0.0" },
     { name = "cssselect" },
     { name = "fastapi", marker = "extra == 'demo'", specifier = ">=0.128.0" },
     { name = "fastapi", marker = "extra == 'web'", specifier = ">=0.128.0" },

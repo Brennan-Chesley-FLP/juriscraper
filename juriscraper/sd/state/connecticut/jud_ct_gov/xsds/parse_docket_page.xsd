@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Connecticut Appellate Courts Docket (Case Detail) Page
+
+  URL Pattern: https://appellateinquiry.jud.ct.gov/CaseDetail.aspx?CRN={crn}
+  Where {crn} is a monotonically increasing internal case record number.
+
+  This schema describes the expected structure of the Case Detail page
+  which contains docket information for appellate cases.
+
+  Step: parse_docket_page
+  XPaths used:
+    - Docket number: //span[@id='ContentPlaceHolder1_lblDocketNum']
+    - Case name: //span[@id='ContentPlaceHolder1_lblCaseName']
+    - Status: //span[@id='ContentPlaceHolder1_lblStatus']
+    - Various date/info fields via ContentPlaceHolder1_lbl* pattern
+    - Party table: //table[contains(@id, 'Party')]
+    - Activity table: //table[contains(@id, 'Activity')]
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Case Detail Page Structure
+      ==========================
+
+      This page displays comprehensive docket information for an appellate case.
+      Cases can be from either the Supreme Court (SC prefix) or Appellate Court (AC prefix).
+
+      URL: https://appellateinquiry.jud.ct.gov/CaseDetail.aspx?CRN={crn}
+      Error URL: https://appellateinquiry.jud.ct.gov/ErrorPage.aspx?errmsg=Case%20Not%20Found
+
+      Page Sections:
+      1. Case Information (header)
+         - Docket Number: "AC 48343" or "SC 21125"
+         - Case Name: "DEUTSCHE BANK v. ALVIN POLLARD ET AL."
+         - Status: "Disposed", "Pending", "Disposed/Transfer"
+
+      2. Appeal Case Information
+         - Date Filed: date appeal was filed
+         - Appeal By: "Defendant", "Plaintiff", etc.
+         - Disposition Method: "Party Motion", "Transferred", etc.
+         - Argued: date of oral arguments
+         - Disposition Date: date case was resolved
+         - Submitted on Briefs: date briefs submitted
+         - Cite: citation if published
+         - Panel: panel of judges
+         - Response Due: due date for response
+
+      3. Trial Court Information
+         - Trial Court Docket Number: e.g., "HHDCV156062121S"
+         - Judgment For: "Plaintiff", "Defendant"
+         - Trial Court: e.g., "JD COURTHOUSE AT HARTFORD"
+         - Trial Judge: judge name(s)
+         - Judgment Date: date of trial court judgment
+         - Case Type: e.g., "CIVIL - FORECLOSURE"
+
+      4. Party/Attorney Information (table)
+         - Party Name
+         - Trial Court Party Class: "Plaintiff", "Defendant"
+         - Appeal Party Class: "Appellee", "Appellant"
+         - Attorneys: attorney names and contact info
+
+      5. Case Activity (docket entries table)
+         - Activity Type: "APPEAL", "MOTION", "ORDER", "DISPOSITION"
+         - Number: activity number
+         - Date Filed: date of activity
+         - Initiated By: party or "Court"
+         - Description: activity description
+         - Action: action taken
+         - Action Date: date of action
+         - Notice Date: date notice sent
+         - PDF links for documents
+
+      CRN (Case Record Number):
+      - Monotonically increasing integer
+      - CRN=1 is the first case (from 1991)
+      - Current CRNs are in the 92000+ range
+      - Used for speculative scraping
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element -->
+  <xs:element name="case-detail-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Case Information Section -->
+        <xs:element name="case-info">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="docket-number">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <!-- SC or AC followed by digits, with optional space -->
+                    <xs:pattern value="(SC|AC)\s*\d+"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="case-name" type="xs:string"/>
+              <xs:element name="status" type="xs:string"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Appeal Case Information Section -->
+        <xs:element name="appeal-info">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="date-filed" type="dateType" minOccurs="0"/>
+              <xs:element name="appeal-by" type="xs:string" minOccurs="0"/>
+              <xs:element name="disposition-method" type="xs:string" minOccurs="0"/>
+              <xs:element name="argued-date" type="dateType" minOccurs="0"/>
+              <xs:element name="disposition-date" type="dateType" minOccurs="0"/>
+              <xs:element name="submitted-on-briefs" type="dateType" minOccurs="0"/>
+              <xs:element name="cite" type="xs:string" minOccurs="0"/>
+              <xs:element name="panel" type="xs:string" minOccurs="0"/>
+              <xs:element name="response-due" type="dateType" minOccurs="0"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Trial Court Information Section -->
+        <xs:element name="trial-court-info">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="trial-docket-number" type="xs:string" minOccurs="0"/>
+              <xs:element name="trial-docket-url" type="xs:anyURI" minOccurs="0"/>
+              <xs:element name="judgment-for" type="xs:string" minOccurs="0"/>
+              <xs:element name="trial-court" type="xs:string" minOccurs="0"/>
+              <xs:element name="trial-judge" type="xs:string" minOccurs="0"/>
+              <xs:element name="judgment-date" type="dateType" minOccurs="0"/>
+              <xs:element name="case-type" type="xs:string" minOccurs="0"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Party/Attorney Information Section -->
+        <xs:element name="parties">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="party" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="name" type="xs:string"/>
+                    <xs:element name="trial-court-class" type="xs:string" minOccurs="0"/>
+                    <xs:element name="appeal-class" type="xs:string" minOccurs="0"/>
+                    <xs:element name="attorneys" minOccurs="0">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="attorney" type="xs:string" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Case Activity (Docket Entries) Section -->
+        <xs:element name="case-activity">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="entry" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="activity-type" type="xs:string"/>
+                    <xs:element name="number" type="xs:string" minOccurs="0"/>
+                    <xs:element name="date-filed" type="dateType" minOccurs="0"/>
+                    <xs:element name="initiated-by" type="xs:string" minOccurs="0"/>
+                    <xs:element name="description" type="xs:string" minOccurs="0"/>
+                    <xs:element name="action" type="xs:string" minOccurs="0"/>
+                    <xs:element name="action-date" type="dateType" minOccurs="0"/>
+                    <xs:element name="notice-date" type="dateType" minOccurs="0"/>
+                    <xs:element name="document-url" type="xs:anyURI" minOccurs="0"/>
+                  </xs:sequence>
+                  <xs:attribute name="is-paperless" type="xs:boolean" default="false"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+      <xs:attribute name="crn" type="xs:positiveInteger" use="required"/>
+      <xs:attribute name="is-efiled" type="xs:boolean" default="false"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Date type (MM/DD/YYYY format) -->
+  <xs:simpleType name="dateType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{1,2}/\d{1,2}/\d{4}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Scraper XPath Assertions -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. Docket number:
+         //span[@id='ContentPlaceHolder1_lblDocketNum'] | //span[contains(@id, 'DocketNum')]
+         - Description: "docket number element"
+         - min_count: 1 (for valid case pages)
+         - Expected: SC or AC followed by digits
+
+      2. Case name:
+         //span[@id='ContentPlaceHolder1_lblCaseName'] | //span[contains(@id, 'CaseName')]
+         - Description: "case name element"
+         - min_count: 1
+         - Expected: Case name string
+
+      3. Status:
+         //span[@id='ContentPlaceHolder1_lblStatus'] | //span[contains(@id, 'Status')]
+         - Description: "case status element"
+         - min_count: 1
+         - Expected: "Disposed", "Pending", "Disposed/Transfer", etc.
+
+      4. Party table:
+         //table[contains(@id, 'Party')]//tr
+         - Description: "party rows"
+         - min_count: 0 (may be empty)
+         - Expected: Table rows with party/attorney info
+
+      5. Activity table:
+         //table[contains(@id, 'Activity')]//tr
+         - Description: "activity rows"
+         - min_count: 0 (may be empty)
+         - Expected: Table rows with docket entry info
+
+      Error Detection:
+      - If response.url contains "ErrorPage.aspx", the CRN does not exist
+      - Error page shows: "Case Not Found"
+
+      Unavailable Cases:
+      - Some cases are marked as "not available at this time" (unpublished)
+      - Detected by: //span[@id='lblNotAvailable']
+      - Content pattern: "{docket_id} - This case is not available at this time."
+      - When found, scraper yields minimal ConnDocket with unavailable=True
+
+      Date Format:
+      - All dates use MM/DD/YYYY format
+      - Regex pattern: \d{1,2}/\d{1,2}/\d{4}
+
+      Element ID Patterns:
+      - ContentPlaceHolder1_lblDocketNum - Docket number
+      - ContentPlaceHolder1_lblCaseName - Case name
+      - ContentPlaceHolder1_lblStatus - Status
+      - ContentPlaceHolder1_lblDateFiled - Date filed
+      - ContentPlaceHolder1_lblAppealBy - Appeal by
+      - ContentPlaceHolder1_lblDispMethod - Disposition method
+      - ContentPlaceHolder1_lblArguedDate - Argued date
+      - ContentPlaceHolder1_lblDispDate - Disposition date
+      - ContentPlaceHolder1_lblSOBDate - Submitted on briefs date
+      - ContentPlaceHolder1_lblCite - Citation
+      - ContentPlaceHolder1_lblPanel - Panel
+      - ContentPlaceHolder1_lblRespDue - Response due date
+      - ContentPlaceHolder1_lblTrialCourtDktNum - Trial court docket number
+      - ContentPlaceHolder1_lblJudgmentFor - Judgment for
+      - ContentPlaceHolder1_lblTrialCourt - Trial court name
+      - ContentPlaceHolder1_lblTrialJudge - Trial judge
+      - ContentPlaceHolder1_lblJudgmentDate - Judgment date
+      - ContentPlaceHolder1_lblCaseType - Case type
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

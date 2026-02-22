@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Connecticut Appellate Courts Oral Arguments Court Year Page
+
+  URL: Same as index page, but with different court year selected via POST
+
+  This schema describes the expected structure of a court year's oral arguments page
+  showing term sections with individual argument entries.
+
+  Step: parse_court_year_page
+  XPaths used:
+    - Term buttons: //button[contains(text(), 'Term:')]
+    - Date divs: .//div[contains(text(), 'Date Argued:')]
+    - Docket links: .//a[contains(@href, 'appellateinquiry') or contains(@href, 'CaseDetail')]
+    - Audio links: .//a[contains(@href, 'PlayAudio')]
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Court Year Oral Arguments Page Structure
+      ========================================
+
+      This page shows all oral arguments for a specific court year,
+      organized by term (First, Second, Third, Fourth).
+
+      Term Sections:
+      - Each term is a collapsible section with a button header
+      - Button text: "First Term: (Expand to view) [+]"
+      - When expanded: "First Term: (Expand to view) [-]"
+      - Content is in a sibling article element
+
+      Entry Structure (within each term):
+      Each oral argument entry contains:
+
+      1. Date Argued div:
+         - Text: "Date Argued: 9/18/2025"
+         - Pattern: "Date Argued: M/D/YYYY"
+
+      2. Case Info div containing:
+         - Docket link: links to appellateinquiry.jud.ct.gov/CaseDetail.aspx?CRN=XXXXX
+         - Link text: "AC 47230" or "SC 20951"
+         - Case name: "STATE OF CONNECTICUT v. HARALAMBOS SIDIROPOULOS"
+         - Case name may span multiple text nodes with "v." separator
+
+      3. Audio link:
+         - Text: "Select Audio"
+         - href: "PlayAudio.aspx?ID=2365&amp;secondsToWait=5"
+         - Links to audio player page (not direct MP3)
+
+      HTML Structure Example:
+      ```
+      &lt;article&gt;
+        &lt;button&gt;First Term: (Expand to view) [-]&lt;/button&gt;
+        &lt;article&gt;
+          &lt;div&gt;Date Argued: 9/18/2025&lt;/div&gt;
+          &lt;div&gt;
+            &lt;a href="http://appellateinquiry..."&gt;AC 47230&lt;/a&gt;
+            &lt;div&gt;STATE OF CONNECTICUT v. HARALAMBOS SIDIROPOULOS&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;a href="PlayAudio.aspx?ID=2365..."&gt;Select Audio&lt;/a&gt;
+        &lt;/article&gt;
+      &lt;/article&gt;
+      ```
+
+      CSS Classes Used:
+      - Col_2of10: Contains docket link
+      - Col_7of10: Contains case name
+      - Col_10of10: Contains audio player/link
+
+      Docket Number Formats:
+      - Supreme Court: "SC 20951" or "SC20951"
+      - Appellate Court: "AC 47230" or "AC47230"
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element -->
+  <xs:element name="court-year-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Term sections -->
+        <xs:element name="term-section" maxOccurs="4">
+          <xs:complexType>
+            <xs:sequence>
+
+              <!-- Term header button -->
+              <xs:element name="term-button">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="term" type="termNameType" use="required"/>
+                      <xs:attribute name="expanded" type="xs:boolean"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+
+              <!-- Content article with entries -->
+              <xs:element name="term-content">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="argument-entry" maxOccurs="unbounded">
+                      <xs:complexType>
+                        <xs:sequence>
+
+                          <!-- Date argued -->
+                          <xs:element name="date-argued">
+                            <xs:simpleType>
+                              <xs:restriction base="xs:string">
+                                <xs:pattern value="Date Argued: \d{1,2}/\d{1,2}/\d{4}"/>
+                              </xs:restriction>
+                            </xs:simpleType>
+                          </xs:element>
+
+                          <!-- Docket link -->
+                          <xs:element name="docket-link">
+                            <xs:complexType>
+                              <xs:simpleContent>
+                                <xs:extension base="xs:string">
+                                  <!-- Link text: "AC 47230" or "SC 20951" -->
+                                  <xs:attribute name="href" type="xs:anyURI" use="required"/>
+                                  <!-- href: http://appellateinquiry.jud.ct.gov/CaseDetail.aspx?CRN=XXXXX -->
+                                </xs:extension>
+                              </xs:simpleContent>
+                            </xs:complexType>
+                          </xs:element>
+
+                          <!-- Case name -->
+                          <xs:element name="case-name" type="xs:string"/>
+
+                          <!-- Audio link -->
+                          <xs:element name="audio-link">
+                            <xs:complexType>
+                              <xs:simpleContent>
+                                <xs:extension base="xs:string">
+                                  <!-- Link text: "Select Audio" -->
+                                  <xs:attribute name="href" use="required">
+                                    <xs:simpleType>
+                                      <xs:restriction base="xs:string">
+                                        <xs:pattern value="PlayAudio\.aspx\?ID=\d+.*"/>
+                                      </xs:restriction>
+                                    </xs:simpleType>
+                                  </xs:attribute>
+                                </xs:extension>
+                              </xs:simpleContent>
+                            </xs:complexType>
+                          </xs:element>
+
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Term Names -->
+  <xs:simpleType name="termNameType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="First Term"/>
+      <xs:enumeration value="Second Term"/>
+      <xs:enumeration value="Third Term"/>
+      <xs:enumeration value="Fourth Term"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Docket Number Pattern -->
+  <xs:simpleType name="docketNumberType">
+    <xs:annotation>
+      <xs:documentation>
+        Docket number format:
+        - Supreme Court: SC followed by digits (e.g., "SC 20951" or "SC20951")
+        - Appellate Court: AC followed by digits (e.g., "AC 47230" or "AC47230")
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="(SC|AC)\s*\d+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Scraper XPath Assertions -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. Term buttons:
+         //button[contains(text(), 'Term:')]
+         - Description: "term section buttons"
+         - min_count: 0 (some years may have fewer terms)
+         - Expected: buttons like "First Term: (Expand to view) [+]"
+
+      2. Date divs (relative to term article):
+         .//div[contains(text(), 'Date Argued:')]
+         - Description: "date argued divs"
+         - min_count: 0 (some terms may be empty)
+         - Expected: divs with text "Date Argued: M/D/YYYY"
+
+      3. Docket links (relative to entry parent):
+         .//a[contains(@href, 'appellateinquiry') or contains(@href, 'CaseDetail')]
+         - Description: "docket links"
+         - min_count: 1 per entry
+         - Expected: links to case detail pages
+
+      4. Audio links (relative to entry parent):
+         .//a[contains(@href, 'PlayAudio')]
+         - Description: "audio links"
+         - min_count: 1 per entry
+         - Expected: links to audio player pages
+
+      Regex Patterns Used:
+      - DATE_ARGUED_PATTERN: r"Date Argued:\s*(\d{1,2}/\d{1,2}/\d{4})"
+      - DOCKET_PATTERN: r"^(SC|AC)\s*(\d+)$"
+      - AUDIO_ID_PATTERN: r"ID=(\d+)"
+
+      Data Extraction:
+      - Date argued: from date div text
+      - Docket number: from docket link text
+      - Case detail URL: from docket link href
+      - Case name: from sibling div or following text
+      - Audio ID: from PlayAudio link href
+      - Audio player URL: constructed from PlayAudio link
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

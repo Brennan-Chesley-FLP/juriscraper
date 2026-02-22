@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Connecticut Appellate Courts Audio Player Page
+
+  URL Pattern: https://jud.ct.gov/{court}/Audio/PlayAudio.aspx?ID={audio_id}&secondsToWait=5
+  Where {court} is "supremecourt" or "appellatecourt"
+
+  This schema describes the expected structure of the audio player page
+  which contains the actual MP3 audio URL.
+
+  Step: parse_audio_player_page
+  XPaths used:
+    - Audio source: //audio/source[@src] or //source[@type='audio/mpeg']
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      Audio Player Page Structure
+      ===========================
+
+      This page displays information about a specific oral argument
+      and contains an HTML5 audio player with the MP3 source.
+
+      Page Title: "CT Supreme Court" or "CT Appellate Court"
+
+      Page Heading: "Audio Information"
+
+      Subheading (h2):
+      - Pattern: "Appellate Court: 2025-2026 - First Term"
+      - Or: "Supreme Court: 2025-2026 - First Term"
+
+      Case Information Section:
+      - h4: "Date Argued: M/D/YYYY"
+      - Docket link: links to appellateinquiry.jud.ct.gov
+      - Case name
+
+      Audio Player:
+      - HTML5 audio element with controls
+      - Source element with MP3 URL
+
+      Return Link:
+      - "Return To Oral Arguments List"
+      - Links back to OralArgumentsAudio.aspx
+
+      Audio URL Pattern:
+      https://mediaservices.jud.ct.gov/courtaudio/supApp/{year}/{week}/{CaseName} {Docket}.mp3
+
+      Example:
+      https://mediaservices.jud.ct.gov/courtaudio/supApp/2025/38/Sidiropoulos AC 47230.mp3
+
+      Note: The URL may have backslashes instead of forward slashes in the HTML source
+      (Windows path format). These should be handled by the HTTP client.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element -->
+  <xs:element name="audio-player-page">
+    <xs:complexType>
+      <xs:sequence>
+
+        <!-- Page heading -->
+        <xs:element name="h1" type="xs:string" fixed="Audio Information"/>
+
+        <!-- Court/Term subheading -->
+        <xs:element name="h2">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="(Supreme|Appellate) Court: \d{4}-\d{4} - (First|Second|Third|Fourth) Term"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+
+        <!-- Case info section -->
+        <xs:element name="case-info">
+          <xs:complexType>
+            <xs:sequence>
+              <!-- Date argued -->
+              <xs:element name="date-argued">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:pattern value="Date Argued:\s+\d{1,2}/\d{1,2}/\d{4}"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+
+              <!-- Docket link -->
+              <xs:element name="docket-link">
+                <xs:complexType>
+                  <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                      <xs:attribute name="href" type="xs:anyURI" use="required"/>
+                    </xs:extension>
+                  </xs:simpleContent>
+                </xs:complexType>
+              </xs:element>
+
+              <!-- Case name -->
+              <xs:element name="case-name" type="xs:string"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Audio player -->
+        <xs:element name="audio-player">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="source">
+                <xs:complexType>
+                  <xs:attribute name="src" use="required">
+                    <xs:simpleType>
+                      <xs:restriction base="xs:string">
+                        <!-- MP3 URL pattern -->
+                        <xs:pattern value="https://mediaservices\.jud\.ct\.gov/courtaudio/.*\.mp3"/>
+                      </xs:restriction>
+                    </xs:simpleType>
+                  </xs:attribute>
+                  <xs:attribute name="type" type="xs:string" fixed="audio/mpeg"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute name="controls" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Return link -->
+        <xs:element name="return-link">
+          <xs:complexType>
+            <xs:simpleContent>
+              <xs:extension base="xs:string">
+                <xs:attribute name="href" type="xs:string" fixed="OralArgumentsAudio.aspx"/>
+              </xs:extension>
+            </xs:simpleContent>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Scraper XPath Assertions -->
+  <xs:annotation>
+    <xs:documentation>
+      Scraper XPath Assertions
+      ========================
+
+      1. Audio source element:
+         //audio/source[@src] or //source[@type='audio/mpeg']
+         - Description: "audio source element"
+         - min_count: 1
+         - Expected: source element with MP3 URL in src attribute
+
+      HTML Structure:
+      ```
+      &lt;audio controls class="AudioControl"&gt;
+        &lt;source src="https://mediaservices.jud.ct.gov/courtaudio/supApp/2025\38\Name AC 47230.mp3"
+                type="audio/mpeg"&gt;
+      &lt;/audio&gt;
+      ```
+
+      Data Extraction:
+      - MP3 URL: from source[@src] attribute
+        Note: URL may use backslashes which need normalization
+
+      Edge Cases:
+      - Some older entries may not have audio available
+      - Path separators may be backslashes (Windows format)
+      - Filenames include case name and docket number
+    </xs:documentation>
+  </xs:annotation>
+
+</xs:schema>

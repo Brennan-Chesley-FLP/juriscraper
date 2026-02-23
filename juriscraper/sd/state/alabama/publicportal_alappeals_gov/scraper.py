@@ -52,6 +52,10 @@ Dockets Flow (get_dockets):
   4. parse_case_parties -> parses parties, yields docket entries fetch request
   5. parse_docket_entries -> parses docket entries, yields final AlaDocket
 
+Dockets by Date Flow (get_dockets_by_date):
+  Same as get_dockets but accepts an explicit DateRange parameter instead
+  of reading dates from scraper params. Shares all parsing steps (2-5) above.
+
 Oral Arguments Flow (get_oral_arguments):
   1. get_oral_arguments -> API call to events endpoint
   2. parse_events_list -> extracts calendar events, yields requests for event hearings
@@ -79,6 +83,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 
 from kent.common.decorators import entry, step
 from kent.common.page_element import PageElement
+from kent.common.param_models import DateRange
 from kent.data_types import (
     BaseScraper,
     HttpMethod,
@@ -1248,6 +1253,21 @@ class AlabamaScraper(
 
         # Start with the full date range - we'll split if needed
         yield from self._yield_dockets_search_request(date_gte, date_lte)
+
+    @entry(AlaDocket)
+    def get_dockets_by_date(
+        self,
+        date_range: DateRange,
+    ) -> Generator[Request, None, None]:
+        """Yield requests for dockets within the supplied date range.
+
+        Unlike get_dockets which reads dates from scraper params
+        and defaults to 1985-today, this entry accepts an explicit
+        DateRange and searches only that window.
+        """
+        yield from self._yield_dockets_search_request(
+            date_range.start, date_range.end
+        )
 
     def _yield_dockets_search_request(
         self, start_date: date, end_date: date

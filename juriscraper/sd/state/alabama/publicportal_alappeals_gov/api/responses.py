@@ -82,6 +82,56 @@ class PublicationsListResponse(BaseModel):
 
 
 # =============================================================================
+# Publication Detail API Models (parse_publication_detail)
+# =============================================================================
+
+
+class PublicationDetailDocument(BaseModel):
+    """A document within a publication detail item."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    documentLinkUUID: str
+    documentName: str
+
+
+class PublicationDetailItem(BaseModel):
+    """Individual case/opinion within a publication detail response.
+
+    The detail endpoint returns the full item data including title,
+    decision text, documents, and authoring judge information.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    publicationItemUUID: str
+    caseInstanceUUID: str
+    caseNumber: str
+    groupName: str
+    groupOrderBy: int
+    title: str
+    decision: str
+    orderBy: int
+    documents: list[PublicationDetailDocument] = []
+
+
+class PublicationDetailResponse(BaseModel):
+    """Response from the publication detail endpoint.
+
+    Endpoint: /courts/{court-guid}/cms/publication/{publication-uuid}
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    courtAbbreviation: str
+    publicationNumber: str
+    publicationName: str
+    publicationDate: str
+    publicationNote: str | None = None
+    publicationItems: list[PublicationDetailItem] = []
+
+
+# =============================================================================
 # Events API Models (parse_events_list)
 # =============================================================================
 

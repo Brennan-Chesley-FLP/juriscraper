@@ -156,6 +156,80 @@ class AlaOpinionCluster(ScrapedData):
     """URL of the publication/release list"""
 
 
+class AlaOrder(ScrapedData):
+    """An order or non-opinion document from Alabama appellate courts.
+
+    Items where documentName is NOT 'Opinion' or 'Decision' produce
+    AlaOrder objects. These include rehearing orders, cert denials,
+    special writings, rehearing notices, and other non-opinion dispositions.
+
+    Supports Alabama Supreme Court (ala), Court of Civil Appeals (alactapp),
+    and Court of Criminal Appeals (alacrimapp).
+    """
+
+    # === Searchable fields ===
+    case_number: str
+    """Case number (e.g., 'SC-2024-0492')"""
+
+    court_id: str
+    """Court identifier: 'ala', 'alactapp', or 'alacrimapp'"""
+
+    date_filed: date
+    """Date the order was filed/published (from publication date)"""
+
+    # === Required fields ===
+    case_name: str
+    """Case name/title"""
+
+    # === Order-specific fields ===
+    document_name: str | None = None
+    """Document name from the API (e.g., 'Order', 'Special Writing', 'Rehearing Notice')"""
+
+    decision_text: str | None = None
+    """Decision/outcome text (e.g., 'Rehearing - Overruled - No Opinion.')"""
+
+    # === Publication metadata ===
+    publication_number: str | None = None
+    """Publication/release number (e.g., 'SC-RELEASE-2023-11-09')"""
+
+    publication_uuid: str | None = None
+    """UUID for the publication/release list"""
+
+    publication_item_uuid: str | None = None
+    """UUID for this specific item in the publication"""
+
+    case_instance_uuid: str | None = None
+    """UUID for the case instance"""
+
+    # === Judge/authoring info ===
+    authoring_judge: str | None = None
+    """Name of the authoring judge/justice (from groupName)"""
+
+    per_curiam: bool = False
+    """Whether this is a per curiam order"""
+
+    on_rehearing: bool = False
+    """Whether this is marked 'On Rehearing'"""
+
+    # === Lower court info ===
+    lower_court: str | None = None
+    """Lower court name (extracted from case title parenthetical)"""
+
+    lower_court_number: str | None = None
+    """Lower court case number (extracted from case title parenthetical)"""
+
+    # === Document ===
+    download_url: str | None = None
+    """URL to the document PDF"""
+
+    local_path: str | None = None
+    """Local filesystem path where the PDF was downloaded (set by driver)"""
+
+    # === Source tracking ===
+    source_url: str | None = None
+    """URL of the publication/release list"""
+
+
 class AlaOralArgument(ScrapedData):
     """An oral argument from Alabama appellate courts.
 

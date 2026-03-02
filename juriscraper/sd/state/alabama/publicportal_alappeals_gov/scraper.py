@@ -29,13 +29,17 @@ Entry points:
   - API: https://publicportal-api.alappeals.gov/courts/cms/events
   - Portal: https://publicportal.alappeals.gov/portal/search/calendar
 
-Opinions Flow (get_opinions):
-  1. get_opinions -> API call to publications endpoint for selected courts
-  2. parse_publications_list -> extracts release lists, yields archive requests for PDFs
-     - Processes all publications on current page (not just first)
+Opinions Flow (get_opinions / get_opinions_by_date):
+  1. get_opinions / get_opinions_by_date -> API call to publications list endpoint
+  2. parse_publications_list -> extracts publication UUIDs, yields detail requests
      - Automatically paginates to next page if needed
      - Respects date range filters and stops when outside range
-  3. handle_opinion_download -> stores local paths, yields final AlaOpinionClusters
+  3. parse_publication_detail -> fetches full data from detail endpoint
+     - Parses items, extracts lower court info and "In re:" case names
+     - Opinions/Decisions (documentName) -> AlaOpinionCluster, yields archive
+     - Orders/Special Writings/etc -> AlaOrder, yields archive
+  4. handle_opinion_download -> stores local paths, yields final AlaOpinionClusters
+  5. handle_order_download -> stores local paths, yields final AlaOrders
 
 Historical Opinions Flow (get_historical_opinions):
   1. get_historical_opinions -> HTML requests to judicial.alabama.gov decisions pages
@@ -52,6 +56,10 @@ Dockets Flow (get_dockets):
   4. parse_case_parties -> parses parties, yields docket entries fetch request
   5. parse_docket_entries -> parses docket entries, yields final AlaDocket
 
+Opinions by Date Flow (get_opinions_by_date):
+  Same as get_opinions but accepts an explicit DateRange parameter instead
+  of reading dates from scraper params. Shares all parsing steps (2-5) above.
+
 Dockets by Date Flow (get_dockets_by_date):
   Same as get_dockets but accepts an explicit DateRange parameter instead
   of reading dates from scraper params. Shares all parsing steps (2-5) above.
@@ -66,9 +74,12 @@ Oral Arguments Flow (get_oral_arguments):
 Design decisions:
 - Uses JSON API endpoints for data retrieval (current opinions, dockets, oral args)
 - Uses HTML scraping for historical opinions (pre-May 2023)
+- Opinions use two-step fetch: list endpoint for UUIDs, detail endpoint for full data
+- Splits items by documentName: Opinion/Decision -> AlaOpinionCluster, else -> AlaOrder
+- Handles "In re:" case name extraction from parenthetical
 - Uses DateRange filter on date_filed for searching
 - Uses SetFilter on court_id to select which courts to scrape
-- Archives opinion PDFs via Request(archive=True)
+- Archives opinion/order PDFs via Request(archive=True)
 - Extracts lower court info from case title parenthetical
 - Handles "Per Curiam" and "On Rehearing" designations
 - Pagination: processes all pages until date range is exhausted
@@ -104,6 +115,7 @@ from .models import (
     AlaOpinion,
     AlaOpinionCluster,
     AlaOralArgument,
+    AlaOrder,
 )
 
 if TYPE_CHECKING:
@@ -115,6 +127,7 @@ if TYPE_CHECKING:
 class AlabamaScraper(
     BaseScraper[
         AlaOpinionCluster
+        | AlaOrder
         | AlaOralArgument
         | AlaDocket
         | AlaHistoricalReleaseList
@@ -179,6 +192,13 @@ class AlabamaScraper(
     LOWER_COURT_PATTERN = re.compile(
         r"\(Appeal from (?P<lower_court>.+?): (?P<lower_court_number>.+?)\)"
     )
+
+    # Pattern to extract case name from "In re:" parenthetical
+    # For cases like: "Ex parte Doe ... (In re: Jane Doe v. John Doe)"
+    IN_RE_PATTERN = re.compile(r"\((In re: .*?)\)")
+
+    # Document names that represent opinions (vs orders)
+    OPINION_DOCUMENT_NAMES: ClassVar[set[str]] = {"Opinion", "Decision"}
 
     # === Historical Opinions Patterns ===
     # Regex to parse release date from link text
@@ -432,6 +452,34 @@ class AlabamaScraper(
         """Yield initial requests for opinions scraping.
 
         Makes API calls to the publications endpoint for each target court.
+        Uses date range from scraper params if set, otherwise fetches
+        all publications.
+        """
+        date_gte, date_lte, _, _ = self._get_opinions_search_params()
+        yield from self._yield_publications_request(date_gte, date_lte)
+
+    @entry(AlaOpinionCluster)
+    def get_opinions_by_date(
+        self,
+        date_range: DateRange,
+    ) -> Generator[Request, None, None]:
+        """Yield requests for opinions within the supplied date range.
+
+        Unlike get_opinions which reads dates from scraper params,
+        this entry accepts an explicit DateRange.
+        """
+        yield from self._yield_publications_request(
+            date_range.start, date_range.end
+        )
+
+    def _yield_publications_request(
+        self, date_gte: date | None, date_lte: date | None
+    ) -> Generator[Request, None, None]:
+        """Yield publication list requests for all target courts.
+
+        Args:
+            date_gte: Earliest publication date to include (inclusive).
+            date_lte: Latest publication date to include (inclusive).
         """
         target_courts = self._get_target_courts("opinions")
 
@@ -439,8 +487,6 @@ class AlabamaScraper(
             config = COURT_CONFIG[court_id]
             court_guid = config["court_guid"]
 
-            # Build API URL
-            # Example: https://publicportal-api.alappeals.gov/courts/cms/publications?courtID={guid}&page=0&size=25&sort=publicationDate%2Cdesc
             api_url = f"{API_CONFIG['base_url']}{API_CONFIG['publications_endpoint']}"
             params = {
                 "courtID": court_guid,
@@ -449,7 +495,6 @@ class AlabamaScraper(
                 "sort": "publicationDate,desc",
             }
 
-            # Build URL with query params
             url = f"{api_url}?{urlencode(params)}"
 
             yield Request(
@@ -464,6 +509,8 @@ class AlabamaScraper(
                 accumulated_data={
                     "court_id": court_id,
                     "court_guid": court_guid,
+                    "date_gte": date_gte.isoformat() if date_gte else None,
+                    "date_lte": date_lte.isoformat() if date_lte else None,
                 },
             )
 
@@ -474,11 +521,11 @@ class AlabamaScraper(
     def parse_publications_list(
         self,
         json_content: dict,
-        response: Response,
         accumulated_data: dict,
     ) -> Generator[
         ScraperYield[
             AlaOpinionCluster
+            | AlaOrder
             | AlaOralArgument
             | AlaDocket
             | AlaHistoricalReleaseList
@@ -486,7 +533,11 @@ class AlabamaScraper(
         None,
         None,
     ]:
-        """Parse the publications API response and yield archive requests for PDFs.
+        """Parse publications list and yield detail requests for each publication.
+
+        The list endpoint returns publication UUIDs and dates. For each
+        publication within the date range, we fetch the detail endpoint
+        to get the full item data (titles, documents, decisions, etc.).
 
         The API returns JSON with a structure like::
 
@@ -496,22 +547,9 @@ class AlabamaScraper(
                         {
                             "publicationUUID": "...",
                             "publicationNumber": "SC-RELEASE-2023-11-09",
-                            "scheduledDate": "2023-11-09T14:15:00.000+00:00",
+                            "publicationDate": "2023-11-09T14:15:00.000+00:00",
                             "publicationItems": [
-                                {
-                                    "publicationItemUUID": "...",
-                                    "caseInstanceUUID": "...",
-                                    "caseNumber": "SC-2023-0123",
-                                    "groupName": "Justice Smith",
-                                    "title": "Case Name (Appeal from Circuit Court: CV-123)",
-                                    "decision": "Affirmed.",
-                                    "documents": [
-                                        {
-                                            "documentLinkUUID": "...",
-                                            "documentName": "Decision"
-                                        }
-                                    ]
-                                }
+                                {"caseNumber": "SC-2023-0123"}
                             ]
                         }
                     ]
@@ -520,6 +558,12 @@ class AlabamaScraper(
         """
         court_id: str = accumulated_data.get("court_id", "")
         court_guid: str = accumulated_data.get("court_guid", "")
+
+        # Read date filters from accumulated_data (passed from entry points)
+        date_gte_str = accumulated_data.get("date_gte")
+        date_lte_str = accumulated_data.get("date_lte")
+        date_gte = date.fromisoformat(date_gte_str) if date_gte_str else None
+        date_lte = date.fromisoformat(date_lte_str) if date_lte_str else None
 
         # Navigate to results
         embedded = json_content.get("_embedded", {})
@@ -533,132 +577,57 @@ class AlabamaScraper(
         current_page = page_info.get("number", 0)
         total_pages = page_info.get("totalPages", 1)
 
-        # Get date filter parameters
-        date_gte, date_lte, _, _ = self._get_opinions_search_params()
-
         # Track if we should continue paginating
         should_paginate = False
         earliest_date_seen = None
 
-        # Process all results in current page (not just the first one)
         for publication in results:
             publication_uuid = publication.get("publicationUUID")
-            publication_number = publication.get("publicationNumber")
-            scheduled_date_str = publication.get("scheduledDate", "")
-            date_filed = self._parse_date(scheduled_date_str)
+            # The list endpoint may use scheduledDate or publicationDate
+            pub_date_str = publication.get(
+                "publicationDate",
+                publication.get("scheduledDate", ""),
+            )
+            pub_date = self._parse_date(pub_date_str)
 
-            if not date_filed:
+            if not pub_date or not publication_uuid:
                 continue
 
-            # Track the earliest date we've seen for pagination decisions
-            if earliest_date_seen is None or date_filed < earliest_date_seen:
-                earliest_date_seen = date_filed
+            # Track the earliest date for pagination decisions
+            if earliest_date_seen is None or pub_date < earliest_date_seen:
+                earliest_date_seen = pub_date
 
-            # Check if this publication is within date range
-            if date_lte and date_filed > date_lte:
-                # Publication is too new, skip it
+            # Date range filtering
+            if date_lte and pub_date > date_lte:
                 continue
 
-            if date_gte and date_filed < date_gte:
-                # Publication is too old, stop processing this page
-                # Don't paginate further
+            if date_gte and pub_date < date_gte:
+                # Results are sorted desc; older items mean we're done
                 break
 
-            # If we're still in range, we might need to paginate
-            if date_gte is None or date_filed >= date_gte:
+            if date_gte is None or pub_date >= date_gte:
                 should_paginate = True
 
-            publication_items = publication.get("publicationItems", [])
+            # Fetch the detail endpoint for full publication data
+            detail_url = (
+                f"{API_CONFIG['base_url']}/courts/{court_guid}"
+                f"/cms/publication/{publication_uuid}"
+            )
 
-            for item in publication_items:
-                documents = item.get("documents", [])
-                if not documents:
-                    continue
-
-                case_number = item.get("caseNumber", "")
-                title = item.get("title", "")
-                group_name = item.get("groupName", "")
-                decision = item.get("decision", "")
-                case_instance_uuid = item.get("caseInstanceUUID", "")
-                publication_item_uuid = item.get("publicationItemUUID", "")
-
-                # Extract lower court info from title
-                lower_court = ""
-                lower_court_number = ""
-                match = self.LOWER_COURT_PATTERN.search(title)
-                if match:
-                    lower_court = match.group("lower_court").strip()
-                    lower_court_number = match.group(
-                        "lower_court_number"
-                    ).strip()
-                    # Remove the parenthetical from the title
-                    title = title[: match.start()].rstrip()
-
-                # Determine authoring judge and per curiam status
-                judge = group_name
-                per_curiam = False
-                on_rehearing = False
-
-                if "On Rehearing" in judge:
-                    on_rehearing = True
-                    judge = ""
-                elif "curiam" in judge.lower():
-                    per_curiam = True
-                    judge = ""
-
-                # Build document download URL
-                # Format: https://publicportal-api.alappeals.gov/courts/{court-guid}/cms/case/{case-guid}/docketentrydocuments/{doc-guid}
-                doc_uuid = documents[0].get("documentLinkUUID", "")
-                if not doc_uuid:
-                    continue
-
-                download_url = f"{API_CONFIG['base_url']}/courts/{court_guid}/cms/case/{case_instance_uuid}/docketentrydocuments/{doc_uuid}"
-
-                # Create opinion cluster
-                cluster = AlaOpinionCluster(
-                    case_number=case_number,
-                    court_id=court_id,
-                    date_filed=date_filed,
-                    case_name=title,
-                    publication_number=publication_number,
-                    authoring_judge=judge if judge else None,
-                    decision_text=decision if decision else None,
-                    lower_court=lower_court if lower_court else None,
-                    lower_court_number=lower_court_number
-                    if lower_court_number
-                    else None,
-                    per_curiam=per_curiam,
-                    on_rehearing=on_rehearing,
-                    publication_uuid=publication_uuid,
-                    publication_item_uuid=publication_item_uuid,
-                    case_instance_uuid=case_instance_uuid,
-                    source_url=response.url,
-                    opinions=[],
-                )
-
-                # Create opinion
-                opinion = AlaOpinion(
-                    download_url=download_url,
-                    type="majority",
-                    authoring_judge=judge if judge else None,
-                    decision_text=decision if decision else None,
-                )
-
-                cluster.opinions.append(opinion)
-
-                # Yield archive request for PDF
-                yield Request(
-                    archive=True,
-                    request=HTTPRequestParams(
-                        method=HttpMethod.GET,
-                        url=download_url,
-                    ),
-                    continuation=self.handle_opinion_download,
-                    accumulated_data={
-                        "cluster": cluster.model_dump(mode="json"),
-                        "opinion_index": 0,
+            yield Request(
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET,
+                    url=detail_url,
+                    headers={
+                        "Accept": "application/json",
                     },
-                )
+                ),
+                continuation=self.parse_publication_detail,
+                accumulated_data={
+                    "court_id": court_id,
+                    "court_guid": court_guid,
+                },
+            )
 
         # Pagination logic: fetch next page if needed
         if (
@@ -669,7 +638,6 @@ class AlabamaScraper(
                 or (earliest_date_seen and earliest_date_seen >= date_gte)
             )
         ):
-            # Build next page URL
             api_url = f"{API_CONFIG['base_url']}{API_CONFIG['publications_endpoint']}"
             params = {
                 "courtID": court_guid,
@@ -692,8 +660,196 @@ class AlabamaScraper(
                 accumulated_data={
                     "court_id": court_id,
                     "court_guid": court_guid,
+                    "date_gte": date_gte_str,
+                    "date_lte": date_lte_str,
                 },
             )
+
+    @step(
+        json_model="api.responses.PublicationDetailResponse",
+    )
+    def parse_publication_detail(
+        self,
+        json_content: dict,
+        accumulated_data: dict,
+    ) -> Generator[
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOrder
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
+        None,
+        None,
+    ]:
+        """Parse detailed publication data and yield archive requests.
+
+        Fetches the full publication from the detail endpoint, which
+        includes titles, documents, decisions, and authoring information.
+        Splits items into AlaOpinionCluster (Opinion/Decision documents)
+        and AlaOrder (all other document types).
+
+        Detail Response structure::
+
+            {
+                "publicationNumber": "SC-RELEASE-2023-11-09",
+                "publicationDate": "2023-11-09T14:20:37.335+00:00",
+                "publicationItems": [
+                    {
+                        "caseNumber": "SC-2024-0492",
+                        "groupName": "Wise, J.",
+                        "title": "Case Name (Appeal from Circuit Court: CV-123)",
+                        "decision": "Affirmed.",
+                        "documents": [
+                            {
+                                "documentLinkUUID": "...",
+                                "documentName": "Opinion"
+                            }
+                        ]
+                    }
+                ]
+            }
+        """
+        court_id: str = accumulated_data.get("court_id", "")
+        court_guid: str = accumulated_data.get("court_guid", "")
+
+        publication_number = json_content.get("publicationNumber", "")
+        publication_date_str = json_content.get("publicationDate", "")
+        date_filed = self._parse_date(publication_date_str)
+
+        if not date_filed:
+            return
+
+        publication_items = json_content.get("publicationItems", [])
+
+        for item in publication_items:
+            documents = item.get("documents", [])
+            if not documents:
+                continue
+
+            case_number = item.get("caseNumber", "")
+            title = item.get("title", "")
+            group_name = item.get("groupName", "")
+            decision = item.get("decision", "")
+            case_instance_uuid = item.get("caseInstanceUUID", "")
+            publication_item_uuid = item.get("publicationItemUUID", "")
+            document_name = documents[0].get("documentName", "")
+
+            doc_uuid = documents[0].get("documentLinkUUID", "")
+            if not doc_uuid:
+                continue
+
+            # Extract lower court info from title
+            lower_court = ""
+            lower_court_number = ""
+            match = self.LOWER_COURT_PATTERN.search(title)
+            if match:
+                lower_court = match.group("lower_court").strip()
+                lower_court_number = match.group("lower_court_number").strip()
+                # Remove the parenthetical from the title
+                title = title[: match.start()].rstrip()
+
+            # For "In re:" cases, extract the actual case name
+            in_re_match = self.IN_RE_PATTERN.search(title)
+            if in_re_match:
+                title = in_re_match.group(1).strip()
+
+            # Determine authoring judge and per curiam status
+            judge = group_name
+            per_curiam = False
+            on_rehearing = False
+
+            if "On Rehearing" in judge:
+                on_rehearing = True
+                judge = ""
+            elif "curiam" in judge.lower():
+                per_curiam = True
+                judge = ""
+
+            # Build document download URL
+            download_url = (
+                f"{API_CONFIG['base_url']}/courts/{court_guid}"
+                f"/cms/case/{case_instance_uuid}"
+                f"/docketentrydocuments/{doc_uuid}"
+            )
+
+            # Branch: Opinion/Decision → AlaOpinionCluster, else → AlaOrder
+            if document_name in self.OPINION_DOCUMENT_NAMES:
+                cluster = AlaOpinionCluster(
+                    case_number=case_number,
+                    court_id=court_id,
+                    date_filed=date_filed,
+                    case_name=title,
+                    publication_number=publication_number,
+                    authoring_judge=judge if judge else None,
+                    decision_text=decision if decision else None,
+                    lower_court=lower_court if lower_court else None,
+                    lower_court_number=lower_court_number
+                    if lower_court_number
+                    else None,
+                    per_curiam=per_curiam,
+                    on_rehearing=on_rehearing,
+                    publication_uuid=None,
+                    publication_item_uuid=publication_item_uuid,
+                    case_instance_uuid=case_instance_uuid,
+                    source_url=None,
+                    opinions=[
+                        AlaOpinion(
+                            download_url=download_url,
+                            type="majority",
+                            authoring_judge=judge if judge else None,
+                            decision_text=decision if decision else None,
+                        )
+                    ],
+                )
+
+                yield Request(
+                    archive=True,
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url=download_url,
+                    ),
+                    continuation=self.handle_opinion_download,
+                    accumulated_data={
+                        "cluster": cluster.model_dump(mode="json"),
+                        "opinion_index": 0,
+                    },
+                )
+            else:
+                order = AlaOrder(
+                    case_number=case_number,
+                    court_id=court_id,
+                    date_filed=date_filed,
+                    case_name=title,
+                    document_name=document_name if document_name else None,
+                    decision_text=decision if decision else None,
+                    publication_number=publication_number,
+                    publication_uuid=None,
+                    publication_item_uuid=publication_item_uuid,
+                    case_instance_uuid=case_instance_uuid,
+                    authoring_judge=judge if judge else None,
+                    per_curiam=per_curiam,
+                    on_rehearing=on_rehearing,
+                    lower_court=lower_court if lower_court else None,
+                    lower_court_number=lower_court_number
+                    if lower_court_number
+                    else None,
+                    download_url=download_url,
+                    source_url=None,
+                )
+
+                yield Request(
+                    archive=True,
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url=download_url,
+                    ),
+                    continuation=self.handle_order_download,
+                    accumulated_data={
+                        "order": order.model_dump(mode="json"),
+                    },
+                )
 
     @step()
     def handle_opinion_download(
@@ -703,6 +859,7 @@ class AlabamaScraper(
     ) -> Generator[
         ScraperYield[
             AlaOpinionCluster
+            | AlaOrder
             | AlaOralArgument
             | AlaDocket
             | AlaHistoricalReleaseList
@@ -732,6 +889,37 @@ class AlabamaScraper(
 
         # Yield the complete cluster
         yield ParsedData(data=cluster)
+
+    @step()
+    def handle_order_download(
+        self,
+        local_filepath: str | None,
+        accumulated_data: dict,
+    ) -> Generator[
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOrder
+            | AlaOralArgument
+            | AlaDocket
+            | AlaHistoricalReleaseList
+        ],
+        None,
+        None,
+    ]:
+        """Handle the downloaded order PDF and yield the final order.
+
+        Args:
+            local_filepath: Local path where the PDF was archived
+            accumulated_data: Contains order data
+        """
+        order_data = accumulated_data.get("order")
+        if not order_data:
+            return
+
+        order = AlaOrder.model_validate(order_data)
+        order.local_path = local_filepath
+
+        yield ParsedData(data=order)
 
     # =========================================================================
     # Historical Opinions Entry Point & Scraping Steps (pre-May 2023)
@@ -774,6 +962,7 @@ class AlabamaScraper(
     ) -> Generator[
         ScraperYield[
             AlaOpinionCluster
+            | AlaOrder
             | AlaOralArgument
             | AlaDocket
             | AlaHistoricalReleaseList
@@ -869,6 +1058,7 @@ class AlabamaScraper(
     ) -> Generator[
         ScraperYield[
             AlaOpinionCluster
+            | AlaOrder
             | AlaOralArgument
             | AlaDocket
             | AlaHistoricalReleaseList
@@ -969,6 +1159,7 @@ class AlabamaScraper(
     ) -> Generator[
         ScraperYield[
             AlaOpinionCluster
+            | AlaOrder
             | AlaOralArgument
             | AlaDocket
             | AlaHistoricalReleaseList
@@ -1120,6 +1311,7 @@ class AlabamaScraper(
     ) -> Generator[
         ScraperYield[
             AlaOpinionCluster
+            | AlaOrder
             | AlaOralArgument
             | AlaDocket
             | AlaHistoricalReleaseList
@@ -1322,6 +1514,7 @@ class AlabamaScraper(
     ) -> Generator[
         ScraperYield[
             AlaOpinionCluster
+            | AlaOrder
             | AlaOralArgument
             | AlaDocket
             | AlaHistoricalReleaseList
@@ -1513,6 +1706,7 @@ class AlabamaScraper(
     ) -> Generator[
         ScraperYield[
             AlaOpinionCluster
+            | AlaOrder
             | AlaOralArgument
             | AlaDocket
             | AlaHistoricalReleaseList
@@ -1637,6 +1831,7 @@ class AlabamaScraper(
     ) -> Generator[
         ScraperYield[
             AlaOpinionCluster
+            | AlaOrder
             | AlaOralArgument
             | AlaDocket
             | AlaHistoricalReleaseList
@@ -1754,6 +1949,7 @@ class AlabamaScraper(
     ) -> Generator[
         ScraperYield[
             AlaOpinionCluster
+            | AlaOrder
             | AlaOralArgument
             | AlaDocket
             | AlaHistoricalReleaseList

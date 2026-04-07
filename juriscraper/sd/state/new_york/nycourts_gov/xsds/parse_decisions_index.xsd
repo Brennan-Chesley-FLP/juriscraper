@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for NY Court of Appeals Decisions Index Page
+  URL: https://www.nycourts.gov/ctapps/decisions.htm
+
+  Step: parse_decisions_index
+  XPath used: //a[contains(@href, 'Decisions/')]/@href
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure
+      ==============
+      The decisions index page contains:
+      - Header with court logo and search box
+      - Table with years (2026, 2025, etc.) as row headers
+      - Each year has two rows of months (Jan-Jun, Jul-Dec)
+      - Months with available decisions have links, others are plain text
+
+      Example URL structure for month links:
+      - Decisions/2026/Jan26/January26.html
+      - Decisions/2025/Dec25/December25.html
+
+      Scraper XPath Assertions
+      ========================
+      1. MONTH_LINKS: //a[contains(@href, 'Decisions/')]/@href
+         - Description: "month links"
+         - min_count: 0 (no links for future months)
+         - Expected: List of URLs matching pattern Decisions/YYYY/MonYY/MonthYY.html
+
+      Page Layout
+      ===========
+      - Nested tables for layout
+      - Year rows with 6 cells (one per month in that row)
+      - Active months have links: <a href="Decisions/2025/Dec25/December25.html">December</a>
+      - Inactive months are plain text
+
+      URL Pattern
+      ===========
+      Pattern: Decisions/{YYYY}/{Mon}{YY}/{Month}{YY}.html
+      Examples:
+        - Decisions/2026/Jan26/January26.html
+        - Decisions/2025/Dec25/December25.html
+        - Decisions/2025/Sep25/September25.html
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- Root element is an HTML page -->
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" minOccurs="0"/>
+        <xs:element name="body" type="bodyType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="bodyType">
+    <xs:sequence>
+      <xs:element name="table" type="tableType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="tableType">
+    <xs:sequence>
+      <xs:element name="tr" type="rowType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="rowType">
+    <xs:sequence>
+      <xs:element name="td" type="cellType" maxOccurs="6"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="cellType" mixed="true">
+    <xs:sequence>
+      <xs:element name="a" type="linkType" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="linkType" mixed="true">
+    <xs:attribute name="href" type="monthUrlType" use="required"/>
+  </xs:complexType>
+
+  <!-- URL pattern for month decision pages -->
+  <xs:simpleType name="monthUrlType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="Decisions/\d{4}/\w+\d{2}/\w+\d{2}\.html"/>
+    </xs:restriction>
+  </xs:simpleType>
+</xs:schema>

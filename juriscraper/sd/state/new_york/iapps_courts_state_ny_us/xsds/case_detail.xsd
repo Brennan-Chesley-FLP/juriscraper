@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for NYSCEF Case Detail Page
+  URL: https://iapps.courts.state.ny.us/nyscef/CaseDetails?docketId={id}
+  Step: parse_case_detail
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure (Case Detail)
+      ============================
+      Reached via the "Case Detail" tab from Document List,
+      or directly via CaseDetails?docketId={base64}.
+
+      Header: h1.PageHeading
+      - Contains: "{YYYY-NNNNN}" (a#content) + " - " + span.PageHeadingDesc (court name)
+      - Example: "2024-00003 - Appellate Division - 1st Dept"
+
+      Case Summary: div.CaseSummary
+      - Short Caption: span.captionText
+      - Case Type: strong after "Case Type:"
+      - Index Number: strong after "{Court} Index Number:" (appellate cases)
+      - eFiling Status: strong after "eFiling Status:"
+
+      Tabs: div#tabs ul
+      - "Document List" → SearchDocuments?docketId=...
+      - "Case Detail" → CaseDetails?docketId=... (current)
+
+      Detail Body: div.tabBody > div.DataEntry_InnerBox
+      - Full Caption: span.DataRow > strong "Full Caption" + text
+      - "Information from Court of Original Instance" title
+      - Originating court info in div.CaseSummary:
+        - Index/Court: link to original case + strong with court name
+        - Judge: strong after "Judge:"
+        - Order Appealing From Date: strong after label
+        - Notice of Appeal Date: strong after label
+        - Order Entered Date: strong after label
+        - Notice of Appeal Filed Date: strong after label
+        - Requested Argument Time: strong after label
+
+      Party Tables:
+      - div.tableHeading with text "Petitioners" or "Respondents"
+      - Followed by table.NewSearchResults with summary="... in this case"
+      - Header: Name | Represented By
+      - Data rows:
+        - Cell 0: "Party Name , Role" (e.g., "Melissa Fawer , Appellant")
+        - Cell 1: Attorney reps, each as:
+          "ATTORNEY_NAME on MM/DD/YYYY\nFirm Name"
+          Separated by double line breaks
+          "none recorded" if no attorney
+
+      Authorized Agents table (optional):
+      - h2 "Authorized Agents"
+      - Table: Attorney Name | Authorized Agent | Authorization Date | Revocation Date
+
+      Scraper XPath Assertions
+      ========================
+      1. FULL_CAPTION: //div[contains(@class, 'DataEntry_InnerBox')]//span[contains(@class, 'DataRow')]
+         - min_count: 0
+      2. ORIG_COURT_INFO: //span[@class='Title' and contains(text(), 'Information from Court')]
+         - min_count: 0
+      3. PARTY_SECTIONS: //div[contains(@class, 'tableHeading')]
+         - min_count: 0
+      4. PARTY_ROWS: //table[contains(@summary, 'in this case')]//tbody/tr
+         - min_count: 0
+
+      Party Name/Role Pattern
+      =======================
+      "Name , Role" where Role is one of:
+      - Appellant, Respondent, Petitioner, Intervenor, Mailing Party, Amicus Curiae
+      Note: Party name may contain commas (e.g., "AC 31, LLC , Respondent")
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" minOccurs="0"/>
+        <xs:element name="body" type="bodyType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="bodyType">
+    <xs:sequence>
+      <xs:element name="main" type="mainType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="mainType">
+    <xs:sequence>
+      <xs:element name="h1" type="headingType"/>
+      <xs:element name="div" type="caseSummaryType"/>
+      <xs:element name="div" type="tabsType"/>
+      <xs:element name="div" type="tabBodyType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="headingType" mixed="true">
+    <xs:sequence>
+      <xs:element name="a" type="xs:string"/>
+      <xs:element name="span" type="xs:string"/>
+    </xs:sequence>
+    <xs:attribute name="class" fixed="PageHeading"/>
+  </xs:complexType>
+
+  <xs:complexType name="caseSummaryType">
+    <xs:sequence>
+      <xs:element name="span" maxOccurs="unbounded">
+        <xs:complexType mixed="true">
+          <xs:sequence>
+            <xs:element name="span" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element name="strong" type="xs:string" minOccurs="0"/>
+          </xs:sequence>
+          <xs:attribute name="class" fixed="row"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="class" fixed="CaseSummary"/>
+  </xs:complexType>
+
+  <xs:complexType name="tabsType">
+    <xs:sequence>
+      <xs:element name="ul">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="li" maxOccurs="unbounded">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="a" type="xs:anyType"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="id" fixed="tabs"/>
+  </xs:complexType>
+
+  <xs:complexType name="tabBodyType">
+    <xs:sequence>
+      <xs:element name="div" type="detailInnerType"/>
+      <xs:element name="h2" type="xs:string" minOccurs="0"/>
+      <xs:element name="table" type="agentsTableType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="class" fixed="tabBody"/>
+  </xs:complexType>
+
+  <xs:complexType name="detailInnerType">
+    <xs:sequence>
+      <xs:element name="span" type="dataRowType" minOccurs="0"/>
+      <xs:element name="span" type="xs:string" minOccurs="0"/>
+      <xs:element name="div" type="origCourtType" minOccurs="0"/>
+      <xs:element name="div" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="table" type="partyTableType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="class" fixed="DataEntry_InnerBox"/>
+  </xs:complexType>
+
+  <xs:complexType name="dataRowType" mixed="true">
+    <xs:sequence>
+      <xs:element name="strong" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="class" fixed="DataRow"/>
+  </xs:complexType>
+
+  <xs:complexType name="origCourtType">
+    <xs:sequence>
+      <xs:element name="span" maxOccurs="unbounded">
+        <xs:complexType mixed="true">
+          <xs:sequence>
+            <xs:element name="span" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="class" fixed="CaseSummary"/>
+  </xs:complexType>
+
+  <xs:complexType name="partyTableType">
+    <xs:sequence>
+      <xs:element name="thead">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="tr">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="th" type="xs:string" maxOccurs="2"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="tbody">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="tr" type="partyRowType" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="summary" type="xs:string"/>
+    <xs:attribute name="class" fixed="NewSearchResults"/>
+  </xs:complexType>
+
+  <xs:complexType name="partyRowType">
+    <xs:sequence>
+      <xs:element name="td" type="xs:string" minOccurs="2" maxOccurs="2"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="agentsTableType">
+    <xs:sequence>
+      <xs:element name="thead">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="tr">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="th" type="xs:string" maxOccurs="4"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="tbody">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="tr" maxOccurs="unbounded">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="td" type="xs:string" maxOccurs="4"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="summary" type="xs:string"/>
+  </xs:complexType>
+</xs:schema>

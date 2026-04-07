@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for NYSCEF Case Search Results
+  URL: https://iapps.courts.state.ny.us/nyscef/CaseSearchResults
+  Step: parse_search_results
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure (Search Results)
+      ================================
+      Reached by searching with a case number on the CaseSearch page.
+      The search form is a standard POST form (form#form, method=post).
+
+      Search input: input#txtCaseIdentifierNumber
+      Submit: the form's submit button (Search)
+
+      Empty Results:
+      If no case matches, the page shows only "Case Number: NNNNN"
+      with no table. The table.NewSearchResults element is absent.
+
+      Non-Empty Results:
+      A table.NewSearchResults with one header row and data rows.
+      Case number search typically returns exactly one result.
+
+      Results Table: table.NewSearchResults
+      - Header: Case # / Received Date | eFiling Status / Case Status | Caption | Court / Case Type
+      - Data rows:
+        - Cell 0: &lt;a href="DocumentList?docketId=...&amp;display=all&amp;courtType=..."&gt;YYYY-NNNNN&lt;/a&gt; MM/DD/YYYY
+        - Cell 1: eFiling status text + case status text
+        - Cell 2: Short caption text
+        - Cell 3: Court name (e.g., "Appellate Division - 1st Dept") + Case type
+
+      Scraper XPath Assertions
+      ========================
+      1. RESULT_ROWS: //table[contains(@class, 'NewSearchResults')]//tr[position()>1]
+         - min_count: 0 (no results is valid for speculative searches)
+      2. CASE_LINK: .//a[contains(@href, 'DocumentList')]
+         - min_count: 0 (per row)
+
+      URL Pattern for Case Link
+      =========================
+      DocumentList?docketId={base64}&amp;display=all&amp;courtType={court name}&amp;resultsPageNum=1
+      The docketId is an opaque base64-encoded identifier.
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" minOccurs="0"/>
+        <xs:element name="body" type="bodyType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="bodyType">
+    <xs:sequence>
+      <xs:element name="main" type="mainType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="mainType">
+    <xs:sequence>
+      <xs:element name="form" type="searchFormType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="searchFormType">
+    <xs:sequence>
+      <xs:element name="h1" type="xs:string"/>
+      <xs:element name="div" type="resultBlockType"/>
+      <xs:element name="table" type="resultsTableType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="id" fixed="form"/>
+    <xs:attribute name="method" fixed="post"/>
+  </xs:complexType>
+
+  <xs:complexType name="resultBlockType">
+    <xs:annotation>
+      <xs:documentation>
+        Contains "Case Number: {number}" and Modify/New Search links.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="strong" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="resultsTableType">
+    <xs:sequence>
+      <xs:element name="thead">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="tr" type="headerRowType"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="tbody">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="tr" type="dataRowType" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="class" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:complexType name="headerRowType">
+    <xs:sequence>
+      <xs:element name="th" type="xs:string" maxOccurs="4"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="dataRowType">
+    <xs:sequence>
+      <xs:element name="td" maxOccurs="4">
+        <xs:complexType mixed="true">
+          <xs:sequence>
+            <xs:element name="a" type="caseLinkType" minOccurs="0"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="caseLinkType" mixed="true">
+    <xs:attribute name="href" type="xs:string"/>
+  </xs:complexType>
+</xs:schema>

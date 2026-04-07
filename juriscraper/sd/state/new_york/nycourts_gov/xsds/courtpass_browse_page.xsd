@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Court-PASS Browse Page
+  URL: https://courtpass.nycourts.gov/Public_Browse.aspx
+  Steps: parse_browse_page, parse_browse_date_page, parse_browse_results
+
+  Verified against live page 2026-03-10.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure (Browse Landing — parse_browse_page)
+      =====================================================
+      ASP.NET WebForms page with form#form1 (lowercase 'f').
+      Behind Cloudflare managed challenge (first load may trigger JS challenge).
+
+      Form fields
+      -----------
+      Browse button:
+        ctl00$cphMain$bttnAlpha          (submit — "Browse Alphabetical Case Name Listing")
+
+      Date filter — Telerik RadDatePicker:
+        ctl00$cphMain$rdpStart                          (text, ISO date)
+        ctl00$cphMain$rdpStart$dateInput                 (text, MM/DD/YYYY)
+        ctl00_cphMain_rdpStart_dateInput_ClientState     (hidden, Telerik JSON)
+        ctl00$cphMain$rdpEnd                            (text, ISO date)
+        ctl00$cphMain$rdpEnd$dateInput                   (text, MM/DD/YYYY)
+        ctl00_cphMain_rdpEnd_dateInput_ClientState       (hidden, Telerik JSON)
+
+      Case filter radio:
+        ctl00$cphMain$rblDate            (radio: "All Cases" / "Only Decided Cases")
+
+      Telerik ClientState JSON format (same as search page):
+        {"enabled":true,"emptyMessage":"","validationText":"YYYY-MM-DD-00-00-00",
+         "valueAsString":"YYYY-MM-DD-00-00-00","minDateStr":"1980-01-01-00-00-00",
+         "maxDateStr":"9999-12-31-00-00-00","lastSetTextBoxValue":"MM/DD/YYYY"}
+
+      Hidden ASP.NET fields:
+        __VIEWSTATE, __VIEWSTATEGENERATOR, __VIEWSTATEENCRYPTED,
+        __EVENTVALIDATION, __EVENTTARGET, __EVENTARGUMENT, __LASTFOCUS
+
+      Two entry paths use this page:
+        browse()             → parse_browse_page (clicks bttnAlpha with no dates)
+        browse_by_case_date → parse_browse_date_page (fills dates, clicks bttnAlpha)
+
+
+      Page Structure (Browse Results — parse_browse_results)
+      =======================================================
+      After clicking the browse button, results appear in a paginated GridView.
+      The form remains form#form1 (lowercase).
+
+      Results GridView: table#cphMain_gvResults
+        Header row: Select | Title | Argument Date | Decision Date
+        Data rows (10 per page):
+          td[0]: Select button
+                 onclick="javascript:__doPostBack('ctl00$cphMain$gvResults','OpenFiles$N')"
+                 (where N is the 0-based row index)
+          td[1]: Case title text
+          td[2]: Argument date (MM/DD/YYYY)
+          td[3]: Decision date (MM/DD/YYYY or empty)
+
+      Pagination row (last tr of the GridView):
+        Single td with colspan, containing nested table with page cells:
+          Current page: &lt;span&gt;N&lt;/span&gt;  (plain text, no link)
+          Other pages:  &lt;a href="javascript:__doPostBack('ctl00$cphMain$gvResults','Page$N')"&gt;N&lt;/a&gt;
+          Ellipsis:     &lt;a href="...Page$N..."&gt;...&lt;/a&gt;  (link text is "...")
+
+      Pagination window examples:
+        Page 1:  [1] 2 3 4 5 6 7 8 9 10 ...
+        Page 5:  1 ... 4 [5] 6 ... 10
+        Page 10: 1 ... 9 [10] 11 ... 20
+        Last:    1 ... 168 [169]   (no forward links; span > max link)
+
+      Selecting a case navigates to the filing detail page (form#Form3),
+      documented in courtpass_filing_detail.xsd.
+
+      Scraper XPath Assertions
+      ========================
+      1. DATA_ROWS: //table[contains(@id, 'gvResults')]//tr[position()>1]
+         - min_count: 0
+         - Note: Includes both data rows and pagination row
+      2. PAGINATION_LINKS (per row): .//a[contains(@href, 'Page$')]
+         - min_count: 0
+         - Used to distinguish pagination row from data rows
+      3. CURRENT_PAGE_INDICATOR:
+           //table[contains(@id, 'gvResults')]//tr[last()]//td//span[not(ancestor::a)]
+         - min_count: 0
+         - Returns the &lt;span&gt; containing current page number (digit text)
+      4. ROW_CELLS: td
+         - min_count: 3 (title, arg date, dec date; select button may not be counted)
+
+      Lost-context detection:
+        When no data rows AND no pagination row are found AND expected_page > 1,
+        the browse is re-initiated from scratch via _reinitiate_browse().
+        Recovery navigates back to the target page via _recover_pagination().
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" minOccurs="0"/>
+        <xs:element name="body" type="bodyType"/>
+      </xs:sequence>
+      <xs:anyAttribute processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="bodyType">
+    <xs:sequence>
+      <xs:any processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ASP.NET form: id="form1" (lowercase 'f') -->
+  <xs:complexType name="aspnetFormType">
+    <xs:sequence>
+      <xs:element name="input" type="hiddenFieldType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="div" type="contentPanelType"/>
+    </xs:sequence>
+    <xs:attribute name="id" fixed="form1"/>
+    <xs:attribute name="method" fixed="post"/>
+  </xs:complexType>
+
+  <xs:complexType name="hiddenFieldType">
+    <xs:attribute name="type" fixed="hidden"/>
+    <xs:attribute name="name" type="xs:string"/>
+    <xs:attribute name="value" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- Content area: contains landing controls and/or results table -->
+  <xs:complexType name="contentPanelType">
+    <xs:sequence>
+      <!--
+        Landing page controls (date pickers, radio, browse button) and
+        results GridView (table#cphMain_gvResults) after submission.
+        Uses xs:any because the form elements vary by page state.
+      -->
+      <xs:any processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!--
+    Browse button:
+      name="ctl00$cphMain$bttnAlpha"
+      value="Browse Alphabetical Case Name Listing"
+  -->
+  <xs:complexType name="browseButtonType">
+    <xs:attribute name="type" fixed="submit"/>
+    <xs:attribute name="name" fixed="ctl00$cphMain$bttnAlpha"/>
+    <xs:attribute name="value" type="xs:string"/>
+  </xs:complexType>
+
+  <!--
+    Results GridView: table#cphMain_gvResults
+
+    ASP.NET GridView renders all rows as direct <tr> children (no thead/tbody),
+    so we use a single <tr> element with flexible content to satisfy UPA.
+
+    Row types:
+      - Header row:     <tr> with <th> cells (Select | Title | Argument Date | Decision Date)
+      - Data rows:      <tr> with <td> cells (button, title, arg date, dec date)
+      - Pagination row: <tr> with single <td colspan> containing nested page-link table
+  -->
+  <xs:complexType name="browseGridType">
+    <xs:sequence>
+      <xs:element name="tr" type="gridRowType" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- Flexible row type: accepts <th>, <td>, or nested content -->
+  <xs:complexType name="gridRowType">
+    <xs:sequence>
+      <xs:any processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute processContents="lax"/>
+  </xs:complexType>
+</xs:schema>

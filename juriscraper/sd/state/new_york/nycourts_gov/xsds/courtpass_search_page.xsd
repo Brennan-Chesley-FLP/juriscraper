@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XSD Schema for Court-PASS Public Search Page
+  URL: https://courtpass.nycourts.gov/Public_search.aspx
+  Steps: parse_search_page, parse_search_results
+
+  Verified against live page 2026-03-10.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Page Structure (Search Form — parse_search_page)
+      ==================================================
+      ASP.NET WebForms page with form#Form1 (capital F).
+      Behind Cloudflare managed challenge (first load may trigger JS challenge).
+
+      Form fields used by the scraper
+      ---------------------------------
+      Case-type radio:
+        ctl00$cphMain$RadioButtonList1       (radio: Civil / Criminal / All Cases)
+
+      Party name search:
+        ctl00$cphMain$txtPartyName           (text)
+        ctl00$cphMain$ddlFindPartyName       (select: FindAND / FindOR / Exact)
+
+      Decision date — Telerik RadDatePicker:
+        ctl00$cphMain$rdpStartDecisionDate               (text, ISO date)
+        ctl00$cphMain$rdpStartDecisionDate$dateInput      (text, MM/DD/YYYY)
+        ctl00_cphMain_rdpStartDecisionDate_dateInput_ClientState  (hidden, Telerik JSON)
+        ctl00$cphMain$rdpEndDecisionDate                 (text, ISO date)
+        ctl00$cphMain$rdpEndDecisionDate$dateInput        (text, MM/DD/YYYY)
+        ctl00_cphMain_rdpEndDecisionDate_dateInput_ClientState    (hidden, Telerik JSON)
+
+      Argument date — Telerik RadDatePicker:
+        ctl00$cphMain$rdpStartAppealGrantedDate               (text, ISO date)
+        ctl00$cphMain$rdpStartAppealGrantedDate$dateInput      (text, MM/DD/YYYY)
+        ctl00_cphMain_rdpStartAppealGrantedDate_dateInput_ClientState  (hidden, Telerik JSON)
+        ctl00$cphMain$rdpEndAppealGrantedDate                 (text, ISO date)
+        ctl00$cphMain$rdpEndAppealGrantedDate$dateInput        (text, MM/DD/YYYY)
+        ctl00_cphMain_rdpEndAppealGrantedDate_dateInput_ClientState    (hidden, Telerik JSON)
+
+      Other fields (not used by scraper):
+        ctl00$cphMain$txtJudgeName           (text — authoring judge)
+        ctl00$cphMain$txtDocketNo            (text — decision number)
+        ctl00$cphMain$ddlMainHead            (select — primary classification)
+        ctl00$cphMain$ddlSubHead             (select — secondary classification)
+        ctl00$cphMain$ddlSlipYear            (select — slip opinion year)
+        ctl00$cphMain$txtSlipNo              (text — slip opinion number)
+        ctl00$cphMain$txtVolumeNo            (text — official reports volume)
+        ctl00$cphMain$txtPageNo              (text — official reports page)
+
+      Submit:
+        ctl00$cphMain$btnFind                (submit — "Find")
+        ctl00$cphMain$btnReset               (submit — "Reset")
+
+      Hidden ASP.NET fields:
+        __VIEWSTATE, __VIEWSTATEGENERATOR, __VIEWSTATEENCRYPTED,
+        __EVENTVALIDATION, __EVENTTARGET, __EVENTARGUMENT, __LASTFOCUS,
+        cphMain_RadScriptManager1_TSM
+
+      Telerik ClientState JSON format
+      --------------------------------
+      The server reads dates from the hidden _dateInput_ClientState fields,
+      not the visible text inputs.  Format:
+        {"enabled":true,"emptyMessage":"","validationText":"YYYY-MM-DD-00-00-00",
+         "valueAsString":"YYYY-MM-DD-00-00-00","minDateStr":"1980-01-01-00-00-00",
+         "maxDateStr":"9999-12-31-00-00-00","lastSetTextBoxValue":"MM/DD/YYYY"}
+
+      Page Structure (Search Results — parse_search_results)
+      =======================================================
+      After form submission, results appear in a single GridView table.
+
+      NOTE: The scraper code queries for table IDs cphMain_gvPending and
+      cphMain_gvDecided, but the actual table on the live site is:
+        id="cphMain_gvPublicSearchPost"
+      This is a known mismatch — the search entry point was not exercised
+      in production runs.  The XSD documents the actual live structure.
+
+      Results table: id="cphMain_gvPublicSearchPost"
+        Header row: Select | Title | Decision Date | Citation
+        Data rows:
+          td[0]: Select button (input type="button")
+                 onclick="javascript:__doPostBack('ctl00$cphMain$gvPublicSearchPost','OpenFiles$N')"
+          td[1]: Case title (in span#cphMain_gvPublicSearchPost_hlOrig_N)
+          td[2]: Decision date (MM/DD/YYYY)
+          td[3]: Official citation (in span#cphMain_gvPublicSearchPost_lbOfficial_N)
+
+      Pagination row (last tr):
+        Single td with colspan, containing nested table with page links:
+          Current page: &lt;span&gt;N&lt;/span&gt;  (plain text, no link)
+          Other pages:  &lt;a href="javascript:__doPostBack('ctl00$cphMain$gvPublicSearchPost','Page$N')"&gt;N&lt;/a&gt;
+          Ellipsis:     &lt;a href="..."&gt;...&lt;/a&gt;  (link text is "...")
+
+      A "Decided Cases:" label div appears above the table.
+
+      Navigation buttons after the table:
+        ctl00$cphMain$bttnSearch   (submit — "Return to Search")
+
+      Scraper XPath Assertions
+      ========================
+      1. RESULTS_ROWS: //table[@id='cphMain_gvPending']//tr[position()>1]
+                    OR //table[@id='cphMain_gvDecided']//tr[position()>1]
+         - min_count: 0
+         - NOTE: These IDs do not match the live table ID (gvPublicSearchPost).
+      2. ROW_CELLS: td
+         - min_count: 4 (Select button, Title, Date, Citation)
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="html">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="head" minOccurs="0"/>
+        <xs:element name="body" type="bodyType"/>
+      </xs:sequence>
+      <xs:anyAttribute processContents="lax"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="bodyType">
+    <xs:sequence>
+      <xs:any processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ASP.NET form: id="Form1" (capital F) -->
+  <xs:complexType name="aspnetFormType">
+    <xs:sequence>
+      <xs:element name="input" type="hiddenFieldType" maxOccurs="unbounded"/>
+      <xs:element name="div" type="contentPanelType"/>
+    </xs:sequence>
+    <xs:attribute name="id" fixed="Form1"/>
+    <xs:attribute name="method" fixed="post"/>
+  </xs:complexType>
+
+  <xs:complexType name="hiddenFieldType">
+    <xs:attribute name="type" fixed="hidden"/>
+    <xs:attribute name="name" type="xs:string"/>
+    <xs:attribute name="value" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- Search form fields (simplified) -->
+  <xs:complexType name="contentPanelType">
+    <xs:sequence>
+      <!--
+        Search form elements (RadDatePickers, text fields, dropdowns) and
+        results table (table#cphMain_gvPublicSearchPost) after submission.
+        Uses xs:any because the form elements vary by page state.
+      -->
+      <xs:any processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!--
+    Results GridView: id="cphMain_gvPublicSearchPost"
+
+    ASP.NET GridView renders all rows as direct <tr> children (no thead/tbody),
+    so we use a single <tr> element with flexible content to satisfy UPA.
+
+    Row types:
+      - Header row:     <tr> with <th> cells (Select | Title | Decision Date | Citation)
+      - Data rows:      <tr> with <td> cells (button, title, date, citation)
+      - Pagination row: <tr> with single <td colspan> containing nested page-link table
+  -->
+  <xs:complexType name="resultsGridType">
+    <xs:sequence>
+      <xs:element name="tr" type="gridRowType" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- Flexible row type: accepts <th>, <td>, or nested content -->
+  <xs:complexType name="gridRowType">
+    <xs:sequence>
+      <xs:any processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:anyAttribute processContents="lax"/>
+  </xs:complexType>
+</xs:schema>

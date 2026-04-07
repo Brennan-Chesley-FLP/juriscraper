@@ -209,3 +209,8 @@ tests/fixtures/cassettes/
 # Swap files
 *.swp
 *~
+.playwright-mcp
+.playwright-mcp
+.claude
+.onfig
+.config

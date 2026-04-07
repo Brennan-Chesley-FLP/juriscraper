@@ -2,15 +2,16 @@
 <!--
   XSD Schema for Court-PASS Public Search Page
   URL: https://courtpass.nycourts.gov/Public_search.aspx
-  Steps: parse_search_page, parse_search_results
+  Steps: fill_search_pending, parse_pending_search_results,
+         fill_search_decided_after, parse_decided_search_results
 
   Verified against live page 2026-03-10.
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <xs:annotation>
     <xs:documentation>
-      Page Structure (Search Form — parse_search_page)
-      ==================================================
+      Page Structure (Search Form — fill_search_pending / fill_search_decided_after)
+      =================================================================================
       ASP.NET WebForms page with form#Form1 (capital F).
       Behind Cloudflare managed challenge (first load may trigger JS challenge).
 
@@ -66,24 +67,22 @@
          "valueAsString":"YYYY-MM-DD-00-00-00","minDateStr":"1980-01-01-00-00-00",
          "maxDateStr":"9999-12-31-00-00-00","lastSetTextBoxValue":"MM/DD/YYYY"}
 
-      Page Structure (Search Results — parse_search_results)
-      =======================================================
-      After form submission, results appear in a single GridView table.
+      Page Structure (Search Results — parse_pending_search_results / parse_decided_search_results)
+      ===============================================================================================
+      After form submission, two grids may appear on the same response:
 
-      NOTE: The scraper code queries for table IDs cphMain_gvPending and
-      cphMain_gvDecided, but the actual table on the live site is:
-        id="cphMain_gvPublicSearchPost"
-      This is a known mismatch — the search entry point was not exercised
-      in production runs.  The XSD documents the actual live structure.
+        cphMain_gvPublicSearchPre   — pending cases  (parse_pending_search_results)
+          Header row: Select | Title | Calendar Date | Argument Number
+        cphMain_gvPublicSearchPost  — decided cases  (parse_decided_search_results)
+          Header row: Select | Title | Decision Date | Citation
 
-      Results table: id="cphMain_gvPublicSearchPost"
-        Header row: Select | Title | Decision Date | Citation
-        Data rows:
-          td[0]: Select button (input type="button")
-                 onclick="javascript:__doPostBack('ctl00$cphMain$gvPublicSearchPost','OpenFiles$N')"
-          td[1]: Case title (in span#cphMain_gvPublicSearchPost_hlOrig_N)
-          td[2]: Decision date (MM/DD/YYYY)
-          td[3]: Official citation (in span#cphMain_gvPublicSearchPost_lbOfficial_N)
+      Both grids render rows the same way (post-2026-04 redesign):
+        td[0]: <input type="submit" id="cphMain_<grid>_btnSelect_N"
+                       name="ctl00$cphMain$<grid>$ctl<N+2>$btnSelect"
+                       aria-label="Select: <case_name>. <date_label> <date>...">
+        td[1..]: case-name + date / argument number / citation cells
+        (column header is now wrapped in <thead>; data + pagination rows
+         live inside <tbody>)
 
       Pagination row (last tr):
         Single td with colspan, containing nested table with page links:
@@ -98,12 +97,16 @@
 
       Scraper XPath Assertions
       ========================
-      1. RESULTS_ROWS: //table[@id='cphMain_gvPending']//tr[position()>1]
-                    OR //table[@id='cphMain_gvDecided']//tr[position()>1]
+      1. DATA_ROWS:  //table[@id='cphMain_gvPublicSearchPre']
+                          //tr[.//input[contains(@id, 'btnSelect')]]
+                  OR //table[@id='cphMain_gvPublicSearchPost']
+                          //tr[.//input[contains(@id, 'btnSelect')]]
          - min_count: 0
-         - NOTE: These IDs do not match the live table ID (gvPublicSearchPost).
-      2. ROW_CELLS: td
-         - min_count: 4 (Select button, Title, Date, Citation)
+         - Picked by content (the row contains a btnSelect submit) so the
+           thead/tbody split doesn't drop the first data row.
+      2. PAGINATION_ROW: same table, //tr[.//a[contains(@href, 'Page$')]]
+      3. ROW_CELLS: td
+         - min_count: 4 (Select button, Title, Date, Citation/Argument#)
     </xs:documentation>
   </xs:annotation>
 

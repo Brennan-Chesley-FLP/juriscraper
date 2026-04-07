@@ -19,8 +19,10 @@ for the New York Court of Appeals scrapers.
 
 ### courtpass_search_page.xsd
 - **URL**: https://courtpass.nycourts.gov/Public_search.aspx
-- **Steps**: `parse_search_page`, `parse_search_results`
-- **Purpose**: Search form (by argument/decision date) and results tables
+- **Steps**: `fill_search_pending`, `parse_pending_search_results`,
+  `fill_search_decided_after`, `parse_decided_search_results`
+- **Purpose**: Pending/decided search form and the
+  `gvPublicSearchPre` / `gvPublicSearchPost` results grids
 
 ### courtpass_filing_detail.xsd
 - **URL**: Reached via postback from search/browse/docket results

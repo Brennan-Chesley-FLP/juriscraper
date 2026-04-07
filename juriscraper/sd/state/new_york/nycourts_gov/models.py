@@ -27,82 +27,6 @@ COURT_IDS = {
     "ny": "New York Court of Appeals",
 }
 
-# Opinion type suffixes found in PDF filenames
-OPINION_TYPES = {
-    "opn": "Opinion",
-    "mem": "Memorandum",
-    "ent": "Entry",
-}
-
-
-def normalize_opinion_type(filename: str) -> str:
-    """Extract opinion type from PDF filename.
-
-    Args:
-        filename: PDF filename like '112opn26-Decision.pdf' or '102mem25-Decision.pdf'
-
-    Returns:
-        Opinion type string (e.g., 'opn', 'mem', 'ent') or 'unknown'
-    """
-    filename_lower = filename.lower()
-    for suffix in OPINION_TYPES:
-        if suffix in filename_lower:
-            return suffix
-    return "unknown"
-
-
-class NYOpinion(ScrapedData):
-    """An individual opinion document from New York Court of Appeals."""
-
-    download_url: str
-    """URL to the opinion PDF"""
-
-    type: str
-    """Opinion type based on filename suffix: 'opn', 'mem', 'ent', etc."""
-
-    local_path: str | None = None
-    """Local filesystem path where the PDF was downloaded (set by driver)"""
-
-
-class NYOpinionCluster(ScrapedData):
-    """A cluster of opinions from New York Court of Appeals.
-
-    This is the main output type yielded by the scraper.
-    Each cluster represents a single opinion number (e.g., 'No. 112')
-    from a decision day.
-
-    The New York Court of Appeals is the highest court in New York State.
-    """
-
-    # === Searchable fields ===
-    docket_id: str
-    """Opinion number (e.g., 'No. 112' or '112')"""
-
-    court_id: str
-    """Court identifier: 'ny' (Court of Appeals)"""
-
-    date_filed: date
-    """Decision date"""
-
-    # === Required fields ===
-    case_name: str
-    """Case name"""
-
-    # === Related data ===
-    opinions: list[NYOpinion] = []
-    """All opinions/orders in this cluster (typically one per case)"""
-
-    # === Source tracking ===
-    source_url: str | None = None
-    """URL of the monthly decisions page where this was found"""
-
-    # === NY-specific fields ===
-    precedential_status: str | None = None
-    """Precedential status (e.g., 'Published')"""
-
-    slip_op_number: str | None = None
-    """Slip opinion number if available (e.g., '2026 NY Slip Op 00201')"""
-
 
 # =========================================================================
 # Court-PASS Models (courtpass.nycourts.gov)
@@ -210,6 +134,15 @@ class NYCourtPassCase(ScrapedData):
     decision / calendar dates. Useful as a tie-breaker when the filing
     detail page omits the title server-side (e.g. JCR cases)."""
 
+    search_grid: str | None = None
+    """Which Public_search.aspx subgrid this case was reached from:
+    ``"pending"`` (gvPublicSearchPre) or ``"decided"`` (gvPublicSearchPost).
+    None for browse / docket / direct-APL flows.  Together with the now-
+    specific ``coa_site_source`` (``search_pending`` / ``search_decided``)
+    this disambiguates the natural key
+    ``(coa_site_source, search_page, search_row)`` — the two subgrids
+    share row indices on the same response page."""
+
 
 class NYCourtPassDocketEntry(ScrapedData):
     """A row from the FILINGS table on the Docket detail page."""
@@ -249,27 +182,6 @@ class NYCourtPassAttorney(ScrapedData):
     """Attorney's phone number"""
 
 
-class RefreshDocketsParams(ScrapedData):
-    """Parameters for the ``refresh_dockets`` entry point."""
-
-    seen_dockets: set[str]
-    """Docket numbers already scraped (e.g., {'APL-2024-00177', ...})"""
-
-    still_live: date
-    """Cutoff date: dockets decided before this are considered stale"""
-
-
-class NYCourtDocketAlreadyScraped(ScrapedData):
-    """Confirmation that a previously-scraped docket is still on Court-PASS.
-
-    Emitted by ``refresh_dockets`` when the docket number was already seen
-    and its decision date predates the ``still_live`` cutoff.
-    """
-
-    docket_number: str
-    """APL number (e.g., 'APL-2024-00177')"""
-
-
 class NYCourtPassDocket(ScrapedData):
     """Docket data from the Court-PASS Docket detail page.
 
@@ -307,3 +219,68 @@ class NYCourtPassDocket(ScrapedData):
 
     aria_case_info: str | None = None
     """Raw ``aria-label`` string from the grid's Select button."""
+
+
+class NYDocketFailure(ScrapedData):
+    """Record of a docket whose filing-detail page could not be confirmed.
+
+    Emitted when ``parse_docket_filing_detail`` exhausts its
+    docket-number-search recovery attempts without ever loading a
+    filing-detail page whose caption agrees with the docket-detail
+    caption (a Court-PASS bttnDetails session-state race).
+
+    The docket-side data (case_name, argument_date, docket_entries,
+    attorneys) is reliable because it comes from the docket-detail page,
+    which we verify lines up with the row that was clicked. Only the
+    filing-detail-only fields (decision_date, issues, files, etc.) are
+    unavailable. Downstream consumers can use this record to retry the
+    case later or to surface a known gap.
+    """
+
+    temp_case_id: str
+    """UUID matching what NYCourtPassDocket / NYCourtPassCase would have used."""
+
+    docket_number: str | None = None
+    """APL/CTQ/JCR number from the docket-detail page."""
+
+    court_id: str = "ny"
+    """Court identifier."""
+
+    case_name: str = ""
+    """Case caption from the docket-detail page (reliable)."""
+
+    argument_date: date | None = None
+    """Argument date from the docket-detail page."""
+
+    docket_entries: list[NYCourtPassDocketEntry] = []
+    """Filing entries from the FILINGS table on the docket-detail page."""
+
+    attorneys: list[NYCourtPassAttorney] = []
+    """Attorney details from the docket-detail page."""
+
+    search_page: int | None = None
+    """1-based page number on the Docket.aspx grid this row was found on."""
+
+    search_row: int | None = None
+    """0-based row index within ``search_page``."""
+
+    aria_case_info: str | None = None
+    """Raw ``aria-label`` string captured from the grid's Select button."""
+
+    failure_reason: str = "filing_detail_caption_mismatch"
+    """Machine-readable failure code."""
+
+    observed_filing_caption: str | None = None
+    """Caption seen on the filing-detail page (the wrong case the server
+    returned). Useful when diagnosing recurring drift patterns."""
+
+    recovery_attempts: int = 0
+    """How many docket-number-search recovery walks were attempted before
+    giving up (equal to MAX_FILING_DETAIL_RECOVERY at emission time)."""
+
+    failed_docket_search: bool = False
+    """True when a recovery walk's docket-number search returned no
+    matching rows (the case is genuinely not findable by docket number
+    on Court-PASS, or its index entry is broken).  False means the search
+    found the case but the filing-detail page still wouldn't load
+    consistently."""

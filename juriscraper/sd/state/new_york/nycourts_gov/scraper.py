@@ -7,8 +7,6 @@ requiring a PlaywrightDriver.
 
 Entry points::
 
-    - @entry search_by_argument_date(DateRange)
-    - @entry search_by_decision_date(DateRange)
     - @entry search_pending()
     - @entry search_decided_after(decided_after: date)
     - @entry get_docket(docket_number: str)
@@ -16,13 +14,26 @@ Entry points::
     - @entry browse_by_case_date(DateRange)
     - @entry enumerate_dockets(argument_date?: DateRange, decision_date?: DateRange)
     - @entry enumerate_dockets_from_page(start_page, argument_date?: DateRange, decision_date?: DateRange)
-    - @entry refresh_dockets(seen_dockets: set[str], still_live: date)
 
-Search/Browse Flow (emits NYCourtPassCase)::
+Search Flow — pending cases (emits NYCourtPassCase)::
 
-    1. Entry → initial page (Search or Browse)
-    2. parse_search_page → fill form with dates, submit
-    3. parse_search_results → parse case tables, select each case
+    1. search_pending → Public_search.aspx
+    2. fill_search_pending → submit OR-alphabet party-name query
+    3. parse_pending_search_results → walk gvPublicSearchPre rows
+    4. parse_filing_detail → emit NYCourtPassCase, download files
+
+Search Flow — decided cases (emits NYCourtPassCase)::
+
+    1. search_decided_after → Public_search.aspx
+    2. fill_search_decided_after → submit decision-date range
+    3. parse_decided_search_results → walk gvPublicSearchPost rows
+    4. parse_filing_detail → emit NYCourtPassCase, download files
+
+Browse Flow (emits NYCourtPassCase)::
+
+    1. browse / browse_by_case_date → Public_Browse.aspx
+    2. parse_browse_page / parse_browse_date_page → submit form
+    3. parse_browse_results → walk gvResults rows
     4. parse_filing_detail → emit NYCourtPassCase, download files
 
 Docket Enumeration Flow (emits NYCourtPassDocket + NYCourtPassCase)::
@@ -80,15 +91,16 @@ from kent.data_types import (
     WaitForLoadState,
     WaitForSelector,
 )
+from pydantic import BaseModel
 from pyrate_limiter import Duration, Rate
 
 from .models import (
-    NYCourtDocketAlreadyScraped,
     NYCourtPassAttorney,
     NYCourtPassCase,
     NYCourtPassDocket,
     NYCourtPassDocketEntry,
     NYCourtPassFile,
+    NYDocketFailure,
 )
 
 if TYPE_CHECKING:
@@ -126,16 +138,36 @@ SEARCH_DECIDED_GRID = "ctl00$cphMain$gvPublicSearchPost"
 
 
 _Yield = (
-    NYCourtDocketAlreadyScraped
-    | NYCourtPassCase
-    | NYCourtPassDocket
-    | NYCourtPassFile
+    NYCourtPassCase | NYCourtPassDocket | NYCourtPassFile | NYDocketFailure
 )
 
 # Search string that matches every case on the docket via "Find Any Words (OR)"
 DOCKET_ENUMERATE_QUERY = (
     "a b c d e f g h i j k l m n o p q r s t u v w x y z 0 1 2 3 4 5 6 7 8 9"
 )
+
+# Cap on how many times parse_docket_filing_detail will re-walk via a
+# docket-number search to recover from a bttnDetails caption mismatch.
+MAX_FILING_DETAIL_RECOVERY = 2
+
+
+class NetDocketTarget(BaseModel):
+    """A single target case for the ``net_docket`` entry point.
+
+    The grid filter matches rows by ``aria_case_info``; the docket-detail
+    filter then verifies the resulting docket number, which disambiguates
+    aria collisions (e.g. the "Matter of Anonymous" cluster maps a single
+    aria-label to 9+ distinct dockets).
+    """
+
+    aria_case_info: str
+    docket_number: str
+
+
+class NetDocketTargets(BaseModel):
+    """Wrapper around a list of ``NetDocketTarget`` for entry params."""
+
+    targets: list[NetDocketTarget]
 
 
 class NYCourtPassScraper(BaseScraper[_Yield]):
@@ -189,6 +221,45 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
     def _normalize_whitespace(text: str) -> str:
         """Collapse all contiguous whitespace to a single space."""
         return " ".join(text.split())
+
+    @staticmethod
+    def _canonicalize_caption(text: str) -> str:
+        """Normalize a case caption for cross-page substring comparison.
+
+        The docket-detail Title cell for consolidated cases concatenates
+        every party-pair with literal ``<br />`` text (the source HTML
+        double-encodes the tag) or long runs of dashes/underscores as
+        visual separators. The filing-detail caption shows only one
+        pair. Strip those artifacts so the filing caption can be matched
+        as a contiguous substring of the docket caption.
+        """
+        if not text:
+            return ""
+        text = re.sub(r"<br\s*/?>", " ", text)
+        text = re.sub(r"&lt;br\s*/?&gt;", " ", text)
+        text = re.sub(r"[-_]{3,}", " ", text)
+        return " ".join(text.split())
+
+    @staticmethod
+    def _caption_substring_match(filing: str, docket: str) -> bool:
+        """Whitespace-insensitive substring check between two captions.
+
+        The filing-detail page wraps the case caption in three
+        ``<div class="case-caption-line">`` elements (party / "v." /
+        party). For captions that don't follow the implicit
+        Plaintiff-v-Defendant template — e.g. ``Matter of X v Y. (App.
+        Div. No. NNNNN)`` — the template injects the literal ``v.``
+        between unrelated fragments, so our text-node-joining extractor
+        produces ``"(App. Di v. No. NNNNN)"`` while the docket-detail
+        page (which uses a single ``<dd>``) renders it as ``"(App. Div.
+        No. NNNNN)"``. Strip all whitespace before the substring check
+        so this one-space discrepancy doesn't trigger a false-mismatch.
+        Genuine drift (e.g. different App. Div. numbers) remains
+        detectable because the underlying tokens still differ.
+        """
+        if not filing or not docket:
+            return False
+        return re.sub(r"\s+", "", filing) in re.sub(r"\s+", "", docket)
 
     @staticmethod
     def _extract_detail_fields(
@@ -508,6 +579,63 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             for a in raw_attorneys
         ]
 
+    def _emit_docket_failure(
+        self,
+        accumulated_data: dict,
+        *,
+        observed_filing_caption: str | None,
+        failed_docket_search: bool,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Yield a NYDocketFailure built from ``deferred_docket`` (the
+        docket-detail payload staged in parse_docket_detail) with fallback
+        to top-level accumulated_data when individual fields are missing.
+
+        Used from three sites: filing-detail caption mismatch exhausting
+        recovery, recovery search returning no rows, and recovery search
+        receiving a malformed docket number it cannot submit.
+        """
+        deferred = accumulated_data.get("deferred_docket") or {}
+        yield ParsedData(
+            data=NYDocketFailure(
+                temp_case_id=(
+                    deferred.get("temp_case_id")
+                    or accumulated_data.get("temp_case_id", "")
+                ),
+                docket_number=(
+                    deferred.get("docket_number")
+                    or accumulated_data.get("docket_number")
+                ),
+                case_name=deferred.get("case_name") or "",
+                argument_date=self._parse_date_mdy(
+                    deferred.get("argument_date_str") or ""
+                ),
+                docket_entries=self._build_docket_entries(
+                    deferred.get("docket_entries") or []
+                ),
+                attorneys=self._build_attorneys(
+                    deferred.get("attorneys") or []
+                ),
+                search_page=(
+                    deferred.get("search_page")
+                    or accumulated_data.get("search_page")
+                ),
+                search_row=(
+                    deferred.get("search_row")
+                    if deferred.get("search_row") is not None
+                    else accumulated_data.get("search_row")
+                ),
+                aria_case_info=(
+                    deferred.get("aria_case_info")
+                    or accumulated_data.get("aria_case_info")
+                ),
+                observed_filing_caption=observed_filing_caption,
+                recovery_attempts=accumulated_data.get(
+                    "filing_detail_recovery_attempts", 0
+                ),
+                failed_docket_search=failed_docket_search,
+            )
+        )
+
     @staticmethod
     def _date_range_to_accumulated(
         argument_date: DateRange | None,
@@ -546,48 +674,6 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
     # =========================================================================
     # Entry Points
     # =========================================================================
-
-    @entry(NYCourtPassDocket)
-    def search_by_argument_date(
-        self,
-        date_range: DateRange,
-    ) -> Generator[Request, None, None]:
-        """Search Court-PASS by argument date range."""
-        yield Request(
-            request=HTTPRequestParams(
-                method=HttpMethod.GET,
-                url=SEARCH_URL,
-            ),
-            continuation=self.parse_search_page,
-            accumulated_data={
-                "search_type": "argument",
-                "date_start": date_range.start.isoformat(),
-                "date_end": date_range.end.isoformat(),
-                "entry_point": "search_by_argument_date",
-                "coa_site_source": "search",
-            },
-        )
-
-    @entry(NYCourtPassDocket)
-    def search_by_decision_date(
-        self,
-        date_range: DateRange,
-    ) -> Generator[Request, None, None]:
-        """Search Court-PASS by decision date range."""
-        yield Request(
-            request=HTTPRequestParams(
-                method=HttpMethod.GET,
-                url=SEARCH_URL,
-            ),
-            continuation=self.parse_search_page,
-            accumulated_data={
-                "search_type": "decision",
-                "date_start": date_range.start.isoformat(),
-                "date_end": date_range.end.isoformat(),
-                "entry_point": "search_by_decision_date",
-                "coa_site_source": "search",
-            },
-        )
 
     @entry(NYCourtPassDocket)
     def get_docket(
@@ -726,7 +812,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             continuation=self.fill_search_pending,
             accumulated_data={
                 "entry_point": "search_pending",
-                "coa_site_source": "search",
+                "coa_site_source": "search_pending",
             },
             priority=11,
             # SEARCH_URL is shared with search_decided_after; skip the
@@ -759,7 +845,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             continuation=self.fill_search_decided_after,
             accumulated_data={
                 "entry_point": "search_decided_after",
-                "coa_site_source": "search",
+                "coa_site_source": "search_decided",
                 "decided_after": decided_after.isoformat(),
             },
             priority=15,
@@ -767,116 +853,6 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             # URL-based dedup so both entry points can coexist.
             deduplication_key=SkipDeduplicationCheck(),
         )
-
-    # =========================================================================
-    # Search Flow: Steps 1-2 (search page → results)
-    # =========================================================================
-
-    @step(
-        xsd="xsds/courtpass_search_page.xsd",
-        await_list=[
-            WaitForLoadState("networkidle", timeout=60000),
-            WaitForSelector("#Form1", timeout=30000),
-        ],
-    )
-    def parse_search_page(
-        self,
-        page: PageElement,
-        response: Response,
-        accumulated_data: dict,
-    ) -> Generator[ScraperYield[_Yield], None, None]:
-        """Fill the Public_search.aspx form with a date range and submit.
-
-        The redesigned 2026-04 page uses plain ``dp*`` text inputs in
-        MM/DD/YYYY format instead of Telerik RadDatePicker controls —
-        no ClientState / ISO companion fields anymore.
-        """
-        search_type = accumulated_data["search_type"]
-        date_start = accumulated_data["date_start"]
-        date_end = accumulated_data["date_end"]
-
-        start_dt = date.fromisoformat(date_start)
-        end_dt = date.fromisoformat(date_end)
-        start_mdy = start_dt.strftime("%m/%d/%Y")
-        end_mdy = end_dt.strftime("%m/%d/%Y")
-
-        form = page.find_form(SEARCH_FORM, "search form")
-
-        if search_type == "argument":
-            start_picker = "dpStartAppealGrantedDate"
-            end_picker = "dpEndAppealGrantedDate"
-        else:
-            start_picker = "dpStartDecisionDate"
-            end_picker = "dpEndDecisionDate"
-
-        yield form.submit(
-            data={
-                f"ctl00$cphMain${start_picker}": start_mdy,
-                f"ctl00$cphMain${end_picker}": end_mdy,
-            },
-            submit_selector="input[name='ctl00$cphMain$btnFind']",
-            continuation=self.parse_search_results,
-            accumulated_data=accumulated_data,
-        )
-
-    @step(
-        xsd="xsds/courtpass_search_page.xsd",
-        await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("#Form1", timeout=15000),
-        ],
-    )
-    def parse_search_results(
-        self,
-        page: PageElement,
-        response: Response,
-        accumulated_data: dict,
-    ) -> Generator[ScraperYield[_Yield], None, None]:
-        """Parse search results and select each case.
-
-        The results page has two possible tables:
-        - Pending Cases (gvPending)
-        - Decided Cases (gvDecided)
-
-        Each row has: Title, Argument Date, Decision Date, Argument Number,
-        and a Select button.
-        """
-        # Parse both pending and decided tables
-        for table_id in ("gvPending", "gvDecided"):
-            rows = page.query_xpath(
-                f"//table[@id='cphMain_{table_id}']//tr[position()>1]",
-                f"{table_id} result rows",
-                min_count=0,
-            )
-
-            for i, row in enumerate(rows):
-                cells = row.query_xpath("td", "row cells", min_count=0)
-                if len(cells) < 4:
-                    continue
-
-                title = self._normalize_whitespace(cells[0].text_content())
-                arg_date = cells[1].text_content().strip()
-                dec_date = cells[2].text_content().strip()
-
-                # The Select button triggers a postback
-                # __EVENTTARGET = grid control, __EVENTARGUMENT = "OpenFiles$N"
-                grid_id = f"ctl00$cphMain${table_id}"
-
-                form = page.find_form(SEARCH_FORM, "results form")
-                yield form.submit(
-                    data={
-                        "__EVENTTARGET": grid_id,
-                        "__EVENTARGUMENT": f"OpenFiles${i}",
-                    },
-                    continuation=self.parse_filing_detail,
-                    accumulated_data={
-                        **accumulated_data,
-                        "case_title_from_search": title,
-                        "argument_date_from_search": arg_date,
-                        "decision_date_from_search": dec_date,
-                    },
-                    deduplication_key=SkipDeduplicationCheck(),
-                )
 
     # =========================================================================
     # Shared: Filing Detail (Step 3)
@@ -1019,6 +995,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 search_page=accumulated_data.get("search_page"),
                 search_row=accumulated_data.get("search_row"),
                 aria_case_info=accumulated_data.get("aria_case_info"),
+                search_grid=accumulated_data.get("search_grid"),
             )
         )
 
@@ -1127,8 +1104,10 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
     ) -> Generator[ScraperYield[_Yield], None, None]:
         """Parse docket search results and handle pagination.
 
-        Each row has: Title, Argument Date, Decision Date, Select button.
-        Pages have 10 results. Pagination links use __doPostBack.
+        Each row has three columns: Select button, Title, Argument Date.
+        Decision date is not in the grid; it's only available on the
+        filing detail page. Pages have 10 results. Pagination links use
+        __doPostBack.
 
         Uses the same page-guaranteeing strategy as ``parse_browse_results``
         to handle race conditions from concurrent workers.
@@ -1150,25 +1129,25 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 "instead of results (session-state race)"
             )
 
-        rows = page.query_xpath(
-            "//table[contains(@id, 'gvResults')]//tr[position()>1]",
-            "docket result rows",
-            min_count=0,
-        )
-
-        # Separate data rows from pagination row
-        data_rows = []
-        pagination_row = None
-        for row in rows:
-            page_links = row.query_xpath(
-                ".//a[contains(@href, 'Page$')]",
-                "pagination links",
+        # Pick rows by content, not by ``position()`` — the 2026-04
+        # redesign separated the column header into ``<thead>``, so a
+        # per-parent ``position()>1`` predicate would silently drop the
+        # first ``<tbody>`` row (i.e., btnSelect_0 on every page).
+        data_rows = list(
+            page.query_xpath(
+                "//table[contains(@id, 'gvResults')]"
+                "//tr[.//input[contains(@id, 'btnSelect')]]",
+                "docket data rows",
                 min_count=0,
             )
-            if page_links:
-                pagination_row = row
-            else:
-                data_rows.append(row)
+        )
+        pagination_rows = page.query_xpath(
+            "//table[contains(@id, 'gvResults')]"
+            "//tr[.//a[contains(@href, 'Page$')]]",
+            "docket pagination rows",
+            min_count=0,
+        )
+        pagination_row = pagination_rows[0] if pagination_rows else None
 
         # --- Detect lost search context ---
         # The server may return an empty results page (no grid at all)
@@ -1196,8 +1175,27 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             return
 
         # --- Validate actual page matches expected page ---
+        # ASP.NET pagination links beyond the true last page silently
+        # clamp: requesting Page$N+1 where N is the last page returns
+        # page N again, but the rendered pagination row still shows
+        # forward links for N+1, N+2, ... so the naive recovery would
+        # resubmit Page$N+1 forever.  Bound the loop.
+        MAX_PAGINATION_RECOVERY_ATTEMPTS = 3
         actual_page = self._detect_actual_page(page)
         if actual_page is not None and actual_page != expected_page:
+            pagination_attempts = accumulated_data.get(
+                "pagination_recovery_attempts", 0
+            )
+            if pagination_attempts >= MAX_PAGINATION_RECOVERY_ATTEMPTS:
+                logger.warning(
+                    "Docket pagination: giving up after %d recovery "
+                    "attempts navigating from actual page %d to expected "
+                    "page %d (server likely clamped past last page)",
+                    pagination_attempts,
+                    actual_page,
+                    expected_page,
+                )
+                return
             yield from self._recover_docket_pagination(
                 page,
                 pagination_row,
@@ -1209,30 +1207,25 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
 
         arg_start = accumulated_data.get("argument_date_start")
         arg_end = accumulated_data.get("argument_date_end")
-        dec_start = accumulated_data.get("decision_date_start")
-        dec_end = accumulated_data.get("decision_date_end")
 
         for i, row in enumerate(data_rows):
             cells = row.query_xpath("td", "row cells", min_count=0)
             if len(cells) < 3:
                 continue
 
-            # Argument Date is the second column (index 1)
-            argument_date_from_grid = cells[1].text_content().strip()
-            # Decision Date is the third column (index 2)
-            decision_date_from_grid = cells[2].text_content().strip()
+            # cells[0]=Select button, cells[1]=Title, cells[2]=Argument Date.
+            case_title_from_grid = self._normalize_whitespace(
+                cells[1].text_content()
+            )
+            argument_date_from_grid = cells[2].text_content().strip()
 
-            # Skip dockets whose dates fall outside the requested range
+            # Skip dockets whose argument date is outside the requested
+            # range. Decision date isn't in the grid; it's enforced later
+            # in parse_docket_filing_detail.
             if not self._date_in_range(
                 self._parse_date_mdy(argument_date_from_grid),
                 arg_start,
                 arg_end,
-            ):
-                continue
-            if not self._date_in_range(
-                self._parse_date_mdy(decision_date_from_grid),
-                dec_start,
-                dec_end,
             ):
                 continue
 
@@ -1259,7 +1252,8 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 accumulated_data={
                     **accumulated_data,
                     "temp_case_id": str(uuid.uuid4()),
-                    "decision_date_from_grid": decision_date_from_grid,
+                    "case_title_from_search": case_title_from_grid,
+                    "argument_date_from_grid": argument_date_from_grid,
                     "search_page": expected_page,
                     "search_row": i,
                     "aria_case_info": aria_case_info,
@@ -1297,48 +1291,45 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         page via the hidden ``bttnDetails`` button to collect case
         data and download files.
         """
+        yield from self._process_docket_detail_page(page, accumulated_data)
+
+    def _process_docket_detail_page(
+        self,
+        page: PageElement,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Shared docket-detail handling: extract fields, emit (or defer)
+        NYCourtPassDocket, and submit the bttnDetails postback to load
+        filing detail.
+
+        Called from parse_docket_detail (after a normal btnSelect click)
+        and from parse_docket_recovery_select_row when Court-PASS
+        short-circuits a single-result docket-number search directly to
+        the docket-detail page.
+        """
         fields = self._extract_docket_detail_fields(page)
-        docket_number = fields["docket_number"]
+        # On the short-circuit response, the docket number is rendered
+        # without its APL/CTQ/JCR prefix, so the extractor's regex
+        # misses it. Fall back to what the original chain captured.
+        docket_number = fields["docket_number"] or accumulated_data.get(
+            "docket_number"
+        )
 
-        # Short-circuit for refresh_dockets: if the docket was already
-        # scraped and its decision date predates still_live, emit a
-        # lightweight confirmation instead of the full scrape.
-        seen_dockets = accumulated_data.get("seen_dockets")
-        if seen_dockets is not None and docket_number:
-            still_live_str = accumulated_data.get("still_live", "")
-            dec_str = accumulated_data.get("decision_date_from_grid", "")
-            decision_date = self._parse_date_mdy(dec_str) if dec_str else None
-            still_live = (
-                date.fromisoformat(still_live_str) if still_live_str else None
-            )
-            if (
-                docket_number in seen_dockets
-                and decision_date
-                and still_live
-                and decision_date < still_live
-            ):
-                yield ParsedData(
-                    data=NYCourtDocketAlreadyScraped(
-                        docket_number=docket_number,
-                    )
-                )
-                return
+        # Some older cases render an empty Argument Date <dd> on the
+        # docket-detail page even when the docket grid clearly showed
+        # the date.  Fall back to the grid's argument-date column when
+        # the detail page omits it.
+        argument_date = self._parse_date_mdy(
+            fields["argument_date_str"]
+            or accumulated_data.get("argument_date_from_grid")
+            or ""
+        )
 
-        argument_date = self._parse_date_mdy(fields["argument_date_str"] or "")
-
-        # --- decision_date range filtering ---
-        # If the grid had a decision date, it was already filtered in
-        # parse_docket_results.  If it was empty (undecided case), we
-        # must defer the NYCourtPassDocket emission until
-        # parse_docket_filing_detail confirms the decision date.
+        # The docket grid carries no decision date, so when a decision
+        # date range is configured we defer NYCourtPassDocket emission
+        # until parse_docket_filing_detail can confirm the date.
         dec_start = accumulated_data.get("decision_date_start")
-        grid_dec_str = accumulated_data.get("decision_date_from_grid", "")
-        grid_dec = self._parse_date_mdy(grid_dec_str) if grid_dec_str else None
-        defer_docket = False
-
-        if dec_start and not grid_dec:
-            # Decision date unknown from grid — defer emission
-            defer_docket = True
+        defer_docket = bool(dec_start)
 
         if not defer_docket:
             yield ParsedData(
@@ -1366,6 +1357,9 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         filing_detail_data = {
             **accumulated_data,
             "docket_number": docket_number,
+            "case_name_from_docket_detail": self._canonicalize_caption(
+                fields["case_name"] or ""
+            ),
         }
         if defer_docket:
             # Pass raw docket fields so parse_docket_filing_detail
@@ -1374,7 +1368,10 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 "temp_case_id": accumulated_data.get("temp_case_id", ""),
                 "docket_number": docket_number,
                 "case_name": fields["case_name"],
-                "argument_date_str": fields["argument_date_str"],
+                "argument_date_str": (
+                    fields["argument_date_str"]
+                    or accumulated_data.get("argument_date_from_grid")
+                ),
                 "docket_entries": fields["docket_entries"],
                 "attorneys": fields["attorneys"],
                 "search_page": accumulated_data.get("search_page"),
@@ -1418,7 +1415,87 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         )
 
         case_name = fields["case_name"] or "Unknown"
-        argument_date = self._parse_date_mdy(fields["argument_date_str"] or "")
+
+        # The bttnDetails postback occasionally returns the filing detail
+        # for a neighboring case: it reads the server's ``session.currentCase``
+        # to render lbDetails2, and that state can drift from what
+        # btnSelect_N set. Compare the caption from the preceding
+        # docket-detail page; if it doesn't agree, recover by re-walking
+        # via a docket-number search (which forces a single-row grid and
+        # re-pins session state). Plain TransientException retry never
+        # fixes this because it re-submits bttnDetails alone.
+        #
+        # Consolidated dockets concatenate multiple captions on the
+        # docket-detail page but show only one on the filing-detail
+        # page, so accept any contiguous substring match.
+        docket_case_name = accumulated_data.get("case_name_from_docket_detail")
+        filing_case_name = self._canonicalize_caption(case_name)
+        if (
+            docket_case_name
+            and filing_case_name
+            and filing_case_name != "Unknown"
+            and not self._caption_substring_match(
+                filing_case_name, docket_case_name
+            )
+        ):
+            recovery_attempts = accumulated_data.get(
+                "filing_detail_recovery_attempts", 0
+            )
+            if recovery_attempts >= MAX_FILING_DETAIL_RECOVERY:
+                logger.warning(
+                    "parse_docket_filing_detail: caption mismatch "
+                    "persisted after %d recovery attempts for docket "
+                    "%s; emitting NYDocketFailure (docket-detail "
+                    "showed %r, filing-detail shows %r)",
+                    recovery_attempts,
+                    accumulated_data.get("docket_number"),
+                    docket_case_name,
+                    filing_case_name,
+                )
+                yield from self._emit_docket_failure(
+                    accumulated_data,
+                    observed_filing_caption=filing_case_name,
+                    failed_docket_search=False,
+                )
+                return
+            logger.info(
+                "parse_docket_filing_detail: caption mismatch for "
+                "docket %s (attempt %d); re-walking via docket-number "
+                "search",
+                accumulated_data.get("docket_number"),
+                recovery_attempts + 1,
+            )
+            # Drop ``case_name_from_docket_detail`` (parse_docket_detail
+            # will repopulate it on re-entry) but keep ``deferred_docket``
+            # as a fallback for NYDocketFailure if the recovery's
+            # docket-number search itself fails.
+            recovery_ad = {
+                k: v
+                for k, v in accumulated_data.items()
+                if k != "case_name_from_docket_detail"
+            }
+            recovery_ad["filing_detail_recovery_attempts"] = (
+                recovery_attempts + 1
+            )
+            yield Request(
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET,
+                    url=DOCKET_URL,
+                ),
+                continuation=self.parse_docket_recovery_fill_search,
+                accumulated_data=recovery_ad,
+                deduplication_key=SkipDeduplicationCheck(),
+            )
+            return
+
+        # Fall back to the docket-grid argument date when the filing
+        # detail page omits it (matches the docket-detail fallback in
+        # ``_process_docket_detail_page``).
+        argument_date = self._parse_date_mdy(
+            fields["argument_date_str"]
+            or accumulated_data.get("argument_date_from_grid")
+            or ""
+        )
         decision_date = self._parse_date_mdy(fields["decision_date_str"] or "")
 
         # --- decision_date range filtering ---
@@ -1510,6 +1587,8 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             data=NYCourtPassCase(
                 temp_case_id=temp_case_id,
                 case_name=case_name,
+                case_name_abbrev=accumulated_data.get("case_title_from_search")
+                or None,
                 argument_date=argument_date,
                 decision_date=decision_date,
                 issues=fields["issues"],
@@ -1525,6 +1604,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 search_page=accumulated_data.get("search_page"),
                 search_row=accumulated_data.get("search_row"),
                 aria_case_info=accumulated_data.get("aria_case_info"),
+                search_grid=accumulated_data.get("search_grid"),
             )
         )
 
@@ -1561,6 +1641,135 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 expected_type="pdf",
                 deduplication_key=name_sha,
             )
+
+    @step(
+        xsd="xsds/courtpass_docket_page.xsd",
+        await_list=[
+            WaitForLoadState("networkidle", timeout=60000),
+            WaitForSelector("#Form2", timeout=30000),
+        ],
+        priority=2,
+    )
+    def parse_docket_recovery_fill_search(
+        self,
+        page: PageElement,
+        response: Response,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Fill the Docket search form with the target docket number.
+
+        Recovery step for parse_docket_filing_detail caption mismatches.
+        Mirrors ``parse_docket_page`` but routes the result to
+        ``parse_docket_recovery_select_row`` so we rejoin the main
+        enumerate_dockets chain (preserving accumulated_data such as
+        ``temp_case_id`` and ``case_title_from_search``).
+        """
+        docket_number = accumulated_data["docket_number"]
+        parts = docket_number.split("-")
+        if len(parts) != 3:
+            logger.warning(
+                "parse_docket_recovery_fill_search: cannot split "
+                "docket_number %r into prefix/year/number; emitting "
+                "NYDocketFailure",
+                docket_number,
+            )
+            yield from self._emit_docket_failure(
+                accumulated_data,
+                observed_filing_caption=None,
+                failed_docket_search=True,
+            )
+            return
+        form = page.find_form(DOCKET_FORM, "docket form")
+        yield form.submit(
+            data={
+                "ctl00$cphMain$ddlCaseId": parts[0],
+                "ctl00$cphMain$tbCaseIdYear": parts[1],
+                "ctl00$cphMain$tbCaseIdNum": parts[2],
+            },
+            submit_selector="input[name='ctl00$cphMain$btnFind']",
+            continuation=self.parse_docket_recovery_select_row,
+            accumulated_data=accumulated_data,
+            deduplication_key=SkipDeduplicationCheck(),
+        )
+
+    @step(
+        xsd="xsds/courtpass_docket_page.xsd",
+        await_list=[
+            WaitForLoadState("networkidle", timeout=30000),
+            WaitForSelector("#Form2", timeout=15000),
+        ],
+        priority=2,
+    )
+    def parse_docket_recovery_select_row(
+        self,
+        page: PageElement,
+        response: Response,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Click btnSelect_0 on a single-row docket-number search result.
+
+        Recovery step for parse_docket_filing_detail caption mismatches.
+        The docket-number search returns at most one matching row, so
+        clicking btnSelect_0 unambiguously pins the server's
+        ``session.currentCase`` to the case we want. Continues into the
+        existing ``parse_docket_detail`` so the rest of the chain runs
+        normally.
+
+        Court-PASS may also short-circuit when the search has exactly one
+        match, returning the docket-detail page directly without an
+        intervening grid; we detect that via the CallDetails button on
+        the docket-detail span and route into the shared
+        ``_process_docket_detail_page`` helper without re-clicking.
+        """
+        data_rows = page.query_xpath(
+            "//table[contains(@id, 'gvResults')]"
+            "//tr[.//input[contains(@id, 'btnSelect')]]",
+            "recovery docket data rows",
+            min_count=0,
+        )
+        if not data_rows:
+            # No grid — either we're on a "No Matching Cases" page or
+            # Court-PASS short-circuited to the docket-detail page.
+            # The CallDetails button is only rendered when the detail
+            # span is populated, so it cleanly distinguishes the two.
+            call_details_button = page.query_xpath(
+                "//span[@id='cphMain_lbDetails']"
+                "//button[contains(@onclick, 'CallDetails')]",
+                "CallDetails button on short-circuit detail",
+                min_count=0,
+            )
+            if call_details_button:
+                logger.info(
+                    "parse_docket_recovery_select_row: Court-PASS "
+                    "short-circuited the docket-number search for %s "
+                    "to the detail page; continuing into bttnDetails "
+                    "postback directly",
+                    accumulated_data.get("docket_number"),
+                )
+                yield from self._process_docket_detail_page(
+                    page, accumulated_data
+                )
+                return
+            logger.warning(
+                "parse_docket_recovery_select_row: docket-number "
+                "search returned no rows for %r; emitting "
+                "NYDocketFailure(failed_docket_search=True)",
+                accumulated_data.get("docket_number"),
+            )
+            yield from self._emit_docket_failure(
+                accumulated_data,
+                observed_filing_caption=None,
+                failed_docket_search=True,
+            )
+            return
+        form = page.find_form(DOCKET_FORM, "recovery docket results form")
+        yield form.submit(
+            data={},
+            submit_selector="#cphMain_gvResults_btnSelect_0",
+            continuation=self.parse_docket_detail,
+            accumulated_data=accumulated_data,
+            deduplication_key=SkipDeduplicationCheck(),
+        )
 
     @step(
         await_list=[
@@ -1607,38 +1816,33 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         response: Response,
         accumulated_data: dict,
     ) -> Generator[ScraperYield[_Yield], None, None]:
-        """Fill the Docket search form with an APL number and submit."""
+        """Fill the Docket search form with an APL/CTQ/JCR number and submit.
+
+        The 2026-04 redesign replaced the old single ``txtAPL`` field
+        (and an even older ``txtPrefix``/``txtYear``/``txtNumber``
+        variant) with a case-type dropdown + year + number trio, and
+        renamed the submit button from ``bttnFind`` to ``btnFind``.
+        """
         docket_number = accumulated_data["docket_number"]
-
-        # APL numbers are in format APL-YYYY-NNNNN
-        # The form may have separate fields for prefix, year, number
-        # or a single text field
+        parts = docket_number.split("-")
+        if len(parts) != 3:
+            logger.warning(
+                "parse_docket_page: cannot split docket_number %r "
+                "into prefix/year/number",
+                docket_number,
+            )
+            return
         form = page.find_form(DOCKET_FORM, "docket form")
-
-        # Try single text field first
-        apl_field = form.get_field("ctl00$cphMain$txtAPL")
-        if apl_field:
-            yield form.submit(
-                data={"ctl00$cphMain$txtAPL": docket_number},
-                submit_selector="input[name='ctl00$cphMain$bttnFind']",
-                continuation=self.parse_docket_number_results,
-                accumulated_data=accumulated_data,
-            )
-        else:
-            # Split APL number into parts: APL-2024-00177
-            parts = docket_number.split("-")
-            form_data = {}
-            if len(parts) == 3:
-                form_data["ctl00$cphMain$txtPrefix"] = parts[0]
-                form_data["ctl00$cphMain$txtYear"] = parts[1]
-                form_data["ctl00$cphMain$txtNumber"] = parts[2]
-
-            yield form.submit(
-                data=form_data,
-                submit_selector="input[name='ctl00$cphMain$bttnFind']",
-                continuation=self.parse_docket_number_results,
-                accumulated_data=accumulated_data,
-            )
+        yield form.submit(
+            data={
+                "ctl00$cphMain$ddlCaseId": parts[0],
+                "ctl00$cphMain$tbCaseIdYear": parts[1],
+                "ctl00$cphMain$tbCaseIdNum": parts[2],
+            },
+            submit_selector="input[name='ctl00$cphMain$btnFind']",
+            continuation=self.parse_docket_number_results,
+            accumulated_data=accumulated_data,
+        )
 
     @step(
         xsd="xsds/courtpass_docket_page.xsd",
@@ -1655,26 +1859,56 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
     ) -> Generator[ScraperYield[_Yield], None, None]:
         """Parse docket search results when searching by APL number.
 
-        Select the first matching result to view docket detail.
+        Select the first (and only) matching result to view docket detail.
+        The 2026-04 redesign moved row detection to a named submit button
+        (``cphMain_gvResults_btnSelect_0``); the old ``OpenFiles$N``
+        postback shape is now rejected by ASP.NET event validation.
+
+        Court-PASS may also short-circuit when the search has exactly one
+        match, returning the docket-detail page directly without an
+        intervening grid; we detect that via the CallDetails button on
+        the docket-detail span and route into the shared
+        ``_process_docket_detail_for_entry`` helper without re-clicking.
         """
-        rows = page.query_xpath(
-            "//table[contains(@id, 'gvResults')]//tr[position()>1]",
-            "docket results",
+        data_rows = page.query_xpath(
+            "//table[contains(@id, 'gvResults')]"
+            "//tr[.//input[contains(@id, 'btnSelect')]]",
+            "docket results data rows",
             min_count=0,
         )
-
-        if rows:
-            # Select the first result
-            form = page.find_form(DOCKET_FORM, "docket results form")
-            yield form.submit(
-                data={
-                    "__EVENTTARGET": DOCKET_GRID,
-                    "__EVENTARGUMENT": "OpenFiles$0",
-                },
-                continuation=self.parse_docket_detail_for_entry,
-                accumulated_data=accumulated_data,
-                deduplication_key=SkipDeduplicationCheck(),
+        if not data_rows:
+            call_details_button = page.query_xpath(
+                "//span[@id='cphMain_lbDetails']"
+                "//button[contains(@onclick, 'CallDetails')]",
+                "CallDetails button on short-circuit detail",
+                min_count=0,
             )
+            if call_details_button:
+                logger.info(
+                    "parse_docket_number_results: Court-PASS "
+                    "short-circuited the docket-number search for %s "
+                    "to the detail page; continuing into bttnDetails "
+                    "postback directly",
+                    accumulated_data.get("docket_number"),
+                )
+                yield from self._process_docket_detail_for_entry(
+                    page, accumulated_data
+                )
+                return
+            logger.warning(
+                "parse_docket_number_results: no rows for docket %r",
+                accumulated_data.get("docket_number"),
+            )
+            return
+
+        form = page.find_form(DOCKET_FORM, "docket results form")
+        yield form.submit(
+            data={},
+            submit_selector="#cphMain_gvResults_btnSelect_0",
+            continuation=self.parse_docket_detail_for_entry,
+            accumulated_data=accumulated_data,
+            deduplication_key=SkipDeduplicationCheck(),
+        )
 
     @step(
         xsd="xsds/courtpass_docket_page.xsd",
@@ -1694,6 +1928,22 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         Emits NYCourtPassDocket immediately, then clicks the
         CallDetails button to navigate to the filing detail page
         (which will emit NYCourtPassCase).
+        """
+        yield from self._process_docket_detail_for_entry(
+            page, accumulated_data
+        )
+
+    def _process_docket_detail_for_entry(
+        self,
+        page: PageElement,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Shared docket-detail handling for the get_docket entry point.
+
+        Called from parse_docket_detail_for_entry (after a normal
+        btnSelect_0 click) and from parse_docket_number_results when
+        Court-PASS short-circuits a single-result docket-number search
+        directly to the docket-detail page.
         """
         fields = self._extract_docket_detail_fields(page)
         argument_date = self._parse_date_mdy(fields["argument_date_str"] or "")
@@ -1717,10 +1967,16 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             )
         )
 
-        # Click CallDetails button to go to filing detail page
+        # Trigger the bttnDetails postback to load the filing detail
+        # into cphMain_lbDetails2. The button is ``display:none`` so we
+        # can't click it via submit_selector; submit via __EVENTTARGET
+        # instead, matching the enumerate_dockets flow.
         form = page.find_form(DOCKET_FORM, "docket detail form")
         yield form.submit(
-            submit_selector="input[name='ctl00$cphMain$bttnDetails']",
+            data={
+                "__EVENTTARGET": "ctl00$cphMain$bttnDetails",
+                "__EVENTARGUMENT": "",
+            },
             continuation=self.parse_filing_detail_from_docket,
             accumulated_data={
                 "temp_case_id": temp_case_id,
@@ -1733,7 +1989,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         xsd="xsds/courtpass_filing_detail.xsd",
         await_list=[
             WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("#cphMain_lbDetails", timeout=15000),
+            WaitForSelector("#cphMain_lbDetails2", timeout=15000),
         ],
     )
     def parse_filing_detail_from_docket(
@@ -1750,8 +2006,13 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         """
         temp_case_id = accumulated_data.get("temp_case_id", str(uuid.uuid4()))
 
-        # Extract structured fields from the detail page
-        fields = self._extract_detail_fields(page)
+        # The bttnDetails postback populates cphMain_lbDetails2 (the
+        # docket-detail section in cphMain_lbDetails stays present from
+        # the prior render). Extract from lbDetails2 so we get the
+        # filing-side fields (decision date, issues, citation, files).
+        fields = self._extract_detail_fields(
+            page, detail_span_id="cphMain_lbDetails2"
+        )
 
         case_name = fields["case_name"] or "Unknown"
         argument_date = self._parse_date_mdy(fields["argument_date_str"] or "")
@@ -1825,6 +2086,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 search_page=accumulated_data.get("search_page"),
                 search_row=accumulated_data.get("search_row"),
                 aria_case_info=accumulated_data.get("aria_case_info"),
+                search_grid=accumulated_data.get("search_grid"),
             )
         )
         file_name_prefix = base64.b64encode(
@@ -2015,26 +2277,23 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 "instead of results (session-state race)"
             )
 
-        rows = page.query_xpath(
-            "//table[contains(@id, 'gvResults')]//tr[position()>1]",
-            "browse result rows",
-            min_count=0,
-        )
-
-        # Filter out pagination row (contains <a> links with page numbers)
-        data_rows = []
-        pagination_row = None
-        for row in rows:
-            # Pagination rows have anchor links with Page$ arguments
-            page_links = row.query_xpath(
-                ".//a[contains(@href, 'Page$')]",
-                "pagination links",
+        # Pick rows by content; see parse_docket_results for the
+        # ``position()>1`` pitfall on the new ``<thead>``/``<tbody>`` shape.
+        data_rows = list(
+            page.query_xpath(
+                "//table[contains(@id, 'gvResults')]"
+                "//tr[.//input[contains(@id, 'btnSelect')]]",
+                "browse data rows",
                 min_count=0,
             )
-            if page_links:
-                pagination_row = row
-            else:
-                data_rows.append(row)
+        )
+        pagination_rows = page.query_xpath(
+            "//table[contains(@id, 'gvResults')]"
+            "//tr[.//a[contains(@href, 'Page$')]]",
+            "browse pagination rows",
+            min_count=0,
+        )
+        pagination_row = pagination_rows[0] if pagination_rows else None
 
         # --- Detect lost browse context ---
         # The server may return the initial browse page (no grid at all)
@@ -2057,8 +2316,25 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             return
 
         # --- Validate actual page matches expected page ---
+        # See parse_docket_results: ASP.NET pagination links past the
+        # true last page silently clamp, so the naive recovery would
+        # loop forever.  Bound the loop.
+        MAX_PAGINATION_RECOVERY_ATTEMPTS = 3
         actual_page = self._detect_actual_page(page)
         if actual_page is not None and actual_page != expected_page:
+            pagination_attempts = accumulated_data.get(
+                "pagination_recovery_attempts", 0
+            )
+            if pagination_attempts >= MAX_PAGINATION_RECOVERY_ATTEMPTS:
+                logger.warning(
+                    "Browse pagination: giving up after %d recovery "
+                    "attempts navigating from actual page %d to expected "
+                    "page %d (server likely clamped past last page)",
+                    pagination_attempts,
+                    actual_page,
+                    expected_page,
+                )
+                return
             # Server returned wrong page (session-state race).
             # Skip data rows to avoid duplicates; attempt to recover
             # pagination toward the expected page.
@@ -2188,6 +2464,10 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 "page_number": expected_page
                 if target == expected_page
                 else target,
+                "pagination_recovery_attempts": accumulated_data.get(
+                    "pagination_recovery_attempts", 0
+                )
+                + 1,
             },
             deduplication_key=SkipDeduplicationCheck(),
         )
@@ -2246,6 +2526,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             accumulated_data={
                 **accumulated_data,
                 "page_number": target_page_number,
+                "pagination_recovery_attempts": 0,
             },
             deduplication_key=SkipDeduplicationCheck(),
         )
@@ -2387,6 +2668,10 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             accumulated_data={
                 **accumulated_data,
                 "page_number": expected_page,
+                "pagination_recovery_attempts": accumulated_data.get(
+                    "pagination_recovery_attempts", 0
+                )
+                + 1,
             },
             deduplication_key=SkipDeduplicationCheck(),
         )
@@ -2436,6 +2721,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             accumulated_data={
                 **accumulated_data,
                 "page_number": target_page_number,
+                "pagination_recovery_attempts": 0,
             },
             deduplication_key=SkipDeduplicationCheck(),
         )
@@ -2484,11 +2770,10 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
     #   cphMain_gvPublicSearchPost  — Decided Cases
     #     Columns: Select | Title | Decision Date | Citation
     #
-    # These steps mirror parse_search_results: each grid row yields an
-    # OpenFiles$N postback to parse_filing_detail at its default
-    # priority (9), ahead of this step's pagination requests (16), so
-    # detail pages are scraped before the queue advances to the next
-    # page of results.
+    # Each grid row yields a click on its named btnSelect button, sending
+    # the user to parse_filing_detail at the default priority (9), ahead
+    # of this step's pagination requests (16), so detail pages are
+    # scraped before the queue advances to the next page of results.
 
     @step(
         xsd="xsds/courtpass_search_page.xsd",
@@ -2580,28 +2865,25 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
     ) -> tuple[list[PageElement], PageElement | None]:
         """Split a Public_search grid's rows into data rows and the pagination row.
 
-        Returns ``(data_rows, pagination_row)``.  ``pagination_row`` is
-        the last ``<tr>`` in the grid if it contains ``Page$N`` links,
-        otherwise ``None``.
+        Returns ``(data_rows, pagination_row)``.  Rows are picked by
+        content rather than position so the 2026-04 ``<thead>``/``<tbody>``
+        split doesn't strip the first data row (the per-parent-context
+        ``position()>1`` predicate would silently drop ``<tbody>``'s
+        first ``<tr>``).
         """
-        rows = page.query_xpath(
-            f"//table[@id='{table_id}']//tr[position()>1]",
-            f"{table_id} rows",
+        data_rows = page.query_xpath(
+            f"//table[@id='{table_id}']//tr[.//input[contains(@id, 'btnSelect')]]",
+            f"{table_id} data rows",
             min_count=0,
         )
-        data_rows: list[PageElement] = []
-        pagination_row: PageElement | None = None
-        for row in rows:
-            page_links = row.query_xpath(
-                ".//a[contains(@href, 'Page$')]",
-                "pagination links",
-                min_count=0,
-            )
-            if page_links:
-                pagination_row = row
-            else:
-                data_rows.append(row)
-        return data_rows, pagination_row
+        pagination_rows = page.query_xpath(
+            f"//table[@id='{table_id}']//tr[.//a[contains(@href, 'Page$')]]",
+            f"{table_id} pagination rows",
+            min_count=0,
+        )
+        return list(data_rows), (
+            pagination_rows[0] if pagination_rows else None
+        )
 
     @staticmethod
     def _detect_actual_page_from_row(
@@ -2756,6 +3038,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "search_page": expected_page,
                     "search_row": i,
                     "aria_case_info": aria_case_info,
+                    "search_grid": "pending",
                 },
                 deduplication_key=SkipDeduplicationCheck(),
             )
@@ -2854,6 +3137,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "search_page": expected_page,
                     "search_row": i,
                     "aria_case_info": aria_case_info,
+                    "search_grid": "decided",
                 },
                 deduplication_key=SkipDeduplicationCheck(),
             )
@@ -2865,6 +3149,630 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             SEARCH_DECIDED_GRID,
             self.parse_decided_search_results,
             accumulated_data,
+        )
+
+    # =========================================================================
+    # net_docket Flow — Targeted Net-Catch of Cases Unreachable by
+    # Docket-Number Search but Visible in the Wide Enumeration Grid
+    # =========================================================================
+    #
+    # Some cases (typically older ones) appear in the docket grid but
+    # aren't indexed for docket-number lookup. The enumerate_dockets flow
+    # captures them, but bttnDetails drift causes their filing-detail to
+    # come back as the wrong case, and the docket-number-search recovery
+    # path can't help (the case isn't searchable).
+    #
+    # This flow takes a JSONL of {aria_case_info, docket_number} targets,
+    # re-walks the grid with the magic OR-string, and only clicks rows
+    # whose aria matches a target. It then verifies the docket_number on
+    # the docket-detail page (to disambiguate aria collisions like the
+    # "Matter of Anonymous" cluster) before submitting bttnDetails. On
+    # filing-detail caption mismatch, it emits NYDocketFailure directly
+    # — no recovery, since these cases are unrecoverable by definition.
+    #
+    # Logic largely duplicates the enumerate_dockets steps; kept separate
+    # to avoid entangling the two flows.
+
+    @entry(NYCourtPassDocket)
+    def net_docket(
+        self,
+        targets: NetDocketTargets,
+    ) -> Generator[Request, None, None]:
+        """Re-walk the docket grid to catch specific target cases.
+
+        ``targets`` lists ``(aria_case_info, docket_number)`` pairs. Rows
+        whose ``aria-label`` matches an entry are clicked; the resulting
+        docket-detail page's ``docket_number`` must also match a target
+        before we proceed to filing detail.
+
+        Re-running with a filtered-down target list after each pass lets
+        the caller iterate until everything reachable has been captured.
+        """
+        aria_targets = sorted({t.aria_case_info for t in targets.targets})
+        docket_targets = sorted({t.docket_number for t in targets.targets})
+        logger.info(
+            "net_docket: %d unique aria-labels / %d unique docket "
+            "numbers across %d input pairs",
+            len(aria_targets),
+            len(docket_targets),
+            len(targets.targets),
+        )
+        yield Request(
+            request=HTTPRequestParams(
+                method=HttpMethod.GET,
+                url=DOCKET_URL,
+            ),
+            continuation=self.net_fill_docket_search,
+            accumulated_data={
+                "entry_point": "net_docket",
+                "coa_site_source": "docket",
+                "net_aria_targets": aria_targets,
+                "net_docket_targets": docket_targets,
+            },
+        )
+
+    @step(
+        xsd="xsds/courtpass_docket_page.xsd",
+        await_list=[
+            WaitForLoadState("networkidle", timeout=60000),
+            WaitForSelector("#Form2", timeout=30000),
+        ],
+    )
+    def net_fill_docket_search(
+        self,
+        page: PageElement,
+        response: Response,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Submit the wide enumerate query for the net_docket flow.
+
+        Mirrors ``fill_docket_search``: when ``target_page`` is set in
+        accumulated_data (from a lost-context recovery), it is forwarded
+        as ``page_number`` so ``net_parse_docket_results`` detects the
+        page mismatch and jumps forward to the target page.
+        """
+        target_page = accumulated_data.get("target_page", 1)
+        form = page.find_form(DOCKET_FORM, "docket search form")
+        yield form.submit(
+            data={
+                "ctl00$cphMain$tbPartyNames": DOCKET_ENUMERATE_QUERY,
+                "ctl00$cphMain$ddlFindParty": "FindOR",
+            },
+            submit_selector="input[name='ctl00$cphMain$btnFind']",
+            continuation=self.net_parse_docket_results,
+            accumulated_data={
+                **accumulated_data,
+                "page_number": target_page,
+            },
+        )
+
+    @step(
+        xsd="xsds/courtpass_docket_page.xsd",
+        await_list=[
+            WaitForLoadState("networkidle", timeout=30000),
+            WaitForSelector("#Form2", timeout=15000),
+        ],
+        priority=5,
+    )
+    def net_parse_docket_results(
+        self,
+        page: PageElement,
+        response: Response,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Walk the docket grid, clicking only rows in the target set.
+
+        No date filtering — the goal is wide coverage. Rows whose
+        ``aria-label`` isn't in the targets file are skipped silently.
+        """
+        expected_page = accumulated_data.get("page_number", 1)
+
+        wrong_page = page.query_xpath(
+            "//span[@id='cphMain_lbDetails' or @id='cphMain_lbDetails2']",
+            "detail span (wrong page)",
+            min_count=0,
+        )
+        if wrong_page:
+            raise TransientException(
+                "net_parse_docket_results received a detail page "
+                "instead of results (session-state race)"
+            )
+
+        data_rows = list(
+            page.query_xpath(
+                "//table[contains(@id, 'gvResults')]"
+                "//tr[.//input[contains(@id, 'btnSelect')]]",
+                "docket data rows",
+                min_count=0,
+            )
+        )
+        pagination_rows = page.query_xpath(
+            "//table[contains(@id, 'gvResults')]"
+            "//tr[.//a[contains(@href, 'Page$')]]",
+            "docket pagination rows",
+            min_count=0,
+        )
+        pagination_row = pagination_rows[0] if pagination_rows else None
+
+        # Lost-context: re-initiate the search and resume at the target
+        # page.  Bounded to avoid infinite loops when the server has
+        # genuinely run out of pages.
+        MAX_RECOVERY_ATTEMPTS = 3
+        recovery_attempts = accumulated_data.get("recovery_attempts", 0)
+        if not data_rows and pagination_row is None and expected_page > 1:
+            if recovery_attempts >= MAX_RECOVERY_ATTEMPTS:
+                logger.warning(
+                    "net_parse_docket_results: giving up after %d "
+                    "recovery attempts at page %d",
+                    recovery_attempts,
+                    expected_page,
+                )
+                return
+            yield from self._net_reinitiate_docket_search(
+                expected_page, accumulated_data
+            )
+            return
+
+        # Pagination drift: server returned a different page than we
+        # asked for.  Step forward via the visible pagination links.
+        MAX_PAGINATION_RECOVERY_ATTEMPTS = 3
+        actual_page = self._detect_actual_page(page)
+        if actual_page is not None and actual_page != expected_page:
+            pagination_attempts = accumulated_data.get(
+                "pagination_recovery_attempts", 0
+            )
+            if pagination_attempts >= MAX_PAGINATION_RECOVERY_ATTEMPTS:
+                logger.warning(
+                    "net_parse_docket_results: giving up after %d "
+                    "recovery attempts navigating from actual page %d "
+                    "to expected page %d (server likely clamped past "
+                    "last page)",
+                    pagination_attempts,
+                    actual_page,
+                    expected_page,
+                )
+                return
+            yield from self._net_recover_docket_pagination(
+                page,
+                pagination_row,
+                expected_page,
+                actual_page,
+                accumulated_data,
+            )
+            return
+
+        aria_set = set(accumulated_data.get("net_aria_targets") or [])
+
+        # Children continue into the docket-detail step, which only needs
+        # ``net_docket_targets``. Drop the aria list so we don't store an
+        # extra ~50KB on every child request.
+        child_accumulated_base = {
+            k: v
+            for k, v in accumulated_data.items()
+            if k != "net_aria_targets"
+        }
+
+        for i, row in enumerate(data_rows):
+            select_buttons = row.query_xpath(
+                ".//input[contains(@id, 'btnSelect')]",
+                "select button",
+                min_count=0,
+            )
+            if not select_buttons:
+                continue
+            aria_case_info = select_buttons[0].get_attribute("aria-label")
+            if not aria_case_info or aria_case_info not in aria_set:
+                continue
+
+            cells = row.query_xpath("td", "row cells", min_count=0)
+            case_title_from_grid = (
+                self._normalize_whitespace(cells[1].text_content())
+                if len(cells) >= 2
+                else ""
+            )
+            argument_date_from_grid = (
+                cells[2].text_content().strip() if len(cells) >= 3 else ""
+            )
+
+            form = page.find_form(DOCKET_FORM, "docket results form")
+            yield form.submit(
+                data={},
+                submit_selector=f"#cphMain_gvResults_btnSelect_{i}",
+                continuation=self.net_parse_docket_detail,
+                accumulated_data={
+                    **child_accumulated_base,
+                    "temp_case_id": str(uuid.uuid4()),
+                    "case_title_from_search": case_title_from_grid,
+                    "argument_date_from_grid": argument_date_from_grid,
+                    "search_page": expected_page,
+                    "search_row": i,
+                    "aria_case_info": aria_case_info,
+                },
+                deduplication_key=SkipDeduplicationCheck(),
+            )
+
+        next_page = expected_page + 1
+        yield from self._net_navigate_to_next_docket_page(
+            page,
+            pagination_row,
+            next_page,
+            accumulated_data,
+        )
+
+    @step(
+        xsd="xsds/courtpass_docket_page.xsd",
+        await_list=[
+            WaitForLoadState("networkidle", timeout=30000),
+            WaitForSelector("#Form2", timeout=15000),
+        ],
+        priority=4,
+    )
+    def net_parse_docket_detail(
+        self,
+        page: PageElement,
+        response: Response,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Verify the clicked row's docket_number and submit bttnDetails.
+
+        Resolves aria-case-info collisions: aria-label uniqueness isn't
+        guaranteed (e.g. "Matter of Anonymous" maps to 9+ different
+        dockets), so we confirm the docket-detail page actually shows a
+        target docket before proceeding. Non-target dockets are dropped
+        silently.
+        """
+        fields = self._extract_docket_detail_fields(page)
+        docket_number = fields["docket_number"]
+        docket_set = set(accumulated_data.get("net_docket_targets") or [])
+        if not docket_number or docket_number not in docket_set:
+            logger.info(
+                "net_parse_docket_detail: docket %r on this page is "
+                "not in the target set (aria collision); dropping",
+                docket_number,
+            )
+            return
+
+        # The filing-detail step and file-download requests don't need
+        # the targets list anymore — strip it so we don't bloat
+        # accumulated_data.
+        filing_detail_data = {
+            k: v
+            for k, v in accumulated_data.items()
+            if k != "net_docket_targets"
+        }
+        filing_detail_data.update(
+            {
+                "docket_number": docket_number,
+                "case_name_from_docket_detail": self._canonicalize_caption(
+                    fields["case_name"] or ""
+                ),
+                "deferred_docket": {
+                    "temp_case_id": accumulated_data.get("temp_case_id", ""),
+                    "docket_number": docket_number,
+                    "case_name": fields["case_name"],
+                    "argument_date_str": (
+                        fields["argument_date_str"]
+                        or accumulated_data.get("argument_date_from_grid")
+                    ),
+                    "docket_entries": fields["docket_entries"],
+                    "attorneys": fields["attorneys"],
+                    "search_page": accumulated_data.get("search_page"),
+                    "search_row": accumulated_data.get("search_row"),
+                    "aria_case_info": accumulated_data.get("aria_case_info"),
+                },
+            }
+        )
+
+        form = page.find_form(DOCKET_FORM, "docket detail form")
+        yield form.submit(
+            data={
+                "__EVENTTARGET": "ctl00$cphMain$bttnDetails",
+                "__EVENTARGUMENT": "",
+            },
+            continuation=self.net_parse_docket_filing_detail,
+            accumulated_data=filing_detail_data,
+            deduplication_key=SkipDeduplicationCheck(),
+        )
+
+    @step(
+        xsd="xsds/courtpass_filing_detail.xsd",
+        await_list=[
+            WaitForLoadState("networkidle", timeout=30000),
+            WaitForSelector("#cphMain_lbDetails2", timeout=15000),
+        ],
+        priority=3,
+    )
+    def net_parse_docket_filing_detail(
+        self,
+        page: PageElement,
+        response: Response,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Emit NYCourtPassDocket + NYCourtPassCase + file downloads, or
+        emit NYDocketFailure if the bttnDetails postback drifted.
+
+        Unlike ``parse_docket_filing_detail``, there's no recovery: by
+        definition these cases aren't findable by docket-number search,
+        so a re-walk would just hit the same drift.
+        """
+        fields = self._extract_detail_fields(
+            page, detail_span_id="cphMain_lbDetails2"
+        )
+        case_name = fields["case_name"] or "Unknown"
+
+        docket_case_name = accumulated_data.get("case_name_from_docket_detail")
+        filing_case_name = self._canonicalize_caption(case_name)
+        if (
+            docket_case_name
+            and filing_case_name
+            and filing_case_name != "Unknown"
+            and not self._caption_substring_match(
+                filing_case_name, docket_case_name
+            )
+        ):
+            logger.warning(
+                "net_parse_docket_filing_detail: caption mismatch for "
+                "docket %s; emitting NYDocketFailure (docket-detail "
+                "showed %r, filing-detail shows %r)",
+                accumulated_data.get("docket_number"),
+                docket_case_name,
+                filing_case_name,
+            )
+            yield from self._emit_docket_failure(
+                accumulated_data,
+                observed_filing_caption=filing_case_name,
+                failed_docket_search=False,
+            )
+            return
+
+        argument_date = self._parse_date_mdy(
+            fields["argument_date_str"]
+            or accumulated_data.get("argument_date_from_grid")
+            or ""
+        )
+        decision_date = self._parse_date_mdy(fields["decision_date_str"] or "")
+
+        deferred = accumulated_data.get("deferred_docket")
+        if deferred:
+            yield ParsedData(
+                data=NYCourtPassDocket(
+                    temp_case_id=deferred["temp_case_id"],
+                    docket_number=deferred["docket_number"],
+                    case_name=deferred["case_name"],
+                    argument_date=self._parse_date_mdy(
+                        deferred["argument_date_str"] or ""
+                    ),
+                    docket_entries=self._build_docket_entries(
+                        deferred["docket_entries"]
+                    ),
+                    attorneys=self._build_attorneys(deferred["attorneys"]),
+                    search_page=deferred.get("search_page"),
+                    search_row=deferred.get("search_row"),
+                    aria_case_info=deferred.get("aria_case_info"),
+                )
+            )
+
+        temp_case_id = accumulated_data.get("temp_case_id", "")
+        docket_number = accumulated_data.get("docket_number", "")
+
+        files_info: list[dict] = []
+        file_rows = page.query_xpath(
+            "//table[contains(@id, 'gvFiles')]//tr[position()>1]",
+            "file rows",
+            min_count=0,
+        )
+        for j, file_row in enumerate(file_rows):
+            file_cells = file_row.query_xpath("td", "file cells", min_count=0)
+            if len(file_cells) < 2:
+                continue
+            file_name = file_cells[0].text_content().strip()
+            buttons = file_row.query_xpath(
+                ".//input[@type='submit']",
+                "download button",
+                min_count=0,
+            )
+            enabled_buttons = [
+                b for b in buttons if not b.get_attribute("disabled")
+            ]
+            available = len(enabled_buttons) > 0
+            button_name = (
+                enabled_buttons[0].get_attribute("name") if available else None
+            )
+            files_info.append(
+                {
+                    "file_name": file_name,
+                    "available": available,
+                    "button_name": button_name,
+                    "row_index": j,
+                }
+            )
+
+        files = [
+            NYCourtPassFile(
+                file_name=f["file_name"],
+                file_index=f.get("row_index"),
+                available=f.get("available", True),
+                temp_case_id=temp_case_id,
+                docket_number=docket_number or None,
+            )
+            for f in files_info
+        ]
+
+        yield ParsedData(
+            data=NYCourtPassCase(
+                temp_case_id=temp_case_id,
+                case_name=case_name,
+                case_name_abbrev=accumulated_data.get("case_title_from_search")
+                or None,
+                argument_date=argument_date,
+                decision_date=decision_date,
+                issues=fields["issues"],
+                issue_details=fields["issue_details"],
+                opinion_by=fields["opinion_by"],
+                official_citation=fields["official_citation"],
+                no_files_for_case=fields["no_files_for_case"],
+                files=files,
+                source_url=response.url,
+                source_entry_point=accumulated_data.get("entry_point"),
+                coa_site_source=accumulated_data.get("coa_site_source"),
+                docket_number=docket_number or None,
+                search_page=accumulated_data.get("search_page"),
+                search_row=accumulated_data.get("search_row"),
+                aria_case_info=accumulated_data.get("aria_case_info"),
+                search_grid=accumulated_data.get("search_grid"),
+            )
+        )
+
+        file_name_prefix = base64.b64encode(
+            f"{case_name}-{argument_date}-{decision_date}".encode()
+        ).decode()
+        available_files = [f for f in files_info if f.get("available")]
+        for file_info in available_files:
+            button_name = file_info.get("button_name")
+            if not button_name:
+                continue
+            form = page.find_form(DOCKET_FORM, "docket files form")
+            file_suffix = base64.b64encode(
+                f"{file_info['file_name']}".encode()
+            ).decode()
+            name_sha = hashlib.sha1(
+                f"{file_name_prefix}-{file_suffix}".encode()
+            ).hexdigest()
+            yield form.submit(
+                submit_selector=f"input[name='{button_name}']",
+                continuation=self.handle_file_download,
+                accumulated_data={
+                    "temp_case_id": temp_case_id,
+                    "docket_number": docket_number,
+                    "file_name": file_info["file_name"],
+                    "file_index": file_info["row_index"],
+                },
+                bypass_rate_limit=True,
+                priority=0,
+                archive=True,
+                expected_type="pdf",
+                deduplication_key=name_sha,
+            )
+
+    def _net_reinitiate_docket_search(
+        self,
+        target_page: int,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Mirror of ``_reinitiate_docket_search`` for the net flow."""
+        recovery_attempts = accumulated_data.get("recovery_attempts", 0) + 1
+        logger.info(
+            "net_parse_docket_results: re-initiating search for page %d "
+            "(attempt %d)",
+            target_page,
+            recovery_attempts,
+        )
+        yield Request(
+            request=HTTPRequestParams(
+                method=HttpMethod.GET,
+                url=DOCKET_URL,
+            ),
+            continuation=self.net_fill_docket_search,
+            accumulated_data={
+                **accumulated_data,
+                "target_page": target_page,
+                "recovery_attempts": recovery_attempts,
+            },
+            deduplication_key=SkipDeduplicationCheck(),
+        )
+
+    def _net_recover_docket_pagination(
+        self,
+        page: PageElement,
+        pagination_row: PageElement | None,
+        expected_page: int,
+        actual_page: int,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Mirror of ``_recover_docket_pagination`` for the net flow.
+
+        Same pagination-jump strategy but continues to
+        ``net_parse_docket_results``.
+        """
+        if pagination_row is None:
+            return
+
+        visible = self._extract_visible_page_numbers(pagination_row)
+        if not visible:
+            return
+
+        if max(visible) < actual_page:
+            return
+
+        if expected_page in visible:
+            target = expected_page
+        elif expected_page > actual_page:
+            target = max(visible)
+        else:
+            target = min(visible)
+
+        form = page.find_form(DOCKET_FORM, "docket pagination recovery")
+        yield form.submit(
+            data={
+                "__EVENTTARGET": DOCKET_GRID,
+                "__EVENTARGUMENT": f"Page${target}",
+            },
+            continuation=self.net_parse_docket_results,
+            accumulated_data={
+                **accumulated_data,
+                "page_number": expected_page,
+                "pagination_recovery_attempts": accumulated_data.get(
+                    "pagination_recovery_attempts", 0
+                )
+                + 1,
+            },
+            deduplication_key=SkipDeduplicationCheck(),
+        )
+
+    def _net_navigate_to_next_docket_page(
+        self,
+        page: PageElement,
+        pagination_row: PageElement | None,
+        next_page: int,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Mirror of ``_navigate_to_next_docket_page`` for the net flow.
+
+        Same pagination logic but continues to
+        ``net_parse_docket_results``.
+        """
+        if pagination_row is None:
+            return
+        visible = self._extract_visible_page_numbers(pagination_row)
+        if not visible:
+            return
+        actual_page = self._detect_actual_page(page)
+        if actual_page is not None and max(visible) < actual_page:
+            return
+        if next_page in visible:
+            target = next_page
+            target_page_number = next_page
+        elif any(p > next_page for p in visible):
+            target = min(p for p in visible if p >= next_page)
+            target_page_number = target
+        elif visible:
+            target = max(visible)
+            target_page_number = target
+        else:
+            return
+        form = page.find_form(DOCKET_FORM, "docket pagination")
+        yield form.submit(
+            data={
+                "__EVENTTARGET": DOCKET_GRID,
+                "__EVENTARGUMENT": f"Page${target}",
+            },
+            continuation=self.net_parse_docket_results,
+            accumulated_data={
+                **accumulated_data,
+                "page_number": target_page_number,
+                "pagination_recovery_attempts": 0,
+            },
+            deduplication_key=SkipDeduplicationCheck(),
         )
 
 

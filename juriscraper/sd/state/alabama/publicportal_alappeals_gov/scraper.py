@@ -994,17 +994,16 @@ class AlabamaScraper(
         date_gte, date_lte, _ = self._get_historical_search_params()
 
         # Find all links to acis.alabama.gov release list PDFs
-        links = page.query_xpath(
+        # find_links resolves URLs automatically
+        links = page.find_links(
             "//a[contains(@href, 'acis.alabama.gov/displaydocs2.cfm')]",
             "historical decisions PDF links",
             min_count=0,
         )
 
-        for link_el in links:
-            pdf_url = link_el.get_attribute("href")
-            if not pdf_url:
-                continue
-            link_text = link_el.text_content().strip()
+        for link in links:
+            pdf_url = link.url
+            link_text = link.text
 
             # Parse the release date from link text
             release_date = self._parse_historical_release_date(link_text)
@@ -1018,7 +1017,7 @@ class AlabamaScraper(
                 continue
 
             # Parse ACIS parameters from URL
-            parsed = urlparse(pdf_url.strip())
+            parsed = urlparse(pdf_url)
             params = parse_qs(parsed.query)
             acis_doc_no = params.get("no", [""])[0]
             acis_event = params.get("event", [""])[0]
@@ -1028,7 +1027,7 @@ class AlabamaScraper(
                 court_id=court_id,
                 date_filed=release_date,
                 case_name=link_text,
-                pdf_url=pdf_url.strip(),
+                pdf_url=pdf_url,
                 source_url=response.url,
                 acis_doc_no=acis_doc_no.strip() if acis_doc_no else None,
                 acis_event=acis_event.strip() if acis_event else None,
@@ -1041,7 +1040,7 @@ class AlabamaScraper(
                 archive=True,
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
-                    url=pdf_url.strip(),
+                    url=pdf_url,
                     verify=False,
                 ),
                 continuation=self.handle_historical_pdf_download,

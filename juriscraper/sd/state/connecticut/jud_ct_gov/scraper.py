@@ -38,13 +38,13 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urljoin
 
-from kent.common.decorators import entry, step
-from kent.common.exceptions import (
+from jkent.common.decorators import entry, step
+from jkent.common.exceptions import (
     HTMLStructuralAssumptionException,
 )
-from kent.common.page_element import PageElement
-from kent.common.param_models import SpeculativeRange
-from kent.data_types import (
+from jkent.common.page_element import PageElement
+from jkent.common.param_models import SpeculativeRange
+from jkent.data_types import (
     ArchiveResponse,
     BaseScraper,
     HttpMethod,
@@ -75,7 +75,7 @@ from .models import (
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from kent.data_types import ScraperYield
+    from jkent.data_types import ScraperYield
 
 
 # Court configuration for opinions
@@ -539,33 +539,26 @@ class ConnScraper(
         remaining_courts = accumulated_data.get("remaining_courts", [])
         start_year, end_year = self._get_opinions_year_range()
 
-        # Find all year links
-        year_links = page.query_xpath(
+        # Find all year links (find_links resolves URLs automatically)
+        year_links = page.find_links(
             self.XPATH_YEAR_LINKS,
             "year links",
             min_count=1,
         )
 
         for link in year_links:
-            year_text = link.text_content().strip()
             try:
-                year = int(year_text)
+                year = int(link.text)
             except ValueError:
                 continue
 
             if year < start_year or year > end_year:
                 continue
 
-            href = link.get_attribute("href")
-            if not href:
-                continue
-
-            # year_url = urljoin(response.url, href)
-
             yield Request(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
-                    url=href,
+                    url=link.url,
                 ),
                 continuation=self.parse_year_page,
                 accumulated_data={
@@ -669,12 +662,12 @@ class ConnScraper(
             case_opinions: dict[str, list[tuple[str, str, str]]] = {}
 
             for item in opinion_items:
-                links = item.query_xpath(".//a", "opinion links", min_count=0)
+                links = item.find_links(".//a", "opinion links", min_count=0)
                 if not links:
                     continue
 
                 first_link = links[0]
-                docket_text = first_link.text_content().strip()
+                docket_text = first_link.text
 
                 docket_match = self.DOCKET_PATTERN.match(docket_text)
                 if not docket_match:
@@ -685,10 +678,7 @@ class ConnScraper(
                 if not docket_number.startswith(expected_prefix):
                     continue
 
-                pdf_href = first_link.get_attribute("href")
-                if not pdf_href:
-                    continue
-                pdf_url = urljoin(response.url, pdf_href)
+                pdf_url = first_link.url
 
                 opinion_type = "majority"
                 type_match = self.OPINION_TYPE_PATTERN.search(docket_text)
@@ -1063,7 +1053,7 @@ class ConnScraper(
             return
 
         # Find docket link - works for both formats
-        docket_links = section.query_xpath(
+        docket_links = section.find_links(
             ".//a[contains(@href, 'appellateinquiry') or "
             "contains(@href, 'CaseDetail')]",
             "docket link",
@@ -1073,8 +1063,8 @@ class ConnScraper(
             return
 
         docket_link = docket_links[0]
-        docket_text = docket_link.text_content().strip()
-        case_detail_url = docket_link.get_attribute("href") or ""
+        docket_text = docket_link.text
+        case_detail_url = docket_link.url
 
         # Parse docket number
         docket_match = self.ORAL_ARGS_DOCKET_PATTERN.match(docket_text)
@@ -1115,7 +1105,7 @@ class ConnScraper(
                 case_name = raw_name
 
         # Find audio link - works for both formats
-        audio_links = section.query_xpath(
+        audio_links = section.find_links(
             ".//a[contains(@href, 'PlayAudio')]",
             "audio link",
             min_count=0,
@@ -1124,10 +1114,9 @@ class ConnScraper(
             return
 
         audio_link = audio_links[0]
-        audio_href = audio_link.get_attribute("href") or ""
-        audio_url = urljoin(response.url, audio_href)
+        audio_url = audio_link.url
 
-        audio_id_match = self.AUDIO_ID_PATTERN.search(audio_href)
+        audio_id_match = self.AUDIO_ID_PATTERN.search(audio_url)
         audio_id = int(audio_id_match.group(1)) if audio_id_match else None
 
         yield Request(
@@ -1282,20 +1271,19 @@ class ConnScraper(
     # Dockets Scraping Steps
     # =========================================================================
 
-
     @entry(ConnDocket)
     def fetch_docket(self, rid: SpeculativeRange) -> Request:
         """Create a speculative request for a docket by CRN.
 
-        ``SpeculativeRange`` implements the ``Speculative`` protocol, so
-        the driver automatically detects this entry as speculative.
-        Templates are supplied via ``seed_params`` at run time, e.g.::
+        CRNs are monotonically increasing internal IDs used by the CT
+        courts. Templates are supplied via ``seed_params`` at run time,
+        e.g.::
 
-            [{"fetch_docket": {"rid": {"number": 105336, "gap": 20}}}]
+            [{"fetch_docket": {"rid": {"min": 105336, "gap": 20}}}]
 
         The request is processed by parse_docket_page.
         """
-        crn = rid.number
+        crn = rid.min
 
         # Get court_ids filter from params (if set)
         _, _, court_ids = self._get_docket_search_params()
@@ -1353,9 +1341,14 @@ class ConnScraper(
         crn = accumulated_data.get("crn")
         court_ids_filter = accumulated_data.get("court_ids")
 
-        # Check if we were redirected to an error page
+        # Missing CRNs return a 302 redirecting to ErrorPage.aspx?errmsg=Case Not Found.
+        # The unencoded space in the Location header prevents httpx from following the
+        # redirect, so the 302 status is what we see here (response.url stays on
+        # CaseDetail.aspx). This is expected for speculative scraping.
+        if response.status_code != 200:
+            return
         if DOCKET_CONFIG["error_url"] in response.url:
-            return  # No docket at this CRN - this is expected for speculative scraping
+            return
 
         # Check if case is marked as "not available at this time"
         # These are unpublished cases that show a message like:
@@ -1516,7 +1509,7 @@ class ConnScraper(
 
         # === Trial Court Information ===
         # Trial court docket is in a table with links (dlTCDockets)
-        trial_docket_links = page.query_xpath(
+        trial_docket_links = page.find_links(
             "//table[@id='dlTCDockets']//a[contains(@id, 'hlnkDocketNumber')]",
             "trial court docket links",
             min_count=0,
@@ -1524,12 +1517,8 @@ class ConnScraper(
         trial_court_docket_number = None
         trial_court_docket_url = None
         if trial_docket_links:
-            trial_court_docket_url = trial_docket_links[0].get_attribute(
-                "href"
-            )
-            trial_court_docket_number = (
-                trial_docket_links[0].text_content().strip()
-            )
+            trial_court_docket_url = trial_docket_links[0].url
+            trial_court_docket_number = trial_docket_links[0].text
 
         judgment_for = extract_text(
             "//span[@id='lblJudgementFor'] | "
@@ -1653,11 +1642,10 @@ class ConnScraper(
         # If this appellate docket has a linked trial court docket,
         # yield a Request to fetch and parse it
         if trial_court_docket_url:
-            full_url = urljoin(response.url, trial_court_docket_url)
             yield Request(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
-                    url=full_url,
+                    url=trial_court_docket_url,
                 ),
                 continuation=self.parse_trial_court_docket,
                 accumulated_data={
@@ -2137,13 +2125,13 @@ class ConnScraper(
         Looks for the "To receive an email when there is activity on this case"
         link (hlnkSubscribe).
         """
-        subscribe_links = page.query_xpath(
+        subscribe_links = page.find_links(
             "//a[@id='hlnkSubscribe']",
             "subscription link",
             min_count=0,
         )
         if subscribe_links:
-            return subscribe_links[0].get_attribute("href")
+            return subscribe_links[0].url
         return None
 
     # =========================================================================

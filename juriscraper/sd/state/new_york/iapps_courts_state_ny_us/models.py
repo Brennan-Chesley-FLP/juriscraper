@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from kent.common.data_models import ScrapedData
+from jkent.common.data_models import ScrapedData
 
 
 class NYSCEFAttorneyRep(ScrapedData):
@@ -51,7 +51,7 @@ class NYSCEFParty(ScrapedData):
     """Attorneys representing this party"""
 
 
-class NYSCEFDocument(ScrapedData):
+class NYSCEFDocketEntry(ScrapedData):
     """A document from the Document List page."""
 
     doc_number: int
@@ -78,8 +78,32 @@ class NYSCEFDocument(ScrapedData):
     download_url: str | None = None
     """URL to view/download the document (ViewDocument?docIndex=...)"""
 
+    confirmation_notice_url: str | None = None
+    """URL to the confirmation notice PDF (ConfirmationNotice?docId=...)"""
+
+
+class NYSCEFDownloadedDocument(ScrapedData):
+    """A downloaded document file from the NYSCEF Document List page.
+
+    Yielded separately from NYSCEFCase so that archive downloads can
+    proceed independently.  Use ``iapps_internal_docket_id`` to join
+    back to the parent case in post-processing.
+    """
+
+    iapps_internal_docket_id: str
+    """NYSCEF internal docket ID (base64-encoded) — join key to NYSCEFCase"""
+
+    doc_number: int
+    """Document sequence number within the case"""
+
+    document_type: str
+    """Document type (e.g., 'APPELLANT\\'S BRIEF', 'DECISION AND ORDER')"""
+
+    download_url: str
+    """Source URL (ViewDocument?docIndex=...)"""
+
     local_path: str | None = None
-    """Local path if downloaded via archive"""
+    """Local filesystem path where the file was saved (set by driver)"""
 
 
 class NYSCEFCase(ScrapedData):
@@ -99,8 +123,8 @@ class NYSCEFCase(ScrapedData):
     court: str
     """Court name (e.g., 'Appellate Division - 1st Dept')"""
 
-    docket_id: str | None = None
-    """NYSCEF internal docket ID (base64-encoded, from URL param)"""
+    iapps_internal_docket_id: str | None = None
+    """NYSCEF internal docket ID (base64-encoded, from URL docketId param)"""
 
     # === Case info ===
     short_caption: str | None = None
@@ -151,7 +175,7 @@ class NYSCEFCase(ScrapedData):
     """All parties in the case with their attorneys"""
 
     # === Documents ===
-    documents: list[NYSCEFDocument] = []
+    documents: list[NYSCEFDocketEntry] = []
     """All documents filed in the case"""
 
     # === Metadata ===

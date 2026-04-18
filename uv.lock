@@ -620,6 +620,7 @@ dependencies = [
     { name = "click" },
     { name = "cssselect" },
     { name = "httpx" },
+    { name = "jinja2" },
     { name = "jsondiff" },
     { name = "lxml" },
     { name = "pydantic" },
@@ -641,7 +642,6 @@ playwright = [
 ]
 web = [
     { name = "fastapi" },
-    { name = "jinja2" },
 ]
 
 [package.metadata]
@@ -653,8 +653,7 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'demo'", specifier = ">=0.128.0" },
     { name = "fastapi", marker = "extra == 'web'", specifier = ">=0.128.0" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "jinja2", marker = "extra == 'demo'" },
-    { name = "jinja2", marker = "extra == 'web'" },
+    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "jsondiff", specifier = ">=2.2.1" },
     { name = "lxml", specifier = ">=5.2" },
     { name = "playwright", marker = "extra == 'playwright'", specifier = ">=1.57.0" },
@@ -680,6 +679,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "ruff", specifier = ">=0.15.0" },
+    { name = "sphinx", specifier = ">=8.0,<9" },
     { name = "sphinx-autobuild", specifier = ">=2024.10.3" },
     { name = "sphinx-immaterial", specifier = ">=0.13.9" },
     { name = "sphinxcontrib-mermaid", specifier = ">=2.0.0" },

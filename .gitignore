@@ -214,3 +214,5 @@ tests/fixtures/cassettes/
 .claude
 .onfig
 .config
+runs
+scripts

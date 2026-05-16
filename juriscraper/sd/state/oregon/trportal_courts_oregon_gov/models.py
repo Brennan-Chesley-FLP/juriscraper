@@ -14,6 +14,7 @@ from juriscraper.sd.state.common.tr.models import (
     TRCourtConfig,
     TRDocket,
     TRDocketEntry,
+    TRDocument,
     TROralArgument,
 )
 
@@ -55,3 +56,12 @@ class OreDocket(TRDocket):
 
 class OreOralArgument(TROralArgument):
     """An oral argument from Oregon appellate courts."""
+
+
+class OreDocument(TRDocument):
+    """A document attached to an Oregon appellate court docket entry.
+
+    Note: many Oregon appellate documents are paywalled, so anonymous
+    archive requests for those will fail and the resulting record will
+    have ``local_path=None``.
+    """

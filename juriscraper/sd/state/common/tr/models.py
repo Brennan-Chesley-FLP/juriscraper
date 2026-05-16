@@ -115,6 +115,44 @@ class TRDocket(ScrapedData):
     """Court GUID used in API calls"""
 
 
+class TRDocument(ScrapedData):
+    """A document attached to a docket entry on a TR Portal court.
+
+    Yielded as a separate top-level record so it can be joined back to
+    the parent TRDocket via ``case_instance_uuid``, and to the specific
+    docket entry via ``docket_entry_uuid``.
+    """
+
+    case_number: str
+    """Case number this document belongs to."""
+
+    court_id: str
+    """Court identifier (e.g., 'nd', 'or', 'wyo')."""
+
+    case_instance_uuid: str
+    """Case instance UUID — joins back to the parent TRDocket."""
+
+    docket_entry_uuid: str | None = None
+    """UUID of the parent docket entry (when known)."""
+
+    document_link_uuid: str
+    """The TR Portal documentLinkUUID identifying the physical file."""
+
+    document_name: str | None = None
+    document_type: str | None = None
+
+    content_type: str | None = None
+    """MIME type from documentInfo.contentType (e.g., 'application/pdf')."""
+
+    file_extension: str | None = None
+    page_count: int | None = None
+    file_size: int | None = None
+
+    download_url: str | None = None
+    local_path: str | None = None
+    """Filesystem path where the driver archived this document."""
+
+
 class TROralArgument(ScrapedData):
     """An oral argument from a TR Portal court system."""
 

@@ -19,11 +19,13 @@ Required class variables on the subclass:
 Required class variables for model creation:
     DOCKET_CLASS: type  -- the docket ScrapedData subclass
     DOCKET_ENTRY_CLASS: type  -- the docket entry ScrapedData subclass
+    DOCUMENT_CLASS: type  -- the document ScrapedData subclass
     ORAL_ARGUMENT_CLASS: type  -- the oral argument ScrapedData subclass
 
 Expected step method names on the subclass (referenced by continuations):
     parse_dockets_search, parse_case_detail, parse_case_parties,
-    parse_docket_entries, parse_events_list, parse_event_hearings,
+    parse_docket_entries, parse_documents_list, parse_document_download,
+    parse_events_list, parse_event_hearings,
     parse_publications_list, parse_publication_detail
 """
 
@@ -41,6 +43,16 @@ from kent.data_types import (
 )
 
 from .models import TRCourtConfig
+
+# File extension -> kent expected_type hint
+_TR_EXPECTED_TYPE_MAP: dict[str, str] = {
+    "pdf": "pdf",
+    "mp3": "audio",
+    "wav": "audio",
+    "mp4": "video",
+    "wma": "audio",
+    "m4a": "audio",
+}
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -61,11 +73,13 @@ class TRPortalMixin:
     # === Model classes (set by subclass) ===
     DOCKET_CLASS: ClassVar[type]
     DOCKET_ENTRY_CLASS: ClassVar[type]
+    DOCUMENT_CLASS: ClassVar[type]
     ORAL_ARGUMENT_CLASS: ClassVar[type]
 
     # === Dockets API limits ===
     DOCKETS_MAX_RESULTS: ClassVar[int] = 10000
     DOCKETS_PAGE_SIZE: ClassVar[int] = 50
+    DOCUMENTS_PAGE_SIZE: ClassVar[int] = 100
 
     # =========================================================================
     # Date helpers
@@ -566,7 +580,146 @@ class TRPortalMixin:
                 },
             )
         else:
+            yield from self._tr_yield_documents_request(docket=docket, page=0)
+
+    # =========================================================================
+    # Documents: request builders
+    # =========================================================================
+
+    def _tr_yield_documents_request(
+        self, docket, page: int
+    ) -> Generator[Request, None, None]:
+        """Yield a docketentrydocumentsaccess request for the given case.
+
+        The continuation targets ``self.parse_documents_list``. The
+        access endpoint is preferred over ``/docketentrydocuments``
+        because it includes ``docketEntryUUID`` (linking each document
+        back to its parent docket entry) and ``documentInfo`` metadata.
+        """
+        api_url = (
+            f"{self.TR_API_BASE_URL}/courts/cms/docketentrydocumentsaccess"
+        )
+        params = {
+            "caseHeader.caseInstanceUUID": docket.case_instance_uuid,
+            "page": str(page),
+            "size": str(self.DOCUMENTS_PAGE_SIZE),
+        }
+        url = f"{api_url}?{urlencode(params)}"
+
+        yield Request(
+            request=HTTPRequestParams(
+                method=HttpMethod.GET,
+                url=url,
+                headers={"Accept": "application/json"},
+            ),
+            continuation=self.parse_documents_list,
+            accumulated_data={
+                "docket_data": docket.model_dump(mode="json"),
+            },
+        )
+
+    # =========================================================================
+    # Documents: step implementations
+    # =========================================================================
+
+    def _tr_handle_documents_list(
+        self,
+        json_content: dict,
+        accumulated_data: dict,
+    ) -> Generator:
+        """Core logic for parse_documents_list step.
+
+        Pages through the documents-access listing for a case. For each
+        document, yields an archive request whose continuation is
+        ``self.parse_document_download``. On the last page also yields
+        the final docket.
+        """
+        docket = self.DOCKET_CLASS.model_validate(
+            accumulated_data["docket_data"]
+        )
+
+        embedded = json_content.get("_embedded", {}) or {}
+        results = embedded.get("results", []) or []
+
+        page_info = json_content.get("page", {}) or {}
+        current_page = page_info.get("number", 0)
+        total_pages = page_info.get("totalPages", 1)
+
+        for result in results:
+            doc_uuid = result.get("documentLinkUUID")
+            if not doc_uuid:
+                continue
+
+            doc_info = result.get("documentInfo") or {}
+            file_ext = doc_info.get("fileExtension")
+            expected_type = _TR_EXPECTED_TYPE_MAP.get(
+                (file_ext or "").lower(), "pdf"
+            )
+
+            download_url = (
+                f"{self.TR_API_BASE_URL}/courts/{docket.court_guid}"
+                f"/cms/case/{docket.case_instance_uuid}"
+                f"/docketentrydocuments/{doc_uuid}"
+            )
+
+            yield Request(
+                archive=True,
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET,
+                    url=download_url,
+                ),
+                continuation=self.parse_document_download,
+                expected_type=expected_type,
+                accumulated_data={
+                    "case_number": docket.case_number,
+                    "court_id": docket.court_id,
+                    "case_instance_uuid": docket.case_instance_uuid,
+                    "docket_entry_uuid": result.get("docketEntryUUID"),
+                    "document_link_uuid": doc_uuid,
+                    "document_name": result.get("documentName"),
+                    "document_type": doc_info.get("documentType"),
+                    "content_type": doc_info.get("contentType"),
+                    "file_extension": file_ext,
+                    "page_count": doc_info.get("pageCount"),
+                    "file_size": doc_info.get("fileSize"),
+                    "download_url": download_url,
+                },
+            )
+
+        if current_page + 1 < total_pages:
+            yield from self._tr_yield_documents_request(
+                docket=docket, page=current_page + 1
+            )
+        else:
             yield ParsedData(data=docket)
+
+    def _tr_handle_document_download(
+        self,
+        local_filepath: str | None,
+        accumulated_data: dict,
+    ) -> Generator:
+        """Core logic for parse_document_download step.
+
+        Emits a TR-portal document record carrying ``local_path`` from
+        the archive driver.
+        """
+        yield ParsedData(
+            data=self.DOCUMENT_CLASS(
+                case_number=accumulated_data["case_number"],
+                court_id=accumulated_data["court_id"],
+                case_instance_uuid=accumulated_data["case_instance_uuid"],
+                docket_entry_uuid=accumulated_data.get("docket_entry_uuid"),
+                document_link_uuid=accumulated_data["document_link_uuid"],
+                document_name=accumulated_data.get("document_name"),
+                document_type=accumulated_data.get("document_type"),
+                content_type=accumulated_data.get("content_type"),
+                file_extension=accumulated_data.get("file_extension"),
+                page_count=accumulated_data.get("page_count"),
+                file_size=accumulated_data.get("file_size"),
+                download_url=accumulated_data.get("download_url"),
+                local_path=local_filepath,
+            )
+        )
 
     # =========================================================================
     # Events / Oral Arguments: request builders

@@ -10,13 +10,20 @@ Known deployments:
 - Oregon: https://trportal.courts.oregon.gov
 """
 
-from .models import TRCourtConfig, TRDocket, TRDocketEntry, TROralArgument
+from .models import (
+    TRCourtConfig,
+    TRDocket,
+    TRDocketEntry,
+    TRDocument,
+    TROralArgument,
+)
 from .scraper import TRPortalMixin
 
 __all__ = [
     "TRCourtConfig",
     "TRDocket",
     "TRDocketEntry",
+    "TRDocument",
     "TROralArgument",
     "TRPortalMixin",
 ]

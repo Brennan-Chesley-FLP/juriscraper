@@ -41,9 +41,9 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, ClassVar
 
-from kent.common.decorators import entry, step
-from kent.common.param_models import DateRange
-from kent.data_types import BaseScraper, ScraperStatus
+from jkent.common.decorators import entry, step
+from jkent.common.param_models import DateRange
+from jkent.data_types import BaseScraper, ScraperStatus
 from pyrate_limiter import Duration, Rate
 
 from juriscraper.sd.state.common.tr.scraper import TRPortalMixin
@@ -54,18 +54,19 @@ from .models import (
     PORTAL_URL,
     OreDocket,
     OreDocketEntry,
+    OreDocument,
     OreOralArgument,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from kent.data_types import Request, ScraperYield
+    from jkent.data_types import Request, ScraperYield
 
 
 class OregonScraper(
     TRPortalMixin,
-    BaseScraper[OreDocket | OreOralArgument],
+    BaseScraper[OreDocket | OreDocument | OreOralArgument],
 ):
     """Scraper for Oregon appellate court data.
 
@@ -114,6 +115,7 @@ class OregonScraper(
     # === Model classes ===
     DOCKET_CLASS: ClassVar[type] = OreDocket
     DOCKET_ENTRY_CLASS: ClassVar[type] = OreDocketEntry
+    DOCUMENT_CLASS: ClassVar[type] = OreDocument
     ORAL_ARGUMENT_CLASS: ClassVar[type] = OreOralArgument
 
     # =========================================================================
@@ -155,7 +157,9 @@ class OregonScraper(
         self,
         json_content: dict,
         accumulated_data: dict,
-    ) -> Generator[ScraperYield[OreDocket | OreOralArgument], None, None]:
+    ) -> Generator[
+        ScraperYield[OreDocket | OreDocument | OreOralArgument], None, None
+    ]:
         """Parse docket search results."""
         yield from self._tr_handle_dockets_search(
             json_content, accumulated_data
@@ -166,7 +170,9 @@ class OregonScraper(
         self,
         json_content: dict,
         accumulated_data: dict,
-    ) -> Generator[ScraperYield[OreDocket | OreOralArgument], None, None]:
+    ) -> Generator[
+        ScraperYield[OreDocket | OreDocument | OreOralArgument], None, None
+    ]:
         """Parse case detail and fetch parties."""
         yield from self._tr_handle_case_detail(json_content, accumulated_data)
 
@@ -175,7 +181,9 @@ class OregonScraper(
         self,
         json_content: dict,
         accumulated_data: dict,
-    ) -> Generator[ScraperYield[OreDocket | OreOralArgument], None, None]:
+    ) -> Generator[
+        ScraperYield[OreDocket | OreDocument | OreOralArgument], None, None
+    ]:
         """Parse case parties and fetch docket entries."""
         yield from self._tr_handle_case_parties(json_content, accumulated_data)
 
@@ -184,10 +192,36 @@ class OregonScraper(
         self,
         json_content: dict,
         accumulated_data: dict,
-    ) -> Generator[ScraperYield[OreDocket | OreOralArgument], None, None]:
-        """Parse docket entries and yield final docket."""
+    ) -> Generator[
+        ScraperYield[OreDocket | OreDocument | OreOralArgument], None, None
+    ]:
+        """Parse docket entries and chain into the documents fetch."""
         yield from self._tr_handle_docket_entries(
             json_content, accumulated_data
+        )
+
+    @step()
+    def parse_documents_list(
+        self,
+        json_content: dict,
+        accumulated_data: dict,
+    ) -> Generator[
+        ScraperYield[OreDocket | OreDocument | OreOralArgument], None, None
+    ]:
+        """Parse the documents access listing and chain doc downloads."""
+        yield from self._tr_handle_documents_list(
+            json_content, accumulated_data
+        )
+
+    @step()
+    def parse_document_download(
+        self,
+        local_filepath: str | None,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[OreDocument], None, None]:
+        """Emit an OreDocument record for an archived file."""
+        yield from self._tr_handle_document_download(
+            local_filepath, accumulated_data
         )
 
     # =========================================================================
@@ -221,7 +255,9 @@ class OregonScraper(
         self,
         json_content: dict,
         accumulated_data: dict,
-    ) -> Generator[ScraperYield[OreDocket | OreOralArgument], None, None]:
+    ) -> Generator[
+        ScraperYield[OreDocket | OreDocument | OreOralArgument], None, None
+    ]:
         """Parse events list and yield hearing requests."""
         _, _, _, court_ids = self._tr_get_search_params(
             "OreOralArgument", date_field_name="date_argued"
@@ -237,7 +273,9 @@ class OregonScraper(
         self,
         json_content: dict,
         accumulated_data: dict,
-    ) -> Generator[ScraperYield[OreDocket | OreOralArgument], None, None]:
+    ) -> Generator[
+        ScraperYield[OreDocket | OreDocument | OreOralArgument], None, None
+    ]:
         """Parse event hearings and yield oral arguments."""
         _, _, case_number_filter, _ = self._tr_get_search_params(
             "OreOralArgument", date_field_name="date_argued"

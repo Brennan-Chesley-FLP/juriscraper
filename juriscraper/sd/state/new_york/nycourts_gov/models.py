@@ -55,6 +55,35 @@ class NYCourtPassFile(ScrapedData):
     """APL/CTQ/JCR number (e.g., 'APL-2024-00177') when reached via docket flow"""
 
 
+class NYCourtPassOralArgument(ScrapedData):
+    """A deferred oral-argument recording reference.
+
+    Court-PASS serves oral-argument webcast/audio rows as a tiny ASX
+    (Advanced Stream Redirector) XML stub with
+    ``Content-Disposition: Attachment``, so the ASX file lands in the
+    archive store even though it isn't the recording itself. The scraper
+    parses the embedded ``mms://`` reference and emits this model
+    capturing where the ASX stub was saved and the resolved HTTP URL of
+    the actual ``.wmv`` recording, so the recording can be downloaded
+    out-of-band by a separate process.
+    """
+
+    asx_url: str
+    """Local filesystem path to the archived ASX redirect stub."""
+
+    wmv_url: str
+    """HTTP URL of the actual ``.wmv`` oral-argument recording."""
+
+    filename: str
+    """The original ``gvFiles`` row label (e.g. '111914-228-Oral-Argument-Webcast')."""
+
+    temp_case_id: str | None = None
+    """UUID linking this recording to its parent NYCourtPassCase / NYCourtPassDocket."""
+
+    docket_number: str | None = None
+    """APL/CTQ/JCR number when reached via docket flow."""
+
+
 class NYCourtPassCase(ScrapedData):
     """Case and filing data from the Court-PASS filing detail page.
 

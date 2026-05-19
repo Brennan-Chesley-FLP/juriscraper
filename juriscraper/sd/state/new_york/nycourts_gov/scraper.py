@@ -70,6 +70,7 @@ import dataclasses
 import hashlib
 import logging
 import re
+import urllib.parse
 import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING, ClassVar
@@ -100,6 +101,7 @@ from .models import (
     NYCourtPassDocket,
     NYCourtPassDocketEntry,
     NYCourtPassFile,
+    NYCourtPassOralArgument,
     NYDocketFailure,
 )
 
@@ -138,7 +140,32 @@ SEARCH_DECIDED_GRID = "ctl00$cphMain$gvPublicSearchPost"
 
 
 _Yield = (
-    NYCourtPassCase | NYCourtPassDocket | NYCourtPassFile | NYDocketFailure
+    NYCourtPassCase
+    | NYCourtPassDocket
+    | NYCourtPassFile
+    | NYCourtPassOralArgument
+    | NYDocketFailure
+)
+
+# Court-PASS serves oral-argument webcasts and audio as an ASX (Advanced
+# Stream Redirector) XML stub rather than a PDF: the gvFiles download
+# button replies with ``Content-Disposition: Attachment`` +
+# ``application/octet-stream`` and a ~200-byte XML body whose ``<ref
+# href>`` points at ``mms://media.courts.state.ny.us/...wmv`` — the same
+# path is reachable over plain HTTP (the BigIP front-end 302s to an
+# Azure blob). Rows whose file_name matches ``ORAL_ARGUMENT_MEDIA_RE``
+# are routed through ``handle_oral_argument_download`` so the stub can
+# be parsed and a ``NYCourtPassOralArgument`` record emitted with the
+# resolved ``.wmv`` URL, deferring the actual recording download to an
+# out-of-band process.
+ASX_MEDIA_HOST = "media.courts.state.ny.us"
+ASX_REF_HREF_RE = re.compile(
+    r"<ref\b[^>]*\bhref\s*=\s*[\"']([^\"']+)[\"']",
+    re.IGNORECASE,
+)
+ORAL_ARGUMENT_MEDIA_RE = re.compile(
+    r"Oral-Argument-(Webcast|Audio)",
+    re.IGNORECASE,
 )
 
 # Search string that matches every case on the docket via "Find Any Words (OR)"
@@ -191,6 +218,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
     driver_requirements: ClassVar[list[DriverRequirement]] = [
         DriverRequirement.JS_EVAL,
         DriverRequirement.FF_ALIKE,
+        DriverRequirement.STRICTLY_SERIAL,
     ]
 
     rate_limits: ClassVar[list[Rate] | None] = [Rate(1, Duration.SECOND)]
@@ -1029,9 +1057,16 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             name_sha = hashlib.sha1(
                 f"{file_name_prefix}-{file_suffix}".encode()
             ).hexdigest()
+            is_oral_argument_media = bool(
+                ORAL_ARGUMENT_MEDIA_RE.search(file_info["file_name"])
+            )
             yield form.submit(
                 submit_selector=f"input[name='{button_name}']",
-                continuation=self.handle_file_download,
+                continuation=(
+                    self.handle_oral_argument_download
+                    if is_oral_argument_media
+                    else self.handle_file_download
+                ),
                 accumulated_data={
                     "temp_case_id": temp_case_id,
                     "file_name": file_info["file_name"],
@@ -1040,7 +1075,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 bypass_rate_limit=True,
                 priority=0,
                 archive=True,
-                expected_type="pdf",
+                expected_type="asx" if is_oral_argument_media else "pdf",
                 deduplication_key=name_sha,
             )
 
@@ -1626,9 +1661,16 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             name_sha = hashlib.sha1(
                 f"{file_name_prefix}-{file_suffix}".encode()
             ).hexdigest()
+            is_oral_argument_media = bool(
+                ORAL_ARGUMENT_MEDIA_RE.search(file_info["file_name"])
+            )
             yield form.submit(
                 submit_selector=f"input[name='{button_name}']",
-                continuation=self.handle_file_download,
+                continuation=(
+                    self.handle_oral_argument_download
+                    if is_oral_argument_media
+                    else self.handle_file_download
+                ),
                 accumulated_data={
                     "temp_case_id": temp_case_id,
                     "docket_number": docket_number,
@@ -1638,7 +1680,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 bypass_rate_limit=True,
                 priority=0,
                 archive=True,
-                expected_type="pdf",
+                expected_type="asx" if is_oral_argument_media else "pdf",
                 deduplication_key=name_sha,
             )
 
@@ -1798,6 +1840,84 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 docket_number=accumulated_data.get("docket_number"),
             )
         )
+
+    @step
+    def handle_oral_argument_download(
+        self,
+        local_filepath: str | None,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Resolve an oral-argument ASX redirect stub.
+
+        Court-PASS serves Oral-Argument-Webcast / Oral-Argument-Audio
+        rows as a tiny ASX (Advanced Stream Redirector) XML stub with
+        ``Content-Disposition: Attachment``, so the file lands on disk
+        like any other archive download. This step parses the
+        ``mms://media.courts.state.ny.us/...wmv`` reference out of the
+        stub and emits a ``NYCourtPassOralArgument`` recording the
+        stub's on-disk path alongside the resolved HTTP URL of the
+        ``.wmv``. The actual recording download is deferred to an
+        out-of-band process.
+        """
+        parsed = self._parse_asx_redirect_stub(local_filepath)
+        if parsed is None:
+            logger.warning(
+                "handle_oral_argument_download: could not parse ASX stub at %r "
+                "for file_name=%r; skipping wmv emission",
+                local_filepath,
+                accumulated_data.get("file_name"),
+            )
+            return
+
+        _, resolved_url = parsed
+        assert local_filepath is not None  # implied by parsed is not None
+        yield ParsedData(
+            data=NYCourtPassOralArgument(
+                asx_url=local_filepath,
+                wmv_url=resolved_url,
+                filename=accumulated_data.get("file_name", ""),
+                temp_case_id=accumulated_data.get("temp_case_id"),
+                docket_number=accumulated_data.get("docket_number"),
+            )
+        )
+
+    @staticmethod
+    def _parse_asx_redirect_stub(
+        local_filepath: str | None,
+    ) -> tuple[str, str] | None:
+        """Parse an ASX redirect stub at ``local_filepath``.
+
+        Returns ``(original_mms_href, resolved_http_url)`` if the file
+        is a recognizable ASX stub pointing at
+        ``mms://media.courts.state.ny.us/...``, otherwise ``None``. The
+        check is deliberately conservative — file extension AND content
+        prefix AND the expected media host must all match — so a stray
+        non-ASX archive never gets misinterpreted as a redirect.
+        """
+        if not local_filepath or not local_filepath.lower().endswith(".asx"):
+            return None
+        try:
+            with open(local_filepath, "rb") as f:
+                head = f.read(8192)
+        except OSError:
+            return None
+        text = head.decode("utf-8", errors="replace").lstrip()
+        if not text.lower().startswith("<asx"):
+            return None
+        match = ASX_REF_HREF_RE.search(text)
+        if not match:
+            return None
+        href = match.group(1).strip()
+        parsed = urllib.parse.urlsplit(href)
+        if parsed.scheme.lower() != "mms":
+            return None
+        if parsed.hostname != ASX_MEDIA_HOST:
+            return None
+        quoted_path = urllib.parse.quote(parsed.path, safe="/%")
+        resolved = urllib.parse.urlunsplit(
+            ("http", parsed.netloc, quoted_path, parsed.query, parsed.fragment)
+        )
+        return href, resolved
 
     # =========================================================================
     # Docket Entry Point Flow (Steps for get_docket)
@@ -2105,16 +2225,23 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             name_sha = hashlib.sha1(
                 f"{file_name_prefix}-{file_suffix}".encode()
             ).hexdigest()
+            is_oral_argument_media = bool(
+                ORAL_ARGUMENT_MEDIA_RE.search(file_info["file_name"])
+            )
             yield form.submit(
                 submit_selector=f"input[name='{button_name}']",
-                continuation=self.handle_file_download,
+                continuation=(
+                    self.handle_oral_argument_download
+                    if is_oral_argument_media
+                    else self.handle_file_download
+                ),
                 accumulated_data={
                     "temp_case_id": temp_case_id,
                     "file_name": file_info["file_name"],
                     "file_index": file_info["row_index"],
                 },
                 archive=True,
-                expected_type="pdf",
+                expected_type="asx" if is_oral_argument_media else "pdf",
                 deduplication_key=name_sha,
             )
 
@@ -3638,9 +3765,16 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             name_sha = hashlib.sha1(
                 f"{file_name_prefix}-{file_suffix}".encode()
             ).hexdigest()
+            is_oral_argument_media = bool(
+                ORAL_ARGUMENT_MEDIA_RE.search(file_info["file_name"])
+            )
             yield form.submit(
                 submit_selector=f"input[name='{button_name}']",
-                continuation=self.handle_file_download,
+                continuation=(
+                    self.handle_oral_argument_download
+                    if is_oral_argument_media
+                    else self.handle_file_download
+                ),
                 accumulated_data={
                     "temp_case_id": temp_case_id,
                     "docket_number": docket_number,
@@ -3650,7 +3784,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 bypass_rate_limit=True,
                 priority=0,
                 archive=True,
-                expected_type="pdf",
+                expected_type="asx" if is_oral_argument_media else "pdf",
                 deduplication_key=name_sha,
             )
 

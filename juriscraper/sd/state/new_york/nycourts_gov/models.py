@@ -42,6 +42,12 @@ class NYCourtPassFile(ScrapedData):
     file_index: int | None = None
     """0-based position of this file in the files table on the page"""
 
+    document_number: int | None = None
+    """1-based document number for the file, numbered from the bottom of
+    the gvFiles table up. The bottom-most row is document_number=1 and the
+    top-most row is document_number=len(files). Mirrors the convention used
+    when attaching documents to dockets in the downstream pipeline."""
+
     local_path: str | None = None
     """Local filesystem path where the file was downloaded (set by driver)"""
 

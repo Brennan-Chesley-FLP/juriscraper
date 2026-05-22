@@ -991,15 +991,20 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         temp_case_id = str(uuid.uuid4())
 
         # Build file model objects for the case
+        total_files = len(files_info)
         files = [
             NYCourtPassFile(
                 file_name=f["file_name"],
                 file_index=f.get("row_index"),
+                document_number=total_files - i,
                 available=f.get("available", True),
                 temp_case_id=temp_case_id,
             )
-            for f in files_info
+            for i, f in enumerate(files_info)
         ]
+        document_numbers_by_row = {
+            f["row_index"]: total_files - i for i, f in enumerate(files_info)
+        }
 
         # Emit NYCourtPassCase with all case/filing data
         yield ParsedData(
@@ -1071,6 +1076,9 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "temp_case_id": temp_case_id,
                     "file_name": file_info["file_name"],
                     "file_index": file_info["row_index"],
+                    "document_number": document_numbers_by_row.get(
+                        file_info["row_index"]
+                    ),
                 },
                 bypass_rate_limit=True,
                 priority=0,
@@ -1607,16 +1615,21 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 }
             )
 
+        total_files = len(files_info)
         files = [
             NYCourtPassFile(
                 file_name=f["file_name"],
                 file_index=f.get("row_index"),
+                document_number=total_files - i,
                 available=f.get("available", True),
                 temp_case_id=temp_case_id,
                 docket_number=docket_number or None,
             )
-            for f in files_info
+            for i, f in enumerate(files_info)
         ]
+        document_numbers_by_row = {
+            f["row_index"]: total_files - i for i, f in enumerate(files_info)
+        }
 
         yield ParsedData(
             data=NYCourtPassCase(
@@ -1676,6 +1689,9 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "docket_number": docket_number,
                     "file_name": file_info["file_name"],
                     "file_index": file_info["row_index"],
+                    "document_number": document_numbers_by_row.get(
+                        file_info["row_index"]
+                    ),
                 },
                 bypass_rate_limit=True,
                 priority=0,
@@ -1834,6 +1850,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             data=NYCourtPassFile(
                 file_name=accumulated_data.get("file_name", ""),
                 file_index=accumulated_data.get("file_index"),
+                document_number=accumulated_data.get("document_number"),
                 local_path=local_filepath,
                 available=True,
                 temp_case_id=accumulated_data.get("temp_case_id"),
@@ -2177,15 +2194,20 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             )
 
         # Build file model objects for the case
+        total_files = len(files_info)
         files = [
             NYCourtPassFile(
                 file_name=f["file_name"],
                 file_index=f.get("row_index"),
+                document_number=total_files - i,
                 available=f.get("available", True),
                 temp_case_id=temp_case_id,
             )
-            for f in files_info
+            for i, f in enumerate(files_info)
         ]
+        document_numbers_by_row = {
+            f["row_index"]: total_files - i for i, f in enumerate(files_info)
+        }
 
         # Emit NYCourtPassCase
         yield ParsedData(
@@ -2239,6 +2261,9 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "temp_case_id": temp_case_id,
                     "file_name": file_info["file_name"],
                     "file_index": file_info["row_index"],
+                    "document_number": document_numbers_by_row.get(
+                        file_info["row_index"]
+                    ),
                 },
                 archive=True,
                 expected_type="asx" if is_oral_argument_media else "pdf",
@@ -3714,16 +3739,21 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 }
             )
 
+        total_files = len(files_info)
         files = [
             NYCourtPassFile(
                 file_name=f["file_name"],
                 file_index=f.get("row_index"),
+                document_number=total_files - i,
                 available=f.get("available", True),
                 temp_case_id=temp_case_id,
                 docket_number=docket_number or None,
             )
-            for f in files_info
+            for i, f in enumerate(files_info)
         ]
+        document_numbers_by_row = {
+            f["row_index"]: total_files - i for i, f in enumerate(files_info)
+        }
 
         yield ParsedData(
             data=NYCourtPassCase(
@@ -3780,6 +3810,9 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "docket_number": docket_number,
                     "file_name": file_info["file_name"],
                     "file_index": file_info["row_index"],
+                    "document_number": document_numbers_by_row.get(
+                        file_info["row_index"]
+                    ),
                 },
                 bypass_rate_limit=True,
                 priority=0,

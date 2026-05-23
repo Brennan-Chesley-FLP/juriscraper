@@ -1,6 +1,6 @@
 """Data models for New York Court of Appeals scrapers.
 
-These models extend ScrapedData from kent to capture
+These models extend ScrapedData from jkent to capture
 New York Court of Appeals opinion and docket data.
 
 Supported court:
@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from kent.common.data_models import ScrapedData
+from jkent.common.data_models import ScrapedData
 
 # Court ID mapping
 COURT_IDS = {
@@ -59,124 +59,6 @@ class NYCourtPassFile(ScrapedData):
 
     docket_number: str | None = None
     """APL/CTQ/JCR number (e.g., 'APL-2024-00177') when reached via docket flow"""
-
-
-class NYCourtPassOralArgument(ScrapedData):
-    """A deferred oral-argument recording reference.
-
-    Court-PASS serves oral-argument webcast/audio rows as a tiny ASX
-    (Advanced Stream Redirector) XML stub with
-    ``Content-Disposition: Attachment``, so the ASX file lands in the
-    archive store even though it isn't the recording itself. The scraper
-    parses the embedded ``mms://`` reference and emits this model
-    capturing where the ASX stub was saved and the resolved HTTP URL of
-    the actual ``.wmv`` recording, so the recording can be downloaded
-    out-of-band by a separate process.
-    """
-
-    asx_url: str
-    """Local filesystem path to the archived ASX redirect stub."""
-
-    wmv_url: str
-    """HTTP URL of the actual ``.wmv`` oral-argument recording."""
-
-    filename: str
-    """The original ``gvFiles`` row label (e.g. '111914-228-Oral-Argument-Webcast')."""
-
-    temp_case_id: str | None = None
-    """UUID linking this recording to its parent NYCourtPassCase / NYCourtPassDocket."""
-
-    docket_number: str | None = None
-    """APL/CTQ/JCR number when reached via docket flow."""
-
-
-class NYCourtPassCase(ScrapedData):
-    """Case and filing data from the Court-PASS filing detail page.
-
-    Emitted from parse_filing_detail with all case-level information.
-    Linked to NYCourtPassDocket and NYCourtPassFile via temp_case_id.
-    """
-
-    temp_case_id: str
-    """UUID for joining with docket and file data in the pipeline"""
-
-    court_id: str = "ny"
-    """Court identifier"""
-
-    case_name: str
-    """Full case name from the filing detail page"""
-
-    case_name_abbrev: str | None = None
-    """Abbreviated case caption from the Public_search results grid
-    (e.g. 'People v Padilla-Zuniga (Juan)'), populated when the case
-    was reached via the search_pending / search_decided_after flows."""
-
-    argument_date: date | None = None
-    """Date of oral argument"""
-
-    decision_date: date | None = None
-    """Date of decision (decided cases only)"""
-
-    issues: list[str] = []
-    """Issue categories (e.g., 'Environmental Conservation--...')"""
-
-    issue_details: list[str] = []
-    """Detailed issue descriptions"""
-
-    opinion_by: str | None = None
-    """Author of the opinion (decided cases only)"""
-
-    official_citation: str | None = None
-    """Official citation (decided cases only)"""
-
-    files: list[NYCourtPassFile] = []
-    """Files from the filing detail page"""
-
-    no_files_for_case: bool = False
-    """True when the page explicitly says 'There are no files available for this case'"""
-
-    source_url: str | None = None
-    """URL of the filing detail page"""
-
-    source_entry_point: str | None = None
-    """Entry point used to find this case (e.g., 'browse')"""
-
-    coa_site_source: str | None = None
-    """Which Court-PASS surface the case was reached through:
-    'search' (Public_search.aspx), 'browse' (Public_Browse.aspx), or
-    'docket' (Docket.aspx).  Derived from the entry point."""
-
-    docket_number: str | None = None
-    """APL/CTQ/JCR number (e.g., 'APL-2024-00177') when reached via docket flow"""
-
-    argument_number: str | None = None
-    """Argument calendar position number for pending cases (e.g., '39').
-    Shown in the Pending Cases grid on Public_search.aspx."""
-
-    search_page: int | None = None
-    """1-based page number of the result grid this case was found on
-    (docket / search pending / search decided / browse). None when the case
-    was reached via a direct-APL lookup rather than a grid walk."""
-
-    search_row: int | None = None
-    """0-based row index within ``search_page`` of the grid the case was
-    found in. Combined with ``search_page`` this uniquely identifies the
-    scrape position of this case within a given flow."""
-
-    aria_case_info: str | None = None
-    """Raw ``aria-label`` string from the grid's Select button — a single
-    rendered line that typically includes the case name plus argument /
-    decision / calendar dates. Useful as a tie-breaker when the filing
-    detail page omits the title server-side (e.g. JCR cases)."""
-
-    search_grid: str | None = None
-    """Which Public_search.aspx subgrid this case was reached from:
-    ``"pending"`` (gvPublicSearchPre) or ``"decided"`` (gvPublicSearchPost).
-    None for browse / docket / direct-APL flows.  Together with the now-
-    specific ``coa_site_source`` (``search_pending`` / ``search_decided``)
-    this disambiguates the natural key
-    ``(coa_site_source, search_page, search_row)`` — the two subgrids
-    share row indices on the same response page."""
 
 
 class NYCourtPassDocketEntry(ScrapedData):
@@ -218,14 +100,16 @@ class NYCourtPassAttorney(ScrapedData):
 
 
 class NYCourtPassDocket(ScrapedData):
-    """Docket data from the Court-PASS Docket detail page.
+    """Docket + filing detail data from Court-PASS.
 
-    Contains APL number, filings table, and attorney details.
-    Linked to a NYCourtPassCase via temp_case_id.
+    Built by merging the docket-detail page (APL number, filings table,
+    attorneys, case title) with the filing-detail page reached via
+    bttnDetails (decision date, issues, opinion, citation, file list).
+    Linked to NYCourtPassFile rows via ``temp_case_id``.
     """
 
     temp_case_id: str
-    """UUID linking to the NYCourtPassCase"""
+    """UUID linking docket-level data to its NYCourtPassFile rows."""
 
     docket_number: str | None = None
     """APL number (e.g., 'APL-2024-00177')"""
@@ -234,16 +118,54 @@ class NYCourtPassDocket(ScrapedData):
     """Court identifier"""
 
     case_name: str = ""
-    """Case name as shown on the docket page (for reference)"""
+    """Full case name from the docket-detail / filing-detail page."""
+
+    case_short_name: str | None = None
+    """Abbreviated case caption from the Docket.aspx grid row
+    (e.g. 'People v Padilla-Zuniga (Juan)'). Captured during grid walks
+    (``enumerate_dockets`` / ``net_docket``); None for direct-APL lookups."""
 
     argument_date: date | None = None
     """Argument date from the docket page"""
+
+    decision_date: date | None = None
+    """Date of decision (decided cases only)"""
+
+    issues: list[str] = []
+    """Issue categories (e.g., 'Environmental Conservation--...')"""
+
+    issue_details: list[str] = []
+    """Detailed issue descriptions"""
+
+    opinion_by: str | None = None
+    """Author of the opinion (decided cases only)"""
+
+    official_citation: str | None = None
+    """Official citation (decided cases only)"""
+
+    no_files_for_case: bool = False
+    """True when the filing-detail page explicitly says 'There are no
+    files available for this case'."""
 
     docket_entries: list[NYCourtPassDocketEntry] = []
     """Filing entries from the FILINGS table"""
 
     attorneys: list[NYCourtPassAttorney] = []
     """Attorney details"""
+
+    files: list[NYCourtPassFile] = []
+    """Files listed on the filing-detail page (gvFiles). Each file's
+    binary is emitted separately via ``handle_file_download``."""
+
+    source_url: str | None = None
+    """URL of the filing-detail page."""
+
+    source_entry_point: str | None = None
+    """Entry point used to reach this docket (e.g., 'enumerate_dockets')."""
+
+    coa_site_source: str | None = None
+    """Court-PASS surface this docket was reached through (always
+    'docket' for the remaining flows)."""
 
     search_page: int | None = None
     """1-based page number of the Docket.aspx result grid this docket was

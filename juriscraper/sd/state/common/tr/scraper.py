@@ -35,14 +35,20 @@ from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlencode
 
-from kent.data_types import (
+from jkent.data_types import (
     HttpMethod,
     HTTPRequestParams,
     ParsedData,
     Request,
 )
 
-from .models import TRCourtConfig
+from .models import (
+    TRCourtConfig,
+    TRDocketEntryActor,
+    TROriginatingCase,
+    TRParty,
+    TRRepresentative,
+)
 
 # File extension -> kent expected_type hint
 _TR_EXPECTED_TYPE_MAP: dict[str, str] = {
@@ -98,6 +104,19 @@ class TRPortalMixin:
         try:
             return datetime.fromisoformat(date_str[:10]).date()
         except (ValueError, IndexError):
+            return None
+
+    def _tr_parse_datetime(self, date_str: str) -> datetime | None:
+        """Parse a full ISO 8601 timestamp from the TR Portal API.
+
+        Returns:
+            Parsed datetime object, or None if parsing fails.
+        """
+        if not date_str:
+            return None
+        try:
+            return datetime.fromisoformat(date_str)
+        except ValueError:
             return None
 
     def _tr_format_api_datetime(
@@ -380,26 +399,21 @@ class TRPortalMixin:
         case_instance_uuid = accumulated_data["case_instance_uuid"]
         court_guid = accumulated_data["court_guid"]
 
-        case_header = json_content.get("caseHeader", {})
+        case_header = json_content.get("caseHeader", {}) or {}
 
         case_number = case_header.get("caseNumber", "")
         case_title = case_header.get("caseTitle", "")
         case_caption = case_header.get("caseCaption", "")
-        case_classification = case_header.get("caseClassification")
         filed_date_str = case_header.get("filedDate", "")
         closed_flag = case_header.get("closedFlag", False)
 
-        date_filed = self._tr_parse_date(filed_date_str)
-
-        # Extract originating court info
-        originating_court = None
-        originating_court_number = None
-        orig_cases = case_header.get("originatingCourtCases", [])
-        if orig_cases:
-            originating_court = orig_cases[0].get("originatingCourtName")
-            originating_court_number = orig_cases[0].get(
-                "originatingCaseNumber"
+        originating_cases = [
+            TROriginatingCase(
+                court_name=oc.get("originatingCourtName"),
+                case_number=oc.get("originatingCaseNumber"),
             )
+            for oc in case_header.get("originatingCourtCases", []) or []
+        ]
 
         court_id = self._tr_get_court_id_from_guid(court_guid)
         if not court_id:
@@ -416,11 +430,21 @@ class TRPortalMixin:
             case_instance_uuid=case_instance_uuid,
             case_number=case_number,
             court_id=court_id,
-            date_filed=date_filed,
+            date_filed=self._tr_parse_date(filed_date_str),
+            datetime_filed=self._tr_parse_datetime(filed_date_str),
             case_name=case_name,
-            case_classification=case_classification,
-            originating_court=originating_court,
-            originating_court_number=originating_court_number,
+            case_name_full=case_title or None,
+            case_caption=case_caption or None,
+            case_classification=case_header.get("caseClassification"),
+            classification_id=case_header.get("caseClassificationID"),
+            class_group_type=case_header.get("caseClassGroupType") or None,
+            class_group_type_id=case_header.get("caseClassGroupTypeID"),
+            court_abbreviation=case_header.get("courtAbbreviation") or None,
+            location=case_header.get("location") or None,
+            location_id=case_header.get("locationID"),
+            case_group_flag=case_header.get("caseGroupFlag"),
+            panel_flag=case_header.get("panelFlag"),
+            originating_cases=originating_cases,
             status="Closed" if closed_flag else "Open",
             court_guid=court_guid,
             source_url=source_url,
@@ -463,38 +487,48 @@ class TRPortalMixin:
         embedded = json_content.get("_embedded", {})
         results = embedded.get("results", [])
 
-        parties = []
+        parties: list[TRParty] = []
         for party_data in results:
-            party_header = party_data.get("partyHeader", {})
-            party_type = party_header.get("partyType", "")
-            party_subtype = party_header.get("partySubType", "")
-            party_status = party_header.get("partyStatus", "")
-            pro_se = party_data.get("proSeFlag", False)
+            party_header = party_data.get("partyHeader", {}) or {}
+            actor = party_header.get("partyActorInstance", {}) or {}
 
-            actor = party_header.get("partyActorInstance", {})
-            display_name = actor.get("displayName", "")
+            case_party_uuid = party_header.get("casePartyUUID")
 
-            attorneys = []
-            legal_reps = party_data.get("legalRepresentations", [])
-            for rep in legal_reps:
-                attorney_header = rep.get("attorneyPartyHeader", {})
-                rep_actor = attorney_header.get("partyActorInstance", {})
-                attorney_name = rep_actor.get("displayName", "")
-                is_primary = rep.get("primaryFlag", False)
-                if attorney_name:
-                    attorneys.append(
-                        {"name": attorney_name, "is_primary": is_primary}
+            representatives: list[TRRepresentative] = []
+            for rep in party_data.get("legalRepresentations", []) or []:
+                attorney_header = rep.get("attorneyPartyHeader", {}) or {}
+                rep_actor = attorney_header.get("partyActorInstance", {}) or {}
+                attorney_name = rep_actor.get("displayName")
+                if not attorney_name:
+                    continue
+                representatives.append(
+                    TRRepresentative(
+                        case_party_uuid=case_party_uuid,
+                        name=attorney_name,
+                        sort_name=rep_actor.get("sortName"),
+                        primary_flag=rep.get("primaryFlag"),
                     )
+                )
 
-            party = {
-                "name": display_name,
-                "type": party_type,
-                "role": party_subtype,
-                "status": party_status,
-                "pro_se": pro_se,
-                "attorneys": attorneys,
-            }
-            parties.append(party)
+            parties.append(
+                TRParty(
+                    case_party_uuid=case_party_uuid,
+                    name=actor.get("displayName", ""),
+                    sort_name=actor.get("sortName"),
+                    party_type=party_header.get("partyType"),
+                    party_type_id=party_header.get("partyTypeID"),
+                    party_subtype=party_header.get("partySubType"),
+                    party_subtype_id=party_header.get("partySubTypeID"),
+                    status=party_header.get("partyStatus"),
+                    status_id=party_header.get("partyStatusID"),
+                    pro_se_flag=party_data.get("proSeFlag"),
+                    order_by=party_data.get("orderBy"),
+                    party_number=party_data.get("partyNumber"),
+                    involvement_type_id=party_data.get("involvementTypeID"),
+                    non_public_flag=party_data.get("nonPublicFlag"),
+                    representatives=representatives,
+                )
+            )
 
         docket.parties = parties
 
@@ -540,21 +574,48 @@ class TRPortalMixin:
         entries = list(docket.entries)
 
         for entry_data in results:
-            header = entry_data.get("docketEntryHeader", {})
-            entry_uuid = header.get("docketEntryUUID", "")
-            entry_type = header.get("docketEntryType", "")
-            entry_subtype = header.get("docketEntrySubType", "")
+            header = entry_data.get("docketEntryHeader", {}) or {}
             filed_date_str = header.get("filedDate", "")
-            description = header.get("docketEntryDescription", "")
+            submitted_date_str = header.get("submittedDate", "")
 
-            filed_date = self._tr_parse_date(filed_date_str)
+            submitted_by: list[TRDocketEntryActor] = []
+            for actor in entry_data.get("submittedBy", []) or []:
+                actor_info = actor.get("partyActorInstance", {}) or {}
+                display_name = actor_info.get("displayName")
+                if not display_name:
+                    continue
+                submitted_by.append(
+                    TRDocketEntryActor(
+                        display_name=display_name,
+                        sort_name=actor_info.get("sortName"),
+                    )
+                )
 
             entry = self.DOCKET_ENTRY_CLASS(
-                date_filed=filed_date,
-                document_type=entry_type if entry_type else None,
-                document_subtype=entry_subtype if entry_subtype else None,
-                description=description if description else None,
-                document_uuid=entry_uuid if entry_uuid else None,
+                docket_entry_uuid=header.get("docketEntryUUID"),
+                date_filed=self._tr_parse_date(filed_date_str),
+                datetime_filed=self._tr_parse_datetime(filed_date_str),
+                date_submitted=self._tr_parse_datetime(submitted_date_str),
+                document_type=header.get("docketEntryType") or None,
+                document_type_id=header.get("docketEntryTypeID"),
+                document_subtype=header.get("docketEntrySubType") or None,
+                document_subtype_id=header.get("docketEntrySubTypeID"),
+                entry_name=header.get("docketEntryName") or None,
+                entry_status=header.get("docketEntryStatus") or None,
+                entry_status_id=header.get("docketEntryStatusID"),
+                description=header.get("docketEntryDescription") or None,
+                outcome_status=header.get("outcomeStatus") or None,
+                outcome_status_id=header.get("outcomeStatusID"),
+                official=header.get("official"),
+                document_count=header.get("documentCount"),
+                secured_document=header.get("securedDocument"),
+                security_1=header.get("security1"),
+                security_2=header.get("security2"),
+                security_3=header.get("security3"),
+                security_4=header.get("security4"),
+                security_5=header.get("security5"),
+                composite_security=header.get("compositeSecurity"),
+                submitted_by=submitted_by,
             )
             entries.append(entry)
 

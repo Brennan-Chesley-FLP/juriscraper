@@ -1,6 +1,6 @@
 """Data models for Alabama appellate courts scraper.
 
-These models extend ScrapedData from kent to capture
+These models extend ScrapedData from jkent to capture
 Alabama Supreme Court, Court of Civil Appeals, and Court of Criminal Appeals data.
 
 Supported courts:
@@ -12,9 +12,16 @@ Supported courts:
 from __future__ import annotations
 
 from datetime import date
-from typing import TypedDict
 
-from kent.common.data_models import ScrapedData
+from jkent.common.data_models import ScrapedData
+
+from juriscraper.sd.state.common.tr.models import (
+    TRCourtConfig,
+    TRDocket,
+    TRDocketEntry,
+    TRDocument,
+    TROralArgument,
+)
 
 # Court ID mapping
 COURT_IDS = {
@@ -24,33 +31,46 @@ COURT_IDS = {
 }
 
 
-class CourtConfigEntry(TypedDict):
-    """Type definition for court configuration entries."""
+class AlaCourtConfig(TRCourtConfig):
+    """Alabama court configuration entry.
 
-    name: str
-    court_guid: str
+    Extends the TR Portal court config with Alabama-only fields used
+    for the historical (pre-May 2023) release-list scraper on
+    judicial.alabama.gov.
+    """
+
     clerk_name: str
-    decisions_url: str  # Historical decisions page on judicial.alabama.gov
+    decisions_url: str
 
 
-# Court configuration for scraping
-# GUIDs from the task description
-COURT_CONFIG: dict[str, CourtConfigEntry] = {
+# Court configuration for scraping.
+# numeric_id matches the courtID values the case-search endpoint
+# returns: "1" = Supreme, "2" = Criminal Appeals, "3" = Civil Appeals.
+# (The events endpoint also uses this scheme; case detail responses
+# return a different numeric — 68/69/70 — but it is not consumed by
+# the scraper.)
+COURT_CONFIG: dict[str, AlaCourtConfig] = {
     "ala": {
         "name": "Alabama Supreme Court",
         "court_guid": "68f021c4-6a44-4735-9a76-5360b2e8af13",
+        "numeric_id": "1",
+        "abbreviation": "Alabama Supreme Court",
         "clerk_name": "Megan B. Rhodebeck",
         "decisions_url": "https://judicial.alabama.gov/decision/supremecourtdecisions",
     },
     "alactapp": {
         "name": "Alabama Court of Civil Appeals",
         "court_guid": "1da1a297-c391-4e4f-9480-1bc68b46f21a",
+        "numeric_id": "3",
+        "abbreviation": "Alabama Court of Civil Appeals",
         "clerk_name": "Seth Rhodebeck",
         "decisions_url": "https://judicial.alabama.gov/decision/civildecisions",
     },
     "alacrimapp": {
         "name": "Alabama Court of Criminal Appeals",
         "court_guid": "b82b30d5-bd3c-46d7-9451-1cb05e470873",
+        "numeric_id": "2",
+        "abbreviation": "Alabama Court of Criminal Appeals",
         "clerk_name": "D. Scott Mitchell",
         "decisions_url": "https://judicial.alabama.gov/decision/criminaldecisions",
     },
@@ -230,128 +250,47 @@ class AlaOrder(ScrapedData):
     """URL of the publication/release list"""
 
 
-class AlaOralArgument(ScrapedData):
+class AlaOralArgument(TROralArgument):
     """An oral argument from Alabama appellate courts.
 
-    Extends Audio from base.py. Alabama oral arguments include scheduled
-    information and may have YouTube video links.
+    Extends the TR Portal oral-argument schema with optional YouTube
+    video links (Alabama posts oral arguments to YouTube).
     """
 
-    # === Searchable fields ===
-    case_number: str
-    """Case number"""
-
-    court_id: str
-    """Court identifier: 'ala', 'alactapp', or 'alacrimapp'"""
-
-    date_argued: date
-    """Date the oral argument is/was scheduled"""
-
-    # === Required fields ===
-    case_name: str
-    """Case name"""
-
-    # === YouTube-specific fields (if available) ===
     youtube_url: str | None = None
     """Full YouTube URL for the oral argument video (if available)"""
 
     youtube_video_id: str | None = None
     """YouTube video ID (extracted from URL)"""
 
-    # === Source tracking ===
-    source_url: str | None = None
-    """URL of the calendar/oral arguments page where this was found"""
 
-    # === Calendar metadata ===
-    calendar_uuid: str | None = None
-    """UUID for the calendar entry"""
-
-    case_instance_uuid: str | None = None
-    """UUID for the case instance"""
-
-
-class AlaDocketEntry(ScrapedData):
+class AlaDocketEntry(TRDocketEntry):
     """An individual docket entry from Alabama appellate courts.
 
     Represents a single filing/document in the case Documents tab.
+    Inherits the full TR Portal entry schema.
     """
 
-    date_filed: date | None = None
-    """Date the document was filed"""
 
-    document_type: str | None = None
-    """Document type (e.g., 'Brief', 'Motion', 'Order')"""
-
-    document_subtype: str | None = None
-    """Document subtype (more specific classification)"""
-
-    description: str | None = None
-    """Document description"""
-
-    document_url: str | None = None
-    """URL to the PDF document (if available)"""
-
-    document_uuid: str | None = None
-    """UUID for the document"""
-
-
-class AlaDocket(ScrapedData):
+class AlaDocket(TRDocket):
     """A docket from Alabama appellate courts (publicportal.alappeals.gov).
 
     Represents a complete case with all its metadata from the
-    case detail page.
+    case detail page. Inherits the full TR Portal docket schema.
     """
 
-    # === Searchable fields ===
-    case_instance_uuid: str
-    """Case instance UUID - the unique identifier for the case"""
-
-    case_number: str
-    """Case number (e.g., 'SC-2023-0123')"""
-
-    court_id: str
-    """Court identifier: 'ala', 'alactapp', or 'alacrimapp'"""
-
-    date_filed: date | None = None
-    """Date the case was filed"""
-
-    # === Required fields ===
-    case_name: str
-    """Case name/style"""
-
-    # === Case metadata ===
-    case_classification: str | None = None
-    """Case classification/type"""
-
-    originating_court: str | None = None
-    """Originating/lower court name"""
-
-    originating_court_number: str | None = None
-    """Originating court case number"""
-
-    # === Case status ===
-    status: str | None = None
-    """Current case status"""
-
-    # === Parties ===
-    parties: list[dict] = []
-    """List of parties with their roles, attorneys, and status"""
-
-    # === Document history ===
     entries: list[AlaDocketEntry] = []
     """All docket entries (Documents tab)"""
 
-    # === Oral arguments ===
-    oral_arguments: list[dict] = []
-    """Scheduled oral arguments for this case"""
 
-    # === Source tracking ===
-    source_url: str | None = None
-    """URL of the case detail page"""
+class AlaDocument(TRDocument):
+    """A document attached to a docket entry on an Alabama appellate court.
 
-    # === API metadata ===
-    court_guid: str | None = None
-    """Court GUID used in API calls"""
+    Alabama's appellate documents are paywalled, so anonymous archive
+    requests for the file body will typically fail and the resulting
+    record will have ``local_path=None``. Metadata (name, content type,
+    size, etc.) is still captured.
+    """
 
 
 class AlaHistoricalReleaseList(ScrapedData):

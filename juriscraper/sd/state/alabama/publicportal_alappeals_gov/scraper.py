@@ -92,10 +92,10 @@ from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from kent.common.decorators import entry, step
-from kent.common.page_element import PageElement
-from kent.common.param_models import DateRange
-from kent.data_types import (
+from jkent.common.decorators import entry, step
+from jkent.common.page_element import PageElement
+from jkent.common.param_models import DateRange
+from jkent.data_types import (
     BaseScraper,
     HttpMethod,
     HTTPRequestParams,
@@ -106,11 +106,14 @@ from kent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
+from juriscraper.sd.state.common.tr.scraper import TRPortalMixin
+
 from .models import (
     API_CONFIG,
     COURT_CONFIG,
     AlaDocket,
     AlaDocketEntry,
+    AlaDocument,
     AlaHistoricalReleaseList,
     AlaOpinion,
     AlaOpinionCluster,
@@ -121,17 +124,19 @@ from .models import (
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from kent.data_types import ScraperYield
+    from jkent.data_types import ScraperYield
 
 
 class AlabamaScraper(
+    TRPortalMixin,
     BaseScraper[
         AlaOpinionCluster
         | AlaOrder
         | AlaOralArgument
         | AlaDocket
+        | AlaDocument
         | AlaHistoricalReleaseList
-    ]
+    ],
 ):
     """Unified scraper for Alabama appellate court data.
 
@@ -179,6 +184,17 @@ class AlabamaScraper(
     requires_auth: ClassVar[bool] = False
 
     rate_limits: ClassVar[list[Rate] | None] = [Rate(4, Duration.SECOND)]
+
+    # === TR Portal configuration (consumed by TRPortalMixin) ===
+    TR_API_BASE_URL: ClassVar[str] = API_CONFIG["base_url"]
+    TR_PORTAL_URL: ClassVar[str] = API_CONFIG["portal_url"]
+    TR_COURT_CONFIG: ClassVar[dict] = COURT_CONFIG
+
+    # === Model classes (consumed by TRPortalMixin) ===
+    DOCKET_CLASS: ClassVar[type] = AlaDocket
+    DOCKET_ENTRY_CLASS: ClassVar[type] = AlaDocketEntry
+    DOCUMENT_CLASS: ClassVar[type] = AlaDocument
+    ORAL_ARGUMENT_CLASS: ClassVar[type] = AlaOralArgument
 
     # === Dockets API limits ===
     # The API returns a maximum of 10,000 results per search
@@ -448,7 +464,7 @@ class AlabamaScraper(
     # =========================================================================
 
     @entry(AlaOpinionCluster)
-    def get_opinions(self) -> Generator[Request, None, None]:
+    def opinions_by_bulk(self) -> Generator[Request, None, None]:
         """Yield initial requests for opinions scraping.
 
         Makes API calls to the publications endpoint for each target court.
@@ -459,7 +475,7 @@ class AlabamaScraper(
         yield from self._yield_publications_request(date_gte, date_lte)
 
     @entry(AlaOpinionCluster)
-    def get_opinions_by_date(
+    def opinions_by_date(
         self,
         date_range: DateRange,
     ) -> Generator[Request, None, None]:
@@ -926,7 +942,7 @@ class AlabamaScraper(
     # =========================================================================
 
     @entry(AlaHistoricalReleaseList)
-    def get_historical_opinions(self) -> Generator[Request, None, None]:
+    def opinions_historic_by_bulk(self) -> Generator[Request, None, None]:
         """Yield initial requests for historical opinions scraping.
 
         Fetches the decisions listing pages from judicial.alabama.gov
@@ -1090,7 +1106,7 @@ class AlabamaScraper(
     # =========================================================================
 
     @entry(AlaOralArgument)
-    def get_oral_arguments(self) -> Generator[Request, None, None]:
+    def oral_arguments_by_bulk(self) -> Generator[Request, None, None]:
         """Yield initial requests for oral arguments scraping.
 
         Makes API calls to the events endpoint to get calendar events
@@ -1421,32 +1437,24 @@ class AlabamaScraper(
         return f"{d.isoformat()}T00:00:00.001-06:00"
 
     @entry(AlaDocket)
-    def get_dockets(self) -> Generator[Request, None, None]:
+    def dockets_by_bulk(self) -> Generator[Request, None, None]:
         """Yield initial requests for dockets scraping.
 
         Uses date range splitting to handle the 10,000 result limit.
         If no date range is specified, defaults to searching year by year
         starting from 1985.
         """
-        date_gte, date_lte, case_number, _ = self._get_dockets_search_params()
+        date_gte, date_lte, _, _ = self._get_dockets_search_params()
 
-        # If a specific case number is requested, search for it directly
-        # For now, we use date range search since the API doesn't have a direct
-        # case number search endpoint. The filtering happens in parse_case_detail
-        # where we can check if the case_number matches the requested one
-        pass
-
-        # Default date range if not specified
         if date_gte is None:
             date_gte = date(1985, 1, 1)
         if date_lte is None:
             date_lte = date.today()
 
-        # Start with the full date range - we'll split if needed
-        yield from self._yield_dockets_search_request(date_gte, date_lte)
+        yield from self._tr_yield_dockets_search_request(date_gte, date_lte)
 
     @entry(AlaDocket)
-    def get_dockets_by_date(
+    def dockets_by_date(
         self,
         date_range: DateRange,
     ) -> Generator[Request, None, None]:
@@ -1456,50 +1464,8 @@ class AlabamaScraper(
         and defaults to 1985-today, this entry accepts an explicit
         DateRange and searches only that window.
         """
-        yield from self._yield_dockets_search_request(
+        yield from self._tr_yield_dockets_search_request(
             date_range.start, date_range.end
-        )
-
-    def _yield_dockets_search_request(
-        self, start_date: date, end_date: date
-    ) -> Generator[Request, None, None]:
-        """Yield a search request for dockets in the given date range.
-
-        Args:
-            start_date: Start of the date range (inclusive).
-            end_date: End of the date range (inclusive).
-        """
-        # Build API URL
-        # Example: https://publicportal-api.alappeals.gov/courts/cms/cases?caseHeader.filedDateFrom=...&caseHeader.filedDateTo=...
-        api_url = f"{API_CONFIG['base_url']}/courts/cms/cases"
-        params = {
-            "caseHeader.filedDateFrom": self._format_api_datetime(
-                start_date, end_of_day=False
-            ),
-            "caseHeader.filedDateTo": self._format_api_datetime(
-                end_date, end_of_day=True
-            ),
-            "page": "0",
-            "size": str(self.DOCKETS_PAGE_SIZE),
-            "sort": "caseHeader.filedDate,asc",
-        }
-
-        url = f"{api_url}?{urlencode(params)}"
-
-        yield Request(
-            request=HTTPRequestParams(
-                method=HttpMethod.GET,
-                url=url,
-                headers={
-                    "Accept": "application/json",
-                },
-            ),
-            continuation=self.parse_dockets_search,
-            accumulated_data={
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
-                "is_first_page": True,
-            },
         )
 
     @step(
@@ -1523,169 +1489,13 @@ class AlabamaScraper(
     ]:
         """Parse the case search API response.
 
-        Handles the 10,000 result limit by splitting date ranges.
-        Yields requests for case details for each case found.
-
-        API Response structure::
-
-            {
-                "_embedded": {
-                    "results": [
-                        {
-                            "caseHeader": {
-                                "caseInstanceUUID": "...",
-                                "caseNumber": "SC-2023-0123",
-                                "caseTitle": "...",
-                                "courtID": 123,
-                                "filedDate": "2023-11-09T14:15:00.000+00:00",
-                                ...
-                            }
-                        }
-                    ]
-                },
-                "page": {
-                    "size": 50,
-                    "number": 0,
-                    "totalElements": 12345,
-                    "totalPages": 247
-                }
-            }
+        Delegates to the shared TRPortalMixin handler, which paginates,
+        splits the date range on the 10,000-result cap, and yields
+        case-detail requests.
         """
-        start_date = date.fromisoformat(accumulated_data["start_date"])
-        end_date = date.fromisoformat(accumulated_data["end_date"])
-        is_first_page = accumulated_data.get("is_first_page", False)
-
-        # Get pagination info
-        page_info = json_content.get("page", {})
-        current_page = page_info.get("number", 0)
-        total_pages = page_info.get("totalPages", 1)
-        total_elements = page_info.get("totalElements", 0)
-
-        # Check if we hit the 10,000 limit on the first page
-        if is_first_page and total_elements >= self.DOCKETS_MAX_RESULTS:
-            # Split the date range in half and search both halves
-            yield from self._split_date_range(start_date, end_date)
-            return
-
-        # Navigate to results
-        embedded = json_content.get("_embedded", {})
-        results = embedded.get("results", [])
-
-        # Process each case in the results
-        for result in results:
-            case_header = result.get("caseHeader", {})
-            case_instance_uuid = case_header.get("caseInstanceUUID")
-            court_id_num = case_header.get("courtID")
-
-            if not case_instance_uuid or not court_id_num:
-                continue
-
-            # Map numeric court ID to court_guid
-            court_guid = self._get_court_guid_from_id(court_id_num)
-            if not court_guid:
-                continue
-
-            # Yield request for case detail
-            detail_url = (
-                f"{API_CONFIG['base_url']}/courts/{court_guid}"
-                f"/cms/cases/{case_instance_uuid}"
-            )
-
-            yield Request(
-                request=HTTPRequestParams(
-                    method=HttpMethod.GET,
-                    url=detail_url,
-                    headers={
-                        "Accept": "application/json",
-                    },
-                ),
-                continuation=self.parse_case_detail,
-                accumulated_data={
-                    "case_instance_uuid": case_instance_uuid,
-                    "court_guid": court_guid,
-                },
-            )
-
-        # Paginate if there are more pages
-        if current_page + 1 < total_pages:
-            api_url = f"{API_CONFIG['base_url']}/courts/cms/cases"
-            params = {
-                "caseHeader.filedDateFrom": self._format_api_datetime(
-                    start_date, end_of_day=False
-                ),
-                "caseHeader.filedDateTo": self._format_api_datetime(
-                    end_date, end_of_day=True
-                ),
-                "page": str(current_page + 1),
-                "size": str(self.DOCKETS_PAGE_SIZE),
-                "sort": "caseHeader.filedDate,asc",
-            }
-            url = f"{api_url}?{urlencode(params)}"
-
-            yield Request(
-                request=HTTPRequestParams(
-                    method=HttpMethod.GET,
-                    url=url,
-                    headers={
-                        "Accept": "application/json",
-                    },
-                ),
-                continuation=self.parse_dockets_search,
-                accumulated_data={
-                    "start_date": start_date.isoformat(),
-                    "end_date": end_date.isoformat(),
-                    "is_first_page": False,
-                },
-            )
-
-    def _split_date_range(
-        self, start_date: date, end_date: date
-    ) -> Generator[Request, None, None]:
-        """Split a date range in half and yield searches for both halves.
-
-        This is used when the API returns 10,000+ results for a date range.
-
-        Args:
-            start_date: Start of the date range.
-            end_date: End of the date range.
-        """
-        # Calculate the midpoint
-        days_diff = (end_date - start_date).days
-        if days_diff <= 0:
-            # Can't split further - single day with 10,000+ results
-            # We'll just process what we can get (first 10,000 results)
-            # Log a warning since we're losing data
-            # Note: This is a very rare edge case for extremely high-volume days
-            # In production, this should log a warning or error
-            yield from self._yield_dockets_search_request(start_date, end_date)
-            return
-
-        mid_date = start_date + timedelta(days=days_diff // 2)
-
-        # Search first half
-        yield from self._yield_dockets_search_request(start_date, mid_date)
-
-        # Search second half (day after midpoint to end)
-        yield from self._yield_dockets_search_request(
-            mid_date + timedelta(days=1), end_date
+        yield from self._tr_handle_dockets_search(
+            json_content, accumulated_data
         )
-
-    def _get_court_guid_from_id(self, court_id: int | str) -> str | None:
-        """Map court ID to court GUID.
-
-        The API returns court IDs as strings ("1", "2", "3") in case search
-        results. We need GUIDs for detail requests.
-        """
-        # Convert to string for consistent lookup
-        court_id_str = str(court_id)
-
-        # Mapping discovered from API responses
-        court_id_to_guid = {
-            "1": COURT_CONFIG["ala"]["court_guid"],  # Supreme Court
-            "2": COURT_CONFIG["alacrimapp"]["court_guid"],  # Criminal Appeals
-            "3": COURT_CONFIG["alactapp"]["court_guid"],  # Civil Appeals
-        }
-        return court_id_to_guid.get(court_id_str)
 
     def _get_court_id_from_guid(self, court_guid: str) -> str | None:
         """Map court GUID to our court_id string."""
@@ -1735,89 +1545,13 @@ class AlabamaScraper(
                 }
             }
         """
-        case_instance_uuid = accumulated_data["case_instance_uuid"]
-        court_guid = accumulated_data["court_guid"]
-
-        case_header = json_content.get("caseHeader", {})
-
-        # Extract basic case info
-        case_number = case_header.get("caseNumber", "")
-        case_title = case_header.get("caseTitle", "")
-        case_caption = case_header.get("caseCaption", "")
-        case_classification = case_header.get("caseClassification")
-        filed_date_str = case_header.get("filedDate", "")
-        closed_flag = case_header.get("closedFlag", False)
-
         # Filter by case number if specified
+        case_number = json_content.get("caseHeader", {}).get("caseNumber", "")
         _, _, case_number_filter, _ = self._get_dockets_search_params()
         if case_number_filter and case_number != case_number_filter:
             return
 
-        # Parse filed date
-        date_filed = self._parse_date(filed_date_str)
-
-        # Extract originating court info
-        originating_court = None
-        originating_court_number = None
-        orig_cases = case_header.get("originatingCourtCases", [])
-        if orig_cases:
-            originating_court = orig_cases[0].get("originatingCourtName")
-            originating_court_number = orig_cases[0].get(
-                "originatingCaseNumber"
-            )
-
-        # Get court_id from guid
-        court_id = self._get_court_id_from_guid(court_guid)
-        if not court_id:
-            return
-
-        # Use case_caption if available, otherwise case_title
-        case_name = case_caption if case_caption else case_title
-
-        # Build the source URL
-        source_url = (
-            f"{API_CONFIG['portal_url']}/portal/court/{court_guid}"
-            f"/case/{case_instance_uuid}"
-        )
-
-        # Create the docket object (will be completed with parties/entries)
-        docket = AlaDocket(
-            case_instance_uuid=case_instance_uuid,
-            case_number=case_number,
-            court_id=court_id,
-            date_filed=date_filed,
-            case_name=case_name,
-            case_classification=case_classification,
-            originating_court=originating_court,
-            originating_court_number=originating_court_number,
-            status="Closed" if closed_flag else "Open",
-            court_guid=court_guid,
-            source_url=source_url,
-            parties=[],
-            entries=[],
-            oral_arguments=[],
-        )
-
-        # Fetch parties
-        parties_url = (
-            f"{API_CONFIG['base_url']}/courts/{court_guid}"
-            f"/cms/cases/{case_instance_uuid}/parties"
-            "?sort=orderBy,asc&sort=partyNumber,asc&size=100"
-        )
-
-        yield Request(
-            request=HTTPRequestParams(
-                method=HttpMethod.GET,
-                url=parties_url,
-                headers={
-                    "Accept": "application/json",
-                },
-            ),
-            continuation=self.parse_case_parties,
-            accumulated_data={
-                "docket_data": docket.model_dump(mode="json"),
-            },
-        )
+        yield from self._tr_handle_case_detail(json_content, accumulated_data)
 
     @step(
         xsd="xsds/parse_case_parties.xsd",
@@ -1868,74 +1602,7 @@ class AlabamaScraper(
                 }
             }
         """
-        docket = AlaDocket.model_validate(accumulated_data["docket_data"])
-
-        embedded = json_content.get("_embedded", {})
-        results = embedded.get("results", [])
-
-        parties = []
-        for party_data in results:
-            # Party info is nested under partyHeader
-            party_header = party_data.get("partyHeader", {})
-            party_type = party_header.get("partyType", "")
-            party_subtype = party_header.get("partySubType", "")
-            party_status = party_header.get("partyStatus", "")
-            pro_se = party_data.get("proSeFlag", False)
-
-            # Actor info is under partyHeader.partyActorInstance
-            actor = party_header.get("partyActorInstance", {})
-            display_name = actor.get("displayName", "")
-
-            # Get legal representations (attorneys)
-            attorneys = []
-            legal_reps = party_data.get("legalRepresentations", [])
-            for rep in legal_reps:
-                # Attorney info is under attorneyPartyHeader.partyActorInstance
-                attorney_header = rep.get("attorneyPartyHeader", {})
-                rep_actor = attorney_header.get("partyActorInstance", {})
-                attorney_name = rep_actor.get("displayName", "")
-                is_primary = rep.get("primaryFlag", False)
-                if attorney_name:
-                    attorneys.append(
-                        {
-                            "name": attorney_name,
-                            "is_primary": is_primary,
-                        }
-                    )
-
-            party = {
-                "name": display_name,
-                "type": party_type,
-                "role": party_subtype,
-                "status": party_status,
-                "pro_se": pro_se,
-                "attorneys": attorneys,
-            }
-            parties.append(party)
-
-        docket.parties = parties
-
-        # Now fetch docket entries
-        entries_url = (
-            f"{API_CONFIG['base_url']}/courts/{docket.court_guid}"
-            f"/cms/cases/{docket.case_instance_uuid}/docketentries"
-            f"?page=0&size={self.DOCKETS_PAGE_SIZE}"
-            "&sort=docketEntryHeader.filedDate,asc"
-        )
-
-        yield Request(
-            request=HTTPRequestParams(
-                method=HttpMethod.GET,
-                url=entries_url,
-                headers={
-                    "Accept": "application/json",
-                },
-            ),
-            continuation=self.parse_docket_entries,
-            accumulated_data={
-                "docket_data": docket.model_dump(mode="json"),
-            },
-        )
+        yield from self._tr_handle_case_parties(json_content, accumulated_data)
 
     @step(
         xsd="xsds/parse_docket_entries.xsd",
@@ -1978,62 +1645,48 @@ class AlabamaScraper(
                 "page": {...}
             }
         """
-        docket = AlaDocket.model_validate(accumulated_data["docket_data"])
+        yield from self._tr_handle_docket_entries(
+            json_content, accumulated_data
+        )
 
-        embedded = json_content.get("_embedded", {})
-        results = embedded.get("results", [])
+    @step()
+    def parse_documents_list(
+        self,
+        json_content: dict,
+        accumulated_data: dict,
+    ) -> Generator[
+        ScraperYield[
+            AlaOpinionCluster
+            | AlaOrder
+            | AlaOralArgument
+            | AlaDocket
+            | AlaDocument
+            | AlaHistoricalReleaseList
+        ],
+        None,
+        None,
+    ]:
+        """Parse the documents-access listing and queue document downloads.
 
-        # Get pagination info
-        page_info = json_content.get("page", {})
-        current_page = page_info.get("number", 0)
-        total_pages = page_info.get("totalPages", 1)
+        Yielded after docket entries are fully fetched. The mixin emits
+        one archive Request per document and yields the assembled
+        AlaDocket when the documents list is exhausted.
+        """
+        yield from self._tr_handle_documents_list(
+            json_content, accumulated_data
+        )
 
-        entries = list(docket.entries)  # Copy existing entries
+    @step()
+    def parse_document_download(
+        self,
+        local_filepath: str | None,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[AlaDocument], None, None]:
+        """Emit an AlaDocument record for an archived file.
 
-        for entry_data in results:
-            header = entry_data.get("docketEntryHeader", {})
-            entry_uuid = header.get("docketEntryUUID", "")
-            entry_type = header.get("docketEntryType", "")
-            entry_subtype = header.get("docketEntrySubType", "")
-            filed_date_str = header.get("filedDate", "")
-            # Field is named docketEntryDescription in the API
-            description = header.get("docketEntryDescription", "")
-
-            filed_date = self._parse_date(filed_date_str)
-
-            entry = AlaDocketEntry(
-                date_filed=filed_date,
-                document_type=entry_type if entry_type else None,
-                document_subtype=entry_subtype if entry_subtype else None,
-                description=description if description else None,
-                document_uuid=entry_uuid if entry_uuid else None,
-            )
-            entries.append(entry)
-
-        docket.entries = entries
-
-        # Check if we need to paginate
-        if current_page + 1 < total_pages:
-            entries_url = (
-                f"{API_CONFIG['base_url']}/courts/{docket.court_guid}"
-                f"/cms/cases/{docket.case_instance_uuid}/docketentries"
-                f"?page={current_page + 1}&size={self.DOCKETS_PAGE_SIZE}"
-                "&sort=docketEntryHeader.filedDate,asc"
-            )
-
-            yield Request(
-                request=HTTPRequestParams(
-                    method=HttpMethod.GET,
-                    url=entries_url,
-                    headers={
-                        "Accept": "application/json",
-                    },
-                ),
-                continuation=self.parse_docket_entries,
-                accumulated_data={
-                    "docket_data": docket.model_dump(mode="json"),
-                },
-            )
-        else:
-            # All entries fetched, yield the complete docket
-            yield ParsedData(data=docket)
+        Alabama appellate documents are paywalled, so ``local_filepath``
+        will typically be ``None``; metadata is still captured.
+        """
+        yield from self._tr_handle_document_download(
+            local_filepath, accumulated_data
+        )

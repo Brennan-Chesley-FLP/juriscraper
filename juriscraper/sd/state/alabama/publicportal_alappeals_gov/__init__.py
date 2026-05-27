@@ -12,6 +12,7 @@ Data types:
 
 from .models import (
     AlaDocket,
+    AlaDocument,
     AlaHistoricalReleaseList,
     AlaOpinionCluster,
     AlaOralArgument,
@@ -21,6 +22,7 @@ from .scraper import AlabamaScraper
 __all__ = [
     "AlabamaScraper",
     "AlaDocket",
+    "AlaDocument",
     "AlaHistoricalReleaseList",
     "AlaOpinionCluster",
     "AlaOralArgument",

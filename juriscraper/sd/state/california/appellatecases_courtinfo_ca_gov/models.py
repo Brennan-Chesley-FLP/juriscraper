@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from kent.common.data_models import ScrapedData
+from jkent.common.data_models import ScrapedData
 
 # Court ID mapping: CourtListener ID → display name
 COURT_IDS: dict[str, str] = {
@@ -187,6 +187,30 @@ class CaAppLowerCourtInfo(ScrapedData):
 
     trial_courts: list[dict[str, str | None]] = []
     """Trial court entries, each with 'name' and 'case_number' keys."""
+
+
+class CaAppOpinionFile(ScrapedData):
+    """An opinion file (PDF / DOC / DOCX) archived from a case summary page.
+
+    Yielded separately from ``CaAppDocket`` so that consumers can stitch the
+    file back to its docket via ``docket_id`` + ``court_id``. One instance
+    per file, so a case with both PDF and DOC produces two records.
+    """
+
+    docket_id: str
+    """Case number (e.g., 'A081492'), matches CaAppDocket.docket_id."""
+
+    court_id: str
+    """CourtListener court ID, matches CaAppDocket.court_id."""
+
+    document_type: str
+    """File extension, lowercased (e.g., 'pdf', 'doc', 'docx')."""
+
+    source_url: str
+    """Original URL the file was downloaded from."""
+
+    local_path: str | None = None
+    """Path returned by the archive handler. None if the download was skipped."""
 
 
 class CaAppDocket(ScrapedData):

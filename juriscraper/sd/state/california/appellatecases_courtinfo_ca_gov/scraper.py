@@ -5,11 +5,11 @@ from datetime import date
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from kent.common.decorators import entry, step
-from kent.common.exceptions import TransientException
-from kent.common.page_element import PageElement
-from kent.common.param_models import SpeculativeRange
-from kent.data_types import (
+from jkent.common.decorators import entry, step
+from jkent.common.exceptions import TransientException
+from jkent.common.page_element import PageElement, ViaLink
+from jkent.common.param_models import SpeculativeRange
+from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
     HttpMethod,
@@ -35,6 +35,7 @@ from .models import (
     CaAppDocket,
     CaAppDocketEntry,
     CaAppLowerCourtInfo,
+    CaAppOpinionFile,
     CaAppParty,
     CaAppTrialCourtInfo,
 )
@@ -42,7 +43,7 @@ from .models import (
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from kent.data_types import ScraperYield
+    from jkent.data_types import ScraperYield
 
 
 def _parse_date(text: str) -> date | None:
@@ -81,7 +82,9 @@ def _build_tab_url(response_url: str, tab_page: str) -> str:
     return f"{base}/{tab_page}?{query}"
 
 
-class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
+class CaAppScraper(
+    BaseScraper[CaAppDocket | CaAppCaseUnavailable | CaAppOpinionFile]
+):
     """Scraper for California Appellate Courts Case Information.
 
     Covers the California Supreme Court and all six Courts of Appeal
@@ -105,7 +108,8 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
     rate_limits: ClassVar[list[Rate] | None] = [Rate(3, Duration.SECOND)]
     driver_requirements: ClassVar[list[DriverRequirement]] = [
         DriverRequirement.JS_EVAL,
-        DriverRequirement.FF_ALIKE,
+        DriverRequirement.CHROME_ALIKE,
+        DriverRequirement.CFCAP_HANDLER,
     ]
 
     # ──────────────────────────────────────────────
@@ -187,6 +191,7 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
                 url=search_results_url,
             ),
             continuation=self.parse_case_summary,
+            hateoas=True,
             accumulated_data={
                 "prefix": prefix,
                 "dist": dist,
@@ -202,6 +207,13 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
 
     @step(
         await_list=[
+            # Cloudflare interstitial: wait for site chrome that is only
+            # present once CF has cleared and the real ColdFusion document
+            # has loaded. #centerColumn is shared across all destination
+            # states (single-result mainCaseScreen.cfm, multi-result
+            # searchResults.cfm, and Case Not Found) but is absent from the
+            # Cloudflare challenge page.
+            WaitForSelector("#centerColumn", timeout=60000),
             WaitForLoadState("networkidle", timeout=30000),
             WaitForSelector("button[disabled]", state="hidden", timeout=15000),
         ],
@@ -218,9 +230,7 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
         If the page is a "Case Not Found" results page, yields
         CaAppCaseUnavailable instead.
         """
-        self._check_502_bad_gateway(page)
-        self._check_503_challenge(page)
-        self._check_loading_spinners(page)
+        self._check_transient_errors(page)
 
         # Detect "Case Not Found" page
         not_found = page.query_xpath(
@@ -338,12 +348,67 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
                     [single_tc] if single_tc else []
                 )
 
+        # Archive any opinion files (PDF / DOC / DOCX) linked from this page.
+        yield from self._yield_opinion_archives(page, accumulated_data)
+
         # Navigate to Docket tab
         docket_url = _build_tab_url(response.url, "dockets.cfm")
         yield Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=docket_url),
             continuation=self.parse_docket,
             accumulated_data=accumulated_data,
+        )
+
+    def _yield_opinion_archives(
+        self,
+        page: PageElement,
+        accumulated_data: dict,
+    ) -> Generator[Request, None, None]:
+        """Yield an archive Request for each opinion file on the case page.
+
+        Both Supreme Court and Courts of Appeal case-summary pages render
+        opinion downloads as `<a id="pdf">` / `<a id="doc">` anchors. The
+        href filename uses `.PDF` and `.DOC` or `.DOCX` (varies by year).
+        Each link becomes one ``CaAppOpinionFile`` via
+        ``archive_opinion_file``.
+        """
+        opinion_links = page.find_links(
+            "//a[@id='pdf' or @id='doc']",
+            "opinion file links",
+            min_count=0,
+        )
+        for link in opinion_links:
+            url = link.url
+            m = re.search(r"\.([A-Za-z]{2,4})(?:$|\?)", url)
+            ext = m.group(1).lower() if m else "bin"
+            yield Request(
+                archive=True,
+                request=HTTPRequestParams(method=HttpMethod.GET, url=url),
+                continuation=self.archive_opinion_file,
+                expected_type=ext,
+                accumulated_data={
+                    "docket_id": accumulated_data["docket_id"],
+                    "court_id": accumulated_data["court_id"],
+                    "document_type": ext,
+                    "source_url": url,
+                },
+            )
+
+    @step()
+    def archive_opinion_file(
+        self,
+        accumulated_data: dict,
+        local_filepath: str | None,
+    ) -> Generator[ScraperYield, None, None]:
+        """Yield a CaAppOpinionFile referring to the archived opinion file."""
+        yield ParsedData(
+            data=CaAppOpinionFile(
+                docket_id=accumulated_data["docket_id"],
+                court_id=accumulated_data["court_id"],
+                document_type=accumulated_data["document_type"],
+                source_url=accumulated_data["source_url"],
+                local_path=local_filepath,
+            )
         )
 
     def _fan_out_multi_result(
@@ -385,15 +450,23 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
             if tc_number and tc_number not in group["trial_court_numbers"]:
                 group["trial_court_numbers"].append(tc_number)
 
-        for group in groups.values():
+        for doc_id, group in groups.items():
             new_data = dict(accumulated_data)
             new_data["trial_court_case_numbers"] = group["trial_court_numbers"]
             yield Request(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET, url=group["url"]
                 ),
+                via=ViaLink(
+                    selector=(
+                        f'a.btnSmaller[href*="doc_id={doc_id}"]'
+                        f'[href*="mainCaseScreen.cfm"]'
+                    ),
+                    description=f"multi-result case link doc_id={doc_id}",
+                ),
                 continuation=self.parse_case_summary,
                 accumulated_data=new_data,
+                deduplication_key=f"parse_case_summary:{doc_id}",
             )
 
     # ──────────────────────────────────────────────
@@ -414,9 +487,7 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield, None, None]:
         """Extract docket entries, then navigate to briefs tab."""
-        self._check_502_bad_gateway(page)
-        self._check_503_challenge(page)
-        self._check_loading_spinners(page)
+        self._check_transient_errors(page)
 
         # Extract division from the docket header if not already set
         if not accumulated_data.get("division"):
@@ -477,9 +548,7 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield, None, None]:
         """Extract brief records, then navigate to disposition tab."""
-        self._check_502_bad_gateway(page)
-        self._check_503_challenge(page)
-        self._check_loading_spinners(page)
+        self._check_transient_errors(page)
 
         rows = page.query_xpath(
             "//table//tbody//tr", "brief rows", min_count=0
@@ -532,9 +601,7 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield, None, None]:
         """Extract disposition data. Structure differs SC vs CoA."""
-        self._check_502_bad_gateway(page)
-        self._check_503_challenge(page)
-        self._check_loading_spinners(page)
+        self._check_transient_errors(page)
         is_supreme = accumulated_data["is_supreme"]
         dispositions: list[dict] = []
 
@@ -630,9 +697,7 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield, None, None]:
         """Extract parties and their attorneys."""
-        self._check_502_bad_gateway(page)
-        self._check_503_challenge(page)
-        self._check_loading_spinners(page)
+        self._check_transient_errors(page)
 
         rows = page.query_xpath(
             "//table//tbody//tr", "party rows", min_count=0
@@ -723,9 +788,7 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield, None, None]:
         """Extract trial/lower court info, then assemble the docket."""
-        self._check_502_bad_gateway(page)
-        self._check_503_challenge(page)
-        self._check_loading_spinners(page)
+        self._check_transient_errors(page)
 
         is_supreme = accumulated_data["is_supreme"]
 
@@ -922,6 +985,18 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
     # Transient error detection
     # ──────────────────────────────────────────────
 
+    @classmethod
+    def _check_transient_errors(cls, page: PageElement) -> None:
+        """Raise TransientException for any known transient failure mode.
+
+        Bundles every transient-page detector so each step can guard its
+        entry with a single call.
+        """
+        cls._check_502_bad_gateway(page)
+        cls._check_503_challenge(page)
+        cls._check_maintenance(page)
+        cls._check_loading_spinners(page)
+
     @staticmethod
     def _check_503_challenge(page: PageElement) -> None:
         """Raise TransientException if the page is an F5 503 challenge."""
@@ -945,6 +1020,25 @@ class CaAppScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
         )
         if errors:
             raise TransientException("502 Bad Gateway")
+
+    @staticmethod
+    def _check_maintenance(page: PageElement) -> None:
+        """Raise TransientException if the site is in a maintenance window.
+
+        During scheduled maintenance the site serves a stub page whose body
+        contains ``NOTICE: MAINTENANCE`` in place of the real ColdFusion
+        content. The URL bar still shows the requested ``searchResults.cfm``/
+        tab URL but all case data is gone, so downstream URL-builders that
+        rely on ``doc_id``/``dist`` parameters surface obscure KeyErrors.
+        """
+        notice = page.query_xpath(
+            "//strong[contains(., 'NOTICE: MAINTENANCE')]",
+            "maintenance notice",
+            min_count=0,
+            max_count=1,
+        )
+        if notice:
+            raise TransientException("Site in maintenance window")
 
     @staticmethod
     def _check_loading_spinners(page: PageElement) -> None:

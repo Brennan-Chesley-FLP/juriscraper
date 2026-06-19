@@ -5,10 +5,11 @@ Arkansas Court of Appeals (``arkctapp``) via the public JSON API at
 ``caseinfo.arcourts.gov/opad``. The site is a Next.js frontend over a
 plain REST backend; no HTML parsing is required.
 
-Entry point per court:
+Entry point:
 
-- ``get_supreme_court_dockets_by_date(date_range)``    — Supreme Court
-- ``get_court_of_appeals_dockets_by_date(date_range)`` — Court of Appeals
+- ``get_dockets_by_date(court_ids, date_range)`` — fans out one search
+  per requested court (``ark`` → Supreme Court, ``arkctapp`` → Court of
+  Appeals).
 
 Flow per case:
 
@@ -16,7 +17,8 @@ Flow per case:
                                  dispatches one detail request per case.
 2. ``parse_case_detail``      — builds the ``ArDocket`` from the detail
                                  payload and schedules a presigned-URL
-                                 fetch for every nested document.
+                                 fetch for every document on the case's
+                                 docket entries.
 3. ``fetch_document_url``     — reads ``{"url": ...}`` and schedules an
                                  ``archive=True`` request to S3.
 4. ``archive_document``       — emits the ``ArDocument`` once the file is
@@ -25,7 +27,6 @@ Flow per case:
 
 from __future__ import annotations
 
-import json
 from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -39,14 +40,14 @@ from jkent.data_types import (
     Request,
     Response,
     ScraperStatus,
-    SkipDeduplicationCheck,
 )
+from pydantic import BaseModel
 from pyrate_limiter import Duration, Rate
 
 from .models import (
+    COURT_ID_TO_NAME,
     COURT_NAME_TO_ID,
     ArDocket,
-    ArDocketDocumentRef,
     ArDocketEntry,
     ArDocument,
     ArMilestone,
@@ -64,12 +65,19 @@ SEARCH_URL = f"{BASE_URL}/api/cases/search"
 CASE_DETAIL_URL = f"{BASE_URL}/api/cases"
 DOCUMENT_URL = f"{BASE_URL}/api/documents"
 
-SUPREME_COURT_NAME = "STATE OF ARKANSAS SUPREME COURT"
-COURT_OF_APPEALS_NAME = "STATE OF ARKANSAS COURT OF APPEALS"
-
 # pageSize=500 works; 1000 returns HTTP 500. 500 keeps page count low for
 # the largest single-year court (~1500 results / year for CoA).
 PAGE_SIZE = 500
+
+
+class CourtIds(BaseModel):
+    """CourtListener court ids to scrape.
+
+    Each id is dispatched to its caseinfo search path: ``ark`` →
+    Arkansas Supreme Court, ``arkctapp`` → Arkansas Court of Appeals.
+    """
+
+    court_ids: list[str]
 
 
 class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
@@ -78,9 +86,9 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
     Speaks the ``/opad`` JSON API directly. Yields:
 
     - ``ArDocket`` — one per case, with nested entries / parties /
-      milestones plus a manifest of referenced documents.
-    - ``ArDocument`` — one per archived file. Joinable back to the parent
-      docket via ``case_id``.
+      milestones.
+    - ``ArDocument`` — one per archived file, carrying its own docket
+      metadata. Joinable back to the parent docket via ``docket_number``.
     """
 
     court_ids: ClassVar[set[str]] = {"ark", "arkctapp"}
@@ -96,23 +104,28 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
     # =========================================================================
 
     @entry(ArDocket)
-    def get_supreme_court_dockets_by_date(
-        self, date_range: DateRange
+    def get_dockets_by_date(
+        self, court_ids: CourtIds, date_range: DateRange
     ) -> Generator[Request, None, None]:
-        """Fetch Supreme Court (``ark``) dockets filed in ``date_range``."""
-        yield self._build_search_request(
-            SUPREME_COURT_NAME, date_range, page=1
-        )
+        """Fetch dockets filed in ``date_range`` for each requested court.
 
-    @entry(ArDocket)
-    def get_court_of_appeals_dockets_by_date(
-        self, date_range: DateRange
-    ) -> Generator[Request, None, None]:
-        """Fetch Court of Appeals (``arkctapp``) dockets filed in
-        ``date_range``."""
-        yield self._build_search_request(
-            COURT_OF_APPEALS_NAME, date_range, page=1
-        )
+        ``court_ids`` is a set of CourtListener court ids (``ark``,
+        ``arkctapp``); each is dispatched to its caseinfo search path.
+        Unknown ids are rejected so a typo fails loudly rather than
+        silently scraping nothing.
+        """
+        unknown = [
+            cid for cid in court_ids.court_ids if cid not in COURT_ID_TO_NAME
+        ]
+        if unknown:
+            raise ValueError(
+                f"Unknown Arkansas court id(s): {unknown}. "
+                f"Supported: {sorted(COURT_ID_TO_NAME)}."
+            )
+        for court_id in court_ids.court_ids:
+            yield self._build_search_request(
+                COURT_ID_TO_NAME[court_id], date_range, page=1
+            )
 
     # =========================================================================
     # Step 1: search results + pagination
@@ -128,17 +141,17 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
         court_name = accumulated_data["court_name"]
 
         for hit in json_content.get("items") or []:
-            case_id = hit.get("caseId")
-            if not case_id:
+            docket_number = hit.get("caseId")
+            if not docket_number:
                 continue
             yield Request(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
-                    url=f"{CASE_DETAIL_URL}/{case_id}",
+                    url=f"{CASE_DETAIL_URL}/{docket_number}",
                 ),
                 continuation=self.parse_case_detail,
                 accumulated_data={"court_name": court_name},
-                deduplication_key=f"ar-case-{case_id}",
+                deduplication_key=f"ar-case-{docket_number}",
             )
 
         paging = json_content.get("paging") or {}
@@ -165,7 +178,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield[ArDocket | ArDocument], None, None]:
         """Build an ``ArDocket`` and schedule document downloads."""
-        case_id = json_content["caseId"]
+        docket_number = json_content["caseId"]
         court_name = (
             json_content.get("courtName") or accumulated_data["court_name"]
         )
@@ -180,10 +193,10 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
         )
 
         docket = ArDocket(
-            case_id=case_id,
+            docket_number=docket_number,
             court_id=court_id,
             date_filed=_parse_iso_date(json_content.get("caseFilingDate")),
-            case_name=json_content.get("caseDesc") or case_id,
+            case_name=json_content.get("caseDesc") or docket_number,
             case_title=json_content.get("caseTitle"),
             case_type=json_content.get("caseType"),
             trial_desc=json_content.get("caseTrialDesc"),
@@ -203,13 +216,20 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
         yield ParsedData(data=docket)
 
         # Schedule a presigned-URL fetch for every referenced document.
+        # Each document's metadata rides on accumulated_data and lands on
+        # the emitted ArDocument; it joins back to this docket via
+        # docket_number, so nothing needs to be stored on the ArDocket.
         seen: set[str] = set()
-        for docket_entry in entries:
-            for doc_ref in docket_entry.documents:
-                file_id = doc_ref.document_file_id
+        for d in json_content.get("caseDockets") or []:
+            docket_seq_no = d.get("docketSeqNo")
+            docket_entry_desc = d.get("docketDesc")
+            docket_entry_filed = _parse_iso_date(d.get("docketFilingDate"))
+            for doc in d.get("docketDocuments") or []:
+                file_id = doc.get("documentFileId")
                 if not file_id or file_id in seen:
                     continue
                 seen.add(file_id)
+                upload_date = _parse_iso_date(doc.get("documentUploadDate"))
                 yield Request(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET,
@@ -217,16 +237,20 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
                     ),
                     continuation=self.fetch_document_url,
                     accumulated_data={
-                        "case_id": case_id,
+                        "docket_number": docket_number,
                         "court_id": court_id,
                         "document_file_id": file_id,
-                        "document_name": doc_ref.document_name,
-                        "description": doc_ref.description,
-                        "docket_seq_no": docket_entry.docket_seq_no,
-                        "upload_date": (
-                            doc_ref.upload_date.isoformat()
-                            if doc_ref.upload_date
+                        "document_name": doc.get("documentName"),
+                        "description": doc.get("documentDesc"),
+                        "docket_seq_no": docket_seq_no,
+                        "docket_entry_description": docket_entry_desc,
+                        "docket_entry_date_filed": (
+                            docket_entry_filed.isoformat()
+                            if docket_entry_filed
                             else None
+                        ),
+                        "upload_date": (
+                            upload_date.isoformat() if upload_date else None
                         ),
                     },
                     deduplication_key=f"ar-doc-{file_id}",
@@ -252,6 +276,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
             request=HTTPRequestParams(method=HttpMethod.GET, url=download_url),
             continuation=self.archive_document,
             expected_type="pdf",
+            bypass_rate_limit=True,  # AWS S# signed links with expiration
             accumulated_data=accumulated_data,
             # Presigned URLs expire ~10 minutes after issuance, so dedup
             # against the underlying file id rather than the URL.
@@ -272,14 +297,23 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
     ) -> Generator[ScraperYield[ArDocument], None, None]:
         """Emit an ``ArDocument`` record for an archived file."""
         upload_raw = accumulated_data.get("upload_date")
+        entry_filed_raw = accumulated_data.get("docket_entry_date_filed")
         yield ParsedData(
-            data=ArDocument(
-                case_id=accumulated_data["case_id"],
+            data=ArDocument.raw(
+                docket_number=accumulated_data["docket_number"],
                 court_id=accumulated_data["court_id"],
                 document_file_id=accumulated_data["document_file_id"],
                 document_name=accumulated_data.get("document_name"),
                 description=accumulated_data.get("description"),
                 docket_seq_no=accumulated_data.get("docket_seq_no"),
+                docket_entry_description=accumulated_data.get(
+                    "docket_entry_description"
+                ),
+                docket_entry_date_filed=(
+                    date.fromisoformat(entry_filed_raw)
+                    if entry_filed_raw
+                    else None
+                ),
                 upload_date=(
                     date.fromisoformat(upload_raw) if upload_raw else None
                 ),
@@ -296,21 +330,12 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
         self, court_name: str, date_range: DateRange, *, page: int
     ) -> Request:
         body = self._build_search_body(court_name, date_range, page)
-        # kent's persistent driver does not propagate
-        # ``HTTPRequestParams.json`` through serialize → DB → dispatch (only
-        # ``data`` is forwarded to httpx). Encode the body ourselves and
-        # pass it via ``data=`` as bytes. The leading UTF-8 BOM forces
-        # kent's rebuild path to keep the body as bytes — without it,
-        # ``json.loads(body.decode("utf-8"))`` would round-trip back to a
-        # dict and httpx's ``data=dict`` would form-encode it. The Arkansas
-        # API ignores the BOM.
-        encoded = b"\xef\xbb\xbf" + json.dumps(body).encode("utf-8")
         return Request(
             request=HTTPRequestParams(
                 method=HttpMethod.POST,
                 url=SEARCH_URL,
                 headers={"Content-Type": "application/json"},
-                data=encoded,
+                json=body,
             ),
             continuation=self.parse_search_results,
             accumulated_data={
@@ -321,7 +346,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
             },
             # Pagination requests must always execute even when the URL is
             # identical (POST body changes between pages).
-            deduplication_key=SkipDeduplicationCheck(),
+            deduplication_key=f"{court_name}.{date_range.start}.{date_range.end}-{page}",
         )
 
     @staticmethod
@@ -369,19 +394,8 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
     def _parse_dockets(raw: list[dict]) -> list[ArDocketEntry]:
         entries: list[ArDocketEntry] = []
         for d in raw:
-            documents = [
-                ArDocketDocumentRef(
-                    document_seq_no=doc.get("documentSeqNo"),
-                    description=doc.get("documentDesc"),
-                    document_file_id=doc["documentFileId"],
-                    document_name=doc.get("documentName"),
-                    upload_date=_parse_iso_date(doc.get("documentUploadDate")),
-                )
-                for doc in (d.get("docketDocuments") or [])
-                if doc.get("documentFileId")
-            ]
             entries.append(
-                ArDocketEntry(
+                ArDocketEntry.raw(
                     docket_seq_no=d.get("docketSeqNo"),
                     docket_type=d.get("docketType"),
                     description=d.get("docketDesc"),
@@ -389,7 +403,6 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
                     date_filed=_parse_iso_date(d.get("docketFilingDate")),
                     entity_id=d.get("entityId"),
                     entity_name=d.get("entityName"),
-                    documents=documents,
                 )
             )
         # Sort by sequence number when present so consumers see a stable
@@ -421,7 +434,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
     @staticmethod
     def _parse_milestones(raw: list[dict]) -> list[ArMilestone]:
         return [
-            ArMilestone(
+            ArMilestone.raw(
                 milestone_code=m.get("milestoneCode"),
                 description=m.get("milestoneDesc"),
                 seq_no=m.get("milestoneSeqNo"),

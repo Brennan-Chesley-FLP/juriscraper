@@ -17,27 +17,8 @@ COURT_NAME_TO_ID: dict[str, str] = {
 }
 """Map from caseinfo's `courtName` field to the CourtListener court id."""
 
-
-class ArDocketDocumentRef(ScrapedData):
-    """Manifest entry for a document referenced from a docket entry.
-
-    Carried inline on the parent ``ArDocketEntry`` so the docket record is
-    self-contained even before the file finishes downloading. The actual
-    bytes land separately as an ``ArDocument`` keyed by ``document_file_id``.
-    """
-
-    document_seq_no: int | None = None
-    description: str | None = None
-    """Site label for the file (e.g. ``BRIEFING SCHEDULE``, ``OPINION``)."""
-
-    document_file_id: str
-    """Opaque token used by ``GET /opad/api/documents/{id}`` to mint a
-    presigned download URL."""
-
-    document_name: str | None = None
-    """Server-side filename, typically ``<documentFileId>.pdf``."""
-
-    upload_date: date | None = None
+COURT_ID_TO_NAME: dict[str, str] = {v: k for k, v in COURT_NAME_TO_ID.items()}
+"""Map from the CourtListener court id to caseinfo's `courtName` field."""
 
 
 class ArDocketEntry(ScrapedData):
@@ -58,8 +39,6 @@ class ArDocketEntry(ScrapedData):
     entity_id: int | None = None
     entity_name: str | None = None
     """Filing party / counsel name when the API attaches one."""
-
-    documents: list[ArDocketDocumentRef] = []
 
 
 class ArParty(ScrapedData):
@@ -100,12 +79,12 @@ class ArDocument(ScrapedData):
     """A downloaded document from a docket entry.
 
     Yielded as a separate top-level record so it can be joined back to the
-    parent ``ArDocket`` via ``case_id``. The ``document_file_id`` doubles as
+    parent ``ArDocket`` via ``docket_number``. The ``document_file_id`` doubles as
     the document's natural primary key — it is opaque, stable, and unique
     across the entire site.
     """
 
-    case_id: str
+    docket_number: str
     """Public docket number this document belongs to (e.g. ``CV-26-294``)."""
 
     court_id: str
@@ -116,8 +95,21 @@ class ArDocument(ScrapedData):
 
     document_name: str | None = None
     description: str | None = None
+
+    # === Parent docket entry ===
+    # Identifies the specific ArDocketEntry this document hangs off of.
+    # Join back to it via (docket_number, docket_seq_no); the description
+    # and filing date are denormalized here so an ArDocument is legible
+    # on its own without re-fetching the docket.
     docket_seq_no: int | None = None
-    """``docketSeqNo`` of the parent docket entry."""
+    """``docketSeqNo`` of the parent docket entry — the per-case key for
+    the ``ArDocketEntry`` this document belongs to."""
+
+    docket_entry_description: str | None = None
+    """``docketDesc`` of the parent docket entry (e.g. ``OPINION``)."""
+
+    docket_entry_date_filed: date | None = None
+    """``docketFilingDate`` of the parent docket entry."""
 
     upload_date: date | None = None
     download_url: str
@@ -140,7 +132,7 @@ class ArDocket(ScrapedData):
     """
 
     # === Searchable fields ===
-    case_id: str
+    docket_number: str
     """Public docket number (e.g. ``CR-26-228``, ``CV-26-294``,
     ``D-26-259``). Format: ``{TYPE}-{YY}-{SEQ}``."""
 

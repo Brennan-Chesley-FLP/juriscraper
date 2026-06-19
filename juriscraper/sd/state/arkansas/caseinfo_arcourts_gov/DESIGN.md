@@ -266,8 +266,9 @@ entry → parse_search_results → parse_case_detail → fetch_document_url
   `milestones`, plus passthrough lists for `events`, `offenses`,
   `sentences`.
 - `ArDocketEntry`
-- `ArDocketDocumentRef` — manifest entry on each docket entry; light
-  reference so `ArDocket` is self-contained even before downloads land.
 - `ArParty`
 - `ArMilestone`
-- `ArDocument` — top-level, yielded post-archive.
+- `ArDocument` — top-level, yielded post-archive. Carries its own
+  document + docket metadata (pulled from `caseDockets` and threaded
+  through `accumulated_data`); joins back to `ArDocket` via
+  `docket_number`.

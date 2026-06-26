@@ -572,6 +572,7 @@ dependencies = [
     { name = "lxml" },
     { name = "pydantic" },
     { name = "pyrate-limiter" },
+    { name = "typing-extensions" },
 ]
 
 [package.metadata]
@@ -588,6 +589,7 @@ requires-dist = [
     { name = "pyrate-limiter", specifier = ">=3.9.0" },
     { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'operational'", specifier = ">=2.0" },
     { name = "sqlmodel", marker = "extra == 'operational'", specifier = ">=0.0.32" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
     { name = "zstandard", marker = "extra == 'operational'", specifier = ">=0.25.0" },
 ]
 

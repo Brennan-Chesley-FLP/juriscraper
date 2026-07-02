@@ -53,7 +53,6 @@ from datetime import date
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from jkent.common.decorators import entry, step
-from jkent.common.param_models import YearlySpeculativeRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -64,6 +63,8 @@ from jkent.data_types import (
     ScraperStatus,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import YearlySpeculativeRange
 
 from .models import (
     COURT_IDS,

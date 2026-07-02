@@ -7,9 +7,11 @@ extra fields, so the parser branches on ``is_supreme``.
 The returned ``DeferredValidation[CaAppDocket]`` is a *partial* field-bag,
 not a finished record: the scraper step merges its ``raw_data`` into
 ``accumulated_data`` and the docket is only assembled once every tab has
-been visited. Alongside model fields the bag carries navigation helpers the
-step consumes and discards (``opinion_file_urls`` for archive requests,
-``trial_court_case_single`` for the CoA fallback). Dates are real ``date``
+been visited. Alongside model fields the bag carries a navigation helper the
+step consumes and discards (``trial_court_case_single`` for the CoA
+fallback). Opinion-file links for archive requests are found by the step
+itself, not here, so the selector needed to click each one stays out of the
+parser. Dates are real ``date``
 objects; they survive the trip through ``accumulated_data`` because the
 queue's JSON encoder serializes them to ISO and pydantic re-parses at
 confirm.
@@ -17,7 +19,6 @@ confirm.
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING
 
 from jkent.common.deferred_validation import DeferredValidation
@@ -114,20 +115,5 @@ class CaseSummaryParser(JKentParser[CaAppDocket]):
             bag["trial_court_case_single"] = clean_text(
                 fields.get("Trial Court Case")
             )
-
-        # Opinion file links (id=pdf / id=doc) for archive requests. The
-        # step turns these into archive Requests; the filename extension
-        # rides along so it can hint ``expected_type``.
-        opinion_file_urls: list[dict] = []
-        for link in page.find_links(
-            XPath("//a[@id='pdf' or @id='doc']"),
-            "opinion file links",
-            min_count=0,
-        ):
-            url = link.url
-            m = re.search(r"\.([A-Za-z]{2,4})(?:$|\?)", url)
-            ext = m.group(1).lower() if m else "bin"
-            opinion_file_urls.append({"url": url, "ext": ext})
-        bag["opinion_file_urls"] = opinion_file_urls
 
         return [CaAppDocket.raw(**bag)]

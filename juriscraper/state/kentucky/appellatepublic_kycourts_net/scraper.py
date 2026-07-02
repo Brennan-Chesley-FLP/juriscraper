@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlencode
 
 from jkent.common.decorators import entry, step
-from jkent.common.param_models import DateRange, YearlySpeculativeRange
+from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -56,6 +56,8 @@ from jkent.data_types import (
     SkipDeduplicationCheck,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import YearlySpeculativeRange
 
 from .models import (
     API_BASE_URL,

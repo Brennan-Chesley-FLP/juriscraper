@@ -34,8 +34,9 @@ from urllib.parse import parse_qs, urlencode, urlparse
 
 from jkent.common.decorators import entry, step
 from jkent.common.exceptions import TransientException
-from jkent.common.page_element import PageElement, ViaLink
+from jkent.common.page_element import Link, PageElement, ViaLink
 from jkent.data_types import (
+    CSS,
     BaseScraper,
     DriverRequirement,
     HttpMethod,
@@ -277,13 +278,35 @@ class CaAppScraper(BaseScraper[_Yield]):
             return
 
         accumulated_data["source_url"] = response.url
+
+        # In rare cases, search will key off the trial court number
+        # And show us multiple results for a different case here.
+        # But it redirects us to that case and we can grab the actual
+        # docket number from the doc_no param in the url.
+        doc_no = parse_qs(urlparse(response.url).query).get("doc_no")
+        if doc_no and doc_no[0]:
+            accumulated_data["docket_number"] = doc_no[0]
+
         is_supreme = accumulated_data["is_supreme"]
 
         bag = CaseSummaryParser(is_supreme=is_supreme)(page)[0].raw_data
 
         # Archive any opinion files (PDF / DOC / DOCX) linked from this page.
+        # The links are found here, not in the parser, so each Link keeps the
+        # selector the Playwright driver clicks to trigger the download. They
+        # are addressed by their unique element id (``a#pdf`` / ``a#doc``).
+        opinion_links = [
+            link
+            for elem_id in ("pdf", "doc")
+            for link in page.find_links(
+                CSS(f"a#{elem_id}"),
+                f"opinion {elem_id} link",
+                min_count=0,
+                max_count=1,
+            )
+        ]
         yield from self._yield_opinion_archives(
-            bag.pop("opinion_file_urls", []), accumulated_data
+            opinion_links, accumulated_data
         )
 
         # CoA only: fall back to the case-summary "Trial Court Case" field
@@ -310,23 +333,26 @@ class CaAppScraper(BaseScraper[_Yield]):
 
     def _yield_opinion_archives(
         self,
-        opinion_file_urls: list[dict],
+        opinion_links: list[Link],
         accumulated_data: dict,
     ) -> Generator[Request, None, None]:
         """Yield an archive Request for each opinion file on the case page.
 
-        ``opinion_file_urls`` are the ``{"url", "ext"}`` dicts produced by
-        ``CaseSummaryParser``. Each becomes one ``CaAppOpinionFile`` via
+        ``opinion_links`` are the ``Link`` objects for the opinion-file <a>
+        elements (id ``pdf`` / ``doc``). Each carries the selector the
+        Playwright driver clicks to trigger the download (an archive request
+        needs a ``ViaLink``/``ViaFormSubmit``, not just a URL), so we build the
+        request with ``Link.follow``. Each becomes one ``CaAppOpinionFile`` via
         ``archive_opinion_file``.
         """
         docket_number = accumulated_data["docket_number"]
-        for f in opinion_file_urls:
-            url = f["url"]
-            ext = f["ext"]
+        for link in opinion_links:
+            url = link.url
+            m = re.search(r"\.([A-Za-z]{2,4})(?:$|\?)", url)
+            ext = m.group(1).lower() if m else "bin"
             filename = url.rsplit("/", 1)[-1].split("?")[0]
-            yield Request(
+            yield link.follow(
                 archive=True,
-                request=HTTPRequestParams(method=HttpMethod.GET, url=url),
                 continuation=self.archive_opinion_file,
                 expected_type=ext,
                 accumulated_data={
@@ -366,6 +392,13 @@ class CaAppScraper(BaseScraper[_Yield]):
         the group for its doc_id and stashed on accumulated_data so the
         next ``parse_case_summary`` pass sees them as the authoritative
         list (overriding the singular "Trial Court Case" dt/dd field).
+
+        A multi-result page does *not* always mean "one CoA case, several
+        lower-court matters": a search by a shared number (e.g. a trial-court
+        number that several appeals reference) returns several *distinct*
+        appellate cases. Each fanned-out child therefore lands on a case page
+        with its own ``doc_no``; ``parse_case_summary`` adopts that as the
+        child's ``docket_number``, keeping the sibling chains distinct.
         """
         rows = page.query(
             XPath("//table//tbody//tr"), "multi-result rows", min_count=0
@@ -403,8 +436,10 @@ class CaAppScraper(BaseScraper[_Yield]):
                 ),
                 via=ViaLink(
                     selector=(
-                        f'a.btnSmaller[href*="doc_id={doc_id}"]'
-                        f'[href*="mainCaseScreen.cfm"]'
+                        CSS(
+                            f'a.btnSmaller[href*="doc_id={doc_id}"]'
+                            f'[href*="mainCaseScreen.cfm"]'
+                        )
                     ),
                     description=f"multi-result case link doc_id={doc_id}",
                 ),

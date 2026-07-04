@@ -132,7 +132,8 @@ class AzCoa2Scraper(BaseScraper[AzCoa2Docket]):
         if start_year > end_year:
             raise ScraperAssumptionException(
                 f"date range {date_range.start}–{date_range.end} covers no "
-                f"year the site supports (1990–{date.today().year})"
+                f"year the site supports (1990–{date.today().year})",
+                request_url="",
             )
         for year in range(start_year, end_year + 1):
             yield from self._seed_search(
@@ -210,7 +211,8 @@ class AzCoa2Scraper(BaseScraper[AzCoa2Docket]):
         if not match:
             raise ScraperAssumptionException(
                 "captcha number not found on caseInfo.cfm — "
-                "site layout may have changed"
+                "site layout may have changed",
+                request_url=response.url,
             )
         code = match.group("code")
 
@@ -223,7 +225,9 @@ class AzCoa2Scraper(BaseScraper[AzCoa2Docket]):
             data["CaseYear"] = str(accumulated_data["year"])
             dedup = f"search_results:year:{accumulated_data['year']}"
         else:
-            raise ScraperAssumptionException(f"unknown search_kind: {kind!r}")
+            raise ScraperAssumptionException(
+                f"unknown search_kind: {kind!r}", request_url=response.url
+            )
 
         yield Request(
             request=HTTPRequestParams(
@@ -260,7 +264,8 @@ class AzCoa2Scraper(BaseScraper[AzCoa2Docket]):
         if "Please go back" in text and "verification code" in text:
             raise ScraperAssumptionException(
                 "captcha rejection — verification code did not match. "
-                "Likely a parser regression in submit_search_form."
+                "Likely a parser regression in submit_search_form.",
+                request_url=response.url,
             )
 
         entry_point = accumulated_data.get("entry_point")

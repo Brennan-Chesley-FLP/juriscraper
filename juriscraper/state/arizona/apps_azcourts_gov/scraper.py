@@ -146,6 +146,7 @@ class ArizonaAppellateScraper(BaseScraper[_Yield]):
         docket_number: str,
         court: str,
         source: str,
+        date_last_updated: datetime | None = None,
     ) -> Request:
         """Build an archive request for a docket PDF.
 
@@ -153,8 +154,22 @@ class ArizonaAppellateScraper(BaseScraper[_Yield]):
         multiple indices (case-list / lower-court / party / attorney) is
         fetched only once, and so the two courts can't collide on a shared
         basename.
+
+        When ``date_last_updated`` is known (the case-list flow — the index
+        pages don't carry it), its ``YYYY-MM-DD`` is spliced into the key
+        just before the ``.pdf`` suffix, e.g. ``ariz-ASC_CR260127.pdf`` →
+        ``ariz-ASC_CR260127.2026-07-03.pdf``. This makes each revision of a
+        docket sheet archive as a distinct object (the docket PDF is
+        regenerated in place under the same URL, so without the stamp a
+        newer version would dedup against the stale copy).
         """
         filename = pdf_url.replace("\\", "/").rsplit("/", 1)[-1]
+        if date_last_updated is not None:
+            stem, dot, ext = filename.rpartition(".")
+            stamp = date_last_updated.strftime("%Y-%m-%d")
+            filename = (
+                f"{stem}.{stamp}{dot}{ext}" if dot else f"{filename}.{stamp}"
+            )
         return Request(
             archive=True,
             request=HTTPRequestParams(method=HttpMethod.GET, url=pdf_url),
@@ -354,6 +369,7 @@ class ArizonaAppellateScraper(BaseScraper[_Yield]):
             docket_number=raw["docket_number"],
             court=court,
             source="case_list",
+            date_last_updated=raw.get("date_last_updated"),
         )
 
     # =========================================================================

@@ -240,11 +240,3 @@ class NYSCEFCase(ScrapedData):
 
     source_entry_point: str | None = None
     """Entry point used to reach this case (e.g. ``dockets_by_filing_date``)."""
-
-
-# =========================================================================
-# Site constants
-# =========================================================================
-
-NYSCEF_BASE: str = "https://iapps.courts.state.ny.us/nyscef"
-CASE_SEARCH_URL: str = f"{NYSCEF_BASE}/CaseSearch"

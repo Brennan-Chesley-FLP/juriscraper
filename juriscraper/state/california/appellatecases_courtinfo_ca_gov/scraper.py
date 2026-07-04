@@ -354,6 +354,7 @@ class CaAppScraper(BaseScraper[_Yield]):
             yield link.follow(
                 archive=True,
                 continuation=self.archive_opinion_file,
+                bypass_rate_limit=True,
                 expected_type=ext,
                 accumulated_data={
                     "docket_number": docket_number,

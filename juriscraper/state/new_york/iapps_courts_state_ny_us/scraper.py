@@ -52,6 +52,7 @@ from jkent.common.decorators import entry, step
 from jkent.common.page_element import ViaLink
 from jkent.common.param_models import DateRange
 from jkent.data_types import (
+    CSS,
     BaseScraper,
     DriverRequirement,
     HttpMethod,
@@ -68,10 +69,8 @@ from jkent.data_types import (
 from pyrate_limiter import Duration, Rate
 
 from .models import (
-    CASE_SEARCH_URL,
     COURT_NAME_TO_ID,
     COURT_TO_COUNTY,
-    NYSCEF_BASE,
     NYSCEFCase,
     NYSCEFDownloadedDocument,
 )
@@ -89,6 +88,14 @@ if TYPE_CHECKING:
 
     from jkent.common.page_element import PageElement
     from jkent.data_types import ScraperYield
+
+
+# =========================================================================
+# Site constants
+# =========================================================================
+
+NYSCEF_BASE: str = "https://iapps.courts.state.ny.us/nyscef"
+CASE_SEARCH_URL: str = f"{NYSCEF_BASE}/CaseSearch"
 
 # Search form (POST) — id="form" on the CaseSearch page.
 SEARCH_FORM = XPath("//form[@id='form']")
@@ -119,8 +126,6 @@ class NYSCEFScraper(BaseScraper[_Yield]):
     last_verified: ClassVar[str] = "2026-03-02"
     requires_auth: ClassVar[bool] = False
     driver_requirements: ClassVar[list[DriverRequirement]] = [
-        DriverRequirement.JS_EVAL,
-        DriverRequirement.FF_ALIKE,
         DriverRequirement.HCAP_HANDLER,
     ]
     rate_limits: ClassVar[list[Rate] | None] = [Rate(2, Duration.SECOND)]
@@ -496,7 +501,7 @@ class NYSCEFScraper(BaseScraper[_Yield]):
         return Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=url),
             via=ViaLink(
-                selector=(f'a[href*="{selector_kind}"][href*="{index}"]'),
+                selector=CSS(f'a[href*="{selector_kind}"][href*="{index}"]'),
                 description=f"document #{entry_number} download",
             ),
             archive=True,

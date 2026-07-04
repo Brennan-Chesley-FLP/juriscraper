@@ -32,9 +32,11 @@ from ._common import clean, html_blocks, parse_date, safe_text
 if TYPE_CHECKING:
     from jkent.common.page_element import PageElement
 
-# Docket-number shape: "2 CA-CR 2024-0280" → ("CR", 2024, 280).
+# Docket-number shape: "2 CA-CR 2024-0280" → ("CR", 2024, None), or with a
+# trailing proceeding-type code "2 CA-CR 2026-0130-PR" → ("CR", 2026, "PR").
 _DOCKET_RE = re.compile(
-    r"^2\s+CA-(?P<type>[A-Z]{2})\s+(?P<year>\d{4})-(?P<num>\d+)\s*$"
+    r"^2\s+CA-(?P<type>[A-Z]{2})\s+(?P<year>\d{4})-(?P<num>\d+)"
+    r"(?:-(?P<subtype>[A-Z]+))?\s*$"
 )
 
 
@@ -55,12 +57,15 @@ class CaseDetailParser(JKentParser[AzCoa2Docket]):
         mr_pr = self._parse_mr_pr(page)
 
         docket_number = header["docket_number"]
-        case_type, case_year = self._derive_type_year(docket_number)
+        case_type, case_year, case_subtype = self._derive_type_year(
+            docket_number
+        )
 
         docket = AzCoa2Docket.raw(
             docket_number=docket_number,
             case_type=case_type,
             case_year=case_year,
+            case_subtype=case_subtype,
             case_name=header["case_name"],
             department=header.get("department"),
             county=header.get("county"),
@@ -117,16 +122,20 @@ class CaseDetailParser(JKentParser[AzCoa2Docket]):
 
         lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
         if not lines:
-            raise ScraperAssumptionException("empty case header")
+            raise ScraperAssumptionException(
+                "empty case header", request_url=""
+            )
 
         first = lines[0]
         m = re.match(
-            r"^(?P<docket>2\s+CA-[A-Z]{2}\s+\d{4}-\d+)\s+(?P<name>.+)$",
+            r"^(?P<docket>2\s+CA-[A-Z]{2}\s+\d{4}-\d+(?:-[A-Z]+)?)"
+            r"\s+(?P<name>.+)$",
             first,
         )
         if not m:
             raise ScraperAssumptionException(
-                f"unable to parse docket+caption from header: {first!r}"
+                f"unable to parse docket+caption from header: {first!r}",
+                request_url="",
             )
         out: dict = {
             "docket_number": m.group("docket").strip(),
@@ -489,9 +498,10 @@ class CaseDetailParser(JKentParser[AzCoa2Docket]):
     @staticmethod
     def _derive_type_year(
         docket_number: str,
-    ) -> tuple[str | None, int | None]:
-        """Pull case_type + case_year from the display docket number."""
+    ) -> tuple[str | None, int | None, str | None]:
+        """Pull case_type, case_year, and case_subtype from the display
+        docket number."""
         m = _DOCKET_RE.match(docket_number)
         if not m:
-            return None, None
-        return m.group("type"), int(m.group("year"))
+            return None, None, None
+        return m.group("type"), int(m.group("year")), m.group("subtype")

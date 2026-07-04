@@ -157,6 +157,12 @@ class AzCoa2Docket(ScrapedData):
     case_year: int | None = None
     """Year component of the docket number."""
 
+    case_subtype: CleanString | None = None
+    """Trailing proceeding-type code on the docket number, when present:
+    ``PR`` (petition for review), ``FC`` (family court), ``S``, etc.
+    e.g. the ``PR`` in ``2 CA-CR 2026-0130-PR``. Derived from the docket
+    number; ``None`` for plain dockets like ``2 CA-CC 2026-0002``."""
+
     case_name: HarmonizedCaseName
     """Caption — ``STATE OF ARIZONA v. RAMON RODRIGUEZ``,
     ``IN RE THE ESTATE OF JOHN DOE``, etc."""

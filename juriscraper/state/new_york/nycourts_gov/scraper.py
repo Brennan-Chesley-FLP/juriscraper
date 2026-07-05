@@ -104,6 +104,8 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
+from juriscraper.state.common.params import InferrableDateRange
+
 from .models import (
     NYCourtPassDocket,
     NYCourtPassFile,
@@ -410,8 +412,8 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
     def dockets_by_bulk(
         self,
         court_ids: set[str],
-        argument_date: DateRange,
-        decision_date: DateRange,
+        argument_date: InferrableDateRange,
+        decision_date: InferrableDateRange,
     ) -> Generator[Request, None, None]:
         """Enumerate all undecided dockets on Court-PASS.
 

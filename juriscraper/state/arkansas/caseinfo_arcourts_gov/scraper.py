@@ -104,7 +104,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
     # =========================================================================
 
     @entry(ArDocket)
-    def get_dockets_by_date(
+    def dockets_by_filing_date(
         self, court_ids: CourtIds, date_range: DateRange
     ) -> Generator[Request, None, None]:
         """Fetch dockets filed in ``date_range`` for each requested court.

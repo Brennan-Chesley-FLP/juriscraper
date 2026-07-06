@@ -105,7 +105,7 @@ class IndianaAppellateScraper(BaseScraper[InDocket | InDocument]):
 
     @entry(InDocket)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Date-based search; fans out one search per requested court.
 

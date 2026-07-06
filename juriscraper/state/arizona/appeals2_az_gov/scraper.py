@@ -39,7 +39,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 from jkent.common.decorators import entry, step
 from jkent.common.exceptions import ScraperAssumptionException
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -51,6 +50,8 @@ from jkent.data_types import (
     ScraperStatus,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
     CASE_DETAIL_URL,
@@ -118,7 +119,7 @@ class AzCoa2Scraper(BaseScraper[AzCoa2Docket]):
 
     @entry(AzCoa2Docket)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Search every case filed in each year covered by ``date_range``.
 

@@ -53,7 +53,7 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
-from juriscraper.state.common.params import CourtRange
+from juriscraper.state.common.params import CourtRange, InferrableDateRange
 
 from .models import (
     COURT_IDS,
@@ -132,7 +132,7 @@ class MichiganCourtsScraper(BaseScraper[MichDocket]):
 
     @entry(MichDocket)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Walk each requested court's listing newest-first over a window.
 

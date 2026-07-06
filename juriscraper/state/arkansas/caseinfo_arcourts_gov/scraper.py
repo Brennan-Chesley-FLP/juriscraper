@@ -44,6 +44,8 @@ from jkent.data_types import (
 from pydantic import BaseModel
 from pyrate_limiter import Duration, Rate
 
+from juriscraper.state.common.params import InferrableDateRange
+
 from .models import (
     COURT_ID_TO_NAME,
     COURT_NAME_TO_ID,
@@ -105,7 +107,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
 
     @entry(ArDocket)
     def dockets_by_filing_date(
-        self, court_ids: CourtIds, date_range: DateRange
+        self, court_ids: CourtIds, date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Fetch dockets filed in ``date_range`` for each requested court.
 

@@ -44,6 +44,8 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
+from juriscraper.state.common.params import InferrableDateRange
+
 from .models import (
     COURT_ID,
     MtAttorney,
@@ -117,7 +119,7 @@ class MontanaSupremeCourtScraper(
 
     @entry(MtDocket)
     def active_dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Active Dockets: caseStatus=0, filtered by caseFilingDate."""
         yield self._build_search_request(
@@ -129,7 +131,7 @@ class MontanaSupremeCourtScraper(
 
     @entry(MtDocket)
     def closed_dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Closed Dockets (2006+): caseStatus=1, filtered by caseFilingDate."""
         yield self._build_search_request(
@@ -141,7 +143,7 @@ class MontanaSupremeCourtScraper(
 
     @entry(MtDocket)
     def archived_dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Closed Dockets (1979-2005): caseStatus=2.
 

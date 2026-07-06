@@ -46,7 +46,6 @@ from datetime import date
 from typing import TYPE_CHECKING, ClassVar
 
 from jkent.common.decorators import entry, step
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -59,6 +58,8 @@ from jkent.data_types import (
     SkipDeduplicationCheck,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
     COURT_ICA,
@@ -149,7 +150,7 @@ class WestVirginiaCourtsScraper(
 
     @entry(WVDocket)
     def dockets_by_argument_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Fetch dockets whose argument/docket date falls in ``date_range``.
 

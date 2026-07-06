@@ -32,7 +32,6 @@ from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urljoin
 
 from jkent.common.decorators import entry, step
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -47,7 +46,7 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
-from juriscraper.state.common.params import CourtRange
+from juriscraper.state.common.params import CourtRange, InferrableDateRange
 
 from .models import (
     ICA_CASE_TYPES,
@@ -167,7 +166,7 @@ class HiAppellateScraper(BaseScraper[HiAppDocket]):
 
     @entry(HiAppDocket)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Filing Date Search for each requested appellate court.
 

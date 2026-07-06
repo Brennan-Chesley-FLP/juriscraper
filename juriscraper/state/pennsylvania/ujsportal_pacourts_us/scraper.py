@@ -58,6 +58,8 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
+from juriscraper.state.common.params import InferrableDateRange
+
 from .models import COURT_IDS, SEARCH_URL, PADocket, PADocketSheetPDF
 from .parsers import RESULTS_TABLE_ID, ResultsGridParser
 
@@ -153,7 +155,7 @@ class PAUjsPortalScraper(BaseScraper[_Yield]):
 
     @entry(PADocket)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Walk dockets filed within ``date_range`` for ``court_ids``.
 

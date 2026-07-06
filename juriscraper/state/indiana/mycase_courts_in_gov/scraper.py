@@ -40,6 +40,8 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
+from juriscraper.state.common.params import InferrableDateRange
+
 from .models import (
     COURT_CODE_TO_COURT_ID,
     COURT_ID_TO_COURT_ITEM_ID,
@@ -390,7 +392,7 @@ class IndianaAppellateScraper(BaseScraper[InDocket | InDocument]):
         self,
         *,
         court_item_id: int,
-        date_range: DateRange,
+        date_range: InferrableDateRange,
         skip: int,
     ) -> Request:
         body = self._search_body(

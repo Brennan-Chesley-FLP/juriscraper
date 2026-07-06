@@ -50,7 +50,6 @@ from urllib.parse import urljoin
 
 from jkent.common.decorators import entry, step
 from jkent.common.page_element import ViaLink
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     CSS,
     BaseScraper,
@@ -67,6 +66,8 @@ from jkent.data_types import (
     XPath,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
     COURT_NAME_TO_ID,
@@ -160,7 +161,7 @@ class NYSCEFScraper(BaseScraper[_Yield]):
 
     @entry(NYSCEFCase)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Search each requested court for cases filed within a date range.
 

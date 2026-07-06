@@ -43,7 +43,6 @@ from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlencode
 
 from jkent.common.decorators import entry, step
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -57,7 +56,10 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
-from juriscraper.state.common.params import YearlySpeculativeRange
+from juriscraper.state.common.params import (
+    InferrableDateRange,
+    YearlySpeculativeRange,
+)
 
 from .models import (
     API_BASE_URL,
@@ -260,7 +262,7 @@ class KentuckyAppellateScraper(BaseScraper[KyDocket | KyDocument]):
 
     @entry(KyDocket)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Crawl every case filed in ``date_range`` for each target court.
 

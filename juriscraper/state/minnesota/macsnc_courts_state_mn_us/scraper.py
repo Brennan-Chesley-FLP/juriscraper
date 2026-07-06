@@ -41,7 +41,6 @@ from urllib.parse import parse_qs, urljoin, urlparse
 
 from jkent.common.decorators import entry, step
 from jkent.common.exceptions import ScraperAssumptionException
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -54,6 +53,8 @@ from jkent.data_types import (
     SkipDeduplicationCheck,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
     BASE_URL,
@@ -195,7 +196,7 @@ class MinnesotaScraper(BaseScraper[MnDocket | MnDocument]):
 
     @entry(MnDocket)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Scan every appellate filing in a filed-date window.
 

@@ -42,7 +42,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 from jkent.common.decorators import entry, step
 from jkent.common.page_element import PageElement
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -56,7 +55,10 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
-from juriscraper.state.common.params import YearlySpeculativeRange
+from juriscraper.state.common.params import (
+    InferrableDateRange,
+    YearlySpeculativeRange,
+)
 
 from .models import (
     ADV_SEARCH_URL,
@@ -172,7 +174,7 @@ class IowaAppellateScraper(BaseScraper[IowaDocket]):
 
     @entry(IowaDocket)
     def dockets_by_activity_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Scrape every day in ``date_range`` (inclusive).
 

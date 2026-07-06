@@ -50,7 +50,6 @@ from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import quote, urlencode
 
 from jkent.common.decorators import entry, step
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -63,6 +62,8 @@ from jkent.data_types import (
     SkipDeduplicationCheck,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
     CL_COURT_TO_COUNTY,
@@ -253,7 +254,7 @@ class MissouriCaseNetScraper(BaseScraper[_Yield]):
 
     @entry(MoDocket)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Enumerate dockets filed within ``date_range`` for ``court_ids``.
 

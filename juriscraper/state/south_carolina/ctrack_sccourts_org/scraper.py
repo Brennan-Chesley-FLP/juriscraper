@@ -35,7 +35,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 from jkent.common.decorators import entry, step
 from jkent.common.page_element import PageElement
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -55,6 +54,7 @@ from juriscraper.state.common.ctrack import (
     build_search_form_skeleton,
     parse_dwr_doc_link_anchors,
 )
+from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
     SITE_COURT_ID_BY_COURT,
@@ -168,7 +168,7 @@ class SouthCarolinaAppellateScraper(BaseScraper[SCAppDocket | SCAppDocument]):
 
     @entry(SCAppDocket)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Bulk scrape all appellate filings in a filed-date window."""
         yield from self._yield_listing_request(

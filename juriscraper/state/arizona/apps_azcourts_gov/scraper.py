@@ -31,7 +31,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 from jkent.common.decorators import entry, step
 from jkent.common.exceptions import ScraperAssumptionException
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -43,6 +42,8 @@ from jkent.data_types import (
     ScraperStatus,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
     BASE_URL,
@@ -190,7 +191,7 @@ class ArizonaAppellateScraper(BaseScraper[_Yield]):
 
     @entry(AzAppDocket)
     def dockets_by_updated_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Walk each court's ``_update`` pages (Last Updated DESC) and emit
         every active docket whose Last Updated falls within ``date_range``.

@@ -42,7 +42,6 @@ from jkent.common.exceptions import (
     TransientException,
 )
 from jkent.common.page_element import PageElement
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -55,6 +54,8 @@ from jkent.data_types import (
     SkipDeduplicationCheck,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
     CASE_INFO_URL,
@@ -215,7 +216,7 @@ class OklahomaScraper(BaseScraper[OkDocket]):
     def dockets_by_filing_date(
         self,
         court_ids: set[str],
-        date_range: DateRange,
+        date_range: InferrableDateRange,
     ) -> Generator[Request, None, None]:
         """Date-range scan over every appellate case filed in the window.
 

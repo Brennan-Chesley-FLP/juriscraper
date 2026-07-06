@@ -51,7 +51,6 @@ import re
 from typing import TYPE_CHECKING, ClassVar
 
 from jkent.common.decorators import entry, step
-from jkent.common.param_models import DateRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -65,6 +64,8 @@ from jkent.data_types import (
     XPath,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
     COURT_COA,
@@ -175,7 +176,7 @@ class NorthCarolinaAppellateScraper(
 
     @entry(NCAppealsDocket)
     def dockets_by_filing_date(
-        self, court_ids: set[str], date_range: DateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Walk the e-filing library for every case touched in the date
         range.

@@ -54,6 +54,7 @@ from juriscraper.state.common.ctrack import (
     build_search_form_skeleton,
     parse_dwr_doc_link_anchors,
 )
+from juriscraper.state.common.headers import JURISCRAPER
 from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
@@ -66,7 +67,7 @@ from .parsers.case_detail import CaseDetailParser
 from .parsers.search_listing import SearchListingParser
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Mapping
 
     from jkent.data_types import ScraperYield
 
@@ -105,6 +106,12 @@ class SouthCarolinaAppellateScraper(BaseScraper[SCAppDocket | SCAppDocument]):
     requires_auth: ClassVar[bool] = False
 
     rate_limits: ClassVar[list[Rate] | None] = [Rate(2, Duration.SECOND)]
+
+    # The ctrack.sccourts.org WAF drops connections whose User-Agent is the
+    # httpx default (`python-httpx/<ver>`) — the socket resets mid-read
+    # (`ReadError`) rather than returning a status. Send the Juriscraper
+    # baseline UA so requests get through.
+    default_headers: ClassVar[Mapping[str, str]] = JURISCRAPER
 
     # 302 from the case-number search lands directly on the detail page.
     driver_requirements: ClassVar[list[DriverRequirement]] = [

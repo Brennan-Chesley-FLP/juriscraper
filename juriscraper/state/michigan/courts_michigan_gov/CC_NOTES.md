@@ -1,14 +1,24 @@
 # Michigan Appellate Courts (courts.michigan.gov) — CC Notes
 
 > Conforms to [`../../SCRAPER_STANDARDS.md`](../../SCRAPER_STANDARDS.md).
-> Two courts (`michctapp` Court of Appeals, `mich` Supreme Court). Pure-JSON
-> Episerver SSR site: the listing endpoint returns `application/json` when
-> called with `expand=*&currentPageUrl=%2Fcase-search%2F`. Runs plain HTTP
-> (`driver_requirements = []`) — no captcha, no JS, on the listing/single-case
-> paths. Because the site is JSON (not HTML), per-item extraction lives in the
-> `parsers/` package as a JSON parser (`ListingItemParser`), not an HTML
-> `JKentParser` (which only wraps lxml); steps keep navigation (pagination,
-> per-court fan-out, single-case lookup). Model fields follow
+> Two courts (`michctapp` Court of Appeals, `mich` Supreme Court). Episerver
+> SSR SPA fronted by Cloudflare. The full per-case detail JSON is gated by an
+> *invisible* hCaptcha the SPA mints per page-load, so the scraper runs under
+> **Camoufox** (`driver_requirements = [JS_EVAL, FF_ALIKE, HCAP_HANDLER]`) and
+> lets the page mint the token: it navigates to a page and **promotes** the
+> JSON the page fetches in the background via the driver's `Request.incidental`
+> mechanism (`Singular(...)` matches the captured request; its response is
+> pre-resolved into a follow-up request with no second round-trip). Because the
+> transport is binary (a browser requirement makes the whole scraper
+> browser-bound) and the server serves the HTML shell to any top-level
+> navigation (keying on `Sec-Fetch-Dest: document`, not `Accept`), even the
+> listing JSON is obtained this way: navigate to the listing URL, then promote
+> the SPA's own client-side listing `fetch` (`resource_type="fetch"`
+> disambiguates it from the same-URL HTML document). Case-detail extraction
+> lives in `parsers/` as a JSON parser (`CaseDetailParser`), not an HTML
+> `JKentParser` (lxml-only); steps keep navigation (pagination, per-court
+> fan-out, the navigate→promote handshake, and reading the case number +
+> filing date off each listing item to window and fan out). Model fields follow
 > [`../../CL_MODELS.md`](../../CL_MODELS.md): `court` (not `court_id`),
 > `docket_number` (not `docket_id`), `date_*` date naming,
 > `CleanString`/`HarmonizedCaseName` cleaning.
@@ -18,12 +28,16 @@
 - **Base URL**: `https://www.courts.michigan.gov/case-search/`
 - **Backend**: ASP.NET / Episerver SPA, fronted by Cloudflare, with hCaptcha
   (sitekey `9bf9cc63-9d2e-4f54-98f8-8d3063233b9c`) gating the case-detail JSON
-  endpoints only.
-- **Requires Playwright**: No, for what this scraper does:
-  - **Listing / single-case endpoints** — plain HTTP works, no captcha.
-  - **Per-case detail JSON endpoints** — require an hCaptcha JWT in the
-    `captchatoken` header (out of scope, see below).
-  - **Document downloads (PDFs)** — direct, no captcha.
+  endpoints.
+- **Requires a browser**: **Yes** (Camoufox). The case-detail JSON needs the
+  invisible-hCaptcha `captchatoken` the SPA mints per page-load; we navigate
+  and promote the resulting XHR rather than forge it. Since the transport is
+  binary, the whole scraper is browser-bound — the listing is obtained by
+  promoting the SPA's client-side `fetch` (a top-level navigation always
+  returns the HTML shell, and the SSR HTML does **not** embed results). The
+  passive hCaptcha resolves without interaction in practice; `HCAP_HANDLER` is
+  belt-and-suspenders for a visible-challenge escalation.
+  - **Document downloads (PDFs)** — direct, no captcha (not yet implemented).
 
 The user-facing site terms ("Bulk data downloads … prohibited") apply to
 redistribution; the JSON endpoints are publicly accessible.
@@ -114,24 +128,23 @@ integer space is what `dockets_by_number` speculates over.
 
 ## Data Available
 
-### Case summary (listing API; no captcha) — what this scraper collects
-docket number, caption (`case_name`), filing date, originating trial court(s),
-source URL, has-opinions / has-orders flags, COA/MSC/COC status & cross
-references.
+### Case summary (listing `fetch`) — used to discover + window cases
+docket number, caption, filing date, originating trial court(s), has-opinions
+/ has-orders flags, COA/MSC/COC status & cross references. Drives pagination
+and the per-case fan-out; the detail record supersedes it as the output.
 
-### Case detail (full — captcha-gated, NOT collected)
-All summary fields plus dockets, parties, attorneys, judges, judgments,
-opinion/order/brief docket subsets, consolidations, related cases.
+### Case detail (full — captcha-gated, now collected)
+All summary fields plus parties + attorneys of record, register-of-actions
+docket entries, judges, trial-court judgments, case-type codes, and related
+COA/MSC case numbers — parsed by `CaseDetailParser` from the promoted
+`get*casedetaildata` JSON.
 
 ## Out of Scope
 
-- **Full case detail** (`/c/courts/get*casedetaildata/{id}`): gated by an
-  *invisible* execute-mode hCaptcha (JWT in a `captchatoken` header, issued
-  per page-load by the SPA). kent's `HCAP_HANDLER` covers visible challenge
-  widgets; this invisible flow needs a tailored Playwright step, deferred.
-- **Opinions / orders result types** (`resultType=opinions|orders`): the
-  listing's has-opinions/has-orders flags are captured; the PDF-document
-  enumeration is not yet implemented.
+- **Opinions / orders result types** (`resultType=opinions|orders`) and the
+  **document PDFs** linked under docket entries: the has-opinions/has-orders
+  flags and document metadata are captured; PDF download/archive is not yet
+  implemented.
 - **Email notifications / oral-argument calendar**: no per-case alerts or
   date-searchable OA calendar exposed in the public case-search UI.
 
@@ -141,32 +154,45 @@ opinion/order/brief docket subsets, consolidations, related cases.
 
 | Entry | Param | Purpose |
 |-------|-------|---------|
-| `dockets_by_filing_date(court_ids, date_range)` | `DateRange` | Walk each requested court's `Newest` listing; stop when filing date < `start`. |
-| `dockets_by_number(docket_number)` | `MichCourtRange` | Speculative single-case lookup by site case number; court carried on the range (§4 multi-court speculative). |
+| `dockets_by_filing_date(court_ids, date_range)` | `DateRange` | Walk each requested court's `Newest` listing, fan out a detail fetch per in-window case; stop when filing date < `start`. |
+| `dockets_by_number(docket_number)` | `MichCourtRange` | Speculative single-case lookup: navigate straight to the case page and promote its detail XHR. Court rides on the range (§4 multi-court speculative). |
 
 `dockets_by_number` takes a `MichCourtRange` (subclass of the shared
 `CourtRange`) because the driver dispatches a speculative entry with **only**
-its speculative param — the target court rides on the range and `search_key()`
-translates the CL id to the site's `aAppellateCourt` value. Seed one per court.
+its speculative param — the target court rides on the range. Seed one per court.
 
 ### Step functions and priorities (§5)
 
+Every JSON payload is reached by a **navigate → promote** handshake: a browser
+navigation captures the page's background request as an incidental, and a
+follow-up `incidental=Singular(...)` request promotes that captured response
+(pre-resolved at enqueue — no second network round-trip).
+
 ```
-dockets_by_filing_date → parse_listing_page (3) ──→ ParsedData (per in-window item)
-                                           └─(next page)→ parse_listing_page (3)
-dockets_by_number ───────────────────────→ parse_single_case (2) → ParsedData
+dockets_by_filing_date → (listing nav) → promote_listing (4)
+    → parse_listing_page (3) ──(per in-window case)→ (detail nav) → promote_detail (2)
+    │                        └─(next page)→ promote_listing (4)
+    └ (detail nav) → promote_detail (2) → parse_case_detail (1) → ParsedData
+
+dockets_by_number → (detail nav) → promote_detail (2) → parse_case_detail (1)
 ```
 
-No downloads in this version, so nothing at priority 0–1.
+`promote_listing` pins `resource_type="fetch"` to select the SPA's JSON
+listing fetch over the same-URL HTML document. `promote_detail` matches
+`*casedetaildata*`. No PDF downloads yet, so nothing at priority 0.
 
 ### Deduplication keys (§6)
 
-- Listing pages use `SkipDeduplicationCheck()` (pagination postbacks are
-  non-idempotent: page N depends on the live Newest ordering).
-- `single_case:<court>:<n>` — each single-case lookup.
+- Listing navs + their promote use `SkipDeduplicationCheck()` (pagination
+  depends on the live Newest ordering; non-idempotent).
+- `detail_nav:<court>:<n>` — each detail-page navigation.
+- `detail:<court>:<n>` — each detail promote (one docket per case).
 
 ### Data types
 
 `MichDocket` (main, → CL `Docket`) with nested `MichTrialCourtRef`
-(→ CL `OriginatingCourtInformation`). The captcha-gated party/attorney/
-register-of-actions models are reserved for a future detail step.
+(→ CL `OriginatingCourtInformation`), `MichParty` (→ `Party`) carrying
+`MichAttorney` (→ `Attorney`), `MichDocketEntry` (→ `DocketEntry`) carrying
+`MichDocument`, and `MichJudgment` (originating-court detail). Summary fields
+come from the listing; the detail collections are filled by `CaseDetailParser`
+from the promoted `get*casedetaildata` JSON (`has_detail=True`).

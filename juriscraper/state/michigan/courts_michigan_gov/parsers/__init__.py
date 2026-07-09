@@ -1,5 +1,5 @@
 """Page parsers for the Michigan courts scraper."""
 
-from .listing import ListingItemParser
+from .detail import CaseDetailParser
 
-__all__ = ["ListingItemParser"]
+__all__ = ["CaseDetailParser"]

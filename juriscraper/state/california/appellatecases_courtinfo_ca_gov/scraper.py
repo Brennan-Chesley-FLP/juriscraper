@@ -777,4 +777,6 @@ class CaAppScraper(BaseScraper[_Yield]):
         pages are let through (return True) so ``parse_case_summary`` can
         yield ``CaAppCaseUnavailable``.
         """
-        return "inputError" not in response.url
+        return ("inputError" not in response.url) and (
+            "Case Not Found" not in response.text
+        )

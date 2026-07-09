@@ -59,14 +59,91 @@ class MichTrialCourtRef(ScrapedData):
     """Trial court display name (e.g. ``KALAMAZOO CIRCUIT COURT``)."""
 
 
+class MichAttorney(ScrapedData):
+    """An attorney of record on a party (from the case-detail JSON).
+
+    Maps loosely to CourtListener ``Attorney``. ``appoint_type`` is the
+    site's appointment role (e.g. ``Prosecutor``, ``Retained``); ``p_number``
+    is the Michigan attorney "P-number" bar id.
+    """
+
+    name: CleanString
+    p_number: int | None = None
+    appoint_type: CleanString | None = None
+
+
+class MichParty(ScrapedData):
+    """A party to the appeal (from the case-detail JSON).
+
+    Maps to CourtListener ``Party``. ``connections`` is the site's role
+    string (e.g. ``Plaintiff - Appellee``); attorneys of record are nested.
+    """
+
+    name: HarmonizedCaseName
+    number: int | None = None
+    connections: CleanString | None = None
+    """Role string, e.g. ``Plaintiff - Appellee``."""
+    self_represented: bool | None = None
+    prisoner_id: CleanString | None = None
+    attorneys: list[MichAttorney] = []
+
+
+class MichDocument(ScrapedData):
+    """A document linked to a docket entry (opinion/order/brief PDF).
+
+    Maps to CourtListener ``RECAPDocument``-ish. The public case-detail JSON
+    exposes documents under docket entries; ``url`` is the site-relative or
+    absolute link when present.
+    """
+
+    description: CleanString | None = None
+    url: CleanString | None = None
+    document_type: CleanString | None = None
+
+
+class MichDocketEntry(ScrapedData):
+    """A register-of-actions entry (from the case-detail ``dockets`` list).
+
+    Maps to CourtListener ``DocketEntry``. Future-dated events are ordinary
+    docket entries (they are not modeled as a separate scheduled-hearing
+    type). ``documents`` carries any linked filings for the entry.
+    """
+
+    event_number: int | None = None
+    date_event: date | None = None
+    event_description: CleanString | None = None
+    event_abbreviation: CleanString | None = None
+    event_type: CleanString | None = None
+    docket_type: CleanString | None = None
+    date_service: date | None = None
+    filing_attorney: CleanString | None = None
+    fee_code: CleanString | None = None
+    is_open: bool | None = None
+    documents: list[MichDocument] = []
+
+
+class MichJudgment(ScrapedData):
+    """A trial-court judgment being appealed (from ``judgments``).
+
+    Maps to CourtListener ``OriginatingCourtInformation`` detail: the trial
+    court, its case number, and the judge whose ruling is on appeal.
+    """
+
+    case_type: CleanString | None = None
+    trial_court_name: CleanString | None = None
+    trial_court_case_number: CleanString | None = None
+    trial_court_judge_name: CleanString | None = None
+
+
 class MichDocket(ScrapedData):
     """A Michigan appellate-court docket — the main scraper output.
 
     One record per ``(court, docket_number)`` combination. Maps to
-    CourtListener ``Docket``. Fields that are only present in the
-    captcha-gated case-detail JSON (parties, attorneys,
-    register-of-actions entries, judges) are not populated by the
-    listing-driven flow; see ``CC_NOTES.md`` for context.
+    CourtListener ``Docket``. The listing-driven flow fills the summary
+    fields; the browser-captured case-detail JSON (promoted from the
+    invisible-hCaptcha-gated ``get*casedetaildata`` XHR) fills the detail
+    collections (parties, docket entries, judges, judgments). See
+    ``CC_NOTES.md``.
     """
 
     # === Identity ===
@@ -117,6 +194,36 @@ class MichDocket(ScrapedData):
     source_entry_point: str | None = None
     """Entry point used to reach this docket (e.g.
     ``dockets_by_filing_date``)."""
+
+    # === Case detail (from the captcha-gated get*casedetaildata JSON) ===
+    # All default empty/None so a listing-only record validates unchanged;
+    # the detail step promotes the gated XHR and fills these in.
+    date_last_updated: date | None = None
+    """When the site last updated the case (``caseLastUpdated``)."""
+
+    case_types: list[CleanString] = []
+    """Site case-type codes (e.g. ``CSC-1``)."""
+
+    parties: list[MichParty] = []
+    """Parties to the appeal, with nested attorneys of record."""
+
+    docket_entries: list[MichDocketEntry] = []
+    """Register-of-actions entries (CL ``DocketEntry``)."""
+
+    judges: list[CleanString] = []
+    """Judge names associated with the case."""
+
+    judgments: list[MichJudgment] = []
+    """Trial-court judgments under appeal (originating-court detail)."""
+
+    related_coa_case_numbers: list[int] = []
+    """Related Court of Appeals case numbers."""
+
+    related_msc_case_numbers: list[int] = []
+    """Related Supreme Court case numbers."""
+
+    has_detail: bool = False
+    """True when the case-detail JSON was successfully promoted and parsed."""
 
 
 # =========================================================================

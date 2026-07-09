@@ -7,7 +7,7 @@ plain REST backend; no HTML parsing is required.
 
 Entry point:
 
-- ``get_dockets_by_date(court_ids, date_range)`` — fans out one search
+- ``dockets_by_filing_date(court_ids, date_range)`` — fans out one search
   per requested court (``ark`` → Supreme Court, ``arkctapp`` → Court of
   Appeals).
 
@@ -41,7 +41,6 @@ from jkent.data_types import (
     Response,
     ScraperStatus,
 )
-from pydantic import BaseModel
 from pyrate_limiter import Duration, Rate
 
 from juriscraper.state.common.params import InferrableDateRange
@@ -72,16 +71,6 @@ DOCUMENT_URL = f"{BASE_URL}/api/documents"
 PAGE_SIZE = 500
 
 
-class CourtIds(BaseModel):
-    """CourtListener court ids to scrape.
-
-    Each id is dispatched to its caseinfo search path: ``ark`` →
-    Arkansas Supreme Court, ``arkctapp`` → Arkansas Court of Appeals.
-    """
-
-    court_ids: list[str]
-
-
 class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
     """Scraper for Arkansas Supreme Court and Court of Appeals.
 
@@ -107,7 +96,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
 
     @entry(ArDocket)
     def dockets_by_filing_date(
-        self, court_ids: CourtIds, date_range: InferrableDateRange
+        self, court_ids: set[str], date_range: InferrableDateRange
     ) -> Generator[Request, None, None]:
         """Fetch dockets filed in ``date_range`` for each requested court.
 
@@ -116,15 +105,13 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
         Unknown ids are rejected so a typo fails loudly rather than
         silently scraping nothing.
         """
-        unknown = [
-            cid for cid in court_ids.court_ids if cid not in COURT_ID_TO_NAME
-        ]
+        unknown = [cid for cid in court_ids if cid not in COURT_ID_TO_NAME]
         if unknown:
             raise ValueError(
                 f"Unknown Arkansas court id(s): {unknown}. "
                 f"Supported: {sorted(COURT_ID_TO_NAME)}."
             )
-        for court_id in court_ids.court_ids:
+        for court_id in court_ids:
             yield self._build_search_request(
                 COURT_ID_TO_NAME[court_id], date_range, page=1
             )

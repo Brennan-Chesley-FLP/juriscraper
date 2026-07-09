@@ -382,7 +382,14 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
     @staticmethod
     def _parse_dockets(raw: list[dict]) -> list[ArDocketEntry]:
         entries: list[ArDocketEntry] = []
-        for d in raw:
+        raw_sorted = sorted(
+            raw,
+            key=lambda e: (
+                e.get("docketSeqNo", None) is None,
+                e.get("docketSeqNo"),
+            ),
+        )
+        for d in raw_sorted:
             entries.append(
                 ArDocketEntry.raw(
                     docket_seq_no=d.get("docketSeqNo"),
@@ -394,14 +401,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
                     entity_name=d.get("entityName"),
                 )
             )
-        # Sort by sequence number when present so consumers see a stable
-        # order regardless of how the API happened to return rows.
-        entries.sort(
-            key=lambda e: (
-                e.get("docket_seq_no", None) is None,
-                e.get("docket_seq_no"),
-            )
-        )
+
         return entries
 
     @staticmethod

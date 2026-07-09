@@ -427,15 +427,15 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
     @staticmethod
     def _parse_milestones(raw: list[dict]) -> list[ArMilestone]:
         return [
-            ArMilestone.raw(
-                milestone_code=m.get("milestoneCode"),
-                description=m.get("milestoneDesc"),
-                seq_no=m.get("milestoneSeqNo"),
-                order_seq_no=m.get("milestoneOseqNo"),
-                due_date=_parse_iso_date(m.get("dueDate")),
-                changed_due_date=_parse_iso_date(m.get("changedDueDate")),
-                filing_date=_parse_iso_date(m.get("filingDate")),
-            )
+            {
+                "milestone_code": m.get("milestoneCode"),
+                "description": m.get("milestoneDesc"),
+                "seq_no": m.get("milestoneSeqNo"),
+                "order_seq_no": m.get("milestoneOseqNo"),
+                "due_date": _parse_iso_date(m.get("dueDate")),
+                "changed_due_date": _parse_iso_date(m.get("changedDueDate")),
+                "filing_date": _parse_iso_date(m.get("filingDate")),
+            }
             for m in raw
         ]
 

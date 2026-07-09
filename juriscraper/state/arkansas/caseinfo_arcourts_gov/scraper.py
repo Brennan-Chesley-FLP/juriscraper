@@ -396,7 +396,12 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
             )
         # Sort by sequence number when present so consumers see a stable
         # order regardless of how the API happened to return rows.
-        entries.sort(key=lambda e: (e.docket_seq_no is None, e.docket_seq_no))
+        entries.sort(
+            key=lambda e: (
+                e.get("docket_seq_no", None) is None,
+                e.get("docket_seq_no"),
+            )
+        )
         return entries
 
     @staticmethod

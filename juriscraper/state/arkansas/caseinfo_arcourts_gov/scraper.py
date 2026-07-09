@@ -391,17 +391,16 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
         )
         for d in raw_sorted:
             entries.append(
-                ArDocketEntry.raw(
-                    docket_seq_no=d.get("docketSeqNo"),
-                    docket_type=d.get("docketType"),
-                    description=d.get("docketDesc"),
-                    text=d.get("docketText"),
-                    date_filed=_parse_iso_date(d.get("docketFilingDate")),
-                    entity_id=d.get("entityId"),
-                    entity_name=d.get("entityName"),
-                )
+                {
+                    "docket_seq_no": d.get("docketSeqNo"),
+                    "docket_type": d.get("docketType"),
+                    "description": d.get("docketDesc"),
+                    "text": d.get("docketText"),
+                    "date_filed": _parse_iso_date(d.get("docketFilingDate")),
+                    "entity_id": d.get("entityId"),
+                    "entity_name": d.get("entityName"),
+                }
             )
-
         return entries
 
     @staticmethod

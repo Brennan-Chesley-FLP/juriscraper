@@ -225,6 +225,52 @@ class TROriginatingCase(ScrapedData):
     """Case number in the originating court, from ``originatingCaseNumber``."""
 
 
+class TRTicklerDueFrom(ScrapedData):
+    """A party a tickler deadline runs from.
+
+    Pulled from each entry of a tickler's ``dueFroms`` list.
+    """
+
+    sort_name: str | None = None
+    """Sort name of the responsible party, from
+    ``partyActorInstance.sortName``."""
+
+
+class TRTickler(ScrapedData):
+    """A tickler (upcoming case deadline) from a TR Portal court system.
+
+    Ticklers track a case's scheduled deadlines — the briefing schedule,
+    record/transcript due dates, corrections due, etc. Pulled from the
+    per-case ``/ticklers`` endpoint (the portal's "Ticklers" tab).
+
+    Not every C-Track deployment populates ticklers; some expose the
+    endpoint but return no rows.
+    """
+
+    due_date: date | None = None
+    """Date the item is due (date portion of ``dueDate``)."""
+
+    tickler_type: str | None = None
+    """Deadline type string (e.g., 'Appellant Brief Due'), from
+    ``ticklerType``."""
+
+    tickler_type_id: int | None = None
+    """Numeric ID of the tickler type, from ``ticklerTypeID``."""
+
+    tickler_status: str | None = None
+    """Status string (e.g., 'Open', 'Satisfied'), from ``ticklerStatus``."""
+
+    tickler_status_id: int | None = None
+    """Numeric ID of the tickler status, from ``ticklerStatusID``."""
+
+    due_froms: list[TRTicklerDueFrom] = []
+    """Parties the deadline runs from, from ``dueFroms``."""
+
+    docket_entry_uuid: str | None = None
+    """UUID of the docket entry that triggered this deadline, from
+    ``docketEntryHeader.docketEntryUUID`` (when the API includes it)."""
+
+
 class TRDocket(ScrapedData):
     """A docket from a TR Portal court system.
 
@@ -310,6 +356,12 @@ class TRDocket(ScrapedData):
     # === Oral arguments ===
     oral_arguments: list[dict] = []
     """Scheduled oral arguments for this case"""
+
+    # === Ticklers (deadlines) ===
+    ticklers: list[TRTickler] = []
+    """Scheduled case deadlines (briefing schedule, record/transcript due
+    dates, etc.), from the per-case ticklers endpoint. Only populated for
+    courts whose scraper sets ``TR_FETCH_TICKLERS`` and that expose data."""
 
     # === Source tracking ===
     source_url: str | None = None

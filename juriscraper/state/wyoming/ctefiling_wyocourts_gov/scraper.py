@@ -25,9 +25,10 @@ Dockets Flow (dockets_by_filing_date):
      - Paginates through all results
   3. parse_case_detail -> parses case header, yields party fetch request
   4. parse_case_parties -> parses parties, yields docket entries fetch request
-  5. parse_docket_entries -> parses entries, chains into the documents fetch
-  6. parse_documents_list -> queues per-document archive downloads, yields WyoDocket
-  7. parse_document_download -> emits a WyoDocument per archived file
+  5. parse_docket_entries -> parses entries, chains into the ticklers fetch
+  6. parse_ticklers_list -> parses deadlines, chains into the documents fetch
+  7. parse_documents_list -> queues per-document archive downloads, yields WyoDocket
+  8. parse_document_download -> emits a WyoDocument per archived file
 
 Oral Arguments Flow (oral_arguments_by_argument_date):
   1. oral_arguments_by_argument_date -> events API search
@@ -96,6 +97,8 @@ class WyomingScraper(
     TR_API_BASE_URL: ClassVar[str] = API_BASE_URL
     TR_PORTAL_URL: ClassVar[str] = PORTAL_URL
     TR_COURT_CONFIG: ClassVar[dict] = COURT_CONFIG
+    # Wyoming populates the per-case ticklers (deadlines) endpoint.
+    TR_FETCH_TICKLERS: ClassVar[bool] = True
 
     # === Model classes ===
     DOCKET_CLASS: ClassVar[type] = WyoDocket
@@ -171,8 +174,21 @@ class WyomingScraper(
     ) -> Generator[
         ScraperYield[WyoDocket | WyoDocument | WyoOralArgument], None, None
     ]:
-        """Parse docket entries and chain into the documents fetch."""
+        """Parse docket entries and chain into the ticklers fetch."""
         yield from self._tr_handle_docket_entries(
+            json_content, accumulated_data
+        )
+
+    @step(priority=2)
+    def parse_ticklers_list(
+        self,
+        json_content: dict,
+        accumulated_data: dict,
+    ) -> Generator[
+        ScraperYield[WyoDocket | WyoDocument | WyoOralArgument], None, None
+    ]:
+        """Parse ticklers (deadlines) and chain into the documents fetch."""
+        yield from self._tr_handle_ticklers_list(
             json_content, accumulated_data
         )
 

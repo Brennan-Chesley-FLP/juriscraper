@@ -27,6 +27,9 @@ Expected step method names on the subclass (referenced by continuations):
     parse_docket_entries, parse_documents_list, parse_document_download,
     parse_events_list, parse_event_hearings,
     parse_publications_list, parse_publication_detail
+
+Subclasses that set ``TR_FETCH_TICKLERS = True`` must additionally define a
+``parse_ticklers_list`` step (see North Dakota / Oregon / Wyoming).
 """
 
 from __future__ import annotations
@@ -48,6 +51,8 @@ from .models import (
     TROriginatingCase,
     TRParty,
     TRRepresentative,
+    TRTickler,
+    TRTicklerDueFrom,
 )
 
 # File extension -> kent expected_type hint
@@ -86,6 +91,15 @@ class TRPortalMixin:
     DOCKETS_MAX_RESULTS: ClassVar[int] = 10000
     DOCKETS_PAGE_SIZE: ClassVar[int] = 50
     DOCUMENTS_PAGE_SIZE: ClassVar[int] = 100
+    TICKLERS_PAGE_SIZE: ClassVar[int] = 100
+
+    # === Ticklers ===
+    # Whether to fetch the per-case ticklers (deadlines) endpoint after
+    # docket entries. Off by default: some C-Track deployments (e.g.
+    # Nevada, Alabama) expose the endpoint but never populate it, so
+    # fetching would just cost an empty request per case. Enable on the
+    # subclass (North Dakota / Oregon / Wyoming) where it carries data.
+    TR_FETCH_TICKLERS: ClassVar[bool] = False
 
     # =========================================================================
     # Date helpers
@@ -627,6 +641,105 @@ class TRPortalMixin:
                     f"docket_entries:{docket.case_instance_uuid}:"
                     f"{current_page + 1}"
                 ),
+            )
+        elif self.TR_FETCH_TICKLERS:
+            yield from self._tr_yield_ticklers_request(docket=docket, page=0)
+        else:
+            yield from self._tr_yield_documents_request(docket=docket, page=0)
+
+    # =========================================================================
+    # Ticklers (deadlines): request builder
+    # =========================================================================
+
+    def _tr_yield_ticklers_request(
+        self, docket, page: int
+    ) -> Generator[Request, None, None]:
+        """Yield a ticklers (deadlines) request for the given case.
+
+        The continuation targets ``self.parse_ticklers_list``. Only used
+        when the subclass sets ``TR_FETCH_TICKLERS``; the chain runs after
+        docket entries and, once the last tickler page is parsed, hands off
+        to the documents fetch.
+        """
+        api_url = (
+            f"{self.TR_API_BASE_URL}/courts/{docket.court_guid}"
+            f"/cms/cases/{docket.case_instance_uuid}/ticklers"
+        )
+        params = {
+            "page": str(page),
+            "size": str(self.TICKLERS_PAGE_SIZE),
+            "sort": "dueDate,asc",
+        }
+        url = f"{api_url}?{urlencode(params)}"
+
+        yield Request(
+            request=HTTPRequestParams(
+                method=HttpMethod.GET,
+                url=url,
+                headers={"Accept": "application/json"},
+            ),
+            continuation=self.parse_ticklers_list,
+            accumulated_data={
+                "docket_data": docket.model_dump(mode="json"),
+            },
+            deduplication_key=(
+                f"ticklers_list:{docket.case_instance_uuid}:{page}"
+            ),
+        )
+
+    # =========================================================================
+    # Ticklers (deadlines): step implementation
+    # =========================================================================
+
+    def _tr_handle_ticklers_list(
+        self,
+        json_content: dict,
+        accumulated_data: dict,
+    ) -> Generator:
+        """Core logic for parse_ticklers_list step.
+
+        Parses tickler (deadline) rows, handles pagination, and once the
+        last page is consumed chains into the documents fetch.
+        """
+        docket = self.DOCKET_CLASS.model_validate(
+            accumulated_data["docket_data"]
+        )
+
+        embedded = json_content.get("_embedded", {}) or {}
+        results = embedded.get("results", []) or []
+
+        page_info = json_content.get("page", {}) or {}
+        current_page = page_info.get("number", 0)
+        total_pages = page_info.get("totalPages", 1)
+
+        ticklers = list(docket.ticklers)
+        for result in results:
+            due_froms: list[TRTicklerDueFrom] = []
+            for due_from in result.get("dueFroms", []) or []:
+                actor = due_from.get("partyActorInstance", {}) or {}
+                due_froms.append(
+                    TRTicklerDueFrom(sort_name=actor.get("sortName"))
+                )
+
+            entry_header = result.get("docketEntryHeader", {}) or {}
+
+            ticklers.append(
+                TRTickler(
+                    due_date=self._tr_parse_date(result.get("dueDate", "")),
+                    tickler_type=result.get("ticklerType") or None,
+                    tickler_type_id=result.get("ticklerTypeID"),
+                    tickler_status=result.get("ticklerStatus") or None,
+                    tickler_status_id=result.get("ticklerStatusID"),
+                    due_froms=due_froms,
+                    docket_entry_uuid=entry_header.get("docketEntryUUID"),
+                )
+            )
+
+        docket.ticklers = ticklers
+
+        if current_page + 1 < total_pages:
+            yield from self._tr_yield_ticklers_request(
+                docket=docket, page=current_page + 1
             )
         else:
             yield from self._tr_yield_documents_request(docket=docket, page=0)

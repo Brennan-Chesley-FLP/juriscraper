@@ -17,6 +17,8 @@ _COURT_PARAM_RE = re.compile(r"[?&]court=(\d+)")
 _ISTART_RE = re.compile(r"[?&]iStart=(\d+)")
 # Pull the document id from a ``show-file.php`` URL.
 _DOC_ID_RE = re.compile(r"document_id=(\d+)")
+# Pull the 1-based volume from a multi-volume ``show-file.php`` URL.
+_VOLUME_NUM_RE = re.compile(r"volume_number=(\d+)")
 
 
 def clean(value: str | None) -> str | None:

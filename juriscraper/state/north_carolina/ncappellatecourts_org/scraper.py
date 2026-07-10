@@ -48,6 +48,7 @@ page.
 from __future__ import annotations
 
 import re
+from datetime import date, timedelta
 from typing import TYPE_CHECKING, ClassVar
 
 from jkent.common.decorators import entry, step
@@ -60,7 +61,6 @@ from jkent.data_types import (
     Request,
     Response,
     ScraperStatus,
-    SkipDeduplicationCheck,
     XPath,
 )
 from pyrate_limiter import Duration, Rate
@@ -101,6 +101,25 @@ _COA_DOCKET_RE = re.compile(r"^P?\d{1,2}-\d+(?:-\d+)?$")
 _SC_DOCKET_RE = re.compile(r"^\d+[A-Z]+\d{2}(?:-\d+)?$")
 
 
+def _iter_date_windows(
+    start: date, end: date, days: int
+) -> Generator[tuple[date, date], None, None]:
+    """Yield inclusive ``(start, end)`` sub-windows of at most ``days`` each.
+
+    ``search-results.php`` paginates 50 cases at a time and its offset-based
+    paging degrades into 504 gateway timeouts once the offset climbs past a
+    few hundred rows (see ``parse_filings_listing``). Splitting a wide
+    ``date_range`` into narrow windows keeps every search within its first
+    few (reliable) pages. Windows tile the range with no gap or overlap.
+    """
+    step = timedelta(days=days)
+    cursor = start
+    while cursor <= end:
+        window_end = min(cursor + step - timedelta(days=1), end)
+        yield cursor, window_end
+        cursor = window_end + timedelta(days=1)
+
+
 def _route_court(docket_number: str) -> str | None:
     """Best-effort CL court id guess from a visible docket number.
 
@@ -135,6 +154,12 @@ class NorthCarolinaAppellateScraper(
     requires_auth: ClassVar[bool] = False
     driver_requirements: ClassVar[list[DriverRequirement]] = []
     rate_limits: ClassVar[list[Rate] | None] = [Rate(1, Duration.SECOND)]
+
+    # ``search-results.php`` 504s on deep offset pagination (offsets ≥ ~200
+    # were unreliable in testing; offsets ≤ 150 never failed). A date-range
+    # entry is split into windows of this many days so each search stays in
+    # its first few pages. At ~40 filings/day this keeps the offset near 100.
+    filing_window_days: ClassVar[int] = 3
 
     # =========================================================================
     # Entry points (§4)
@@ -189,24 +214,31 @@ class NorthCarolinaAppellateScraper(
         ``bSearchTypeAnd=0`` is required: with the default ``=1`` the
         site silently ignores the date params and returns the whole
         corpus.
+
+        The range is split into ``filing_window_days``-day windows (one
+        seed search each) to keep offset pagination shallow — deep pages
+        504 (see ``parse_filings_listing``).
         """
-        start = date_range.start.isoformat()
-        end = date_range.end.isoformat()
-        yield Request(
-            request=HTTPRequestParams(
-                method=HttpMethod.GET,
-                url=SEARCH_RESULTS_URL,
-                params=self._listing_params(start, end, 0),
-            ),
-            continuation=self.parse_filings_listing,
-            accumulated_data={
-                "start_date": start,
-                "end_date": end,
-                "target_courts": sorted(court_ids),
-                "entry_point": "dockets_by_filing_date",
-            },
-            deduplication_key=SkipDeduplicationCheck(),
-        )
+        for window_start, window_end in _iter_date_windows(
+            date_range.start, date_range.end, self.filing_window_days
+        ):
+            start = window_start.isoformat()
+            end = window_end.isoformat()
+            yield Request(
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET,
+                    url=SEARCH_RESULTS_URL,
+                    params=self._listing_params(start, end, 0),
+                ),
+                continuation=self.parse_filings_listing,
+                accumulated_data={
+                    "start_date": start,
+                    "end_date": end,
+                    "target_courts": sorted(court_ids),
+                    "entry_point": "dockets_by_filing_date",
+                },
+                deduplication_key=f"filings_listing:{start}:{end}:0",
+            )
 
     @staticmethod
     def _listing_params(start: str, end: str, istart: int) -> dict[str, str]:
@@ -304,9 +336,13 @@ class NorthCarolinaAppellateScraper(
                 deduplication_key=f"docket_sheet:{case.docket_number}",
             )
 
-        # Follow-up pages from the iStart selector. We only enqueue
-        # offsets greater than the current page's so the same page isn't
-        # re-fetched.
+        # Follow-up pages from the iStart selector. Every page lists the
+        # full offset set in its dropdown, so we key each follow-up on its
+        # (window, offset) to fetch it exactly once — without this dedup
+        # each of N pages would re-enqueue all higher offsets (O(N²)),
+        # hammering the very deep pages that 504.
+        start_date = accumulated_data["start_date"]
+        end_date = accumulated_data["end_date"]
         current_offset = current_istart(response.url)
         for offset in pagination_offsets(page):
             if offset <= current_offset:
@@ -315,15 +351,11 @@ class NorthCarolinaAppellateScraper(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET,
                     url=SEARCH_RESULTS_URL,
-                    params=self._listing_params(
-                        accumulated_data["start_date"],
-                        accumulated_data["end_date"],
-                        offset,
-                    ),
+                    params=self._listing_params(start_date, end_date, offset),
                 ),
                 continuation=self.parse_filings_listing,
                 accumulated_data=accumulated_data,
-                deduplication_key=SkipDeduplicationCheck(),
+                deduplication_key=f"filings_listing:{start_date}:{end_date}:{offset}",
             )
 
     @step(priority=3)
@@ -415,7 +447,8 @@ class NorthCarolinaAppellateScraper(
 
         # Pagination — the per-case page uses the same ``iStart`` selector
         # as the date-listing page. Most cases have well under 50 filings,
-        # so this branch rarely fires.
+        # so this branch rarely fires. Keyed per (docket, offset) so a page
+        # is fetched once even though every page lists the full offset set.
         current_offset = current_istart(response.url)
         for offset in pagination_offsets(page):
             if offset <= current_offset:
@@ -432,7 +465,7 @@ class NorthCarolinaAppellateScraper(
                 ),
                 continuation=self.parse_case_filings,
                 accumulated_data=accumulated_data,
-                deduplication_key=SkipDeduplicationCheck(),
+                deduplication_key=f"case_filings:{docket_number}:{offset}",
             )
 
     @step(priority=1)

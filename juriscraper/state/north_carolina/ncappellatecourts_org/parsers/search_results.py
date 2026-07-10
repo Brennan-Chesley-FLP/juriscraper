@@ -7,8 +7,9 @@ Two page-types share the eFiling library's HTML:
   window, each with a link to the case's docket sheet; plus the
   ``#pageSelect`` pagination dropdown.
 - the **per-case filings** page (``CaseFilingsParser``) — one
-  ``div.docket-{N}.border-top`` block per e-filed document, with the
-  same pagination dropdown.
+  ``div.docket-{N}.border-top`` block per filing (a multi-volume filing
+  holds one document row per volume within its block), with the same
+  pagination dropdown.
 
 Both parsers keep extraction here; the steps own navigation (per-case
 fan-out, pagination, archive downloads) — see ``scraper.py``.
@@ -31,6 +32,7 @@ from juriscraper.state.north_carolina.ncappellatecourts_org.models import (
 from ._common import (
     _DOC_ID_RE,
     _ISTART_RE,
+    _VOLUME_NUM_RE,
     clean,
     court_from_sheet_url,
     normalize_url,
@@ -55,6 +57,9 @@ _FILING_TEXT_RE = re.compile(
     r"(?P<date>\d{4}-\d{2}-\d{2})\s*$",
     re.DOTALL,
 )
+
+# The ``Volume N of M`` label a multi-volume filing prints after its type.
+_VOLUME_TEXT_RE = re.compile(r"\s*Volume\s+\d+\s+of\s+\d+\s*")
 
 
 def pagination_offsets(page: PageElement) -> list[int]:
@@ -105,8 +110,12 @@ class DocketListingParser(JKentParser[NCAppealsDocument]):
         out: list[ListedCase] = []
         seen_dockets: set[str] = set()
         for block in case_blocks:
+            # The heading ends with a trailing ``<br>`` inside the ``h4``,
+            # which lxml exposes as a second (whitespace-only) text node —
+            # filter to the non-empty text node so a one-line caption still
+            # reads as a single value.
             heading = block.query_strings(
-                XPath(".//h4/text()"),
+                XPath(".//h4/text()[normalize-space()]"),
                 "case heading",
                 min_count=0,
                 max_count=1,
@@ -154,7 +163,17 @@ class CaseFilingsParser(JKentParser[NCAppealsDocument]):
     def documents(
         self, page: PageElement, docket_number: str, court: str
     ) -> list[NCAppealsDocument]:
-        """Return one ``NCAppealsDocument`` per filing block on the page."""
+        """Return one ``NCAppealsDocument`` per filing row on the page.
+
+        Each ``border-top`` block is one *filing*, but a filing can hold
+        several document rows: a multi-volume record renders one
+        ``<a show-file.php…&volume_number=N>`` row per volume, all inside
+        a single block. We therefore descend to the per-row ``div`` under
+        the block's ``col-12`` wrapper and parse each independently — one
+        ``NCAppealsDocument`` per row. Rows that carry no filing text
+        (the trailing spacer, the "Additional filings included within
+        this document" note) parse to ``None`` and are skipped.
+        """
         filing_blocks = page.query(
             XPath(
                 "//div["
@@ -168,26 +187,33 @@ class CaseFilingsParser(JKentParser[NCAppealsDocument]):
         )
         out: list[NCAppealsDocument] = []
         for block in filing_blocks:
-            doc = self._parse_filing_block(block, docket_number, court)
-            if doc is not None:
-                out.append(doc)
+            rows = block.query(
+                XPath(".//div[contains(@class, 'col-12')]/div"),
+                "filing rows",
+                min_count=0,
+            )
+            for row in rows:
+                doc = self._parse_filing_block(row, docket_number, court)
+                if doc is not None:
+                    out.append(doc)
         return out
 
     @classmethod
     def _parse_filing_block(
-        cls, block: PageElement, docket_number: str, court: str
+        cls, row: PageElement, docket_number: str, court: str
     ) -> NCAppealsDocument | None:
-        """Extract one filing's metadata + URL from its container div.
+        """Extract one filing's metadata + URL from a single document row.
 
-        Returns ``None`` for blocks that don't represent a filing (e.g.
-        the case-header row that opens each per-case page, or empty
-        spacers).
+        Returns ``None`` for rows that don't represent a filing (e.g.
+        the trailing spacer, or the "Additional filings included within
+        this document" note that lists bundled sub-filings with no
+        download links of their own).
         """
         # Combined text content drives type / filer / date parsing. A
         # trailing ``(Sealed)`` marker is split off before the regex
         # runs; we record it as a flag rather than letting it fall into
         # the date-anchored regex.
-        body = clean(block.text_content()) or ""
+        body = clean(row.text_content()) or ""
         is_sealed = False
         if body.endswith("(Sealed)"):
             is_sealed = True
@@ -196,7 +222,13 @@ class CaseFilingsParser(JKentParser[NCAppealsDocument]):
         match = _FILING_TEXT_RE.match(body)
         if not match:
             return None
-        type_subtype = clean(match.group("rest")) or ""
+        # A multi-volume filing renders ``Type ( subtype )Volume N of M``
+        # (the ``<br>`` between them collapses to nothing in text), so
+        # drop the volume label before splitting the type. The volume is
+        # preserved on ``document_id`` / ``document_url`` below.
+        type_subtype = _VOLUME_TEXT_RE.sub(
+            "", clean(match.group("rest")) or ""
+        )
         document_type, subtype = cls._split_type_subtype(type_subtype)
         filer = clean(match.group("filer"))
         try:
@@ -204,7 +236,7 @@ class CaseFilingsParser(JKentParser[NCAppealsDocument]):
         except ValueError:
             filed = None
 
-        href_values = block.query_strings(
+        href_values = row.query_strings(
             XPath(".//a[contains(@href, 'show-file.php')]/@href"),
             "show-file href",
             min_count=0,
@@ -218,6 +250,12 @@ class CaseFilingsParser(JKentParser[NCAppealsDocument]):
             id_match = _DOC_ID_RE.search(document_url)
             if id_match:
                 document_id = id_match.group(1)
+                # Volumes of one filing share a ``document_id`` but differ
+                # by ``volume_number`` — fold the volume in so each volume
+                # keeps a distinct id (and a distinct archive dedup key).
+                vol_match = _VOLUME_NUM_RE.search(document_url)
+                if vol_match:
+                    document_id = f"{document_id}-{vol_match.group(1)}"
 
         return NCAppealsDocument(
             docket_number=docket_number,

@@ -43,6 +43,7 @@ from jkent.common.param_models import DateRange
 from jkent.data_types import BaseScraper, DriverRequirement, ScraperStatus
 from pyrate_limiter import Duration, Rate
 
+from juriscraper.state.common.params import InferrableDateRange
 from juriscraper.state.common.tr.scraper import TRPortalMixin
 
 from .models import (
@@ -110,7 +111,7 @@ class NorthDakotaScraper(
     def dockets_by_filing_date(
         self,
         court_ids: set[str],
-        date_range: DateRange,
+        date_range: InferrableDateRange,
     ) -> Generator[Request, None, None]:
         """Enumerate dockets filed within ``date_range`` for ``court_ids``.
 

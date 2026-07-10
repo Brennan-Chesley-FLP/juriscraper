@@ -110,19 +110,25 @@ class DocketListingParser(JKentParser[NCAppealsDocument]):
         out: list[ListedCase] = []
         seen_dockets: set[str] = set()
         for block in case_blocks:
-            # The heading ends with a trailing ``<br>`` inside the ``h4``,
-            # which lxml exposes as a second (whitespace-only) text node —
-            # filter to the non-empty text node so a one-line caption still
-            # reads as a single value.
-            heading = block.query_strings(
-                XPath(".//h4/text()[normalize-space()]"),
+            # The heading is ``{docket} : {caption}``. A caption may wrap
+            # across several ``<br>``-separated lines (the full party block:
+            # ``MARC HUBBARD,`` / ``Plaintiff-Appellant`` / ``v.`` / …), so
+            # read the whole ``h4``'s text and collapse it to one line rather
+            # than picking a single text node.
+            heading_elems = block.query(
+                XPath(".//h4"),
                 "case heading",
                 min_count=0,
                 max_count=1,
             )
+            heading = (
+                clean(heading_elems[0].text_content())
+                if heading_elems
+                else None
+            )
             if not heading:
                 continue
-            docket_number, _, case_name = heading[0].partition(" : ")
+            docket_number, _, case_name = heading.partition(" : ")
             docket_number = clean(docket_number) or ""
             case_name = clean(case_name) or ""
             if not docket_number or docket_number in seen_dockets:

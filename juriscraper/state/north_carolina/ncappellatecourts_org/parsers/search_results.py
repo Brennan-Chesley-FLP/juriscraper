@@ -134,7 +134,12 @@ class DocketListingParser(JKentParser[NCAppealsDocument]):
             if not docket_number or docket_number in seen_dockets:
                 continue
             sheet_hrefs = block.query_strings(
-                XPath(".//a[contains(@href, 'pdf=1')]/@href"),
+                # Anchor on the link's visible label rather than a URL
+                # substring. ``contains(@href, 'pdf=1')`` also matched the
+                # sibling Opinion link (``opinions/?c=1&pdf=184`` contains
+                # the substring ``pdf=1``), tripping the max_count=1 assert.
+                # The docket-sheet anchor is always labelled "Docket Sheet".
+                XPath(".//a[normalize-space(.)='Docket Sheet']/@href"),
                 "docket sheet link",
                 min_count=0,
                 max_count=1,

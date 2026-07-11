@@ -49,6 +49,7 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
+from juriscraper.state.common.headers import FF_HEADERS
 from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
@@ -65,7 +66,7 @@ from .parsers import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Mapping
 
     from jkent.data_types import ScraperYield
 
@@ -101,6 +102,9 @@ class OklahomaScraper(BaseScraper[OkDocket]):
     requires_auth: ClassVar[bool] = False
     driver_requirements: ClassVar[list[DriverRequirement]] = []
     rate_limits: ClassVar[list[Rate] | None] = [Rate(1, Duration.SECOND)]
+    # OSCN's WAF intermittently 403s the honest ``Juriscraper``/httpx UA;
+    # present a full desktop-Firefox fingerprint instead.
+    default_headers: ClassVar[Mapping[str, str]] = FF_HEADERS
 
     # =========================================================================
     # Search-request helpers

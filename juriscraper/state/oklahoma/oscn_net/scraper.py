@@ -24,11 +24,6 @@ Flow:
                                   └→ parse_lower_court_case → ParsedData
                                   └→ (archive) handle_document_download
     docket_by_number ──────────────────────────→ parse_case_detail → ...
-
-Cloudflare note: ``curl`` succeeds today, but the user has reported the
-occasional Cloudflare interstitial. Each parsing step calls
-``_check_cloudflare_interstitial`` which raises ``TransientException``
-when it detects the challenge body so the driver retries the request.
 """
 
 from __future__ import annotations
@@ -39,7 +34,6 @@ from typing import TYPE_CHECKING, ClassVar
 from jkent.common.decorators import entry, step
 from jkent.common.exceptions import (
     ScraperAssumptionException,
-    TransientException,
 )
 from jkent.common.page_element import PageElement
 from jkent.data_types import (
@@ -106,49 +100,7 @@ class OklahomaScraper(BaseScraper[OkDocket]):
     last_verified: ClassVar[str] = "2026-04-30"
     requires_auth: ClassVar[bool] = False
     driver_requirements: ClassVar[list[DriverRequirement]] = []
-    rate_limits: ClassVar[list[Rate] | None] = [Rate(2, Duration.SECOND)]
-
-    # =========================================================================
-    # Transient / Cloudflare detection
-    # =========================================================================
-
-    @staticmethod
-    def _check_cloudflare_interstitial(
-        response: Response,
-        text: str | None = None,
-    ) -> None:
-        """Raise ``TransientException`` if the response looks like a
-        Cloudflare challenge page.
-
-        The OSCN site is normally directly reachable, but the user has
-        reported intermittent Cloudflare interstitials. We detect them
-        from a combination of status 403/503 + ``cf-ray`` header, a
-        challenge-platform body, or a known challenge title. On a hit we
-        raise ``TransientException`` so the kent driver retries rather
-        than treating the page as a real case-not-found.
-        """
-        headers = {k.lower(): v for k, v in (response.headers or {}).items()}
-        status = response.status_code
-
-        if status in (403, 503) and "cf-ray" in headers:
-            raise TransientException(
-                f"Cloudflare challenge: HTTP {status} with cf-ray header"
-            )
-
-        body = text if text is not None else (response.text or "")
-        markers = (
-            "cdn-cgi/challenge-platform",
-            "cf-error-details",
-            'id="cf-wrapper"',
-            "Just a moment...",
-            "Attention Required! | Cloudflare",
-            "Sorry, you have been blocked",
-        )
-        for marker in markers:
-            if marker in body:
-                raise TransientException(
-                    f"Cloudflare interstitial detected (marker: {marker!r})"
-                )
+    rate_limits: ClassVar[list[Rate] | None] = [Rate(1, Duration.SECOND)]
 
     # =========================================================================
     # Search-request helpers
@@ -264,8 +216,6 @@ class OklahomaScraper(BaseScraper[OkDocket]):
         hit on a single-day window we raise ``SearchVolumeAssumptionError``
         since date bisection can't subdivide further.
         """
-        self._check_cloudflare_interstitial(response, response.text)
-
         parser = SearchResultsParser()
         rows = parser(page, response.url)
 
@@ -324,8 +274,6 @@ class OklahomaScraper(BaseScraper[OkDocket]):
         provenance, decides whether to follow the lower-court reference,
         and queues the document archive downloads.
         """
-        self._check_cloudflare_interstitial(response, text)
-
         parser = CaseDetailParser(response.url)
         raw = parser(page)[0].raw_data
         if not raw.get("docket_number"):
@@ -377,8 +325,6 @@ class OklahomaScraper(BaseScraper[OkDocket]):
     ) -> Generator[ScraperYield[OkDocket], None, None]:
         """Parse a trial-court ``GetCaseInformation.aspx`` page and attach
         it to the parent appellate docket before yielding."""
-        self._check_cloudflare_interstitial(response, text)
-
         docket = OkDocket.model_validate(accumulated_data["docket"])
         county = accumulated_data["county"]
         lower_case_number = accumulated_data["lower_case_number"]

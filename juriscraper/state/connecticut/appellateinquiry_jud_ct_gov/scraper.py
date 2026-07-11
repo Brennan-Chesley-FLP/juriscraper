@@ -39,7 +39,6 @@ from urllib.parse import urljoin, urlparse
 
 from jkent.common.decorators import entry, step
 from jkent.common.page_element import PageElement
-from jkent.common.param_models import SpeculativeRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -52,6 +51,8 @@ from jkent.data_types import (
     XPath,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common.params import PersistedSpeculativeRange
 
 from .models import (
     COURT_IDS,
@@ -139,7 +140,9 @@ class ConnAppInquiryScraper(BaseScraper[_Yield]):
     # =========================================================================
 
     @entry(ConnAppDocket)
-    def dockets_by_internal_id(self, internal_id: SpeculativeRange) -> Request:
+    def dockets_by_internal_id(
+        self, internal_id: PersistedSpeculativeRange
+    ) -> Request:
         """Speculatively fetch one docket by CRN.
 
         CRNs are an opaque, monotonically-issued (but gappy) internal id. The

@@ -93,6 +93,28 @@ class TRPortalMixin:
     DOCUMENTS_PAGE_SIZE: ClassVar[int] = 100
     TICKLERS_PAGE_SIZE: ClassVar[int] = 100
 
+    # === Document access gating ===
+    # The docketentrydocumentsaccess listing reports each document's
+    # ``userDocumentState`` — the current (anonymous) client's access verdict.
+    # These are global C-Track platform constants (hard-coded identically in
+    # every deployment's Angular bundle; verified byte-for-byte on the North
+    # Dakota and Oregon portals):
+    #
+    #   VIEWABLE     b64d1d1e-f926-4c87-ab6b-df5c96d3b186  free, fetchable
+    #   PURCHASABLE  dc195201-c792-4883-ab2a-5730dc357ca2  paywalled
+    #   IN_CART      e069220c-7377-4b6a-8664-15f29da6808a  paywalled (in cart)
+    #   UNAVAILABLE  ea5979e2-9949-4819-819b-72f9ef7f7106  not public
+    #
+    # Only VIEWABLE documents can be fetched anonymously; every other state
+    # 302-redirects to a purchase/login wall (e.g. Alabama's docket PDFs are
+    # UNAVAILABLE, Oregon's are paywalled). We skip the download for those and
+    # record metadata only. Default-deny: only allow-listed states are fetched,
+    # so a deployment we haven't inspected stays quiet instead of hammering the
+    # wall. Extend the set if a new fetchable state ever appears.
+    TR_DOWNLOADABLE_DOCUMENT_STATES: ClassVar[frozenset[str]] = frozenset(
+        {"b64d1d1e-f926-4c87-ab6b-df5c96d3b186"}  # VIEWABLE
+    )
+
     # === Ticklers ===
     # Whether to fetch the per-case ticklers (deadlines) endpoint after
     # docket entries. Off by default: some C-Track deployments (e.g.
@@ -827,6 +849,31 @@ class TRPortalMixin:
                 f"/docketentrydocuments/{doc_uuid}"
             )
 
+            meta = {
+                "docket_number": docket.docket_number,
+                "court": docket.court,
+                "case_instance_uuid": docket.case_instance_uuid,
+                "docket_entry_uuid": result.get("docketEntryUUID"),
+                "document_link_uuid": doc_uuid,
+                "document_name": result.get("documentName"),
+                "document_type": doc_info.get("documentType"),
+                "content_type": doc_info.get("contentType"),
+                "file_extension": file_ext,
+                "page_count": doc_info.get("pageCount"),
+                "file_size": doc_info.get("fileSize"),
+                "download_url": download_url,
+            }
+
+            # Only fetch documents the portal reports as accessible; any
+            # other state 302-redirects to a purchase/login wall. Skip the
+            # download but still emit the document metadata (no local file).
+            if (
+                result.get("userDocumentState")
+                not in self.TR_DOWNLOADABLE_DOCUMENT_STATES
+            ):
+                yield ParsedData(data=self._tr_build_document(meta, None))
+                continue
+
             yield Request(
                 archive=True,
                 request=HTTPRequestParams(
@@ -835,20 +882,7 @@ class TRPortalMixin:
                 ),
                 continuation=self.parse_document_download,
                 expected_type=expected_type,
-                accumulated_data={
-                    "docket_number": docket.docket_number,
-                    "court": docket.court,
-                    "case_instance_uuid": docket.case_instance_uuid,
-                    "docket_entry_uuid": result.get("docketEntryUUID"),
-                    "document_link_uuid": doc_uuid,
-                    "document_name": result.get("documentName"),
-                    "document_type": doc_info.get("documentType"),
-                    "content_type": doc_info.get("contentType"),
-                    "file_extension": file_ext,
-                    "page_count": doc_info.get("pageCount"),
-                    "file_size": doc_info.get("fileSize"),
-                    "download_url": download_url,
-                },
+                accumulated_data=meta,
                 deduplication_key=f"{docket.docket_number}-{doc_uuid}",
             )
 
@@ -870,21 +904,30 @@ class TRPortalMixin:
         the archive driver.
         """
         yield ParsedData(
-            data=self.DOCUMENT_CLASS(
-                docket_number=accumulated_data["docket_number"],
-                court=accumulated_data["court"],
-                case_instance_uuid=accumulated_data["case_instance_uuid"],
-                docket_entry_uuid=accumulated_data.get("docket_entry_uuid"),
-                document_link_uuid=accumulated_data["document_link_uuid"],
-                document_name=accumulated_data.get("document_name"),
-                document_type=accumulated_data.get("document_type"),
-                content_type=accumulated_data.get("content_type"),
-                file_extension=accumulated_data.get("file_extension"),
-                page_count=accumulated_data.get("page_count"),
-                file_size=accumulated_data.get("file_size"),
-                download_url=accumulated_data.get("download_url"),
-                local_path=local_filepath,
-            )
+            data=self._tr_build_document(accumulated_data, local_filepath)
+        )
+
+    def _tr_build_document(self, meta: dict, local_path: str | None):
+        """Build a document record from listing metadata + an optional path.
+
+        Shared by the documents-list step (which records metadata for
+        non-fetchable documents with no ``local_path``) and the download
+        step (which supplies the archived file path).
+        """
+        return self.DOCUMENT_CLASS(
+            docket_number=meta["docket_number"],
+            court=meta["court"],
+            case_instance_uuid=meta["case_instance_uuid"],
+            docket_entry_uuid=meta.get("docket_entry_uuid"),
+            document_link_uuid=meta["document_link_uuid"],
+            document_name=meta.get("document_name"),
+            document_type=meta.get("document_type"),
+            content_type=meta.get("content_type"),
+            file_extension=meta.get("file_extension"),
+            page_count=meta.get("page_count"),
+            file_size=meta.get("file_size"),
+            download_url=meta.get("download_url"),
+            local_path=local_path,
         )
 
     # =========================================================================

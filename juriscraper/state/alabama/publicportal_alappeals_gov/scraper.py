@@ -58,8 +58,12 @@ Dockets Flow (dockets_by_filing_date):
   3. parse_case_detail -> parses case header, yields party fetch request
   4. parse_case_parties -> parses parties, yields docket entries fetch request
   5. parse_docket_entries -> parses docket entries, chains into documents fetch
-  6. parse_documents_list -> queues per-document archive downloads, yields AlaDocket
-  7. parse_document_download -> emits an AlaDocument per archived file
+  6. parse_documents_list -> for each document, emits an AlaDocument; queues an
+     archive download only when the portal reports it as fetchable (Alabama's
+     docket PDFs are paywalled, so these are recorded metadata-only). Yields
+     AlaDocket.
+  7. parse_document_download -> emits an AlaDocument per archived file (only for
+     fetchable documents)
 
 Oral Arguments Flow (oral_arguments_by_argument_date):
   1. oral_arguments_by_argument_date -> events API search
@@ -1005,8 +1009,10 @@ class AlabamaScraper(
     ) -> Generator[ScraperYield[AlaDocument], None, None]:
         """Emit an AlaDocument record for an archived file.
 
-        Alabama appellate documents are paywalled, so ``local_filepath``
-        will typically be ``None``; metadata is still captured.
+        Only reached for documents the portal reports as fetchable. Alabama's
+        appellate docket PDFs are paywalled, so in practice no downloads are
+        queued here — those documents are recorded metadata-only by
+        ``parse_documents_list``.
         """
         yield from self._tr_handle_document_download(
             local_filepath, accumulated_data

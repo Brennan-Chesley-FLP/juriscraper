@@ -202,8 +202,7 @@ class CaAppScraper(BaseScraper[_Yield]):
         )
         return Request(
             request=HTTPRequestParams(
-                method=HttpMethod.GET,
-                url=search_results_url,
+                method=HttpMethod.GET, url=search_results_url, timeout=60
             ),
             continuation=self.parse_case_summary,
             reseedable=True,
@@ -323,7 +322,9 @@ class CaAppScraper(BaseScraper[_Yield]):
         # Navigate to the Docket tab.
         docket_url = _build_tab_url(response.url, "dockets.cfm")
         yield Request(
-            request=HTTPRequestParams(method=HttpMethod.GET, url=docket_url),
+            request=HTTPRequestParams(
+                method=HttpMethod.GET, url=docket_url, timeout=60
+            ),
             continuation=self.parse_docket,
             accumulated_data=accumulated_data,
             deduplication_key=(
@@ -433,7 +434,7 @@ class CaAppScraper(BaseScraper[_Yield]):
             new_data["trial_court_case_numbers"] = group["trial_court_numbers"]
             yield Request(
                 request=HTTPRequestParams(
-                    method=HttpMethod.GET, url=group["url"]
+                    method=HttpMethod.GET, url=group["url"], timeout=60
                 ),
                 via=ViaLink(
                     selector=(
@@ -455,8 +456,7 @@ class CaAppScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("button[disabled]", state="hidden", timeout=15000),
+            WaitForSelector("#DispoList"),
         ],
         priority=6,
     )
@@ -491,7 +491,9 @@ class CaAppScraper(BaseScraper[_Yield]):
 
         briefs_url = _build_tab_url(response.url, "briefing.cfm")
         yield Request(
-            request=HTTPRequestParams(method=HttpMethod.GET, url=briefs_url),
+            request=HTTPRequestParams(
+                method=HttpMethod.GET, url=briefs_url, timeout=60
+            ),
             continuation=self.parse_briefs,
             accumulated_data=accumulated_data,
             deduplication_key=(
@@ -523,7 +525,9 @@ class CaAppScraper(BaseScraper[_Yield]):
 
         dispo_url = _build_tab_url(response.url, "disposition.cfm")
         yield Request(
-            request=HTTPRequestParams(method=HttpMethod.GET, url=dispo_url),
+            request=HTTPRequestParams(
+                method=HttpMethod.GET, url=dispo_url, timeout=60
+            ),
             continuation=self.parse_disposition,
             accumulated_data=accumulated_data,
             deduplication_key=(
@@ -569,7 +573,9 @@ class CaAppScraper(BaseScraper[_Yield]):
 
         parties_url = _build_tab_url(response.url, "partiesAndAttorneys.cfm")
         yield Request(
-            request=HTTPRequestParams(method=HttpMethod.GET, url=parties_url),
+            request=HTTPRequestParams(
+                method=HttpMethod.GET, url=parties_url, timeout=60
+            ),
             continuation=self.parse_parties,
             accumulated_data=accumulated_data,
             deduplication_key=(
@@ -603,7 +609,9 @@ class CaAppScraper(BaseScraper[_Yield]):
 
         tc_url = _build_tab_url(response.url, "trialCourt.cfm")
         yield Request(
-            request=HTTPRequestParams(method=HttpMethod.GET, url=tc_url),
+            request=HTTPRequestParams(
+                method=HttpMethod.GET, url=tc_url, timeout=60
+            ),
             continuation=self.parse_trial_court,
             accumulated_data=accumulated_data,
             deduplication_key=(

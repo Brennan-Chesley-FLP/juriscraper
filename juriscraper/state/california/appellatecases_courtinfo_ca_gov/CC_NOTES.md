@@ -106,13 +106,17 @@ The site has two distinct page layouts: **Supreme Court** and **Court of Appeal*
 
 Also shows case caption, division, and case number at top.
 
-### Briefs (both)
+### Briefs (both — but column sets differ!)
 | Field | Type |
 |-------|------|
 | Brief type/description | str (e.g., "Opening brief on the merits filed") |
+| Due Date | mm/dd/yyyy, usually empty — **Court of Appeal only** |
 | Date Filed | mm/dd/yyyy |
 | Party and Attorney | str (often empty) |
 | Notes | str |
+
+The Supreme Court table omits the Due Date column (4 columns; CoA has 5), so
+cells must be mapped by header text, not fixed index.
 
 ### Disposition -- Supreme Court
 Table with Date and Description columns.

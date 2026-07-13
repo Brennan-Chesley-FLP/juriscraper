@@ -21,9 +21,12 @@ if TYPE_CHECKING:
 class BriefsParser(JKentParser[CaAppBrief]):
     """Parse each row of the Briefs table.
 
-    Columns: brief type/description, date filed, party & attorney (often
-    empty), notes. Identical structure for Supreme Court and Court of
-    Appeal.
+    The column layout differs by court: the Supreme Court table is
+    ``Brief | Date Filed | Party and Attorney | Notes``, while the Court of
+    Appeal table inserts a ``Due Date`` column after ``Brief``. Cells are
+    therefore mapped by header text, not fixed index — a fixed-index read
+    against the CoA layout shifted the filing date into ``party_attorney``
+    and dropped the Notes column entirely.
     """
 
     def __call__(
@@ -32,6 +35,32 @@ class BriefsParser(JKentParser[CaAppBrief]):
         rows = page.query(
             XPath("//table//tbody//tr"), "brief rows", min_count=0
         )
+        if not rows:
+            return []
+        headers = page.query(
+            XPath("//table//th"), "brief header cells", min_count=2
+        )
+        col = {
+            " ".join(h.text_content().split()).lower(): i
+            for i, h in enumerate(headers)
+        }
+        if "date filed" not in col:
+            # Header drift — re-query so the structural error carries the
+            # selector and counts instead of silently mis-mapping columns.
+            page.query(
+                XPath('//table//th[normalize-space()="Date Filed"]'),
+                "brief 'Date Filed' header",
+                min_count=1,
+            )
+
+        def cell(
+            cells: list[PageElement], name: str, default_idx: int | None = None
+        ) -> str | None:
+            idx = col.get(name, default_idx)
+            if idx is None or idx >= len(cells):
+                return None
+            return cells[idx].text_content()
+
         briefs: list[DeferredValidation[CaAppBrief]] = []
         for row in rows:
             cells = row.query(XPath("td"), "brief cells", min_count=0)
@@ -39,18 +68,12 @@ class BriefsParser(JKentParser[CaAppBrief]):
                 continue
             briefs.append(
                 CaAppBrief.raw(
-                    brief_type=cells[0].text_content().strip(),
-                    date_filed=parse_date(cells[1].text_content()),
-                    party_attorney=(
-                        clean_text(cells[2].text_content())
-                        if len(cells) > 2
-                        else None
+                    brief_type=(cell(cells, "brief", 0) or "").strip(),
+                    date_filed=parse_date(cell(cells, "date filed")),
+                    party_attorney=clean_text(
+                        cell(cells, "party and attorney")
                     ),
-                    notes=(
-                        clean_text(cells[3].text_content())
-                        if len(cells) > 3
-                        else None
-                    ),
+                    notes=clean_text(cell(cells, "notes")),
                 )
             )
         return briefs

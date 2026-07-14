@@ -34,6 +34,7 @@ Flow:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date
 from typing import TYPE_CHECKING, ClassVar
 
@@ -50,6 +51,7 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
+from juriscraper.state.common.headers import FF_HEADERS
 from juriscraper.state.common.params import PersistedSpeculativeRange
 
 from .models import (
@@ -108,6 +110,9 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
     last_verified: ClassVar[str] = "2026-05-03"
     requires_auth: ClassVar[bool] = False
     driver_requirements: ClassVar[list[DriverRequirement]] = []
+    # The front-end WAF 500s on non-browser User-Agents (even plain GETs),
+    # so every request must present a full browser fingerprint.
+    default_headers: ClassVar[Mapping[str, str]] = FF_HEADERS
     rate_limits: ClassVar[list[Rate] | None] = [Rate(2, Duration.SECOND)]
 
     # =========================================================================

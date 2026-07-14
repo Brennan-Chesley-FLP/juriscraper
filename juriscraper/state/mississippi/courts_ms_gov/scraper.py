@@ -38,7 +38,6 @@ from datetime import date
 from typing import TYPE_CHECKING, ClassVar
 
 from jkent.common.decorators import entry, step
-from jkent.common.param_models import PersistentSpeculativeRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -50,6 +49,8 @@ from jkent.data_types import (
     ScraperStatus,
 )
 from pyrate_limiter import Duration, Rate
+
+from juriscraper.state.common import PersistentSpeculativeRange
 
 from .models import (
     BUILD_DOCKET_URL,

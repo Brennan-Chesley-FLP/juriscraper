@@ -38,7 +38,7 @@ from datetime import date
 from typing import TYPE_CHECKING, ClassVar
 
 from jkent.common.decorators import entry, step
-from jkent.common.param_models import SpeculativeRange
+from jkent.common.param_models import PersistentSpeculativeRange
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -124,7 +124,7 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
 
     @entry(MsAppDocket)
     def dockets_by_internal_id(
-        self, internal_id: SpeculativeRange
+        self, internal_id: PersistentSpeculativeRange
     ) -> Generator[Request, None, None]:
         """Speculative docket fetcher across the unified case-num space.
 

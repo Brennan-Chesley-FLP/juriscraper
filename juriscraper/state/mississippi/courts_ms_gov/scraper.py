@@ -50,7 +50,7 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
-from juriscraper.state.common import PersistentSpeculativeRange
+from juriscraper.state.common.params import PersistedSpeculativeRange
 
 from .models import (
     BUILD_DOCKET_URL,
@@ -125,7 +125,7 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
 
     @entry(MsAppDocket)
     def dockets_by_internal_id(
-        self, internal_id: PersistentSpeculativeRange
+        self, internal_id: PersistedSpeculativeRange
     ) -> Generator[Request, None, None]:
         """Speculative docket fetcher across the unified case-num space.
 

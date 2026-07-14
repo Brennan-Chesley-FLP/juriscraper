@@ -126,7 +126,7 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
     @entry(MsAppDocket)
     def dockets_by_internal_id(
         self, internal_id: PersistedSpeculativeRange
-    ) -> Generator[Request, None, None]:
+    ) -> Request:
         """Speculative docket fetcher across the unified case-num space.
 
         ``internal_id`` is the integer ``case_num`` assigned at filing time,
@@ -136,7 +136,7 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
         ``SpeculativeRange`` (not a per-court ``CourtRange``).
         """
         cn = internal_id.min
-        yield Request(
+        return Request(
             request=HTTPRequestParams(
                 method=HttpMethod.POST,
                 url=BUILD_DOCKET_URL,

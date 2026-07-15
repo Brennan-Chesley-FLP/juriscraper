@@ -39,6 +39,7 @@ from datetime import date
 from typing import TYPE_CHECKING, ClassVar
 
 from jkent.common.decorators import entry, step
+from jkent.common.exceptions import TransientException
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
@@ -77,13 +78,15 @@ if TYPE_CHECKING:
     from jkent.data_types import ScraperYield
 
 
-# Body sent for the docket / case header tab. ``limit=true`` caps the
+# Form bodies for build_docket.php, merged with ``case_num`` per request.
+# Dicts, not pre-encoded strings: the httpx transport form-encodes dict
+# ``data`` but silently drops a plain-str body. ``limit=true`` caps the
 # returned PDF metadata (without it we still get the full entry list, but
 # the response can be ~5x larger for very long dockets).
-DOCKET_BODY = "docket_type=docket&sortdir=desc&case_num={cn}&limit=true"
-PARTIES_BODY = "docket_type=apinfo&case_num={cn}&listby=pty"
-LCOURT_BODY = "docket_type=lcinfo&case_num={cn}"
-ORALARG_BODY = "docket_type=oralarg&case_num={cn}"
+DOCKET_BODY = {"docket_type": "docket", "sortdir": "desc", "limit": "true"}
+PARTIES_BODY = {"docket_type": "apinfo", "listby": "pty"}
+LCOURT_BODY = {"docket_type": "lcinfo"}
+ORALARG_BODY = {"docket_type": "oralarg"}
 
 XHR_HEADERS: dict[str, str] = {
     "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -94,6 +97,10 @@ XHR_HEADERS: dict[str, str] = {
 # String present in the case-header response when the requested case_num
 # is not assigned to any public case.
 SOFT_404_NEEDLE = "No public results were found for your search"
+
+# Title of the WAF's captcha interstitial, served with a 200 in place of
+# the requested resource under sustained request volume.
+CAPTCHA_NEEDLE = "Firewall Captcha Authentication"
 
 _ENTRY_POINT = "dockets_by_internal_id"
 
@@ -124,6 +131,16 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
         unassigned ``case_num`` values (a 200 with an error body)."""
         return SOFT_404_NEEDLE not in response.text
 
+    @staticmethod
+    def _check_challenge(response: Response) -> None:
+        """Raise ``TransientException`` when the WAF serves its captcha
+        interstitial (a 200) in place of the requested resource, so the
+        request is retried instead of being parsed or — worse — counted
+        as a speculation outcome for a ``case_num`` it says nothing about.
+        """
+        if CAPTCHA_NEEDLE in response.text:
+            raise TransientException("WAF captcha challenge page")
+
     # =========================================================================
     # Entry point (§4)
     # =========================================================================
@@ -145,7 +162,7 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
             request=HTTPRequestParams(
                 method=HttpMethod.POST,
                 url=BUILD_DOCKET_URL,
-                data=DOCKET_BODY.format(cn=cn),
+                data={**DOCKET_BODY, "case_num": str(cn)},
                 headers=XHR_HEADERS,
             ),
             continuation=self.parse_docket_page,
@@ -171,6 +188,13 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
         the parties tab whose continuation eventually emits the assembled
         ``MsAppDocket``.
         """
+        self._check_challenge(response)
+        # Speculative miss (unassigned case_num): the driver has already
+        # counted the outcome via actually_successful, but it still runs
+        # the continuation — bail before the parser trips on the error page.
+        if SOFT_404_NEEDLE in response.text:
+            return
+
         cn = int(accumulated_data["case_num"])
 
         parser = DocketPageParser()
@@ -219,7 +243,7 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
             request=HTTPRequestParams(
                 method=HttpMethod.POST,
                 url=BUILD_DOCKET_URL,
-                data=PARTIES_BODY.format(cn=cn),
+                data={**PARTIES_BODY, "case_num": str(cn)},
                 headers=XHR_HEADERS,
             ),
             continuation=self.parse_parties,
@@ -235,9 +259,11 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
     def parse_parties(
         self,
         page: PageElement,
+        response: Response,
         accumulated_data: dict,
     ) -> Generator[ScraperYield, None, None]:
         """Parse the parties + attorneys block, then chain to lcinfo."""
+        self._check_challenge(response)
         parties = [dv.confirm() for dv in PartiesParser()(page)]
         accumulated_data["parties"] = [
             p.model_dump(mode="json") for p in parties
@@ -248,7 +274,7 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
             request=HTTPRequestParams(
                 method=HttpMethod.POST,
                 url=BUILD_DOCKET_URL,
-                data=LCOURT_BODY.format(cn=cn),
+                data={**LCOURT_BODY, "case_num": str(cn)},
                 headers=XHR_HEADERS,
             ),
             continuation=self.parse_trial_court,
@@ -264,9 +290,11 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
     def parse_trial_court(
         self,
         page: PageElement,
+        response: Response,
         accumulated_data: dict,
     ) -> Generator[ScraperYield, None, None]:
         """Parse the trial-court block(s) and chain to oralarg."""
+        self._check_challenge(response)
         trial_courts = [
             dv.confirm()
             for dv in TrialCourtParser(
@@ -284,7 +312,7 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
             request=HTTPRequestParams(
                 method=HttpMethod.POST,
                 url=BUILD_DOCKET_URL,
-                data=ORALARG_BODY.format(cn=cn),
+                data={**ORALARG_BODY, "case_num": str(cn)},
                 headers=XHR_HEADERS,
             ),
             continuation=self.parse_oral_arguments,
@@ -300,9 +328,11 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
     def parse_oral_arguments(
         self,
         page: PageElement,
+        response: Response,
         accumulated_data: dict,
     ) -> Generator[ScraperYield[MsAppDocket], None, None]:
         """Parse the oral-arg pane and yield the assembled docket."""
+        self._check_challenge(response)
         oral_arguments = [dv.confirm() for dv in OralArgumentsParser()(page)]
 
         cn = int(accumulated_data["case_num"])

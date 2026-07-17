@@ -24,7 +24,6 @@ document is marked ``Unavailable.pdf`` (sealed) — in which case it yields an
 
 from __future__ import annotations
 
-import json
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import quote
@@ -178,14 +177,11 @@ class MontanaSupremeCourtScraper(
                 request=HTTPRequestParams(
                     method=HttpMethod.POST,
                     url=SEARCH_URL,
-                    headers={"Content-Type": "application/json"},
-                    data=_encode_json_body(
-                        self._build_search_body(
-                            category=category,
-                            date_range=None,
-                            docket_number=docket_number,
-                            page=0,
-                        )
+                    json=self._build_search_body(
+                        category=category,
+                        date_range=None,
+                        docket_number=docket_number,
+                        page=0,
                     ),
                 ),
                 continuation=self.parse_search_results,
@@ -257,16 +253,13 @@ class MontanaSupremeCourtScraper(
                 request=HTTPRequestParams(
                     method=HttpMethod.POST,
                     url=SEARCH_URL,
-                    headers={"Content-Type": "application/json"},
-                    data=_encode_json_body(
-                        self._build_search_body(
-                            category=category,
-                            date_range=date_range,
-                            docket_number=accumulated_data.get(
-                                "docket_number_filter"
-                            ),
-                            page=next_page,
-                        )
+                    json=self._build_search_body(
+                        category=category,
+                        date_range=date_range,
+                        docket_number=accumulated_data.get(
+                            "docket_number_filter"
+                        ),
+                        page=next_page,
                     ),
                 ),
                 continuation=self.parse_search_results,
@@ -387,14 +380,11 @@ class MontanaSupremeCourtScraper(
             request=HTTPRequestParams(
                 method=HttpMethod.POST,
                 url=SEARCH_URL,
-                headers={"Content-Type": "application/json"},
-                data=_encode_json_body(
-                    self._build_search_body(
-                        category=category,
-                        date_range=date_range,
-                        docket_number=docket_number,
-                        page=page,
-                    )
+                json=self._build_search_body(
+                    category=category,
+                    date_range=date_range,
+                    docket_number=docket_number,
+                    page=page,
                 ),
             ),
             continuation=self.parse_search_results,
@@ -608,21 +598,6 @@ class MontanaSupremeCourtScraper(
                 )
             )
         return entries, archive_reqs, sealed
-
-
-def _encode_json_body(payload: dict[str, Any]) -> bytes:
-    """Encode a JSON request body for kent's persistent driver.
-
-    Workaround: kent's persistent driver does not propagate
-    ``HTTPRequestParams.json`` through serialize → DB → dispatch (only
-    ``data`` is forwarded to httpx). Encode the body ourselves and pass it
-    via ``data=`` as bytes. The leading UTF-8 BOM forces kent's rebuild
-    path to keep the body as bytes — without it,
-    ``json.loads(body.decode("utf-8"))`` would round-trip back to a dict
-    and httpx's ``data=dict`` would form-encode it. The Montana API
-    ignores the BOM.
-    """
-    return b"\xef\xbb\xbf" + json.dumps(payload).encode("utf-8")
 
 
 def _parse_iso_date(value: str | None) -> date | None:

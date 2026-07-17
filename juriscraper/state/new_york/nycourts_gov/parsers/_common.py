@@ -4,13 +4,6 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import TYPE_CHECKING
-
-from jkent.common.lxml_page_element import LxmlPageElement
-from lxml import html as lxml_html
-
-if TYPE_CHECKING:
-    from jkent.common.page_element import PageElement
 
 
 def _parse_date_mdy(text: str | None) -> date | None:
@@ -32,20 +25,11 @@ def _parse_date_mdy(text: str | None) -> date | None:
 # extends it to the document-level ``</style>`` near ``</html>``, swallowing
 # the gvFiles table and the "no files" marker into the style element. Dropping
 # the bogus open tag (its content is the citation that belongs inline) lets the
-# page parse normally, so downstream parsers can assume a clean DOM.
+# page parse normally, so downstream parsers can assume a clean DOM. Applied
+# as the ``@step(preprocess=...)`` hook on the two filing-detail steps.
 _PDF_STYLE_RE = re.compile(r"<style[^>]*\bpdffontname\b[^>]*>", re.I)
 
 
 def repair_pdffont_leakage(text: str) -> str:
     """Strip Court-PASS's unclosed ``<style pdffontname=...>`` font markers."""
     return _PDF_STYLE_RE.sub("", text)
-
-
-def page_from_text(text: str, url: str = "") -> PageElement:
-    """Parse HTML ``text`` into a ``PageElement``.
-
-    Mirrors the framework's ``page`` injection so a step that takes the raw
-    ``text`` (to repair it first) can hand a normal page to the parsers.
-    """
-    element = LxmlPageElement(lxml_html.fromstring(text), url)
-    return LxmlPageElement(element=element, request_url=url)

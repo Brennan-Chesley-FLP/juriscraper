@@ -43,6 +43,7 @@ from jkent.common.exceptions import TransientException
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
+    HTTPCodeType,
     HttpMethod,
     HTTPRequestParams,
     ParsedData,
@@ -120,6 +121,13 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
     # The front-end WAF 500s on non-browser User-Agents (even plain GETs),
     # so every request must present a full browser fingerprint.
     default_headers: ClassVar[Mapping[str, str]] = FF_HEADERS
+    # The WAF also load-sheds with 500s (observed on sendPDF.php fetches
+    # that succeed on retry). The framework default treats 500 as
+    # persistent, which on a speculative probe silently records a miss —
+    # so a throttling burst would corrupt the case_num walk.
+    HTTP_CODE_TYPES: ClassVar[dict[int, HTTPCodeType]] = {
+        500: HTTPCodeType.TRANSIENT,
+    }
     rate_limits: ClassVar[list[Rate] | None] = [Rate(2, Duration.SECOND)]
 
     # =========================================================================

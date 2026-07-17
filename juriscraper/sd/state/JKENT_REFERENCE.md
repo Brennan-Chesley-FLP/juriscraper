@@ -39,7 +39,9 @@ from jkent.data_types import (
 from jkent.common.param_models import (
     DateRange,              # {start: date, end: date}, both required
     SpeculativeRange,       # flat integer ID space to probe
-    YearlySpeculativeRange, # year-partitioned ID space
+)
+from juriscraper.state.common.params import (
+    YearlySpeculativeRange, # year-partitioned ID space (+ [key] persistence)
 )
 
 # Page-extraction API for HTML steps/parsers (see §6)

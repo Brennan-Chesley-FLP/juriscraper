@@ -263,18 +263,18 @@ class CourtRange(PersistedSpeculativeRange):
 
 
 class YearlySpeculativeRange(PersistedSpeculativeRange):
-    """Persisted counterpart of :class:`jkent.common.param_models.YearlySpeculativeRange`.
+    """A ``SpeculativeRange`` with a ``year`` field for year-partitioned IDs.
 
-    Identical in shape to jkent's ``YearlySpeculativeRange`` — a
-    ``SpeculativeRange`` with an added ``year`` field for scrapers that
-    partition IDs by year (e.g. docket numbers of the form ``2025-00123``) —
-    but subclasses :class:`PersistedSpeculativeRange`, so it also accepts a
+    For scrapers that partition IDs by year (e.g. docket numbers of the form
+    ``2025-00123``): supply one template per year via ``seed_params``.
+    Subclasses :class:`PersistedSpeculativeRange`, so it also accepts a
     ``[key]`` store reference. ``seed_range``/``from_int``/``max_gap`` are
     inherited unchanged; ``from_int`` copies via ``model_copy``, so ``year`` is
     carried through advancement.
 
-    This shadows the jkent class by name; scrapers currently importing
-    ``YearlySpeculativeRange`` from jkent will be migrated to this one.
+    This is the canonical class — jkent's unpersisted ``YearlySpeculativeRange``
+    was deleted in jkent 0.1.0 (every real speculative scraper wants the
+    persisted behavior; jkent keeps only the base ``SpeculativeRange``).
     """
 
     year: int

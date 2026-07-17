@@ -87,7 +87,6 @@ from jkent.common.decorators import entry, step
 from jkent.common.exceptions import TransientException
 from jkent.common.page_element import PageElement
 from jkent.common.param_models import DateRange
-from jkent.common.selector_observer import SelectorObserver
 from jkent.data_types import (
     CSS,
     BaseScraper,
@@ -112,7 +111,6 @@ from .models import (
 )
 from .parsers._common import (
     _parse_date_mdy,
-    page_from_text,
     repair_pdffont_leakage,
 )
 from .parsers.docket_detail import DocketDetailParser
@@ -662,10 +660,11 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             WaitForSelector("#cphMain_lbDetails2", timeout=15000),
         ],
         priority=3,
+        preprocess=repair_pdffont_leakage,
     )
     def parse_docket_filing_detail(
         self,
-        text: str,
+        page: PageElement,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[ScraperYield[_Yield], None, None]:
@@ -679,128 +678,116 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         ``#cphMain_lbDetails2`` (not ``#cphMain_lbDetails``) and
         ``DOCKET_FORM`` for file downloads.
 
-        Takes the raw ``text`` (not ``page``) so the unclosed
-        ``<style pdffontname>`` leakage can be repaired before lxml parses
-        it — see ``repair_pdffont_leakage``; the parser and download form
-        then see a clean DOM.
+        The unclosed ``<style pdffontname>`` leakage is repaired by the
+        step's ``preprocess`` hook (``repair_pdffont_leakage``) before lxml
+        parses it, so the injected ``page`` — and the parser and download
+        form reading it — see a clean DOM.
         """
-        # We build the page ourselves (from potentially repaired text),
-        # observer onto the response — this is what @step does for an
-        # injected ``page`` to enable observation and debugging of selectors.
-        # This scraper runs serially, _and_ the observer context is isolated
-        # per async task, so we're doubly safe wrapping the whole body here.
-        observer = SelectorObserver()
-        response.observer = observer
-        page = page_from_text(repair_pdffont_leakage(text), response.url)
-        with observer:
-            fields, parser_files = self._parse_filing_detail(page)
+        fields, parser_files = self._parse_filing_detail(page)
 
-            case_name = fields["case_name"] or "Unknown"
+        case_name = fields["case_name"] or "Unknown"
 
-            deferred = accumulated_data.get("deferred_docket") or {}
+        deferred = accumulated_data.get("deferred_docket") or {}
 
-            # Fall back to the docket-grid argument date when the filing
-            # detail page omits it (matches the docket-detail fallback in
-            # ``_process_docket_detail_page``).
-            argument_date = _parse_date_mdy(
-                fields["argument_date_str"]
-                or deferred.get("argument_date_str")
-                or accumulated_data.get("argument_date_from_grid")
-                or ""
+        # Fall back to the docket-grid argument date when the filing
+        # detail page omits it (matches the docket-detail fallback in
+        # ``_process_docket_detail_page``).
+        argument_date = _parse_date_mdy(
+            fields["argument_date_str"]
+            or deferred.get("argument_date_str")
+            or accumulated_data.get("argument_date_from_grid")
+            or ""
+        )
+        decision_date = _parse_date_mdy(fields["decision_date_str"] or "")
+
+        # --- decision_date range filtering ---
+        # Decision date is now known from the filing detail page.
+        # If it falls outside the requested range, skip file downloads
+        # and all data emission.
+        dec_start = accumulated_data.get("decision_date_start")
+        dec_end = accumulated_data.get("decision_date_end")
+        if not self._date_in_range(decision_date, dec_start, dec_end):
+            return
+
+        docket_number = deferred.get("docket_number") or accumulated_data.get(
+            "docket_number", ""
+        )
+
+        # FilingDetailParser produced the file rows; stamp
+        # them with the cross-page join key for emission.
+        files = self._stamp_files(
+            parser_files,
+            docket_number=docket_number,
+        )
+        document_numbers_by_row = {
+            f["file_index"]: f["document_number"] for f in files
+        }
+
+        # Merge docket-detail fields (from deferred) with filing-detail
+        # fields (just parsed) into a single NYCourtPassDocket.
+        yield ParsedData(
+            data=NYCourtPassDocket.raw(
+                docket_number=docket_number or None,
+                case_name=deferred.get("case_name") or case_name,
+                case_short_name=(
+                    accumulated_data.get("case_short_name_from_grid") or None
+                ),
+                argument_date=argument_date,
+                decision_date=decision_date,
+                issues=fields["issues"],
+                issue_details=fields["issue_details"],
+                opinion_by=fields["opinion_by"],
+                official_citation=fields["official_citation"],
+                no_files_for_case=fields["no_files_for_case"],
+                docket_entries=(deferred.get("docket_entries") or []),
+                attorneys=(deferred.get("attorneys") or []),
+                files=files,
+                source_url=response.url,
+                source_entry_point=accumulated_data.get("entry_point"),
+                search_page=accumulated_data.get("search_page"),
+                search_row=accumulated_data.get("search_row"),
+                aria_case_info=accumulated_data.get("aria_case_info"),
             )
-            decision_date = _parse_date_mdy(fields["decision_date_str"] or "")
+        )
 
-            # --- decision_date range filtering ---
-            # Decision date is now known from the filing detail page.
-            # If it falls outside the requested range, skip file downloads
-            # and all data emission.
-            dec_start = accumulated_data.get("decision_date_start")
-            dec_end = accumulated_data.get("decision_date_end")
-            if not self._date_in_range(decision_date, dec_start, dec_end):
-                return
+        file_name_prefix = base64.b64encode(
+            f"{case_name}-{argument_date}-{decision_date}".encode()
+        ).decode()
 
-            docket_number = deferred.get(
-                "docket_number"
-            ) or accumulated_data.get("docket_number", "")
-
-            # FilingDetailParser produced the file rows; stamp
-            # them with the cross-page join key for emission.
-            files = self._stamp_files(
-                parser_files,
-                docket_number=docket_number,
-            )
-            document_numbers_by_row = {
-                f["file_index"]: f["document_number"] for f in files
-            }
-
-            # Merge docket-detail fields (from deferred) with filing-detail
-            # fields (just parsed) into a single NYCourtPassDocket.
-            yield ParsedData(
-                data=NYCourtPassDocket.raw(
-                    docket_number=docket_number or None,
-                    case_name=deferred.get("case_name") or case_name,
-                    case_short_name=(
-                        accumulated_data.get("case_short_name_from_grid")
-                        or None
-                    ),
-                    argument_date=argument_date,
-                    decision_date=decision_date,
-                    issues=fields["issues"],
-                    issue_details=fields["issue_details"],
-                    opinion_by=fields["opinion_by"],
-                    official_citation=fields["official_citation"],
-                    no_files_for_case=fields["no_files_for_case"],
-                    docket_entries=(deferred.get("docket_entries") or []),
-                    attorneys=(deferred.get("attorneys") or []),
-                    files=files,
-                    source_url=response.url,
-                    source_entry_point=accumulated_data.get("entry_point"),
-                    search_page=accumulated_data.get("search_page"),
-                    search_row=accumulated_data.get("search_row"),
-                    aria_case_info=accumulated_data.get("aria_case_info"),
-                )
-            )
-
-            file_name_prefix = base64.b64encode(
-                f"{case_name}-{argument_date}-{decision_date}".encode()
+        # Download available files. Button names come from the form
+        # (FilingDetailParser doesn't carry them); document_number comes
+        # from the parser's file rows, keyed by row index. The form is
+        # the same for every button, so read it (and the buttons) once.
+        download_buttons = self._extract_file_download_buttons(page)
+        form = (
+            page.find_form(DOCKET_FORM, "docket files form")
+            if download_buttons
+            else None
+        )
+        for button in download_buttons:
+            file_suffix = base64.b64encode(
+                f"{button['file_name']}".encode()
             ).decode()
-
-            # Download available files. Button names come from the form
-            # (FilingDetailParser doesn't carry them); document_number comes
-            # from the parser's file rows, keyed by row index. The form is
-            # the same for every button, so read it (and the buttons) once.
-            download_buttons = self._extract_file_download_buttons(page)
-            form = (
-                page.find_form(DOCKET_FORM, "docket files form")
-                if download_buttons
-                else None
-            )
-            for button in download_buttons:
-                file_suffix = base64.b64encode(
-                    f"{button['file_name']}".encode()
-                ).decode()
-                name_sha = hashlib.sha1(
-                    f"{file_name_prefix}-{button['row_index']}-{file_suffix}".encode()
-                ).hexdigest()
-                yield form.submit(
-                    submit_selector=CSS(
-                        f"input[name='{button['button_name']}']"
+            name_sha = hashlib.sha1(
+                f"{file_name_prefix}-{button['row_index']}-{file_suffix}".encode()
+            ).hexdigest()
+            yield form.submit(
+                submit_selector=CSS(f"input[name='{button['button_name']}']"),
+                continuation=self.handle_file_download,
+                accumulated_data={
+                    "docket_number": docket_number,
+                    "file_name": button["file_name"],
+                    "file_index": button["row_index"],
+                    "document_number": document_numbers_by_row.get(
+                        button["row_index"]
                     ),
-                    continuation=self.handle_file_download,
-                    accumulated_data={
-                        "docket_number": docket_number,
-                        "file_name": button["file_name"],
-                        "file_index": button["row_index"],
-                        "document_number": document_numbers_by_row.get(
-                            button["row_index"]
-                        ),
-                    },
-                    bypass_rate_limit=True,
-                    priority=0,
-                    archive=True,
-                    deduplication_key=name_sha,
-                    request_params={"timeout": 600},
-                )
+                },
+                bypass_rate_limit=True,
+                priority=0,
+                archive=True,
+                deduplication_key=name_sha,
+                request_params={"timeout": 600},
+            )
 
     @step(
         await_list=[
@@ -1014,10 +1001,11 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             WaitForLoadState("networkidle", timeout=30000),
             WaitForSelector("#cphMain_lbDetails2", timeout=15000),
         ],
+        preprocess=repair_pdffont_leakage,
     )
     def parse_filing_detail_from_docket(
         self,
-        text: str,
+        page: PageElement,
         response: Response,
         accumulated_data: dict,
     ) -> Generator[ScraperYield[_Yield], None, None]:
@@ -1025,105 +1013,95 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         merge with the deferred docket-detail fields, and emit one
         NYCourtPassDocket.
 
-        Takes the raw ``text`` (not ``page``) so the unclosed
-        ``<style pdffontname>`` leakage can be repaired before lxml parses
-        it — see ``repair_pdffont_leakage``.
+        The unclosed ``<style pdffontname>`` leakage is repaired by the
+        step's ``preprocess`` hook (``repair_pdffont_leakage``) before lxml
+        parses it — see ``parse_docket_filing_detail``.
         """
-        # Build the page from repaired text and wire an observer onto the
-        # response so pdd telemetry works (see parse_docket_filing_detail);
-        # the whole body runs under it, which is safe because each worker is
-        # its own asyncio.Task (isolated context).
-        observer = SelectorObserver()
-        response.observer = observer
-        page = page_from_text(repair_pdffont_leakage(text), response.url)
-        with observer:
-            deferred = accumulated_data.get("deferred_docket") or {}
-            docket_number = deferred.get(
-                "docket_number"
-            ) or accumulated_data.get("docket_number")
+        deferred = accumulated_data.get("deferred_docket") or {}
+        docket_number = deferred.get("docket_number") or accumulated_data.get(
+            "docket_number"
+        )
 
-            # The bttnDetails postback populates cphMain_lbDetails2 (the
-            # docket-detail section in cphMain_lbDetails stays present from
-            # the prior render). FilingDetailParser reads lbDetails2 so we
-            # get the filing-side fields (decision date, issues, citation,
-            # files).
-            fields, parser_files = self._parse_filing_detail(page)
+        # The bttnDetails postback populates cphMain_lbDetails2 (the
+        # docket-detail section in cphMain_lbDetails stays present from
+        # the prior render). FilingDetailParser reads lbDetails2 so we
+        # get the filing-side fields (decision date, issues, citation,
+        # files).
+        fields, parser_files = self._parse_filing_detail(page)
 
-            case_name = (
-                deferred.get("case_name") or fields["case_name"] or "Unknown"
-            )
-            argument_date = _parse_date_mdy(
-                fields["argument_date_str"]
-                or deferred.get("argument_date_str")
-                or ""
-            )
-            decision_date = _parse_date_mdy(fields["decision_date_str"] or "")
+        case_name = (
+            deferred.get("case_name") or fields["case_name"] or "Unknown"
+        )
+        argument_date = _parse_date_mdy(
+            fields["argument_date_str"]
+            or deferred.get("argument_date_str")
+            or ""
+        )
+        decision_date = _parse_date_mdy(fields["decision_date_str"] or "")
 
-            # FilingDetailParser produced the file rows; stamp
-            # them with the cross-page join key for emission.
-            files = self._stamp_files(
-                parser_files,
-                docket_number=docket_number,
-            )
-            document_numbers_by_row = {
-                f["file_index"]: f["document_number"] for f in files
-            }
+        # FilingDetailParser produced the file rows; stamp
+        # them with the cross-page join key for emission.
+        files = self._stamp_files(
+            parser_files,
+            docket_number=docket_number,
+        )
+        document_numbers_by_row = {
+            f["file_index"]: f["document_number"] for f in files
+        }
 
-            yield ParsedData(
-                data=NYCourtPassDocket.raw(
-                    docket_number=docket_number or None,
-                    case_name=case_name,
-                    argument_date=argument_date,
-                    decision_date=decision_date,
-                    issues=fields["issues"],
-                    issue_details=fields["issue_details"],
-                    opinion_by=fields["opinion_by"],
-                    official_citation=fields["official_citation"],
-                    no_files_for_case=fields["no_files_for_case"],
-                    docket_entries=(deferred.get("docket_entries") or []),
-                    attorneys=(deferred.get("attorneys") or []),
-                    files=files,
-                    source_url=response.url,
-                    source_entry_point=accumulated_data.get("entry_point"),
-                )
+        yield ParsedData(
+            data=NYCourtPassDocket.raw(
+                docket_number=docket_number or None,
+                case_name=case_name,
+                argument_date=argument_date,
+                decision_date=decision_date,
+                issues=fields["issues"],
+                issue_details=fields["issue_details"],
+                opinion_by=fields["opinion_by"],
+                official_citation=fields["official_citation"],
+                no_files_for_case=fields["no_files_for_case"],
+                docket_entries=(deferred.get("docket_entries") or []),
+                attorneys=(deferred.get("attorneys") or []),
+                files=files,
+                source_url=response.url,
+                source_entry_point=accumulated_data.get("entry_point"),
             )
-            file_name_prefix = base64.b64encode(
-                f"{case_name}-{argument_date}-{decision_date}".encode()
+        )
+        file_name_prefix = base64.b64encode(
+            f"{case_name}-{argument_date}-{decision_date}".encode()
+        ).decode()
+        # Download available files. Button names come from the form
+        # (FilingDetailParser doesn't carry them); document_number comes
+        # from the parser's file rows, keyed by row index. The form is
+        # the same for every button, so read it (and the buttons) once.
+        download_buttons = self._extract_file_download_buttons(page)
+        form = (
+            page.find_form(DOCKET_FORM, "files form")
+            if download_buttons
+            else None
+        )
+        for button in download_buttons:
+            file_suffix = base64.b64encode(
+                f"{button['file_name']}".encode()
             ).decode()
-            # Download available files. Button names come from the form
-            # (FilingDetailParser doesn't carry them); document_number comes
-            # from the parser's file rows, keyed by row index. The form is
-            # the same for every button, so read it (and the buttons) once.
-            download_buttons = self._extract_file_download_buttons(page)
-            form = (
-                page.find_form(DOCKET_FORM, "files form")
-                if download_buttons
-                else None
-            )
-            for button in download_buttons:
-                file_suffix = base64.b64encode(
-                    f"{button['file_name']}".encode()
-                ).decode()
-                name_sha = hashlib.sha1(
-                    f"{file_name_prefix}-{file_suffix}".encode()
-                ).hexdigest()
-                yield form.submit(
-                    submit_selector=CSS(
-                        f"input[name='{button['button_name']}']"
+            name_sha = hashlib.sha1(
+                f"{file_name_prefix}-{file_suffix}".encode()
+            ).hexdigest()
+            yield form.submit(
+                submit_selector=CSS(f"input[name='{button['button_name']}']"),
+                continuation=self.handle_file_download,
+                accumulated_data={
+                    "docket_number": docket_number,
+                    "file_name": button["file_name"],
+                    "file_index": button["row_index"],
+                    "document_number": document_numbers_by_row.get(
+                        button["row_index"]
                     ),
-                    continuation=self.handle_file_download,
-                    accumulated_data={
-                        "docket_number": docket_number,
-                        "file_name": button["file_name"],
-                        "file_index": button["row_index"],
-                        "document_number": document_numbers_by_row.get(
-                            button["row_index"]
-                        ),
-                    },
-                    archive=True,
-                    deduplication_key=name_sha,
-                    request_params={"timeout": 600},
-                )
+                },
+                archive=True,
+                deduplication_key=name_sha,
+                request_params={"timeout": 600},
+            )
 
     # ---- Docket pagination helpers ----
 

@@ -66,9 +66,13 @@ class PartiesParser(JKentParser[MsAppParty]):
             parties_state.append({"role": role, "name": name, "attorneys": []})
 
         # Bucket each attorney row to its nearest preceding party block.
-        # We can't compare PageElement instances by identity, so use
-        # ``count(preceding::table[bgcolor='#003366'])`` as a stable
-        # 1-based index into ``parties_state``.
+        # We can't compare PageElement instances by identity, so count the
+        # preceding party-header tables as a stable 1-based index into
+        # ``parties_state``. We query them as an element nodeset and take
+        # ``len()`` rather than a ``string(count(...))`` XPath: a scalar
+        # string result is iterated character-by-character by the count
+        # check, so a two-digit count (10+ parties) would spuriously read
+        # as 2 results and trip ``max_count``.
         liaptcells = page.query(
             XPath("//td[@class='liaptcell']"),
             "attorney anchor cells",
@@ -86,21 +90,15 @@ class PartiesParser(JKentParser[MsAppParty]):
             atty_name = strip(sibs[0].text_content())
             if not atty_name or atty_name == "No Attorney Representation":
                 continue
-            count_strs = cell.query_strings(
+            preceding_headers = cell.query(
                 XPath(
-                    "string(count(preceding::table["
-                    "translate(@bgcolor, 'abcdef', 'ABCDEF')='#003366']))"
+                    "preceding::table["
+                    "translate(@bgcolor, 'abcdef', 'ABCDEF')='#003366']"
                 ),
-                "preceding party header count",
+                "preceding party headers",
                 min_count=0,
-                max_count=1,
             )
-            if not count_strs:
-                continue
-            try:
-                idx = int(float(count_strs[0])) - 1
-            except (TypeError, ValueError):
-                continue
+            idx = len(preceding_headers) - 1
             if not 0 <= idx < len(parties_state):
                 continue
             atty_list: list[str] = parties_state[idx]["attorneys"]

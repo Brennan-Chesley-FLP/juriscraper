@@ -59,6 +59,7 @@ from juriscraper.state.common.params import PersistedSpeculativeRange
 from .models import (
     BUILD_DOCKET_URL,
     INDEX_URL,
+    MsAppCaseUnavailable,
     MsAppDocket,
     MsAppDocketEntry,
     MsAppDocument,
@@ -103,10 +104,19 @@ SOFT_404_NEEDLE = "No public results were found for your search"
 # the requested resource under sustained request volume.
 CAPTCHA_NEEDLE = "Firewall Captcha Authentication"
 
+# A second WAF interstitial variant: a Dean Edwards-packed JavaScript
+# challenge (sets a cookie and re-requests), also served with a 200 in
+# place of the resource. Matching the packer's wrapper signature rather
+# than its obfuscated symbol table survives the WAF rotating those names;
+# legitimate docket fragments never carry packed JS.
+JS_CHALLENGE_NEEDLE = "eval(function(p,a,c,k,e,d)"
+
 _ENTRY_POINT = "dockets_by_internal_id"
 
 
-class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
+class MississippiAppellateScraper(
+    BaseScraper[MsAppDocket | MsAppDocument | MsAppCaseUnavailable]
+):
     """Scraper for the Mississippi Supreme Court and Court of Appeals."""
 
     # === Metadata (§3) ===
@@ -141,13 +151,18 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
 
     @staticmethod
     def _check_challenge(response: Response) -> None:
-        """Raise ``TransientException`` when the WAF serves its captcha
-        interstitial (a 200) in place of the requested resource, so the
+        """Raise ``TransientException`` when the WAF serves one of its
+        interstitials (a 200) in place of the requested resource, so the
         request is retried instead of being parsed or — worse — counted
         as a speculation outcome for a ``case_num`` it says nothing about.
+
+        The WAF has two variants: a captcha page and a packed-JavaScript
+        cookie challenge; both must be treated as transient, not as content.
         """
         if CAPTCHA_NEEDLE in response.text:
             raise TransientException("WAF captcha challenge page")
+        if JS_CHALLENGE_NEEDLE in response.text:
+            raise TransientException("WAF JavaScript challenge page")
 
     # =========================================================================
     # Entry point (§4)
@@ -188,7 +203,9 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
         page: PageElement,
         response: Response,
         accumulated_data: dict,
-    ) -> Generator[ScraperYield[MsAppDocument], None, None]:
+    ) -> Generator[
+        ScraperYield[MsAppDocument | MsAppCaseUnavailable], None, None
+    ]:
         """Parse case header + docket entries and chain into the parties tab.
 
         ``DocketPageParser`` owns the extraction; the step yields a fresh
@@ -197,13 +214,15 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
         ``MsAppDocket``.
         """
         self._check_challenge(response)
+        cn = int(accumulated_data["case_num"])
         # Speculative miss (unassigned case_num): the driver has already
         # counted the outcome via actually_successful, but it still runs
-        # the continuation — bail before the parser trips on the error page.
+        # the continuation. Record the miss as an ``MsAppCaseUnavailable``
+        # for bookkeeping, then bail before the parser trips on the error
+        # page.
         if SOFT_404_NEEDLE in response.text:
+            yield ParsedData(data=MsAppCaseUnavailable(case_num=cn))
             return
-
-        cn = int(accumulated_data["case_num"])
 
         parser = DocketPageParser()
         raw = parser(page)[0].raw_data

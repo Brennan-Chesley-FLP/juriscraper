@@ -2,6 +2,7 @@
 
 from .models import (
     MsAppAttorney,
+    MsAppCaseUnavailable,
     MsAppDocket,
     MsAppDocketEntry,
     MsAppDocument,
@@ -24,6 +25,7 @@ __all__ = [
     "PartiesParser",
     "TrialCourtParser",
     "MsAppAttorney",
+    "MsAppCaseUnavailable",
     "MsAppDocket",
     "MsAppDocketEntry",
     "MsAppDocument",

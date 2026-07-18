@@ -49,6 +49,25 @@ BUILD_DOCKET_URL: str = f"{BASE_URL}/appellatecourts/docket/build_docket.php"
 # =========================================================================
 
 
+class MsAppCaseUnavailable(ScrapedData):
+    """Yielded when a speculative ``case_num`` search returns the portal's
+    "no public results" page instead of a docket.
+
+    Mirrors California's ``CaAppCaseUnavailable``: it records the searched
+    id for bookkeeping so a speculative miss is a captured outcome rather
+    than a silent no-op. The portal does not distinguish among the reasons
+    a case may be absent — the number was never assigned, the case is not
+    yet filed, or it is sealed/confidential — so none is asserted here.
+
+    Unlike ``MsAppDocket`` this carries no ``court``: the court is decided
+    from the docket-number suffix, which an unavailable case never exposes.
+    """
+
+    case_num: int
+    """Mississippi's internal sequential case id that was searched (the
+    ``cn=`` / ``case_num`` request parameter)."""
+
+
 class MsAppAttorney(ScrapedData):
     """A single attorney representing a party.
 

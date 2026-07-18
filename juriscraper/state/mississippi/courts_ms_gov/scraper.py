@@ -128,7 +128,7 @@ class MississippiAppellateScraper(BaseScraper[MsAppDocket | MsAppDocument]):
     HTTP_CODE_TYPES: ClassVar[dict[int, HTTPCodeType]] = {
         500: HTTPCodeType.TRANSIENT,
     }
-    rate_limits: ClassVar[list[Rate] | None] = [Rate(2, Duration.SECOND)]
+    rate_limits: ClassVar[list[Rate] | None] = [Rate(1, Duration.SECOND)]
 
     # =========================================================================
     # Soft-404 (§10)

@@ -261,6 +261,8 @@ class MississippiAppellateScraper(
                 "date_filed": raw["date_filed"].isoformat()
                 if raw.get("date_filed")
                 else None,
+                "is_consolidated": raw.get("is_consolidated", False),
+                "consolidated_with": raw.get("consolidated_with", []),
                 "entries": [e.model_dump(mode="json") for e in entries],
                 "document_count": len(documents),
             }
@@ -374,6 +376,8 @@ class MississippiAppellateScraper(
             case_num=cn,
             case_name=accumulated_data["case_name"],
             date_filed=date_filed,
+            is_consolidated=accumulated_data.get("is_consolidated", False),
+            consolidated_with=accumulated_data.get("consolidated_with", []),
             entries=[
                 MsAppDocketEntry(**e)
                 for e in accumulated_data.get("entries", [])

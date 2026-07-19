@@ -39,6 +39,9 @@ from ._common import (
 if TYPE_CHECKING:
     from jkent.common.page_element import PageElement
 
+# Text of the caption-block header that precedes consolidated case numbers.
+CONSOLIDATED_LABEL = "Consolidated with case"
+
 
 class DocketPageParser(JKentParser[MsAppDocket]):
     """Parse the case header + docket entries into a partial docket."""
@@ -47,7 +50,7 @@ class DocketPageParser(JKentParser[MsAppDocket]):
         self, page: PageElement
     ) -> list[DeferredValidation[MsAppDocket]]:
         docket_number = self._docket_number(page)
-        case_name = self._case_name(page)
+        case_name, is_consolidated, consolidated_with = self._caption(page)
         entries, earliest_date = self._entries(page)
 
         docket = MsAppDocket.raw(
@@ -55,6 +58,8 @@ class DocketPageParser(JKentParser[MsAppDocket]):
             court=court_from_docket_number(docket_number),
             case_name=case_name,
             date_filed=earliest_date,
+            is_consolidated=is_consolidated,
+            consolidated_with=consolidated_with,
             entries=entries,
         )
         return [docket]
@@ -72,9 +77,20 @@ class DocketPageParser(JKentParser[MsAppDocket]):
         )
         return strip(cells[0].text_content())
 
-    def _case_name(self, page: PageElement) -> str:
-        # Caption is the distinctive font-size:18px bold cell; the page only
-        # has one such cell.
+    def _caption(self, page: PageElement) -> tuple[str, bool, list[str]]:
+        """Return ``(case_name, is_consolidated, consolidated_with)``.
+
+        The caption is the distinctive font-size:18px bold cell. A
+        standalone case has exactly one; a consolidated case repeats the
+        style for a "Consolidated with case(s):" label followed by one cell
+        per consolidated docket number. In every layout the real caption is
+        the first such cell in document order, so take that and allow the
+        trailing consolidation cells rather than asserting a single match.
+
+        ``is_consolidated`` tracks the mere presence of the label so a
+        consolidated case that lists no sibling numbers is distinguishable
+        from a standalone one (both have an empty ``consolidated_with``).
+        """
         cells = page.query(
             XPath(
                 "//td[contains(@style, 'font-size:18px')"
@@ -82,9 +98,23 @@ class DocketPageParser(JKentParser[MsAppDocket]):
             ),
             "case caption cell",
             min_count=1,
-            max_count=1,
         )
-        return strip(cells[0].text_content())
+        case_name = strip(cells[0].text_content())
+
+        # Everything after the "Consolidated with case(s):" label is a
+        # sibling case's docket number; standalone cases have no such label.
+        is_consolidated = False
+        consolidated_with: list[str] = []
+        for i, cell in enumerate(cells[1:]):
+            text = strip(cell.text_content())
+            if CONSOLIDATED_LABEL in text:
+                is_consolidated = True
+                consolidated_with = [
+                    strip(c.text_content()) for c in cells[i + 2 :]
+                ]
+                consolidated_with = [n for n in consolidated_with if n]
+                break
+        return case_name, is_consolidated, consolidated_with
 
     # =====================================================================
     # Docket entries

@@ -191,6 +191,21 @@ class MsAppDocket(ScrapedData):
     """Earliest docket entry date — the site does not expose a separate
     filing-date field."""
 
+    is_consolidated: bool = False
+    """Whether the caption carries the "Consolidated with case(s):" header,
+    i.e. the case is part of a consolidation group. Distinguishes a
+    standalone case (``False``) from a consolidated one whose sibling
+    numbers the site happens not to list (``True`` with an empty
+    ``consolidated_with``)."""
+
+    consolidated_with: list[str] = []
+    """Public docket numbers of other cases consolidated with this one, as
+    printed under the caption's "Consolidated with case(s):" header. Empty
+    for standalone cases *and* for the occasional consolidated case that
+    lists no siblings (use ``is_consolidated`` to tell those apart). These
+    are the sibling cases' docket-number strings (e.g. ``94-CA-01302-SCT``),
+    not this case's own number."""
+
     # === Nested data ===
     entries: list[MsAppDocketEntry] = []
     parties: list[MsAppParty] = []

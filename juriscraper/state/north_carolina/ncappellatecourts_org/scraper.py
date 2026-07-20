@@ -66,7 +66,7 @@ from jkent.data_types import (
 )
 from pyrate_limiter import Duration, Rate
 
-from juriscraper.state.common.headers import JURISCRAPER
+from juriscraper.state.common.headers import FF_HEADERS
 from juriscraper.state.common.params import InferrableDateRange
 
 from .models import (
@@ -156,7 +156,7 @@ class NorthCarolinaAppellateScraper(
     requires_auth: ClassVar[bool] = False
     driver_requirements: ClassVar[list[DriverRequirement]] = []
     rate_limits: ClassVar[list[Rate] | None] = [Rate(1, Duration.SECOND)]
-    default_headers: ClassVar[Mapping[str, str]] = JURISCRAPER
+    default_headers: ClassVar[Mapping[str, str]] = FF_HEADERS
 
     # ``search-results.php`` 504s on deep offset pagination (offsets ≥ ~200
     # were unreliable in testing; offsets ≤ 150 never failed). A date-range

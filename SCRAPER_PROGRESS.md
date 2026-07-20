@@ -19,9 +19,9 @@ Legend: `[ ]` todo · `[x]` done
 
 ### publicportal_alappeals_gov
 - [x] Small test
-- [/] Backscrape
-- [ ] Ongoing job
-- [ ] Affidavit
+- [x] Backscrape
+- [x] Ongoing job
+- [x] Affidavit
 - [ ] CL models
 - [ ] CL merger
 - [ ] Writeup
@@ -40,9 +40,9 @@ Legend: `[ ]` todo · `[x]` done
 ## Arizona
 
 ### appeals2_az_gov
-- [ ] Small test
-- [ ] Backscrape
-- [ ] Ongoing job
+- [x] Small test
+- [x] Backscrape
+- [x] Ongoing job
 - [ ] Affidavit
 - [ ] CL models
 - [ ] CL merger
@@ -50,8 +50,8 @@ Legend: `[ ]` todo · `[x]` done
 
 ### apps_azcourts_gov
 - [x] Small test
-- [/] Backscrape
-- [ ] Ongoing job
+- [x] Backscrape
+- [x] Ongoing job
 - [ ] Affidavit
 - [ ] CL models
 - [ ] CL merger
@@ -60,9 +60,9 @@ Legend: `[ ]` todo · `[x]` done
 ## Arkansas
 
 ### caseinfo_arcourts_gov
-- [ ] Small test
-- [ ] Backscrape
-- [ ] Ongoing job
+- [x] Small test
+- [x] Backscrape
+- [x] Ongoing job
 - [ ] Affidavit
 - [ ] CL models
 - [ ] CL merger
@@ -71,10 +71,10 @@ Legend: `[ ]` todo · `[x]` done
 ## California
 
 ### appellatecases_courtinfo_ca_gov
-- [ ] Small test
-- [ ] Backscrape
-- [ ] Ongoing job
-- [ ] Affidavit
+- [x] Small test
+- [x] Backscrape
+- [x] Ongoing job
+- [x] Affidavit
 - [ ] CL models
 - [ ] CL merger
 - [ ] Writeup
@@ -82,8 +82,8 @@ Legend: `[ ]` todo · `[x]` done
 ## Connecticut
 
 ### appellateinquiry_jud_ct_gov
-- [ ] Small test
-- [ ] Backscrape
+- [x] Small test
+- [x] Backscrape
 - [ ] Ongoing job
 - [ ] Affidavit
 - [ ] CL models
@@ -93,10 +93,10 @@ Legend: `[ ]` todo · `[x]` done
 ## District of Columbia
 
 ### efile_dcappeals_gov
-- [ ] Small test
-- [ ] Backscrape
-- [ ] Ongoing job
-- [ ] Affidavit
+- [x] Small test
+- [x] Backscrape
+- [x] Ongoing job
+- [x] Affidavit
 - [ ] CL models
 - [ ] CL merger
 - [ ] Writeup
@@ -157,9 +157,9 @@ Legend: `[ ]` todo · `[x]` done
 ## Kentucky
 
 ### appellatepublic_kycourts_net
-- [ ] Small test
-- [ ] Backscrape
-- [ ] Ongoing job
+- [x] Small test
+- [x] Backscrape
+- [x] Ongoing job
 - [ ] Affidavit
 - [ ] CL models
 - [ ] CL merger
@@ -479,10 +479,10 @@ Legend: `[ ]` todo · `[x]` done
 ## Wyoming
 
 ### ctefiling_wyocourts_gov
-- [ ] Small test
-- [ ] Backscrape
-- [ ] Ongoing job
-- [ ] Affidavit
+- [x] Small test
+- [x] Backscrape
+- [x] Ongoing job
+- [x] Affidavit
 - [ ] CL models
 - [ ] CL merger
 - [ ] Writeup

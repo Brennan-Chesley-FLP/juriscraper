@@ -56,6 +56,7 @@ from jkent.common.decorators import entry, step
 from jkent.data_types import (
     BaseScraper,
     DriverRequirement,
+    HTTPCodeType,
     HttpMethod,
     HTTPRequestParams,
     ParsedData,
@@ -157,7 +158,9 @@ class NorthCarolinaAppellateScraper(
     driver_requirements: ClassVar[list[DriverRequirement]] = []
     rate_limits: ClassVar[list[Rate] | None] = [Rate(1, Duration.SECOND)]
     default_headers: ClassVar[Mapping[str, str]] = FF_HEADERS
-
+    HTTP_CODE_TYPES: ClassVar[dict[int, HTTPCodeType]] = {
+        522: HTTPCodeType.TRANSIENT,
+    }
     # ``search-results.php`` 504s on deep offset pagination (offsets ≥ ~200
     # were unreliable in testing; offsets ≤ 150 never failed). A date-range
     # entry is split into windows of this many days so each search stays in

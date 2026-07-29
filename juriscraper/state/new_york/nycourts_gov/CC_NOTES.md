@@ -24,8 +24,8 @@ Every flow starts at `Docket.aspx`. Two pages carry the data: the
 docket-detail span (`cphMain_lbDetails`) gives the caption, argument date,
 FILINGS table, and ATTORNEY DETAILS; the filing-detail span
 (`cphMain_lbDetails2`, loaded via the hidden `bttnDetails` postback) gives the
-decision date, issues, opinion author, official citation, and the `gvFiles`
-file list. Docket-detail fields ride forward in
+decision date, issues, official citation, 'Reported Below' lower-court
+citation, and the `gvFiles` file list. Docket-detail fields ride forward in
 `accumulated_data["deferred_docket"]` so one merged `NYCourtPassDocket` is
 emitted only after both pages are seen.
 
@@ -72,9 +72,11 @@ finish before new ones start. File downloads use `priority=0` / `archive=True`.
   (`case_short_name`, `argument_date`, `aria_case_info`, `search_row`).
 - `DocketDetailParser` — caption, argument date, FILINGS (docket_entries),
   ATTORNEY DETAILS (attorneys) from `cphMain_lbDetails`.
-- `FilingDetailParser` — decision date, opinion_by, official_citation,
-  issues, `no_files_for_case`, and `gvFiles` file rows from
-  `cphMain_lbDetails2`.
+- `FilingDetailParser` — decision date, official_citation,
+  lower_court_citation ('Reported Below'), issues, `no_files_for_case`,
+  and `gvFiles` file rows from `cphMain_lbDetails2`. The case-details
+  `dl` only ever carries four labels on real pages (Argument Date,
+  Decision Date, Official Citation, Reported Below);
 
 `_common.py` holds `_parse_date_mdy`, `repair_pdffont_leakage` (strips the
 unclosed `<style pdffontname>` markers Court-PASS emits, which otherwise

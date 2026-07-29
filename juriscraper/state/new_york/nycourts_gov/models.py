@@ -98,7 +98,7 @@ class NYCourtPassDocket(ScrapedData):
 
     Built by merging the docket-detail page (APL number, filings table,
     attorneys, case title) with the filing-detail page reached via
-    bttnDetails (decision date, issues, opinion, citation, file list).
+    bttnDetails (decision date, issues, citations, file list).
     Linked to NYCourtPassFile rows via ``docket_number``.
     """
 
@@ -128,11 +128,12 @@ class NYCourtPassDocket(ScrapedData):
     issue_details: list[CleanString] = []
     """Detailed issue descriptions"""
 
-    opinion_by: str | None = None
-    """Author of the opinion (decided cases only)"""
-
     official_citation: str | None = None
     """Official citation (decided cases only)"""
+
+    lower_court_citation: str | None = None
+    """'Reported Below' citation for the appealed decision
+    (e.g., '102 AD3d 543'); None when not reported."""
 
     no_files_for_case: bool = False
     """True when the filing-detail page explicitly says 'There are no

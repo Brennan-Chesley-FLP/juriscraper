@@ -25,7 +25,7 @@ class FilingDetailParser(JKentParser[NYCourtPassDocket]):
 
     The filing-detail page is reached via the hidden ``bttnDetails``
     postback from the docket-detail page. It carries the decision-side
-    fields (decision date, opinion by, citation, issues) and the file
+    fields (decision date, citations, issues) and the file
     list. Both ``parse_docket_filing_detail`` and
     ``parse_filing_detail_from_docket`` extract from the same span id;
     this parser is shared between them.
@@ -71,8 +71,8 @@ class FilingDetailParser(JKentParser[NYCourtPassDocket]):
 
         argument_date_str = _m("Argument Date")
         decision_date_str = _m("Decision Date")
-        opinion_by = _m("Opinion By")
         official_citation = _m("Official Citation")
+        lower_court_citation = _m("Reported Below")
 
         if argument_date_str and not re.match(
             r"\d{2}/\d{2}/\d{4}", argument_date_str
@@ -106,8 +106,8 @@ class FilingDetailParser(JKentParser[NYCourtPassDocket]):
                 case_name=case_name,
                 argument_date=_parse_date_mdy(argument_date_str),
                 decision_date=_parse_date_mdy(decision_date_str),
-                opinion_by=opinion_by,
                 official_citation=official_citation,
+                lower_court_citation=lower_court_citation,
                 issues=issues,
                 issue_details=issue_details,
                 no_files_for_case=no_files_for_case,

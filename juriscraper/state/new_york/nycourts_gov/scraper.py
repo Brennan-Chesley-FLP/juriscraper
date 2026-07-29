@@ -184,8 +184,9 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         returns:
 
         * ``fields`` — a dict (case_name, argument_date_str,
-          decision_date_str, opinion_by, official_citation, issues,
-          issue_details, no_files_for_case) with dates reshaped back to
+          decision_date_str, official_citation, lower_court_citation,
+          issues, issue_details, no_files_for_case) with dates
+          reshaped back to
           ``MM/DD/YYYY`` strings so the existing fallback chains
           (``deferred_docket`` / grid argument date) compose uniformly.
         * ``files`` — the parser's file rows as plain dicts for emission.
@@ -205,8 +206,8 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             "decision_date_str": (
                 decision_date.strftime("%m/%d/%Y") if decision_date else None
             ),
-            "opinion_by": raw.get("opinion_by"),
             "official_citation": raw.get("official_citation"),
+            "lower_court_citation": raw.get("lower_court_citation"),
             "issues": raw.get("issues") or [],
             "issue_details": raw.get("issue_details") or [],
             "no_files_for_case": raw.get("no_files_for_case", False),
@@ -674,7 +675,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         Merges the docket-detail fields forwarded in ``deferred_docket``
         (case_name, argument_date, docket_entries, attorneys) with the
         filing-detail fields read from this page (decision_date, issues,
-        opinion_by, official_citation, files). Uses
+        official_citation, lower_court_citation, files). Uses
         ``#cphMain_lbDetails2`` (not ``#cphMain_lbDetails``) and
         ``DOCKET_FORM`` for file downloads.
 
@@ -736,8 +737,8 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 decision_date=decision_date,
                 issues=fields["issues"],
                 issue_details=fields["issue_details"],
-                opinion_by=fields["opinion_by"],
                 official_citation=fields["official_citation"],
+                lower_court_citation=fields["lower_court_citation"],
                 no_files_for_case=fields["no_files_for_case"],
                 docket_entries=(deferred.get("docket_entries") or []),
                 attorneys=(deferred.get("attorneys") or []),
@@ -1057,8 +1058,8 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 decision_date=decision_date,
                 issues=fields["issues"],
                 issue_details=fields["issue_details"],
-                opinion_by=fields["opinion_by"],
                 official_citation=fields["official_citation"],
+                lower_court_citation=fields["lower_court_citation"],
                 no_files_for_case=fields["no_files_for_case"],
                 docket_entries=(deferred.get("docket_entries") or []),
                 attorneys=(deferred.get("attorneys") or []),

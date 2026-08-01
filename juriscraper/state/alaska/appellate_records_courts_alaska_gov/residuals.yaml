@@ -1,0 +1,317 @@
+scraper: juriscraper.state.alaska.appellate_records_courts_alaska_gov.scraper:AlaskaScraper
+residuals:
+- continuation: parse_search_results
+  path: html/body/div/main/div/div/div/div/form/span
+  ident: Pagination controls of the full-match results table
+  disposition: chrome
+  note: 'The CMS paginates client-side: every match is already in the HTML, so
+    Previous/Next move nothing the scraper has not read.'
+  example: Previous
+- continuation: parse_search_results
+  path: html/body/div/main/div/div/div/div/div/form/span
+  ident: Pagination controls of the partial-match results table
+  disposition: chrome
+  note: Client-side pagination; all rows are in the HTML.
+  example: Previous
+- continuation: parse_case_general
+  path: html/body/div/main/div/div/div/div/table/thead/tr/th
+  ident: Table column headers
+  disposition: chrome
+  note: Every column under these headers is parsed into the row models.
+  example: Name
+- continuation: parse_case_general
+  path: html/body/div/main/div/div/div/div/span
+  ident: Placeholder shown when the section is empty
+  disposition: chrome
+  note: The section's rows are parsed when present; the placeholder carries no
+    data of its own.
+  example: No Oral Arguments
+- continuation: parse_case_general
+  path: html/body/div/main/div/div/div/div/div/dl/dt
+  ident: Oral-argument field labels
+  disposition: chrome
+  note: dt labels for the dd values already read into the oral_argument_* fields.
+  example: 'Status:'
+- continuation: parse_case_parties
+  path: html/body/div/main/div/div/div/div/div/span
+  ident: Case-title case number and case name
+  disposition: chrome
+  note: The case-title block heading every case page. Already held as AkDocket.docket_number
+    / case_name from the search row and the Case Summary page.
+  example: S09486 In Re Joe Micheal Cox v
+- continuation: parse_case_parties
+  path: html/body/div/main/div/div/div/div/div/div/span
+  ident: Case-title special-status badge tooltip (e.g. Expedited)
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.special_status_flags.
+  example: Expedited
+- continuation: parse_case_parties
+  path: html/body/div/main/div/div/div/div/div/div
+  ident: Case-title special-status badge glyph (the letter E)
+  disposition: chrome
+  note: The case-title block heading every case page. The tooltip beside it spells
+    the badge out; both are extracted from the Case Summary page into AkDocket.special_status_flags.
+  example: E
+- continuation: parse_case_parties
+  path: html/body/div/main/div/div/div/div/div/span/a
+  ident: Case-title cross-appeal link
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.cross_appeal_docket_number / cross_appeal_internal_id.
+  example: S09382
+- continuation: parse_case_records
+  path: html/body/div/main/div/div/div/div/div/span
+  ident: Case-title case number and case name
+  disposition: chrome
+  note: The case-title block heading every case page. Already held as AkDocket.docket_number
+    / case_name from the search row and the Case Summary page.
+  example: S09486 In Re Joe Micheal Cox v
+- continuation: parse_case_records
+  path: html/body/div/main/div/div/div/div/table/thead/tr/th
+  ident: Table column headers
+  disposition: chrome
+  note: Every column under these headers is parsed into the row models.
+  example: Type
+- continuation: parse_case_records
+  path: html/body/div/main/div/div/div/div/span
+  ident: Placeholder shown when the section is empty
+  disposition: chrome
+  note: The section's rows are parsed when present; the placeholder carries no
+    data of its own.
+  example: No Records
+- continuation: parse_case_records
+  path: html/body/div/main/div/div/div/div/div/div/span
+  ident: Case-title special-status badge tooltip (e.g. Expedited)
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.special_status_flags.
+  example: Expedited
+- continuation: parse_case_records
+  path: html/body/div/main/div/div/div/div/div/div
+  ident: Case-title special-status badge glyph (the letter E)
+  disposition: chrome
+  note: The case-title block heading every case page. The tooltip beside it spells
+    the badge out; both are extracted from the Case Summary page into AkDocket.special_status_flags.
+  example: E
+- continuation: parse_case_records
+  path: html/body/div/main/div/div/div/div/div/span/a
+  ident: Case-title cross-appeal link
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.cross_appeal_docket_number / cross_appeal_internal_id.
+  example: S09382
+- continuation: parse_case_docket
+  path: html/body/div/main/div/div/div/div/div/span
+  ident: Case-title case number and case name
+  disposition: chrome
+  note: The case-title block heading every case page. Already held as AkDocket.docket_number
+    / case_name from the search row and the Case Summary page.
+  example: S09486 In Re Joe Micheal Cox v
+- continuation: parse_case_docket
+  path: html/body/div/main/div/div/div
+  ident: Standing notice about documents in consolidated / cross-appeal cases
+  disposition: chrome
+  note: Fixed help copy shown on the Docket tab of linked cases. The linkage itself
+    is captured as AkDocket.cross_appeal_docket_number and related_cases.
+  example: 'Please Note: Documents filed in consolidated, cross appeal, or cross
+    petition ca'
+- continuation: parse_case_docket
+  path: html/body/div/main/div/div/div/div/div/div/span
+  ident: Case-title special-status badge tooltip (e.g. Expedited)
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.special_status_flags.
+  example: Expedited
+- continuation: parse_case_docket
+  path: html/body/div/main/div/div/div/div/div/div
+  ident: Case-title special-status badge glyph (the letter E)
+  disposition: chrome
+  note: The case-title block heading every case page. The tooltip beside it spells
+    the badge out; both are extracted from the Case Summary page into AkDocket.special_status_flags.
+  example: E
+- continuation: parse_case_docket
+  path: html/body/div/main/div/div/div/div/div/span/a
+  ident: Case-title cross-appeal link
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.cross_appeal_docket_number / cross_appeal_internal_id.
+  example: S09382
+- continuation: parse_case_motions
+  path: html/body/div/main/div/div/div/div/div/span
+  ident: Case-title case number and case name
+  disposition: chrome
+  note: The case-title block heading every case page. Already held as AkDocket.docket_number
+    / case_name from the search row and the Case Summary page.
+  example: S09486 In Re Joe Micheal Cox v
+- continuation: parse_case_motions
+  path: html/body/div/main/div/div/div/div/div/div/span
+  ident: Case-title special-status badge tooltip (e.g. Expedited)
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.special_status_flags.
+  example: Expedited
+- continuation: parse_case_motions
+  path: html/body/div/main/div/div/div/div/span
+  ident: Placeholder shown when the section is empty
+  disposition: chrome
+  note: The section's rows are parsed when present; the placeholder carries no
+    data of its own.
+  example: No Motions
+- continuation: parse_case_motions
+  path: html/body/div/main/div/div/div/div/div/div
+  ident: Case-title special-status badge glyph (the letter E)
+  disposition: chrome
+  note: The case-title block heading every case page. The tooltip beside it spells
+    the badge out; both are extracted from the Case Summary page into AkDocket.special_status_flags.
+  example: E
+- continuation: parse_case_motions
+  path: html/body/div/main/div/div/div/div/div/span/a
+  ident: Case-title cross-appeal link
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.cross_appeal_docket_number / cross_appeal_internal_id.
+  example: S09382
+- continuation: parse_case_motions
+  path: html/body/div/main/div/div/div/div/table/thead/tr/th
+  ident: Table column headers
+  disposition: chrome
+  note: Every column under these headers is parsed into the row models.
+  example: Dkt#
+- continuation: parse_case_briefs
+  path: html/body/div/main/div/div/div/div/div/span
+  ident: Case-title case number and case name
+  disposition: chrome
+  note: The case-title block heading every case page. Already held as AkDocket.docket_number
+    / case_name from the search row and the Case Summary page.
+  example: S09486 In Re Joe Micheal Cox v
+- continuation: parse_case_briefs
+  path: html/body/div/main/div/div/div/div/table/thead/tr/th
+  ident: Table column headers
+  disposition: chrome
+  note: Every column under these headers is parsed into the row models.
+  example: Dkt#
+- continuation: parse_case_briefs
+  path: html/body/div/main/div/div/div/div/table/thead/tr/th/span
+  ident: Table column headers
+  disposition: chrome
+  note: Every column under these headers is parsed into the row models.
+  example: Date
+- continuation: parse_case_briefs
+  path: html/body/div/main/div/div/div/div/strong/span
+  ident: Placeholder shown when the section is empty
+  disposition: chrome
+  note: The section's rows are parsed when present; the placeholder carries no
+    data of its own.
+  example: No Briefs
+- continuation: parse_case_briefs
+  path: html/body/div/main/div/div/div/div/div/div/span
+  ident: Case-title special-status badge tooltip (e.g. Expedited)
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.special_status_flags.
+  example: Expedited
+- continuation: parse_case_briefs
+  path: html/body/div/main/div/div/div/div/div/div
+  ident: Case-title special-status badge glyph (the letter E)
+  disposition: chrome
+  note: The case-title block heading every case page. The tooltip beside it spells
+    the badge out; both are extracted from the Case Summary page into AkDocket.special_status_flags.
+  example: E
+- continuation: parse_case_briefs
+  path: html/body/div/main/div/div/div/div/div/span/a
+  ident: Case-title cross-appeal link
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.cross_appeal_docket_number / cross_appeal_internal_id.
+  example: S09382
+- continuation: parse_brief_history
+  path: html/body/div/main/div/div/div/div/div/span
+  ident: Case-title case number and case name
+  disposition: chrome
+  note: The case-title block heading every case page. Already held as AkDocket.docket_number
+    / case_name from the search row and the Case Summary page.
+  example: A12697 Dana Michael Spindler v State of Alaska
+- continuation: parse_brief_history
+  path: html/body/div/main/div/div/div/div/div/div/span
+  ident: Case-title special-status badge tooltip (e.g. Expedited)
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.special_status_flags.
+  example: Expedited
+- continuation: parse_brief_history
+  path: html/body/div/main/div/div/div/div/div/span/a
+  ident: Case-title cross-appeal link
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.cross_appeal_docket_number / cross_appeal_internal_id.
+  example: S18495
+- continuation: parse_brief_history
+  path: html/body/div/main/div/div/div/div/div/div
+  ident: Case-title special-status badge glyph (the letter E)
+  disposition: chrome
+  note: The case-title block heading every case page. The tooltip beside it spells
+    the badge out; both are extracted from the Case Summary page into AkDocket.special_status_flags.
+  example: E
+- continuation: parse_motion_detail
+  path: html/body/div/main/div/div/div/div/div/span
+  ident: Case-title case number and case name
+  disposition: chrome
+  note: The case-title block heading every case page. Already held as AkDocket.docket_number
+    / case_name from the search row and the Case Summary page.
+  example: S09471 J.H. v State of Alaska, DFHS
+- continuation: parse_motion_detail
+  path: html/body/div/main/div/div/div/div/span
+  ident: Placeholder shown when the section is empty
+  disposition: chrome
+  note: The section's rows are parsed when present; the placeholder carries no
+    data of its own.
+  example: No Oppositions and Responses
+- continuation: parse_motion_detail
+  path: html/body/div/main/div/div/div/div/div/span/span
+  ident: Screen-reader labels inside the motion-flag glyphicons
+  disposition: chrome
+  note: sr-only text ('Checked Icon' / 'Unchecked Icon'); the flag states themselves
+    are read from the glyphicon classes into AkMotion.flags.
+  example: Checkmark Icon
+- continuation: parse_motion_detail
+  path: html/body/div/main/div/div/div/div/table/thead/tr/th
+  ident: Table column headers
+  disposition: chrome
+  note: Every column under these headers is parsed into the row models.
+  example: Party
+- continuation: parse_motion_detail
+  path: html/body/div/main/div/div/div/div/div/div/span
+  ident: Case-title special-status badge tooltip (e.g. Expedited)
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.special_status_flags.
+  example: Expedited
+- continuation: parse_motion_detail
+  path: html/body/div/main/div/div/div/div/div/div
+  ident: Case-title special-status badge glyph (the letter E)
+  disposition: chrome
+  note: The case-title block heading every case page. The tooltip beside it spells
+    the badge out; both are extracted from the Case Summary page into AkDocket.special_status_flags.
+  example: E
+- continuation: parse_motion_detail
+  path: html/body/div/main/div/div/div/div/div/span/a
+  ident: Case-title cross-appeal link
+  disposition: chrome
+  note: The case-title block heading every case page. Extracted from the Case
+    Summary page into AkDocket.cross_appeal_docket_number / cross_appeal_internal_id.
+  example: S09382
+- continuation: parse_motion_detail
+  path: html/body/div/main/div/div/div/h3
+  ident: '"Case not found" error-page heading'
+  disposition: chrome
+  note: 15 of 169,407 motion-detail URLs answer 200 with a bare "Case not
+    found" page instead of the motion. It carries no case data, so those
+    motions keep only what the motions list gave them.
+  example: Case not found
+- continuation: parse_motion_detail
+  path: html/body/div/main/div/div/h4
+  ident: '"Case doesn''t exist." error-page body'
+  disposition: chrome
+  note: The body line of the same "Case not found" page; no data.
+  example: Case doesn't exist.

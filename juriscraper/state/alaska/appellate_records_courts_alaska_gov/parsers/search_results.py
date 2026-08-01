@@ -16,6 +16,7 @@ from ._common import (
     extract_q_token,
     parse_ak_date,
     safe_text,
+    text_lines,
 )
 
 if TYPE_CHECKING:
@@ -73,6 +74,14 @@ class SearchResultsParser(JKentParser[AkDocket]):
                 )
                 case_name = safe_text(name_els[0]) if name_els else ""
 
+                # Cell 4: trial court number(s), one per <br>-separated
+                # line (a case can appeal more than one lower-court file).
+                trial_court_numbers: list[str] = []
+                if len(cells) > 4:
+                    trial_court_numbers = text_lines(
+                        cells[4], "trial court numbers"
+                    )
+
                 # Cell 5: date opened (hidden column, ISO formatted).
                 date_filed = None
                 if len(cells) > 5:
@@ -88,6 +97,7 @@ class SearchResultsParser(JKentParser[AkDocket]):
                         internal_case_id=extract_q_token(case_url),
                         case_type=safe_text(cells[2]) or None,
                         case_status=safe_text(cells[3]) or None,
+                        trial_court_numbers=trial_court_numbers,
                         source_url=case_url,
                     )
                 )

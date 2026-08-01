@@ -53,6 +53,17 @@ doesn't expose. Motion details and brief histories are sub-chains: each
 page is fetched sequentially (one pending item handed forward at a time)
 and merged back into its motion/brief by list index.
 
+## Case-title block
+
+Every case page repeats a case-title block: case number and name, case
+status, an optional `[Cross Appeal: …]` reference (rendered twice — a
+legacy `caseID` anchor and the `q`-token one we want), and one badge div
+per special status (an `E` glyph with an `Expedited` tooltip).
+`parse_case_title` in `_common.py` reads it, and only the Case Summary
+page's copy is kept — onto `case_status`, `cross_appeal_*` and
+`special_status_flags`. On the other tabs the block is chrome (see
+`residuals.yaml`).
+
 ## Data model
 
 A single `AkDocket` is accumulated across all tab requests via a plain
@@ -76,7 +87,29 @@ blocks, motion-flag glyphicons). Steps are thin adapters that call a parser
 and keep navigation/download concerns to themselves. Parsers can be
 exercised offline with `JKentParser.from_string` / `from_file`.
 
+Several helpers route text through `text_lines` (a `.//text()` query)
+rather than `text_content()`. Both yield the same string, but only the
+query is visible to jkent's `SelectorObserver`, so `jent residuals` can
+tell "the scraper read this" from "the scraper never looked".
+
+## Coverage
+
+`residuals.yaml` is the residual-identification sidecar for
+`jent residuals`: every DOM text cluster the parsers leave unconsumed,
+with why it is chrome. Regenerate stubs for new clusters with
+
+```
+jent --db-dir <runs> --repo . '<selection>' residuals \
+    --record juriscraper/state/alaska/appellate_records_courts_alaska_gov/residuals.yaml
+```
+
+There is no `schemas.json`: every continuation serves HTML.
+
 ## Verified
 
 `last_verified` / `version` 2026-06-24 against run `AK-app-p-114.db`
 (199 cases, 0 errors) via `jent replay`.
+
+Revised 2026-07-28 against the 198-db `juriscraper-runs/alaska` corpus
+(396 searches, 22,234 case-tab pages per tab, 169k motion details,
+101k document fetches, 3 errors — all truncated PDF downloads).

@@ -54,21 +54,143 @@ class NYCourtPassFile(ScrapedData):
     docket_number: str | None = None
     """APL/CTQ/JCR number (e.g., 'APL-2024-00177') when reached via docket flow"""
 
+    # --- file-name convention (see filename_convention.py) -----------------
+    # Court-PASS file names follow the Court's published convention,
+    # ``title of action-role-name-doctype[-volN].pdf``
+    # (https://www.nycourts.gov/ctapps/techspecs.htm). These carry what that
+    # name encodes; each is None when the filer departed from the convention.
 
-class NYCourtPassDocketEntry(ScrapedData):
-    """A row from the FILINGS table on the Docket detail page."""
+    doc_role: str | None = None
+    """Party role from the file name, normalized ('appellant', 'respondent',
+    'amicus', 'appellant-respondent', ...)."""
 
-    filing_type: str
-    """Filing type (e.g., 'Appellant Brief', 'Respondent Brief')"""
+    doc_party: str | None = None
+    """Party-name segment from the file name (e.g. 'ConcernedCitizens')."""
 
-    party: str | None = None
-    """Party name associated with the filing"""
+    doc_type: str | None = None
+    """Canonical document type from the file name ('brf', 'replybrf', 'rec',
+    'appdx', 'amicbrf', 'ssmltrbrf', 'motforlv', ...). Values prefixed '_'
+    are court-generated rather than filed: '_decision', '_transcript',
+    '_webcast', and '_combined' for one PDF covering two filings."""
 
-    date_due: date | None = None
-    """Due date for the filing"""
+    volume: int | None = None
+    """Volume number for multi-volume records/appendices ('-Rec-vol3')."""
+
+    part: int | None = None
+    """Part number, when a volume is itself split ('-Rec-vol1 part2')."""
+
+    document_group: int | None = None
+    """Which logical document this file belongs to within the docket. Volumes
+    and parts of one record share a ``document_group``; every group maps to
+    exactly one ``docket_entry_index``. None for court-generated files."""
+
+    # --- resolved link to the FILINGS table --------------------------------
+
+    docket_entry_index: int | None = None
+    """``entry_index`` of the ``docket_entries`` row this file belongs to.
+    With the parent's ``docket_number`` this is the composite key
+    ``(docket_number, docket_entry_index)`` -> ``(docket_number,
+    entry_index)``. Volumes of one record all point at the same entry.
+    Resolved by ``reconcile_files_and_entries``, which synthesizes an entry
+    for any document the FILINGS table omitted, so every filer-submitted file
+    has one. None only for court-generated files (decision, transcript,
+    webcast), which are not filings."""
+
+    link_status: str | None = None
+    """How this file reached its entry: 'matched' (a real FILINGS row),
+    'inferred' (an entry synthesized from this file name because no FILINGS
+    row listed it), or 'court_generated' (no entry -- the court's own output).
+    'unlinked' would mean a filer file escaped both paths and indicates a bug."""
+
+    match_confidence: str | None = None
+    """For ``link_status='matched'``, how the link was established: 'exact'
+    (document type, role, and party name all agree), 'strong' (type agrees
+    plus one of role/party), or 'weak' (matched on compatible type and
+    elimination within the docket). None for inferred and court-generated
+    files, which were not matched against anything."""
 
     date_received: date | None = None
-    """Date the filing was received"""
+    """``date_received`` inherited from the linked docket entry. Only the
+    FILINGS table carries filing dates; ``gvFiles`` has none."""
+
+    date_due: date | None = None
+    """``date_due`` inherited from the linked docket entry."""
+
+
+class NYCourtPassDocketEntry(ScrapedData):
+    """A row from the FILINGS table on the Docket detail page.
+
+    Or, when ``inferred_from_file`` is set, a document found in ``gvFiles``
+    that the FILINGS table never listed — synthesized by
+    ``reconcile_files_and_entries`` so that every filer-submitted file hangs
+    off exactly one entry. See ``filename_convention.py``.
+    """
+
+    filing_type: str
+    """Filing type. Verbatim from the FILINGS table (e.g. 'Appellant Brief')
+    for real rows; composed from the file name (e.g. 'Appellant Motion for
+    Leave to Appeal') when ``inferred_from_file``."""
+
+    party: str | None = None
+    """Party name associated with the filing. From the FILINGS table, or from
+    the file name's party segment when ``inferred_from_file``."""
+
+    date_due: date | None = None
+    """Due date for the filing. Always None when ``inferred_from_file``:
+    ``gvFiles`` carries no dates."""
+
+    date_received: date | None = None
+    """Date the filing was received. Always None when ``inferred_from_file``."""
+
+    entry_index: int | None = None
+    """0-based position of this entry in the parent docket's
+    ``docket_entries``. Real FILINGS rows keep their table order and come
+    first; inferred entries are appended after them, so these values are
+    stable. With the parent's ``docket_number`` this forms the composite key
+    ``NYCourtPassFile.docket_entry_index`` joins against."""
+
+    raw_filing_type: str | None = None
+    """The FILINGS-table filing-type string exactly as the page rendered it.
+    None when ``inferred_from_file`` — no table row existed to quote."""
+
+    entry_role: str | None = None
+    """Normalized party role for this filing ('appellant', 'respondent',
+    'amicus', ...), from ``FILING_TYPE_MAP`` or from the file name for
+    inferred entries. None when the filing type implies no role."""
+
+    entry_doctype: str | None = None
+    """Canonical document type for this filing ('brf', 'replybrf', 'rec',
+    'motforlv', ...). None when the filing type carries no document (e.g.
+    'SCJC Determination') or when it could not be classified — see
+    ``filing_type_recognized`` to tell those apart."""
+
+    filing_type_recognized: bool = False
+    """True when this entry's filing type resolved: present in
+    ``FILING_TYPE_MAP`` for a real row, or yielding a doctype from the file
+    name for an inferred one.
+
+    Read it together with ``inferred_from_file``, because False means two
+    different things. ``filing_type_recognized=False AND
+    inferred_from_file=False`` is the **vocabulary-drift signal** — Court-PASS
+    put a filing kind in the FILINGS table that ``FILING_TYPE_MAP`` predates
+    (currently zero across the historical corpus; such an entry still matches
+    files, just without role/doctype constraints). ``False`` on an inferred
+    entry merely means the file name's document-type token was unreadable,
+    which is common (~8% of names) and not drift."""
+
+    inferred_from_file: bool = False
+    """True when this entry was synthesized from a file name rather than read
+    from the FILINGS table. Expected for filings the table structurally omits
+    (motion papers, Appellate Division material, compendia, addenda —
+    ``NOT_ON_FILINGS_TABLE``); outside that set it means the table dropped
+    something it usually lists."""
+
+    file_indexes: list[int] = []
+    """``file_index`` of every file belonging to this entry — zero or more.
+    Empty means the FILINGS table listed a filing with no document on the
+    site (routine for pending cases). More than one means a multi-volume
+    record or a document split into parts. Join to ``NYCourtPassFile`` on
+    ``(docket_number, file_index)`` to reach ``available``."""
 
 
 class NYCourtPassAttorney(ScrapedData):

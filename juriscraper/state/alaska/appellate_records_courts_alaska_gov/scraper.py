@@ -73,7 +73,7 @@ class AlaskaScraper(BaseScraper[_Yield]):
     court_url: ClassVar[str] = "https://appellate-records.courts.alaska.gov/"
     data_types: ClassVar[set[str]] = {"dockets"}
     status: ClassVar[ScraperStatus] = ScraperStatus.IN_DEVELOPMENT
-    version: ClassVar[str] = "2026-06-24"
+    version: ClassVar[str] = "2026-07-28"
     last_verified: ClassVar[str] = "2026-06-24"
     requires_auth: ClassVar[bool] = False
     rate_limits: ClassVar[list[Rate] | None] = [Rate(4, Duration.SECOND)]
@@ -342,6 +342,13 @@ class AlaskaScraper(BaseScraper[_Yield]):
                     entry_number=order.get("entry_number"),
                     source="order",
                 )
+            for opposition in motion.get("oppositions", []):
+                yield from self._archive(
+                    opposition.get("document_url"),
+                    docket_data,
+                    entry_number=opposition.get("entry_number"),
+                    source="opposition",
+                )
 
         if pending:
             yield self._motion_detail_request(docket_data, tab_urls, pending)
@@ -384,6 +391,9 @@ class AlaskaScraper(BaseScraper[_Yield]):
         tab_urls = accumulated_data["tab_urls"]
         briefs = [self._json_safe(dv.raw_data) for dv in BriefsParser()(page)]
         docket_data["briefs"] = briefs
+        docket_data["briefing_rounds"] = self._json_safe(
+            BriefsParser.parse_rounds(page)
+        )
 
         pending: list[dict] = []
         for idx, brief in enumerate(briefs):

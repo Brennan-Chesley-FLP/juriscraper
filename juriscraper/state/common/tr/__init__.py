@@ -14,6 +14,8 @@ from .models import (
     TRCourtConfig,
     TRDocket,
     TRDocketEntry,
+    TRDocketEntryActor,
+    TRDocketEntrySubmitter,
     TRDocument,
     TROralArgument,
 )
@@ -23,6 +25,8 @@ __all__ = [
     "TRCourtConfig",
     "TRDocket",
     "TRDocketEntry",
+    "TRDocketEntryActor",
+    "TRDocketEntrySubmitter",
     "TRDocument",
     "TROralArgument",
     "TRPortalMixin",

@@ -48,6 +48,7 @@ from jkent.data_types import (
 from .models import (
     TRCourtConfig,
     TRDocketEntryActor,
+    TRDocketEntrySubmitter,
     TROriginatingCase,
     TRParty,
     TRRepresentative,
@@ -170,6 +171,28 @@ class TRPortalMixin:
         if end_of_day:
             return f"{d.isoformat()}T23:59:59.900-06:00"
         return f"{d.isoformat()}T00:00:00.001-06:00"
+
+    def _tr_parse_actor(
+        self, actor_info: dict | None
+    ) -> TRDocketEntryActor | None:
+        """Build an actor from a ``partyActorInstance`` object.
+
+        Deployments seen so far only send ``sortName``, so it stands in for
+        ``displayName`` when the latter is absent.
+
+        Returns:
+            The actor, or None if there is no usable name.
+        """
+        if not actor_info:
+            return None
+        sort_name = actor_info.get("sortName")
+        display_name = actor_info.get("displayName") or sort_name
+        if not display_name:
+            return None
+        return TRDocketEntryActor(
+            display_name=display_name,
+            sort_name=sort_name,
+        )
 
     # =========================================================================
     # Court configuration lookups
@@ -598,16 +621,24 @@ class TRPortalMixin:
             filed_date_str = header.get("filedDate", "")
             submitted_date_str = header.get("submittedDate", "")
 
-            submitted_by: list[TRDocketEntryActor] = []
-            for actor in entry_data.get("submittedBy", []) or []:
-                actor_info = actor.get("partyActorInstance", {}) or {}
-                display_name = actor_info.get("displayName")
-                if not display_name:
+            submitted_by: list[TRDocketEntrySubmitter] = []
+            for element in entry_data.get("submittedBy", []) or []:
+                # AL/WY nest actors under party/attorney; ND/OR put a bare
+                # partyActorInstance on the element.
+                party = self._tr_parse_actor(
+                    (element.get("party") or {}).get("partyActorInstance")
+                ) or self._tr_parse_actor(element.get("partyActorInstance"))
+                attorney = self._tr_parse_actor(
+                    (element.get("attorney") or {}).get("partyActorInstance")
+                )
+                other = element.get("otherSubmitter") or None
+                if not (party or attorney or other):
                     continue
                 submitted_by.append(
-                    TRDocketEntryActor(
-                        display_name=display_name,
-                        sort_name=actor_info.get("sortName"),
+                    TRDocketEntrySubmitter(
+                        party=party,
+                        attorney=attorney,
+                        other_submitter=other,
                     )
                 )
 
@@ -636,6 +667,7 @@ class TRPortalMixin:
                 security_5=header.get("security5"),
                 composite_security=header.get("compositeSecurity"),
                 submitted_by=submitted_by,
+                other_submitter=entry_data.get("otherSubmitter") or None,
             )
             entries.append(entry)
 

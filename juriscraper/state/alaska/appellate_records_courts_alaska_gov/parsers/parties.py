@@ -22,7 +22,9 @@ class PartiesParser(JKentParser[AkParty]):
     """Parse the participants table into one ``AkParty`` per row.
 
     A participant's attorneys are rendered as separate ``<address>``
-    blocks in the fourth cell.
+    blocks in the fourth cell. When nobody is on record the cell instead
+    holds a bare span saying ``Unassigned`` or ``Self-represented
+    litigant``.
     """
 
     def __call__(self, page: PageElement) -> list[DeferredValidation[AkParty]]:
@@ -39,12 +41,23 @@ class PartiesParser(JKentParser[AkParty]):
             addr_els = cells[3].query(
                 XPath(".//address"), "attorney address", min_count=0
             )
+            status = cells[3].query_strings(
+                XPath("./span/text()"),
+                "representation status",
+                min_count=0,
+                max_count=1,
+            )
             results.append(
                 AkParty.raw(
                     name=safe_text(cells[0]),
                     role=safe_text(cells[1]) or None,
                     side=safe_text(cells[2]) or None,
                     attorneys=[parse_attorney(a) for a in addr_els],
+                    representation_status=(
+                        status[0].strip()
+                        if status and status[0].strip()
+                        else None
+                    ),
                 )
             )
         return results

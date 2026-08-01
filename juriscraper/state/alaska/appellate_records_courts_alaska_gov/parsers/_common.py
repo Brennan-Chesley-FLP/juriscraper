@@ -20,6 +20,11 @@ _DATE_FORMATS = ("%m/%d/%Y", "%Y-%m-%d", "%m/%d/%Y %I:%M %p")
 # attorney ``<address>`` block.
 PHONE_PATTERN = re.compile(r"[\d\(\)\-\s]{7,}")
 
+# The case-title span renders a cross-appeal reference as
+# ``[Cross Appeal: <a>S18495</a>]``, followed by a bare duplicate anchor.
+_CROSS_APPEAL_HTML_RE = re.compile(r"\[Cross Appeal:\s*<a[^>]*>(.*?)</a>\]")
+_CROSS_APPEAL_TEXT_RE = re.compile(r"Cross Appeal:\s*([A-Za-z0-9-]+)")
+
 
 def parse_ak_date(text: str | None) -> date | None:
     """Parse a date from the formats used across the Alaska CMS."""
@@ -42,6 +47,115 @@ def safe_text(element: PageElement) -> str:
         return element.text_content().strip()
     except Exception:
         return ""
+
+
+def text_lines(element: PageElement, description: str) -> list[str]:
+    """Return an element's non-empty text lines.
+
+    Goes through an explicit ``text()`` query rather than
+    ``text_content()`` so selector observers see the text nodes as
+    consumed; splitting each node on newlines keeps the line list
+    identical to what ``text_content().split("\\n")`` produced.
+    """
+    try:
+        chunks = element.query_strings(
+            XPath(".//text()"), description, min_count=0
+        )
+    except Exception:
+        return []
+    return [
+        line.strip()
+        for chunk in chunks
+        for line in chunk.split("\n")
+        if line.strip()
+    ]
+
+
+def parse_case_title(page: PageElement) -> dict:
+    """Parse the case-title block that heads every case page.
+
+    The block carries the case number and name, the case status, an
+    optional ``[Cross Appeal: …]`` reference, and one badge div per
+    special status (a one-letter glyph plus a tooltip spelling it out,
+    e.g. ``E`` / ``Expedited``). Every case page repeats it; only the
+    Case Summary page's copy is kept, on the ``AkDocket``.
+    """
+    out: dict = {}
+
+    # The name span is the unadorned one; the status span carries
+    # ``title="Case Status"`` and the badge tooltips live in child divs.
+    name_spans = page.query(
+        XPath("//div[contains(@class, 'cms-case-name')]/span[not(@title)]"),
+        "case title span",
+        min_count=0,
+        max_count=1,
+    )
+    if name_spans:
+        span = name_spans[0]
+        cross_links = span.query(
+            XPath(".//a"), "cross-appeal links", min_count=0
+        )
+        title_text = " ".join(text_lines(span, "case title text"))
+        cross_match = _CROSS_APPEAL_HTML_RE.search(
+            span.inner_html()
+        ) or _CROSS_APPEAL_TEXT_RE.search(title_text)
+        if cross_match:
+            out["cross_appeal_docket_number"] = cross_match.group(1).strip()
+        # The reference renders twice: once inside the "[Cross Appeal: …]"
+        # brackets addressed by legacy ``caseID``, then again as a bare
+        # anchor carrying the encrypted ``q`` token we actually want.
+        for link in cross_links:
+            token = extract_q_token(link.get_attribute("href"))
+            if token:
+                out["cross_appeal_internal_id"] = token
+                break
+
+    status_spans = page.query(
+        XPath(
+            "//div[contains(@class, 'cms-case-name')]"
+            "/span[@title='Case Status']"
+        ),
+        "case status span",
+        min_count=0,
+        max_count=1,
+    )
+    if status_spans:
+        status = safe_text(status_spans[0])
+        if status:
+            out["case_status"] = status
+
+    flags: list[str] = []
+    for badge in page.query(
+        XPath(
+            "//div[contains(@class, 'cms-case-name')]"
+            "//div[contains(@class, 'specialStatusFlag')]"
+        ),
+        "special status badges",
+        min_count=0,
+    ):
+        tooltip = badge.query_strings(
+            XPath("./span[contains(@class, 'cms-tooltiptext')]/text()"),
+            "special status tooltip",
+            min_count=0,
+            max_count=1,
+        )
+        glyph = badge.query_strings(
+            XPath("./text()"), "special status glyph", min_count=0
+        )
+        label = next(
+            (
+                text.strip()
+                for text in (*tooltip, *glyph)
+                if text and text.strip()
+            ),
+            "",
+        )
+        if label:
+            flags.append(label)
+    if flags:
+        out["special_status_flags"] = flags
+
+    return out
 
 
 def extract_q_token(href: str | None) -> str | None:
@@ -76,9 +190,7 @@ def parse_attorney(addr_el: PageElement) -> dict:
         XPath(".//strong"), "attorney name", min_count=0
     )
     name = safe_text(strong_els[0]) if strong_els else None
-    lines = [
-        line.strip() for line in safe_text(addr_el).split("\n") if line.strip()
-    ]
+    lines = text_lines(addr_el, "attorney address lines")
     # Drop the leading name line and any duplicate name lines.
     addr_lines = [line for line in lines[1:] if line != name]
     contact_raw: str | None = None

@@ -84,14 +84,21 @@ class AkParty(ScrapedData):
     """Role/type on this docket (``Appellant``, ``Appellee``, …)."""
     side: str | None = None
     attorneys: list[AkAttorney] = []
+    representation_status: str | None = None
+    """What the Attorney cell says when it names no attorney:
+    ``Unassigned`` or ``Self-represented litigant``."""
 
 
 class AkRecordEntry(ScrapedData):
     """A record entry from the Record tab."""
 
     trial_court_case: str | None = None
-    """Trial-court case number this record belongs to (cases with
-    multiple trial-court sources group records under each)."""
+    """Source file number this record belongs to (cases with multiple
+    source files group records under each)."""
+    source_type: str | None = None
+    """What kind of file ``trial_court_case`` names, per the section
+    heading: ``Trial Court Case``, ``ABA File Number`` (Alaska Bar
+    Association) or ``AWCB Case Number`` (Workers' Compensation Board)."""
     record_type: str | None = None
     status: str | None = None
     record_date: date | None = None
@@ -110,6 +117,11 @@ class AkDocketEntry(ScrapedData):
     date_filed: date | None = None
     """Date the entry was filed or issued."""
     filed_or_issued_by: str | None = None
+    category: str | None = None
+    """The entry's category, as used by the page's "Docket By Category"
+    grouping: ``Motion``, ``Notice``, ``Brief``, ``Other``."""
+    category_code: str | None = None
+    """The CMS's numeric code for ``category``."""
     document_url: str | None = None
     local_path: str | None = None
 
@@ -125,6 +137,21 @@ class AkMotionFlag(ScrapedData):
 
     motion_flag: str
     motion_value: bool
+
+
+class AkMotionOpposition(ScrapedData):
+    """A row of the Oppositions and Responses table on a motion-detail
+    page."""
+
+    entry_number: str | None = None
+    """The ``Dkt#`` ordinal of the opposition/response."""
+    opposition_type: str | None = None
+    """E.g. ``Opposition``, ``Response``, ``Reply``."""
+    party: str | None = None
+    """Filing party and counsel, newlines collapsed to ``, ``."""
+    status: str | None = None
+    date_filed: date | None = None
+    document_url: str | None = None
 
 
 class AkMotion(ScrapedData):
@@ -151,8 +178,28 @@ class AkMotion(ScrapedData):
     requested_due_date: str | None = None
 
     flags: list[AkMotionFlag] = []
-    oppositions: list[dict] = []
+    oppositions: list[AkMotionOpposition] = []
     orders: list[dict] = []
+
+
+class AkBriefingRound(ScrapedData):
+    """One briefing round on the Briefs tab.
+
+    The tab groups briefs under a round heading with its own status; a
+    round can be open with nothing filed yet, so rounds are recorded
+    separately rather than inferred from the briefs.
+    """
+
+    round_name: str | None = None
+    """``Original Briefing``, ``Supplemental Briefing``,
+    ``Briefing After Remand``."""
+    status: str | None = None
+    """``Open``, ``Complete``, ``Vacated``."""
+    status_date: date | None = None
+    """When the status was set; ``None`` when the page says
+    "Time status set unknown"."""
+    status_raw: str | None = None
+    """The verbatim status line, e.g. ``Status: Complete 5/1/2001``."""
 
 
 class AkBrief(ScrapedData):
@@ -160,6 +207,9 @@ class AkBrief(ScrapedData):
 
     entry_number: str | None = None
     """The brief's ``Dkt#`` ordinal."""
+    briefing_round: str | None = None
+    """``round_name`` of the ``AkBriefingRound`` this brief is listed
+    under."""
     brief_type: str | None = None
     party: str | None = None
     status: str | None = None
@@ -185,7 +235,8 @@ class AkDocument(ScrapedData):
     """The ``Dkt#`` ordinal of the row the document is attached to."""
     source: str | None = None
     """Which tab the document came from: ``opinion``, ``docket``,
-    ``motion``, ``order``, ``brief``, ``brief_history``."""
+    ``motion``, ``order``, ``opposition``, ``brief``,
+    ``brief_history``."""
     document_url: str | None = None
     local_path: str | None = None
     """Filesystem path where the driver archived this document."""
@@ -225,6 +276,13 @@ class AkDocket(ScrapedData):
     # === Case info (from the General page) ===
     case_type: str | None = None
     case_status: str | None = None
+    special_status_flags: list[str] = []
+    """Badges on the case-title block, spelled out from their tooltips
+    (e.g. ``Expedited``)."""
+    trial_court_numbers: list[str] = []
+    """Lower-court case numbers listed in the search row's Trial Court
+    Number column. ``lower_court_info`` carries the same numbers with
+    their judgment dates when the Case Summary page lists them."""
     contact_case_manager: str | None = None
     case_manager_email: str | None = None
     cross_appeal_docket_number: str | None = None
@@ -248,6 +306,7 @@ class AkDocket(ScrapedData):
     records: list[AkRecordEntry] = []
     docket_entries: list[AkDocketEntry] = []
     motions: list[AkMotion] = []
+    briefing_rounds: list[AkBriefingRound] = []
     briefs: list[AkBrief] = []
 
     # === Provenance ===

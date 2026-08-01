@@ -20,7 +20,9 @@ if TYPE_CHECKING:
 
 class DocketParser(JKentParser[AkDocketEntry]):
     """Parse the Docket page (By Date view) into one ``AkDocketEntry``
-    per row. All rows are present in the HTML. Each row's
+    per row. All rows are present in the HTML — the page's "Docket By
+    Category" tab regroups this same table client-side, using the
+    ``data-ordercategory*`` attributes each row carries. Each row's
     ``document_url`` (when present) is surfaced so the step can archive
     the file."""
 
@@ -52,6 +54,13 @@ class DocketParser(JKentParser[AkDocketEntry]):
                     status=safe_text(cells[3]) or None,
                     date_filed=parse_ak_date(safe_text(cells[4])),
                     filed_or_issued_by=safe_text(cells[5]) or None,
+                    category=(
+                        row.get_attribute("data-ordercategorydescription")
+                        or None
+                    ),
+                    category_code=(
+                        row.get_attribute("data-ordercategory") or None
+                    ),
                     document_url=doc_links[0].url if doc_links else None,
                 )
             )

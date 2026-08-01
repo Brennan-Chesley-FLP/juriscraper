@@ -11,7 +11,12 @@ from juriscraper.state.alaska.appellate_records_courts_alaska_gov.models import 
     AkMotion,
 )
 
-from ._common import collect_glyphicon_labels, safe_text
+from ._common import (
+    collect_glyphicon_labels,
+    parse_ak_date,
+    safe_text,
+    text_lines,
+)
 
 if TYPE_CHECKING:
     from jkent.common.deferred_validation import DeferredValidation
@@ -21,10 +26,14 @@ if TYPE_CHECKING:
 class MotionDetailParser(JKentParser[AkMotion]):
     """Parse a motion-detail page into an ``AkMotion`` fragment.
 
-    Emits only the detail-page fields (extension metadata, checkbox
-    flags, oppositions, orders); the step merges this onto the motion
-    already captured from the motions list. Order rows surface a
-    ``document_url`` so the step can archive any order documents.
+    Emits the detail-page fields (extension metadata, checkbox flags,
+    oppositions, orders); the step merges this onto the motion already
+    captured from the motions list. The page also repeats the motion's own
+    row in a one-row ``Motion`` table — :meth:`_parse_motion_row` reads it
+    so a motion reached directly by detail URL still carries its identity,
+    but only non-empty values are merged so a sparse detail page never
+    blanks out what the list already gave us. Opposition and order rows
+    surface a ``document_url`` so the step can archive their documents.
     """
 
     def __call__(
@@ -59,13 +68,49 @@ class MotionDetailParser(JKentParser[AkMotion]):
             "oppositions": self._parse_oppositions(page),
             "orders": self._parse_orders(page),
         }
+        d.update(self._parse_motion_row(page))
         return [AkMotion.raw(**d)]
+
+    @staticmethod
+    def _parse_motion_row(page: PageElement) -> dict:
+        """The motion's own row, from the one-row ``Motion`` table."""
+        rows = page.query(
+            XPath(
+                "//h4[normalize-space(text())='Motion']"
+                "/following-sibling::div[1]//table//tbody/tr"
+            ),
+            "motion summary row",
+            min_count=0,
+            max_count=1,
+        )
+        if not rows:
+            return {}
+        cells = rows[0].query(
+            XPath(".//td"), "motion summary cells", min_count=0
+        )
+        if len(cells) < 6:
+            return {}
+        # No document link here: the summary row's Document cell is empty
+        # across the whole corpus, and the motions list already supplies
+        # the motion's document_url.
+        fields = {
+            "entry_number": safe_text(cells[0]) or None,
+            "motion_type": safe_text(cells[2]) or None,
+            "status": safe_text(cells[3]) or None,
+            "motion_date": parse_ak_date(safe_text(cells[4])),
+            "filed_or_issued_by": (
+                ", ".join(text_lines(cells[5], "motion filed by")) or None
+            ),
+        }
+        return {k: v for k, v in fields.items() if v is not None}
 
     @staticmethod
     def _dd_map(page: PageElement) -> dict[str, str]:
         dd_map: dict[str, str] = {}
         for dt in page.query(XPath("//dt"), "detail dts", min_count=0):
-            label = safe_text(dt).rstrip(":").strip()
+            label = (
+                " ".join(text_lines(dt, "detail label")).rstrip(":").strip()
+            )
             dd_els = dt.query(
                 XPath("./following-sibling::dd[1]"), "detail dd", min_count=0
             )
@@ -86,8 +131,28 @@ class MotionDetailParser(JKentParser[AkMotion]):
         out: list[dict] = []
         for row in rows:
             cells = row.query(XPath(".//td"), "opposition cells", min_count=0)
-            if cells:
-                out.append({"text": " | ".join(safe_text(c) for c in cells)})
+            if len(cells) < 6:
+                continue
+            doc_links = row.find_links(
+                XPath(".//a[contains(@class, 'glyphicon-file')]"),
+                "opposition doc",
+                min_count=0,
+            )
+            out.append(
+                {
+                    "entry_number": safe_text(cells[0]) or None,
+                    "opposition_type": safe_text(cells[2]) or None,
+                    # The party cell stacks the filer and their counsel on
+                    # separate <br>-separated lines.
+                    "party": (
+                        ", ".join(text_lines(cells[3], "opposition party"))
+                        or None
+                    ),
+                    "status": safe_text(cells[4]) or None,
+                    "date_filed": parse_ak_date(safe_text(cells[5])),
+                    "document_url": doc_links[0].url if doc_links else None,
+                }
+            )
         return out
 
     @staticmethod

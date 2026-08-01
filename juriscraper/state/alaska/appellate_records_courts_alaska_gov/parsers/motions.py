@@ -11,7 +11,7 @@ from juriscraper.state.alaska.appellate_records_courts_alaska_gov.models import 
     AkMotion,
 )
 
-from ._common import parse_ak_date, safe_text
+from ._common import parse_ak_date, safe_text, text_lines
 
 if TYPE_CHECKING:
     from jkent.common.deferred_validation import DeferredValidation
@@ -49,7 +49,9 @@ class MotionsParser(JKentParser[AkMotion]):
             )
             results.append(
                 AkMotion.raw(
-                    entry_number=safe_text(cells[0]) or None,
+                    entry_number=(
+                        " ".join(text_lines(cells[0], "motion dkt#")) or None
+                    ),
                     motion_type=safe_text(cells[2]) or None,
                     filed_or_issued_by=safe_text(cells[3]) or None,
                     motion_date=parse_ak_date(safe_text(cells[4])),

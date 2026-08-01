@@ -35,14 +35,38 @@ class TRCourtConfig(TypedDict):
 class TRDocketEntryActor(ScrapedData):
     """An actor (party or attorney) associated with a docket entry filing.
 
-    Pulled from the ``submittedBy`` list on each docket entry.
+    Pulled from a ``partyActorInstance`` inside a ``submittedBy`` element.
     """
 
     display_name: str
-    """Display name of the actor (e.g., 'Doe, John')."""
+    """Display name of the actor (e.g., 'Doe, John').
+
+    Most deployments only send ``sortName``; in that case it is used here
+    too rather than dropping the actor.
+    """
 
     sort_name: str | None = None
     """Name used for sorting (e.g., 'DOE JOHN')."""
+
+
+class TRDocketEntrySubmitter(ScrapedData):
+    """One element of a docket entry's ``submittedBy`` list.
+
+    The API sends this in two shapes. Alabama and Wyoming nest the actors
+    under ``party`` and/or ``attorney`` keys, pairing the attorney with the
+    party they filed on behalf of. North Dakota and Oregon put a single
+    ``partyActorInstance`` directly on the element, which is recorded here
+    as ``party``.
+    """
+
+    party: TRDocketEntryActor | None = None
+    """The filing party, when the element names one."""
+
+    attorney: TRDocketEntryActor | None = None
+    """The attorney who filed on the party's behalf, when named."""
+
+    other_submitter: str | None = None
+    """Free-text submitter, from a nested ``otherSubmitter``."""
 
 
 class TRDocketEntry(ScrapedData):
@@ -128,8 +152,13 @@ class TRDocketEntry(ScrapedData):
     composite_security: bool | None = None
     """Composite security flag, from ``compositeSecurity``."""
 
-    submitted_by: list[TRDocketEntryActor] = []
-    """Actors who submitted this entry, from ``submittedBy``."""
+    submitted_by: list[TRDocketEntrySubmitter] = []
+    """Who submitted this entry, from ``submittedBy``."""
+
+    other_submitter: str | None = None
+    """Free-text submitter (e.g., 'Governor Kay Ivey'), from the entry's
+    top-level ``otherSubmitter``. Used for filers who are neither a party
+    nor an attorney of record."""
 
     document_url: str | None = None
     """URL to a single attached document, when known.

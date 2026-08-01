@@ -12,14 +12,29 @@ from juriscraper.state.alaska.appellate_records_courts_alaska_gov.models import 
     AkDocket,
 )
 
-from ._common import extract_q_token, parse_ak_date, safe_text
+from ._common import (
+    extract_q_token,
+    parse_ak_date,
+    parse_case_title,
+    safe_text,
+    text_lines,
+)
 
 if TYPE_CHECKING:
     from jkent.common.deferred_validation import DeferredValidation
     from jkent.common.page_element import PageElement
 
-_CROSS_APPEAL_HTML_RE = re.compile(r"\[Cross Appeal:\s*<a[^>]*>(.*?)</a>\]")
-_CROSS_APPEAL_TEXT_RE = re.compile(r"Cross Appeal:\s*(\S+)")
+# Oral-argument video links are written as a protocol-relative prefix in
+# front of an already-absolute URL (``href="//https://www.ktoo.org/…"``),
+# which resolves to an unusable address.
+_DOUBLED_SCHEME_RE = re.compile(r"^(?:[a-z][a-z0-9+.-]*:)?//(?=https?://)")
+
+
+def _clean_video_url(url: str | None) -> str | None:
+    """Undo the doubled scheme in an oral-argument video link."""
+    if not url:
+        return None
+    return _DOUBLED_SCHEME_RE.sub("", url)
 
 
 class CaseGeneralParser(JKentParser[AkDocket]):
@@ -36,7 +51,7 @@ class CaseGeneralParser(JKentParser[AkDocket]):
     ) -> list[DeferredValidation[AkDocket]]:
         d: dict = {}
 
-        self._parse_header(page, d)
+        d.update(parse_case_title(page))
         self._parse_summary_fields(page, d)
         self._parse_oral_argument(page, d)
         self._parse_note(page, d)
@@ -47,35 +62,6 @@ class CaseGeneralParser(JKentParser[AkDocket]):
         return [AkDocket.raw(**d)]
 
     # -- sections ---------------------------------------------------------
-
-    def _parse_header(self, page: PageElement, d: dict) -> None:
-        header_spans = page.query(
-            XPath("//div[contains(@class, 'cms-case-name')]//span"),
-            "case header spans",
-            min_count=0,
-        )
-        if not header_spans:
-            return
-        header_text = safe_text(header_spans[0])
-        cross_match = _CROSS_APPEAL_HTML_RE.search(
-            header_spans[0].inner_html()
-        )
-        if not cross_match:
-            cross_match = _CROSS_APPEAL_TEXT_RE.search(header_text)
-        if cross_match:
-            d["cross_appeal_docket_number"] = cross_match.group(1).strip()
-        cross_links = header_spans[0].query(
-            XPath(".//a"), "cross-appeal links", min_count=0
-        )
-        if cross_links:
-            cross_href = cross_links[0].get_attribute("href")
-            if cross_href:
-                d["cross_appeal_internal_id"] = extract_q_token(cross_href)
-        # The status sits in a pull-right span.
-        if len(header_spans) > 1:
-            status = safe_text(header_spans[1])
-            if status:
-                d["case_status"] = status
 
     def _parse_summary_fields(self, page: PageElement, d: dict) -> None:
         caption = self._dd_text(page, "Full Case Caption")
@@ -97,7 +83,7 @@ class CaseGeneralParser(JKentParser[AkDocket]):
             min_count=0,
         )
         if mgr_els:
-            manager = safe_text(mgr_els[0])
+            manager = " ".join(text_lines(mgr_els[0], "case manager contact"))
             if manager:
                 d["contact_case_manager"] = manager
             mailto = mgr_els[0].query_strings(
@@ -132,18 +118,30 @@ class CaseGeneralParser(JKentParser[AkDocket]):
             min_count=0,
         )
         if video_links:
-            d["oral_argument_video_url"] = video_links[0].url
+            d["oral_argument_video_url"] = _clean_video_url(video_links[0].url)
 
     def _parse_note(self, page: PageElement, d: dict) -> None:
-        note_siblings = page.query(
-            XPath("//h4[contains(text(), 'Note')]/following-sibling::*[1]"),
+        """Capture the free-text note beside the Oral Argument block.
+
+        Notes carry consolidation and argument-time arrangements
+        ("Consolidated with S-18044; 20 min per side for both cases"),
+        so they are worth keeping verbatim.
+        """
+        page.query(
+            XPath("//div[contains(@class, 'cms-notes-div')]//h4"),
+            "note heading",
+            min_count=0,
+        )
+        note_els = page.query(
+            XPath("//div[contains(@class, 'cms-note-text')]"),
             "note content",
             min_count=0,
         )
-        if note_siblings:
-            note = safe_text(note_siblings[0])
-            if note:
-                d["note"] = note
+        note = " ".join(
+            text for el in note_els if (text := safe_text(el))
+        ).strip()
+        if note:
+            d["note"] = note
 
     def _parse_opinions(self, page: PageElement) -> list[dict]:
         opinions: list[dict] = []

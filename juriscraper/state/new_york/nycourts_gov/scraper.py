@@ -105,6 +105,7 @@ from pyrate_limiter import Duration, Rate
 
 from juriscraper.state.common.params import InferrableDateRange
 
+from .filename_convention import reconcile_files_and_entries
 from .models import (
     NYCourtPassDocket,
     NYCourtPassFile,
@@ -191,7 +192,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
           (``deferred_docket`` / grid argument date) compose uniformly.
         * ``files`` — the parser's file rows as plain dicts for emission.
           ``docket_number`` is not on the page; the caller stamps it
-          before emitting (see :meth:`_stamp_files`). The file
+          before emitting (see :meth:`_stamp_and_reconcile`). The file
           *download* buttons are a separate, live-form concern handled by
           :meth:`_extract_file_download_buttons`.
         """
@@ -215,13 +216,31 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         return fields, [f.raw_data for f in raw.get("files") or []]
 
     @staticmethod
-    def _stamp_files(
+    def _stamp_and_reconcile(
         files: list[dict],
         *,
         docket_number: str | None,
-    ) -> list[dict]:
-        """Attach the cross-page join key to parser-produced file rows."""
-        return [{**f, "docket_number": docket_number or None} for f in files]
+        docket_entries: list[dict],
+    ) -> tuple[list[dict], list[dict]]:
+        """Attach the cross-page join key, then reconcile files against FILINGS.
+
+        ``gvFiles`` gives a file name but no dates; the FILINGS table gives
+        dates but no file. Court-PASS file names follow the Court's published
+        convention (``title of action-role-name-doctype``), which encodes
+        enough to join the two — see
+        :mod:`~juriscraper.state.new_york.nycourts_gov.filename_convention`.
+
+        Returns ``(files, docket_entries)``. Files that match a row carry
+        ``docket_entry_index`` and inherit its ``date_received`` /
+        ``date_due``; documents the FILINGS table never listed get a
+        synthesized entry appended with ``inferred_from_file=True``, so the
+        emitted ``docket_entries`` covers every filed document rather than
+        only the ones the table happened to register.
+        """
+        stamped = [
+            {**f, "docket_number": docket_number or None} for f in files
+        ]
+        return reconcile_files_and_entries(stamped, docket_entries)
 
     @staticmethod
     def _extract_file_download_buttons(
@@ -714,11 +733,12 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             "docket_number", ""
         )
 
-        # FilingDetailParser produced the file rows; stamp
-        # them with the cross-page join key for emission.
-        files = self._stamp_files(
+        # FilingDetailParser produced the file rows; stamp them with the
+        # cross-page join key and link each to its FILINGS row.
+        files, docket_entries = self._stamp_and_reconcile(
             parser_files,
             docket_number=docket_number,
+            docket_entries=deferred.get("docket_entries") or [],
         )
         document_numbers_by_row = {
             f["file_index"]: f["document_number"] for f in files
@@ -740,7 +760,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 official_citation=fields["official_citation"],
                 lower_court_citation=fields["lower_court_citation"],
                 no_files_for_case=fields["no_files_for_case"],
-                docket_entries=(deferred.get("docket_entries") or []),
+                docket_entries=docket_entries,
                 attorneys=(deferred.get("attorneys") or []),
                 files=files,
                 source_url=response.url,
@@ -1040,11 +1060,12 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         )
         decision_date = _parse_date_mdy(fields["decision_date_str"] or "")
 
-        # FilingDetailParser produced the file rows; stamp
-        # them with the cross-page join key for emission.
-        files = self._stamp_files(
+        # FilingDetailParser produced the file rows; stamp them with the
+        # cross-page join key and link each to its FILINGS row.
+        files, docket_entries = self._stamp_and_reconcile(
             parser_files,
             docket_number=docket_number,
+            docket_entries=deferred.get("docket_entries") or [],
         )
         document_numbers_by_row = {
             f["file_index"]: f["document_number"] for f in files
@@ -1061,7 +1082,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 official_citation=fields["official_citation"],
                 lower_court_citation=fields["lower_court_citation"],
                 no_files_for_case=fields["no_files_for_case"],
-                docket_entries=(deferred.get("docket_entries") or []),
+                docket_entries=docket_entries,
                 attorneys=(deferred.get("attorneys") or []),
                 files=files,
                 source_url=response.url,

@@ -153,4 +153,4 @@ class GaScDocket(ScrapedData):
     """The case-detail API URL used to build this record."""
 
     source_entry_point: str | None = None
-    """Entry point used to reach this docket (e.g. ``dockets_by_bulk``)."""
+    """Entry point used to reach this docket (e.g. ``dockets_in_year``)."""

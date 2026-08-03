@@ -1,9 +1,9 @@
 """Supreme Court of Georgia Docket Scraper.
 
 Scrapes the public docket-search system at https://www.gasupreme.us/docket-search/
-which is an iframe-embedded SPA at https://pubdoc.gasupreme.us/. The SPA calls
-a plain JSON REST API at https://sced-rest.gasupreme.us/ — this scraper goes
-directly to that API.
+which is an iframe-embedded SPA at https://pubdoc.gasupreme.gov/ui/. The SPA
+calls a plain JSON REST API on that same origin under ``/api`` — this scraper
+goes directly to that API.
 
 This is a **JSON-only** scraper: every step injects ``json_content`` and there
 is no HTML to parse, so there is no ``parsers/`` package (per
@@ -14,17 +14,14 @@ unavailable (the docket system surfaces 404 for expired-window numbers).
 
 Entry points (§4):
 
-- ``dockets_by_bulk(court_ids)`` — sweeps the current calendar year and the
-  five preceding years via the ``CaseNumber STARTS_WITH S{YY}`` prefix query
-  and yields a detail fetch per unique case number. The site's only true bulk
-  feed.
-- ``dockets_since_number(court_ids, watermark)`` — incremental entry. Issues
-  ``CaseNumber GREATER_THAN <watermark>`` and yields a detail fetch per case
-  whose number sorts after the cursor. Catches newly **docketed** cases only;
-  updates to existing cases are not detectable through the search API and
-  require a refetch of the case detail.
+- ``dockets_by_year(court_ids, year)`` — sweeps one calendar year via the
+  ``CaseNumber STARTS_WITH S{YY}`` prefix query and yields a detail fetch per
+  case number. Seed one call per year in the rolling window; that prefix query
+  is the site's only bulk feed.
 - ``docket_by_number(court_id, docket_number)`` — direct single-case lookup
-  for a known docket id.
+  for a known docket id. Also the only way to see **updates** to an already
+  known case: the search API exposes no last-modified field, so activity on
+  an existing case is invisible until its detail JSON is refetched.
 
 Flow per case:
 
@@ -69,12 +66,16 @@ if TYPE_CHECKING:
     from jkent.data_types import ScraperYield
 
 
-API_BASE = "https://sced-rest.gasupreme.us"
+# As of 2026-08-03 the API is served from the SPA's own origin under ``/api``.
+# It previously lived on a separate host (``sced-rest.gasupreme.us``), which no
+# longer resolves; ``pubdoc.gasupreme.us`` 301s to the ``.gov`` name.
+API_BASE = "https://pubdoc.gasupreme.gov/api"
 SEARCH_URL = f"{API_BASE}/public-docket/query"
 CASE_DETAIL_URL = f"{API_BASE}/public-docket/case"
 
-# Rolling window the API exposes. As of 2026-05 the oldest reachable case
-# was docketed 2021-05-03, i.e. (today - ~5 years).
+# Rolling window the API exposes, in years — how many years back
+# ``dockets_by_year`` is worth seeding from the current one. As of 2026-05 the
+# oldest reachable case was docketed 2021-05-03, i.e. (today - ~5 years).
 ROLLING_WINDOW_YEARS = 6
 
 
@@ -84,8 +85,8 @@ class GeorgiaSupremeCourtScraper(BaseScraper[GaScDocket]):
     The site has no date-based search and no auth/bot-protection, but the
     ``CaseNumber STARTS_WITH S{YY}`` query reliably returns every case
     docketed under that two-digit year prefix in a single uncapped JSON
-    response. The scraper sweeps that prefix for the rolling 5-year window
-    and fetches detail per case.
+    response. One ``dockets_by_year`` call sweeps one such prefix and
+    fetches detail per case.
     """
 
     # === Metadata (§3) ===
@@ -93,8 +94,8 @@ class GeorgiaSupremeCourtScraper(BaseScraper[GaScDocket]):
     court_url: ClassVar[str] = "https://www.gasupreme.us/docket-search/"
     data_types: ClassVar[set[str]] = {"dockets"}
     status: ClassVar[ScraperStatus] = ScraperStatus.IN_DEVELOPMENT
-    version: ClassVar[str] = "2026-06-27"
-    last_verified: ClassVar[str] = "2026-05-02"
+    version: ClassVar[str] = "2026-08-03"
+    last_verified: ClassVar[str] = "2026-08-03"
     requires_auth: ClassVar[bool] = False
     driver_requirements: ClassVar[list[DriverRequirement]] = []
     rate_limits: ClassVar[list[Rate] | None] = [Rate(3, Duration.SECOND)]
@@ -104,69 +105,40 @@ class GeorgiaSupremeCourtScraper(BaseScraper[GaScDocket]):
     # =========================================================================
 
     @entry(GaScDocket)
-    def dockets_by_bulk(
-        self, court_ids: set[str]
+    def dockets_by_year(
+        self, court_ids: set[str], year: int
     ) -> Generator[Request, None, None]:
-        """Sweep the rolling 5-year window via per-year prefix queries.
+        """Sweep every case docketed under one calendar year's number prefix.
 
-        The site's only true bulk feed: ``CaseNumber STARTS_WITH S{YY}``
-        returns every case docketed under that year prefix in one uncapped
-        response. ``court_ids`` is accepted for the §4 signature but this
-        scraper covers exactly one court (``ga``).
+        ``CaseNumber STARTS_WITH S{YY}`` — the site's only bulk feed —
+        returns every case docketed under that year prefix (~1,300) in one
+        uncapped response, so a year is a single request plus one detail
+        fetch per case. Seed one call per year of the rolling
+        ``ROLLING_WINDOW_YEARS``-year window; years outside it return an
+        empty list rather than an error.
+
+        ``year`` accepts either the four-digit calendar year (``2026``) or
+        the site's two-digit form (``26``). Note the court's numbering year
+        rolls over in early August, so a given ``S{YY}`` prefix spans the
+        second half of calendar year YY-1 and the first half of YY.
+
+        ``court_ids`` is accepted for the §4 signature but this scraper
+        covers exactly one court (``ga``).
         """
-        current_year = date.today().year
-        for year in range(
-            current_year - ROLLING_WINDOW_YEARS + 1, current_year + 1
-        ):
-            yy = year % 100
-            prefix = f"S{yy:02d}"
-            yield Request(
-                request=HTTPRequestParams(
-                    method=HttpMethod.GET,
-                    url=SEARCH_URL,
-                    params={"queryFilter": f"CaseNumber STARTS_WITH {prefix}"},
-                    headers={"Accept": "application/json"},
-                ),
-                continuation=self.parse_search_results,
-                accumulated_data={
-                    "prefix": prefix,
-                    "entry_point": "dockets_by_bulk",
-                },
-                deduplication_key=f"search:prefix:{prefix}",
-            )
-
-    @entry(GaScDocket)
-    def dockets_since_number(
-        self, court_ids: set[str], watermark: str
-    ) -> Generator[Request, None, None]:
-        """Incremental sweep — fetch every case whose number sorts after ``watermark``.
-
-        ``watermark`` is a case-number cursor (e.g. ``S26C1300`` from the
-        previous run's max). The API's ``GREATER_THAN`` operator does a
-        lexicographic comparison, which is the right semantic here because
-        case numbers are assigned strictly sequentially within each
-        ``S{YY}{LETTER}`` bucket and the ``S{YY}`` prefix sorts in calendar
-        order.
-
-        Only catches newly docketed cases — updates to existing ones aren't
-        detectable through the search API and need a full refetch.
-        """
-        normalized = watermark.strip().upper()
+        prefix = f"S{year % 100:02d}"
         yield Request(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
                 url=SEARCH_URL,
-                params={
-                    "queryFilter": f"CaseNumber GREATER_THAN {normalized}"
-                },
+                params={"queryFilter": f"CaseNumber STARTS_WITH {prefix}"},
                 headers={"Accept": "application/json"},
             ),
             continuation=self.parse_search_results,
             accumulated_data={
-                "watermark": normalized,
-                "entry_point": "dockets_since_number",
+                "prefix": prefix,
+                "entry_point": "dockets_by_year",
             },
-            deduplication_key=f"search:after:{normalized}",
+            deduplication_key=f"search:prefix:{prefix}",
         )
 
     @entry(GaScDocket)

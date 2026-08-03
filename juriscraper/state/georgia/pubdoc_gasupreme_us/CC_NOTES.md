@@ -1,25 +1,45 @@
 # Supreme Court of Georgia (pubdoc.gasupreme.us) — CC Notes
 
 > Conforms to [`../../SCRAPER_STANDARDS.md`](../../SCRAPER_STANDARDS.md).
-> Single court (`ga`). **JSON-only** scraper against the `sced-rest.gasupreme.us`
-> REST API — no HTML, so no `parsers/` package (§3.5; arkansas/nevada shape).
+> Single court (`ga`). **JSON-only** scraper against the
+> `pubdoc.gasupreme.gov/api` REST API — no HTML, so no `parsers/` package
+> (§3.5; arkansas/nevada shape).
 > Plain HTTP (`driver_requirements = []`), no auth/bot-protection. Model fields
 > follow [`../../CL_MODELS.md`](../../CL_MODELS.md): `court` (not `court_id`),
 > `date_*` date naming, `CleanString`/`HarmonizedCaseName` cleaning.
 
 ## Site Overview
 
-- **Base URL**: https://www.gasupreme.us/docket-search/
-- **Embedded app**: https://pubdoc.gasupreme.us/ (the public docket-search UI is
-  rendered inside an `<iframe>` pointing at this domain)
-- **REST API**: https://sced-rest.gasupreme.us/ (plain JSON, no auth, no
+- **Base URL**: https://www.gasupreme.us/docket-search/ (the marketing site is
+  still on `.us`; `www.gasupreme.gov/docket-search/` 404s)
+- **Embedded app**: https://pubdoc.gasupreme.gov/ui/ (the public docket-search
+  UI is rendered inside an `<iframe>` pointing at this domain; the old
+  `pubdoc.gasupreme.us` 301s here)
+- **REST API**: https://pubdoc.gasupreme.gov/api/ (plain JSON, no auth, no
   cookies, no CSRF tokens — the SPA at pubdoc just calls these endpoints
   directly)
 - **Requires Playwright**: **No** — the entire scrape runs against the JSON
   API with httpx.
-- **Coverage**: rolling 5-year window. As of 2026-05-02 the oldest case
-  returned by the API was `S21G0370` docketed 2021-05-03. There are 7,081
-  cases in the window total.
+- **Coverage**: rolling 5-year window. As of 2026-08-03 the window starts
+  mid-`S21` (that prefix returns only 11 cases; `S20` returns none, `S22`
+  onward are complete at ~1,300/year). `S26` holds 1,823 cases.
+
+### Endpoint migration (2026-08-03)
+
+The API moved from its own host onto the SPA's origin under an `/api` prefix:
+
+| Then | Now |
+|------|-----|
+| `https://sced-rest.gasupreme.us/public-docket/query` | `https://pubdoc.gasupreme.gov/api/public-docket/query` |
+| `https://sced-rest.gasupreme.us/public-docket/case/{n}` | `https://pubdoc.gasupreme.gov/api/public-docket/case/{n}` |
+
+`sced-rest.gasupreme.us` no longer resolves at all (it CNAMEs to a Barracuda
+WaaS name that is NXDOMAIN), so there is no fallback to keep. Payload shapes
+are byte-identical to the old host — same query grammar, same field names on
+both the query rows and the case detail. The un-prefixed path on the new host
+404s; `/api` is required. Access control is unchanged: `/api/openapi`,
+`/api/search`, and friends still 401, while `/api/public-docket/query`,
+`/api/public-docket/case/{n}`, and `/api/system-data/two-val-const` are public.
 
 ## Courts Covered
 
@@ -33,7 +53,8 @@ though the docket detail records contain `coaCaseNumber`-style cross-refs.
 ## Search Capabilities
 
 The portal exposes six search modes in the UI combobox, all backed by a
-single endpoint: `GET /public-docket/query?queryFilter=<Field> <Op> <Value>`.
+single endpoint:
+`GET /api/public-docket/query?queryFilter=<Field> <Op> <Value>`.
 
 The Java enums backing the query language reveal a wider surface than the UI
 exposes. Probing both `SearchParams` and `SearchOperations` (their names
@@ -82,10 +103,12 @@ Operators that are **not** in the enum: `EQ`, `NE`, `GT`, `LT`, `LIKE`,
   `size=…`, `_sort=…`, `since=…`, `modifiedSince=…` are all silently
   ignored — the server returns the full unfiltered result list every time.
 - **No undocumented endpoints.** Every other path under
-  `https://sced-rest.gasupreme.us/` (`/`, `/public-docket`, `/openapi`,
+  `https://pubdoc.gasupreme.gov/api/` (`/`, `/public-docket`, `/openapi`,
   `/api-docs`, `/case`, `/list`, `/recent`, `/updated`, `/search`, …)
-  returns HTTP 401 Unauthorized. Only `/public-docket/query`,
-  `/public-docket/case/{N}`, and `/system-data/two-val-const` are public.
+  returns HTTP 401 Unauthorized. Only `/api/public-docket/query`,
+  `/api/public-docket/case/{N}`, and `/api/system-data/two-val-const` are
+  public. (Re-confirmed on the new host 2026-08-03; the query grammar above
+  was probed on the old one and is unchanged.)
 
 ### What the API can and can't do for "recent updates"
 
@@ -104,11 +127,12 @@ entire 5-year docket** (~7,000 records, ~1.3MB) in one response, with no
 pagination or result cap observed. Per-year prefixes (`S25`, `S26`, …) work
 the same way and return ~1,300 cases each.
 
-**Recommended approach**: bulk enumeration on first run, watermark-based
-incremental on subsequent runs. The scraper sweeps six year prefixes
-(`S21`–`S26`) for the rolling 5-year window and fetches case detail per
-unique number; for incremental updates it queries
-`CaseNumber GREATER_THAN <watermark>` to pick up only newly docketed cases.
+**Recommended approach**: enumerate by year prefix. `dockets_in_year` issues
+one prefix query per seeded year and fetches case detail per number — seed
+all six window years (`S21`–`S26`) for a full sweep, or just the current one
+to keep it fresh. A watermark (`CaseNumber GREATER_THAN …`) buys nothing over
+re-running the current year, since it can only surface newly docketed cases
+and every case detail has to be refetched anyway to see new filings.
 
 ## Docket Number Formats
 
@@ -153,7 +177,7 @@ but are in the published letter list and are still supported by the parser.
 
 ### Case Summary
 
-`GET /public-docket/case/{caseNumber}` — returns one JSON object. 404 for
+`GET /api/public-docket/case/{caseNumber}` — returns one JSON object. 404 for
 missing/expired-window cases. Top-level fields:
 
 | Field | Type | Notes |
@@ -216,7 +240,7 @@ Not available — the public portal does not expose any subscribe/notify UI.
 
 The court publishes oral argument calendars on the marketing site
 (https://www.gasupreme.us/calendar-list/) and webcasts at `/watch/`. Those
-are unrelated to the pubdoc/sced-rest API and are out of scope for this
+are unrelated to the pubdoc API and are out of scope for this
 scraper.
 
 ## Bot Protection Notes
@@ -231,24 +255,29 @@ returns the same payload as the browser.
 
 | Entry | Param | Purpose |
 |-------|-------|---------|
-| `dockets_by_bulk(court_ids)` | `set[str]` | Sweeps `S21`–`S26` prefix queries (the rolling 5-year window from "today's" calendar year going back five) and yields a detail request per unique case number. The site's only true bulk feed. |
-| `dockets_since_number(court_ids, watermark)` | `set[str]`, `str` (a case number cursor) | Incremental run — issues `CaseNumber GREATER_THAN <watermark>` and yields a detail request per case lexicographically after the cursor. Catches newly **docketed** cases only; updates to existing cases are not detectable via the search API |
-| `docket_by_number(court_id, docket_number)` | `str`, `str` | Direct lookup against `/public-docket/case/{docket_number}`; useful when CourtListener already knows a docket number and just wants a refresh |
+| `dockets_in_year(court_ids, year)` | `set[str]`, `int` (4-digit `2026` or 2-digit `26`) | Issues one `CaseNumber STARTS_WITH S{YY}` prefix query — the site's only bulk feed — and yields a detail request per case number. Seed once per year of the rolling window (`2021`–`2026` as of 2026-08) for a full sweep. |
+| `docket_by_number(court_id, docket_number)` | `str`, `str` | Direct lookup against `/api/public-docket/case/{docket_number}`; the only way to pick up **updates** to a case we already know, since the search API has no last-modified field |
 
-The `dockets_by_bulk` entry derives its year list from the current date
-(today's calendar year and the five preceding years). The `STARTS_WITH`
+`dockets_in_year` takes the year rather than deriving the window itself, so
+the caller controls how far back a run reaches; years outside the API's
+rolling window come back as an empty list, not an error. The `STARTS_WITH`
 prefix is applied with the two-digit year; no per-letter loop is needed
-because the year prefix already returns every letter.
+because the year prefix already returns every letter. Note the numbering
+year rolls over in early August, so `S26` spans Aug 2025–Jul 2026.
+
+There is no incremental entry. `CaseNumber GREATER_THAN <watermark>` would
+catch newly *docketed* cases, but not new filings/orders on existing ones
+(no last-modified field exists), so re-running `dockets_in_year` for the
+current year — which re-fetches each case's detail — subsumes it.
 
 ### Step Functions
 
 Flow:
 
 ```
-dockets_by_bulk ────────▶ parse_search_results (3) ──┐
-dockets_since_number ────▶ parse_search_results (3) ──┤
-                                                      ├─▶ parse_case_detail (2) ──▶ ParsedData(GaScDocket)
-docket_by_number ─────────────────────────────────────┘
+dockets_in_year ────▶ parse_search_results (3) ──┐
+                                                 ├─▶ parse_case_detail (2) ──▶ ParsedData(GaScDocket)
+docket_by_number ────────────────────────────────┘
 ```
 
 - `parse_search_results` (priority 3) reads the JSON list returned by the
@@ -262,7 +291,7 @@ Priorities descend by depth (§5); no downloads (text-only API), so nothing at
 
 ### Deduplication keys (§6)
 
-- `search:prefix:<S26>` / `search:after:<watermark>` — the search queries.
+- `search:prefix:<S26>` — the per-year prefix query.
 - `case_detail:<case_number>` — each case-detail fetch (dedups the same case
   surfaced by multiple prefix sweeps).
 

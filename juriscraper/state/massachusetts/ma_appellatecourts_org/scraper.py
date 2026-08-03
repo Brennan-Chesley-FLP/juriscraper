@@ -147,6 +147,7 @@ class MassachusettsAppellateScraper(BaseScraper[_Yield]):
     driver_requirements: ClassVar[list[DriverRequirement]] = [
         DriverRequirement.JS_EVAL,
         DriverRequirement.FF_ALIKE,
+        DriverRequirement.CFCAP_HANDLER,
     ]
 
     # =========================================================================

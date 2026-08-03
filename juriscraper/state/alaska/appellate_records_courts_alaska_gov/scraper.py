@@ -8,6 +8,9 @@ with all rows in the HTML (client-side pagination only).
 Entry points (see ``CC_NOTES.md`` for the full flow):
   - ``dockets_by_number_prefix(court_ids, prefix)`` — bulk-enumerate by a
     3-digit case-number prefix (``S012`` matches S01200–S01299).
+  - ``dockets_after_docket_number(court_id, docket_number)`` — incremental
+    sweep of the two prefixes covering everything one court numbered above
+    a watermark.
   - ``dockets_by_number(court_ids, docket_number)`` — speculative probe of
     sequential 5-digit case numbers.
   - ``docket_by_number(court_id, docket_number)`` — fetch one known case.
@@ -62,6 +65,12 @@ BASE_URL = "https://appellate-records.courts.alaska.gov/CMSPublic"
 # Tab order within a case; ``_continue_chain`` walks it.
 _TAB_CHAIN = ("parties", "records", "docket", "motions", "briefs")
 
+# Case numbers are 5 digits, and the prefix we enumerate along is the first
+# 3 of them — so one prefix covers a block of 100 numbers, and 999 is the
+# last prefix in the space.
+_PREFIX_BLOCK = 100
+_MAX_PREFIX = 999
+
 _Yield = AkDocket | AkDocument
 
 
@@ -105,6 +114,44 @@ class AlaskaScraper(BaseScraper[_Yield]):
             yield self._search_request(search_term, "dockets_by_number_prefix")
 
     @entry(AkDocket)
+    def dockets_after_docket_number(
+        self, court_id: str, docket_number: int
+    ) -> Generator[Request, None, None]:
+        """Incrementally sweep one court's cases numbered above ``docket_number``.
+
+        Truncates the 5-digit ``docket_number`` to the 3-digit prefix
+        ``dockets_by_number_prefix`` enumerates along (``10005`` → ``100``)
+        and searches that prefix *and* the next one (``S100``, ``S101``), so
+        the sweep picks up the rest of the watermark's own block plus the
+        whole block after it. ``parse_search_results`` then drops rows
+        numbered at or below the watermark (S10000–S10005 for the example).
+
+        Takes a single ``court_id`` rather than the usual ``court_ids`` set:
+        the two courts number their cases independently (``S#####`` vs
+        ``A#####``), so each carries its own watermark and a set would imply
+        one shared cursor.
+
+        Only catches newly docketed cases — activity on cases at or below
+        the watermark isn't visible from the search page, so refreshing
+        those needs ``docket_by_number``.
+        """
+        letter = self.COURT_LETTER.get(court_id)
+        if letter is None:
+            raise ValueError(
+                f"unknown court_id {court_id!r}; expected one of "
+                f"{sorted(self.COURT_LETTER)}"
+            )
+        prefix = docket_number // _PREFIX_BLOCK
+        for p in (prefix, prefix + 1):
+            if p > _MAX_PREFIX:
+                continue
+            yield self._search_request(
+                f"{letter}{p:03d}",
+                "dockets_after_docket_number",
+                min_docket_number=docket_number,
+            )
+
+    @entry(AkDocket)
     def dockets_by_number(
         self, court_ids: set[str], docket_number: SpeculativeRange
     ) -> Generator[Request, None, None]:
@@ -132,7 +179,22 @@ class AlaskaScraper(BaseScraper[_Yield]):
         """
         yield self._search_request(docket_number, "docket_by_number")
 
-    def _search_request(self, search_term: str, entry_point: str) -> Request:
+    def _search_request(
+        self,
+        search_term: str,
+        entry_point: str,
+        min_docket_number: int | None = None,
+    ) -> Request:
+        """Build a CaseNumber search request.
+
+        ``min_docket_number`` rides down to ``parse_search_results`` as a
+        result-row floor (exclusive); it is part of the deduplication key so
+        a filtered search doesn't collide with an unfiltered one for the
+        same prefix.
+        """
+        dedup = f"search:{search_term}"
+        if min_docket_number is not None:
+            dedup = f"{dedup}:after:{min_docket_number}"
         return Request(
             request=HTTPRequestParams(
                 method=HttpMethod.GET,
@@ -140,8 +202,11 @@ class AlaskaScraper(BaseScraper[_Yield]):
                 headers={"Accept": "text/html"},
             ),
             continuation=self.parse_search_results,
-            accumulated_data={"entry_point": entry_point},
-            deduplication_key=f"search:{search_term}",
+            accumulated_data={
+                "entry_point": entry_point,
+                "min_docket_number": min_docket_number,
+            },
+            deduplication_key=dedup,
         )
 
     # =========================================================================
@@ -170,13 +235,24 @@ class AlaskaScraper(BaseScraper[_Yield]):
         accumulated_data: dict,
     ) -> Generator[ScraperYield[_Yield], None, None]:
         """Walk the search-result rows and dispatch a case-general fetch
-        for each match."""
+        for each match.
+
+        ``min_docket_number`` (set by ``dockets_after_docket_number``) prunes
+        rows numbered at or below the watermark: a prefix search returns the
+        watermark's whole 100-number block, and we only want what came after
+        it.
+        """
         entry_point = accumulated_data.get("entry_point")
+        min_docket_number = accumulated_data.get("min_docket_number")
         for dv in SearchResultsParser()(page):
             docket_data = self._json_safe(dv.raw_data)
             docket_data["source_entry_point"] = entry_point
             source_url = docket_data.get("source_url")
             if not source_url:
+                continue
+            if self._at_or_below(
+                docket_data["docket_number"], min_docket_number
+            ):
                 continue
             yield Request(
                 request=HTTPRequestParams(
@@ -509,6 +585,20 @@ class AlaskaScraper(BaseScraper[_Yield]):
         ``accumulated_data`` (``date`` objects become ISO strings, which
         ``AkDocket.raw`` re-coerces at confirm time)."""
         return json.loads(json.dumps(data, default=str))
+
+    @staticmethod
+    def _at_or_below(docket_number: str, floor: int | None) -> bool:
+        """Whether ``docket_number`` sorts at or below the ``floor`` watermark.
+
+        Compares the numeric part only (``S10005`` → ``10005``), so the
+        per-court letter is ignored — each search is already scoped to one
+        court's letter. A row whose number has no digits at all is kept:
+        better a redundant fetch than a silently dropped case.
+        """
+        if floor is None:
+            return False
+        digits = "".join(ch for ch in docket_number if ch.isdigit())
+        return bool(digits) and int(digits) <= floor
 
     @staticmethod
     def _extract_tab_urls(page: PageElement) -> dict[str, str]:

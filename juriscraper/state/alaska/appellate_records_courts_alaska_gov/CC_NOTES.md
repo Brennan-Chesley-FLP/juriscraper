@@ -15,10 +15,26 @@ client-side only, so a single fetch yields every match.
 | Entry | Addressing | Notes |
 | --- | --- | --- |
 | `dockets_by_number_prefix(court_ids, prefix)` | 3-digit case-number prefix | `prefix` is zero-padded to 3 digits per court (`12` → `S012`/`A012`). A 3-digit prefix matches ≤100 of the 5-digit numbers, well under the 1000 cap. Bulk enumeration. |
+| `dockets_after_docket_number(court_id, docket_number)` | one court + a 5-digit watermark | Incremental sweep. Truncates the watermark to its 3-digit prefix and searches that prefix **and the next** (`10005` → `S100`, `S101`), covering the rest of the watermark's block plus the whole block after it. `parse_search_results` prunes rows numbered ≤ the watermark (S10000–S10005). Clamped at prefix `999`. |
 | `dockets_by_number(court_ids, docket_number)` | `SpeculativeRange` | Probes sequential 5-digit numbers; the driver advances until `gap` consecutive soft-404s. One probe per court — seed a single court per speculation for clean gap tracking. |
 | `docket_by_number(court_id, docket_number)` | one known case number | Accepts the number with or without the hyphen (`S-19019` / `S19019`). |
 
-All three converge on `parse_search_results`.
+`dockets_after_docket_number` is the second §4 exception to "`court_ids`
+first" (alongside the single-record `docket_by_number`): the Supreme Court
+and Court of Appeals number their cases independently, so each has its own
+watermark and a `court_ids` set would imply one shared cursor. Seed it once
+per court.
+
+All four converge on `parse_search_results`. The watermark rides down in
+`accumulated_data["min_docket_number"]` (and is folded into the search
+request's `deduplication_key`, so a pruned prefix search never dedupes
+against an unpruned one). Filtering compares the numeric part of the case
+number only — each search is already scoped to one court's letter — and
+keeps any row with no digits rather than dropping it.
+
+Only newly docketed cases are caught: new activity on a case at or below
+the watermark isn't visible from the search page and needs
+`docket_by_number`.
 
 ## Soft-404 detection
 

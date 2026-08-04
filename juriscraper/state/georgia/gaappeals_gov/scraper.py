@@ -13,7 +13,9 @@ Entry points (§4):
 
 - ``opinions_by_decision_date(court_ids, date_range)`` — date-range opinion
   search. Catches **decided** cases only and yields both a docket-detail fetch
-  and an opinion-PDF download per row.
+  and an opinion-PDF download per row. The detail page links the same PDF, so
+  both entry points reach documents; they share the ``opinion-<case_number>``
+  dedup key and download it once.
 - ``dockets_by_number(docket_number)`` — speculative per-(year, letter) probe
   against the case-detail page. The Georgia case-number space partitions by
   case-type letter (A/D/E/I/O) within each year, so the speculative param
@@ -24,9 +26,12 @@ Entry points (§4):
 
 Flow:
 
-    opinions_by_decision_date → parse_opinion_search ┬→ parse_case_detail → ParsedData(GaCoaDocket)
-                                                     └→ handle_opinion_download → ParsedData(GaCoaOpinion)
-    dockets_by_number ──────────────────────────────→ parse_case_detail → ParsedData(GaCoaDocket)
+    opinions_by_decision_date → parse_opinion_search ┬→ parse_case_detail
+                                                     └→ handle_opinion_download
+    dockets_by_number ──────────────────────────────→ parse_case_detail
+
+    parse_case_detail ┬→ ParsedData(GaCoaDocket)
+                      └→ handle_opinion_download → ParsedData(GaCoaOpinion)
 """
 
 from __future__ import annotations
@@ -273,14 +278,29 @@ class GeorgiaCourtOfAppealsScraper(BaseScraper[GaCoaDocket | GaCoaOpinion]):
         page: PageElement,
         response: Response,
         accumulated_data: dict,
-    ) -> Generator[ScraperYield[GaCoaDocket], None, None]:
+    ) -> Generator[ScraperYield[GaCoaDocket | GaCoaOpinion], None, None]:
         """Parse the per-case detail HTML into a GaCoaDocket.
 
         ``CaseDetailParser`` owns the page extraction; the step stamps the
-        fields not present on the page (``court``, the opinion-row judgment
-        metadata, provenance) and supplies fallbacks for the docket number /
-        case name from ``accumulated_data``.
+        fields not present on the page (``court``, provenance) and supplies
+        fallbacks for the docket number / case name / judgment metadata from
+        ``accumulated_data``.
+
+        A decided case links its opinion/order PDF from the ``Opinion/Order``
+        row, so the step also fans out an archive request for it — that is the
+        only way the speculative entry point reaches documents. The
+        ``opinion-<case_number>`` dedup key is shared with
+        ``parse_opinion_search``, so a case reached both ways downloads once.
+
+        The soft-404 check comes first: the driver consults
+        ``actually_successful`` only to stop speculation, so a soft-404 body
+        still reaches this step. Its skeleton of empty tables has nothing to
+        parse (and, being invalid HTML, lxml re-nests it into rows that look
+        like real ones), so bail out rather than emit an empty docket.
         """
+        if not self.actually_successful(response):
+            return
+
         raw = CaseDetailParser()(page)[0].raw_data
 
         docket_number = (
@@ -293,13 +313,40 @@ class GeorgiaCourtOfAppealsScraper(BaseScraper[GaCoaDocket | GaCoaOpinion]):
                 accumulated_data.get("preview_case_name") or docket_number
             )
         raw["court"] = COURT_ID
-        raw["date_judgment"] = parse_iso_date(
+        # The detail page carries the disposition once the case is decided;
+        # the opinion-search row is the fallback for anything it omits.
+        raw["date_judgment"] = raw.get("date_judgment") or parse_iso_date(
             accumulated_data.get("date_judgment")
         )
-        raw["judgment_ruling"] = accumulated_data.get("judgment_ruling")
+        raw["judgment_ruling"] = raw.get(
+            "judgment_ruling"
+        ) or accumulated_data.get("judgment_ruling")
         raw["source_url"] = response.url
         raw["source_entry_point"] = accumulated_data.get("entry_point")
         yield ParsedData(GaCoaDocket.raw(**raw))
+
+        opinion_url = raw.get("opinion_url")
+        if opinion_url:
+            date_judgment = raw.get("date_judgment")
+            yield Request(
+                archive=True,
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET,
+                    url=urljoin(response.url, opinion_url),
+                ),
+                continuation=self.handle_opinion_download,
+                expected_type="pdf",
+                accumulated_data={
+                    "docket_number": docket_number,
+                    "date_judgment": (
+                        date_judgment.isoformat() if date_judgment else None
+                    ),
+                    "judgment_ruling": raw.get("judgment_ruling"),
+                    "filing_id": raw.get("opinion_filing_id"),
+                    "entry_point": accumulated_data.get("entry_point"),
+                },
+                deduplication_key=f"opinion-{docket_number}",
+            )
 
     # =========================================================================
     # Step 3: opinion download completion

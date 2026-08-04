@@ -11,6 +11,10 @@ PLACEHOLDER_VALUES = {"", "none", "n/a"}
 
 _FILING_ID_PATTERN = re.compile(r"filingId=([0-9a-fA-F-]+)")
 
+# 'DISMISSED (July 7, 2026)' — the detail page packs the ruling and its
+# disposition date into the one 'COA Judgment/Ruling' cell.
+_JUDGMENT_PATTERN = re.compile(r"^(?P<ruling>.+?)\s*\((?P<date>[^)]+)\)$")
+
 
 def clean(value: str | None) -> str | None:
     """Collapse whitespace; return ``None`` for empty/None inputs."""
@@ -56,6 +60,25 @@ def parse_iso_date(value: str | None) -> date | None:
         return date.fromisoformat(value[:10])
     except ValueError:
         return None
+
+
+def parse_judgment(value: str | None) -> tuple[str | None, date | None]:
+    """Split a ``COA Judgment/Ruling`` cell into ``(ruling, date)``.
+
+    The detail page renders it as ``DISMISSED (July 7, 2026)``; the
+    opinion-search results table splits the two into separate columns. When
+    the parenthesised date is missing the whole string is taken as the ruling.
+    """
+    text = none_unless_meaningful(value)
+    if text is None:
+        return None, None
+    match = _JUDGMENT_PATTERN.match(text)
+    if match is None:
+        return text, None
+    return (
+        none_unless_meaningful(match.group("ruling")),
+        parse_long_date(match.group("date")),
+    )
 
 
 def extract_filing_id(url: str) -> str | None:

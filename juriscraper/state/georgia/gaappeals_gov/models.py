@@ -46,15 +46,24 @@ class GaCoaAttorney(ScrapedData):
 class GaCoaDocketEntry(ScrapedData):
     """A row of "Filings, Motions, and Court Actions" or "Court Initiated Actions".
 
-    The detail page lists filings as alternating ``Filing Date`` / ``Filing``
-    rows; the parser pairs them. There are no document links — the entry
-    is text-only. Maps to CourtListener ``DocketEntry``.
+    The detail page lists each entry as an alternating ``<kind> Date`` /
+    ``<kind>`` row pair, where the kind is ``Filing``, ``Motion``, or
+    ``Court Action``; the parser pairs them. There are no per-entry document
+    links — the entry is text-only. Maps to CourtListener ``DocketEntry``.
     """
 
     date_filed: date | None = None
     description: CleanString
+    entry_type: CleanString | None = None
+    """Row kind as labelled on the page: 'Filing', 'Motion', 'Court Action'."""
+
     court_initiated: bool = False
-    """True for entries from the "Court Initiated Actions" section."""
+    """True when the court, not a party, produced the entry.
+
+    Covers every row of the "Court Initiated Actions" section plus the
+    ``Court Action`` rows the filings section interleaves with motions (the
+    court's ruling on the motion above it, e.g. 'EXT GRANTED').
+    """
 
 
 class GaCoaTrialCourtInfo(ScrapedData):
@@ -63,6 +72,13 @@ class GaCoaTrialCourtInfo(ScrapedData):
     Maps to CourtListener ``OriginatingCourtInformation``."""
 
     case_number: CleanString | None = None
+    additional_case_numbers: list[CleanString] = []
+    """Companion trial-court case numbers.
+
+    The block repeats its ``Case Number`` row once per consolidated
+    lower-court case (up to four seen) while sharing one clerk/judge/county.
+    """
+
     clerk: CleanString | None = None
     judge: CleanString | None = None
     county: CleanString | None = None
@@ -91,11 +107,12 @@ class GaCoaSupremeCourtInfo(ScrapedData):
 
 
 class GaCoaOpinion(ScrapedData):
-    """An archived opinion/order PDF from the opinion-search results.
+    """An archived opinion/order PDF.
 
-    The detail page never links to documents — only the date-range opinion
-    search exposes the underlying PDFs (one per row, hosted on
-    ``efast.gaappeals.gov``). Maps to CourtListener ``RECAPDocument``.
+    Both the date-range opinion search and the detail page's ``Opinion/Order``
+    row link the same underlying PDF on ``efast.gaappeals.gov``, and both fan
+    out an archive request for it under one dedup key. Maps to CourtListener
+    ``RECAPDocument``.
     """
 
     docket_number: str
@@ -158,9 +175,23 @@ class GaCoaDocket(ScrapedData):
     calendar_date: CleanString | None = None
     """Calendar period text, e.g. 'May 2026'. Free-form, not always parseable."""
 
-    # === From the opinion-search row, when reached that way ===
+    # === Disposition ===
     date_judgment: date | None = None
     judgment_ruling: CleanString | None = None
+    """e.g. 'DISMISSED', 'DISCRETIONARY APPLICATION DENIED'.
+
+    Both fields come from the detail page's ``COA Judgment/Ruling`` cell
+    (``RULING (date)``), which appears only once the case is decided; the
+    opinion-search row supplies them as a fallback.
+    """
+
+    opinion_url: str | None = None
+    """``efast.gaappeals.gov/download?filingId=…`` from the detail page's
+    ``Opinion/Order`` row — present alongside ``judgment_ruling``, and archived
+    as a ``GaCoaOpinion`` joined back on ``docket_number``."""
+
+    opinion_filing_id: str | None = None
+    """The ``filingId`` UUID parsed out of ``opinion_url``."""
 
     # === Nested data ===
     entries: list[GaCoaDocketEntry] = []

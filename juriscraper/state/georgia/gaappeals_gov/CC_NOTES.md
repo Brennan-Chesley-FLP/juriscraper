@@ -58,7 +58,8 @@ one HTML page, regardless of size. The `A26A` query returns ~1.7MB.
 This is the per-case detail page. It always returns HTTP 200; **for invalid
 case numbers it returns a soft-404** with an empty heading
 (`<h2>Case Number: </h2>`). The scraper detects this via
-`fails_successfully`.
+`actually_successful` — and `parse_case_detail` re-checks it, because the
+driver consults that hook only to stop speculation (see [Soft-404](#soft-404-10)).
 
 ### Opinion search
 
@@ -118,18 +119,42 @@ Sections seen (some may be present-but-empty with `None`/`None` rows):
 
 1. **Court of Appeals Information** — Case Number, Style, Status,
    Docket/Notice Date, Remittitur Date, Term, Supreme Court Transfer,
-   Calendar Date.
+   Calendar Date. **Decided cases add two more rows**: `COA Judgment/Ruling`
+   (`DISMISSED (July 7, 2026)` — ruling and disposition date in one cell) and
+   `Opinion/Order`, whose value is a `View` link to the opinion PDF on
+   `efast.gaappeals.gov` (see below).
 2. **Trial Court Information** — Case Number, Clerk, Judge, County, Court,
-   Appealed Order (date), Notice of Appeal (date).
-3. **Filings, Motions, and Court Actions** — pairs of rows per filing:
-   `Filing Date` / `Filing` (the filing description). No order or document
-   download here.
-4. **Court Initiated Actions** — same pair format as #3, often empty.
+   Appealed Order (date), Notice of Appeal (date). The `Case Number` row
+   **repeats** (up to 4 seen) when lower-court cases were consolidated; the
+   remaining rows are shared.
+3. **Filings, Motions, and Court Actions** — pairs of rows, `<kind> Date` /
+   `<kind>`, where kind is one of **`Filing`, `Motion`, or `Court Action`**;
+   all three interleave in the one table (a motion is usually followed by the
+   court action ruling on it). No document download here.
+4. **Court Initiated Actions** — same pair format as #3 (kind is always
+   `Court Action`), often empty. Emits **one table per action**, so a case
+   with two court actions has two sibling tables under the one heading.
 5. **Attorney Information** — two tables back-to-back (one for Appellant
    side, one for Appellee side). Each row carries a side label and a
-   single attorney name (e.g. `Mr. Brent J. Savage`).
+   single attorney name (e.g. `Mr. Brent J. Savage`); a side with several
+   attorneys repeats its label per row.
 6. **Supreme Court Information** — populated when the case has been
-   transferred or is on cert review at GA Supreme Court.
+   transferred or is on cert review at GA Supreme Court (Notice of Intent,
+   Application Date, `Certiorari Number` — the SC case number — Disposition,
+   Disposition Date, Remittitur Date).
+
+Two markup quirks the selectors have to absorb (both verified over a 396-page
+corpus):
+
+- **The label cell is inconsistently `<th>` or `<td>`.** Most rows use
+  `<th>label</th><td>value</td>`, but the COA block's `Opinion/Order` row and
+  *every* row of the filings table use `<td>` for both. Every row is exactly
+  two cells, so read them positionally, not by tag.
+- **The filings table wraps its own `<h3>`.** `<h3>Filings, Motions, and Court
+  Actions</h3>` is emitted *inside* its `<table>` (invalid, but lxml keeps it
+  there), while every other heading precedes its table as a sibling. Section
+  rows therefore need `ancestor::table[1]` unioned with the sibling-table
+  form.
 
 ### Opinion search row
 
@@ -138,8 +163,15 @@ In addition to the detail page, the opinion-search row contributes:
 - `judgment_date` (the disposition date)
 - `judgment_ruling` (`AFFIRMED`, `REVERSED`, `DISMISSED`, …)
 - `opinion_pdf_url` — direct link to the order/opinion PDF on
-  `efast.gaappeals.gov`. **This is the only document available** — the
-  detail page does not link to filings, only to summary descriptions.
+  `efast.gaappeals.gov`.
+
+The opinion/order PDF is the **only** document the site exposes; individual
+filings are summary descriptions with no download. The detail page links the
+same PDF from its `Opinion/Order` row, so a decided case reached
+speculatively (`dockets_by_number`) reaches documents too — the URL is recorded
+on the docket as `opinion_url` / `opinion_filing_id` and archived as a
+`GaCoaOpinion`. Both paths share the `opinion-<case_number>` dedup key, so a
+case reached both ways downloads once.
 
 ## Email Notifications
 
@@ -162,7 +194,7 @@ referrer checks, and no rate limiting that we hit during recon.
 
 | Entry | Param | Purpose |
 |-------|-------|---------|
-| `opinions_by_decision_date(court_ids, date_range)` | `set[str]`, `DateRange` | Date-range opinion search; yields one detail fetch + one PDF archive per row |
+| `opinions_by_decision_date(court_ids, date_range)` | `set[str]`, `DateRange` | Date-range opinion search; yields one detail fetch + one PDF archive per row (the detail fetch archives the same PDF, deduped) |
 | `dockets_by_number(docket_number)` | `GaCoaCaseNumberRange` | Speculative `A{YY}{LETTER}{NNNN}` lookup; seed once per (year, letter) bucket |
 
 Kent's speculation walks a single integer axis per seed, but the Georgia case
@@ -178,10 +210,12 @@ ride in the param; seed once per (year, letter) bucket. `from_int` copies via
 ### Step Functions (§5)
 
 ```
-opinions_by_decision_date ──▶ parse_opinion_search (3) ──┬─▶ parse_case_detail (2) ──▶ ParsedData(GaCoaDocket)
-                                                         └─▶ handle_opinion_download (0) ──▶ ParsedData(GaCoaOpinion)
-
-dockets_by_number ─────────────────────────────────────────▶ parse_case_detail (2) ──▶ ParsedData(GaCoaDocket)
+opinions_by_decision_date ──▶ parse_opinion_search (3) ──┬─▶ parse_case_detail (2) ──┐
+                                                         └─▶ handle_opinion_download │
+dockets_by_number ─────────────────────────────────────────▶ parse_case_detail (2) ──┤
+                                                                                     │
+parse_case_detail (2) ──┬─▶ ParsedData(GaCoaDocket)                             ◀────┘
+                        └─▶ handle_opinion_download (0) ──▶ ParsedData(GaCoaOpinion)
 ```
 
 - `parse_opinion_search` (priority 3) runs `OpinionSearchParser` over the table
@@ -190,9 +224,11 @@ dockets_by_number ────────────────────�
   PDF (priority 1 via `archive=True`, completed at priority 0).
 - `parse_case_detail` (priority 2) runs `CaseDetailParser` over the per-case
   HTML — extracting the six sections above into a `GaCoaDocket` with nested
-  entries / attorneys / trial-court info.
+  entries / attorneys / trial-court info — then fans out an archive request for
+  the `Opinion/Order` PDF when the case has been decided. This is the only way
+  the speculative entry point reaches documents.
 - `handle_opinion_download` (priority 0) finalises the archived PDF as a
-  `GaCoaOpinion`.
+  `GaCoaOpinion`, whichever path requested it.
 
 ### Deduplication keys (§6)
 
@@ -208,11 +244,19 @@ dockets_by_number ────────────────────�
 `results_one_record.php`. (Ported from the old `fails_successfully` hook, which
 was dead code in jkent v0.1.0.)
 
+The driver calls that hook **only** to decide whether speculation keeps
+advancing (`_speculation_support._track_speculation_outcome`); the response
+still flows into the step. So `parse_case_detail` re-checks it and returns
+without yielding. That matters beyond emitting an empty docket: a soft-404
+body is a skeleton of empty and mis-nested tables, which lxml re-parents into
+rows that look real enough to reach the row selectors and blow up on them.
+
 ### Models
 
 - `GaCoaDocket` — top-level case record
-- `GaCoaDocketEntry` — one row of "Filings, Motions, and Court Actions"
-  (also reused for "Court Initiated Actions" with a flag)
+- `GaCoaDocketEntry` — one entry from "Filings, Motions, and Court Actions" or
+  "Court Initiated Actions", tagged with its `entry_type` (`Filing` / `Motion`
+  / `Court Action`) and a `court_initiated` flag
 - `GaCoaAttorney` — one attorney row, tagged with side
 - `GaCoaTrialCourtInfo` — embedded trial-court block
 - `GaCoaSupremeCourtInfo` — embedded Supreme Court block (when populated)

@@ -219,10 +219,21 @@ class GaCoaDocket(ScrapedData):
     opinion_url: str | None = None
     """``efast.gaappeals.gov/download?filingId=…`` from the detail page's
     ``Opinion/Order`` row — present alongside ``judgment_ruling``, and archived
-    as a ``GaCoaOpinion`` joined back on ``docket_number``."""
+    as a ``GaCoaOpinion`` joined back on ``docket_number``.
+
+    ``None`` when the opinion is not online; see ``opinion_requestable``."""
 
     opinion_filing_id: str | None = None
     """The ``filingId`` UUID parsed out of ``opinion_url``."""
+
+    opinion_requestable: bool = False
+    """True when the ``Opinion/Order`` row offers a paper copy instead of a PDF.
+
+    Older decided cases render that row as "This document isn't available
+    online." plus a link to the clerk's records-request page
+    (``/clerks-office/records-requests/``) rather than a document link. The
+    opinion exists but is obtainable only by request, so nothing is archived
+    and ``opinion_url`` / ``opinion_filing_id`` stay ``None``."""
 
     # === Nested data ===
     entries: list[GaCoaDocketEntry] = []

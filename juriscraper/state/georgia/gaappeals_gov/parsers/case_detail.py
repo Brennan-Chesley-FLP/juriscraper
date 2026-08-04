@@ -12,6 +12,11 @@ Section markup, as observed across a 396-page corpus (``ga/coa`` run db):
   sometimes ``<td>``** — the ``Opinion/Order`` row of the COA block and every
   row of the filings block use ``<td>`` for both cells — so rows are read
   positionally (first cell = label, second = value), never by tag.
+- The ``Opinion/Order`` row holds **either** a link to the opinion PDF on
+  ``efast.gaappeals.gov`` **or** — for decided cases whose opinion was never
+  published online — the text "This document isn't available online." plus a
+  link to the clerk's records-request page. Only the first is downloadable; the
+  second sets ``opinion_requestable`` (see :meth:`_parse_opinion_link`).
 - Most sections are ``<h3>`` *followed by* their table, but the filings
   section's ``<h3>`` sits **inside** its table (invalid HTML, kept as-is by
   lxml), and the attorney / court-initiated sections spread their rows over
@@ -37,6 +42,7 @@ from juriscraper.state.georgia.gaappeals_gov.models import (
 
 from ._common import (
     PLACEHOLDER_VALUES,
+    classify_opinion_href,
     clean,
     extract_filing_id,
     none_unless_meaningful,
@@ -99,7 +105,7 @@ class CaseDetailParser(JKentParser[GaCoaDocket]):
         judgment_ruling, date_judgment = parse_judgment(
             self._text(coa, "COA Judgment/Ruling")
         )
-        opinion_url = self._link(coa, "Opinion/Order")
+        opinion_url, opinion_requestable = self._parse_opinion_link(coa)
 
         docket = GaCoaDocket.raw(
             docket_number=docket_number,
@@ -126,6 +132,7 @@ class CaseDetailParser(JKentParser[GaCoaDocket]):
             opinion_filing_id=(
                 extract_filing_id(opinion_url) if opinion_url else None
             ),
+            opinion_requestable=opinion_requestable,
             entries=self._parse_entries(page),
             attorneys=self._parse_attorneys(page),
             trial_court=self._build_trial_court(trial),
@@ -199,6 +206,22 @@ class CaseDetailParser(JKentParser[GaCoaDocket]):
             if links:
                 return links[0].get_attribute("href")
         return None
+
+    @classmethod
+    def _parse_opinion_link(
+        cls, pairs: list[tuple[str, PageElement]]
+    ) -> tuple[str | None, bool]:
+        """Split the ``Opinion/Order`` row into ``(download url, requestable)``.
+
+        Delegates to :func:`classify_opinion_href`, which the opinion-search
+        parser shares: a link is only a document when it carries a ``filingId``,
+        and this page's not-online shape (the clerk's records-request page) is
+        what sets ``opinion_requestable``.
+        """
+        return classify_opinion_href(
+            cls._link(pairs, "Opinion/Order"),
+            cls._text(pairs, "Opinion/Order") or "",
+        )
 
     # =====================================================================
     # Section helpers

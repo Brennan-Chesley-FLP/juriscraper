@@ -77,7 +77,14 @@ within the window). The result table per row carries:
 | Judgment Date | e.g. `April 15, 2026` |
 | COA Judgment/Ruling | e.g. `AFFIRMED`, `DISCRETIONARY APPLICATION DENIED`, `EMERGENCY MOTION DENIED`, `DISMISSED` |
 | Web Docket | link to the per-case detail page |
-| Opinion/Order | direct link to a PDF at `https://efast.gaappeals.gov/download?filingId=<uuid>` |
+| Opinion/Order | direct link to a PDF at `https://efast.gaappeals.gov/download?filingId=<uuid>` — but see below |
+
+For the older years the Opinion/Order cell still renders its "View PDF File"
+anchor with the `filingId` **empty** (`download?filingId=`) — a dead
+placeholder, verified live against 03/27/2003 (14 of 14 rows) versus
+06/24/2026 (0 of 22). `classify_opinion_href` maps it to `pdf_url = None` so
+the step queues no download; the case-detail page is where the docket's
+`opinion_requestable` is decided.
 
 Date-format quirks:
 
@@ -124,7 +131,17 @@ Sections seen (some may be present-but-empty with `None`/`None` rows):
    Calendar Date. **Decided cases add two more rows**: `COA Judgment/Ruling`
    (`DISMISSED (July 7, 2026)` — ruling and disposition date in one cell) and
    `Opinion/Order`, whose value is a `View` link to the opinion PDF on
-   `efast.gaappeals.gov` (see below).
+   `efast.gaappeals.gov` (see below) — **or**, for cases whose opinion was
+   never published online, the text "This document isn't available online."
+   plus a link to `/clerks-office/records-requests/`. That second shape is the
+   norm for the older years: across the 2003 sweep (`imported-smilodon.db`)
+   **every** populated `Opinion/Order` row was a records-request pointer
+   (3,088 of 4,445 dockets; the rest had no row at all). It sets
+   `opinion_requestable = True` and leaves `opinion_url` unset, so nothing is
+   queued for download. `classify_opinion_href` (in `parsers/_common.py`) owns
+   this classification for both pages, and raises
+   `HTMLStructuralAssumptionException` on any link shape it doesn't recognise
+   rather than let a non-document be queued as a PDF.
 2. **Trial Court Information** — Case Number, Clerk, Judge, County, Court,
    Appealed Order (date), Notice of Appeal (date). The `Case Number` row
    **repeats** (up to 4 seen) when lower-court cases were consolidated; the
@@ -168,9 +185,11 @@ In addition to the detail page, the opinion-search row contributes:
   `efast.gaappeals.gov`.
 
 The opinion/order PDF is the **only** document the site exposes; individual
-filings are summary descriptions with no download. The detail page links the
-same PDF from its `Opinion/Order` row, so a decided case reached
-speculatively (`dockets_by_number`) reaches documents too — the URL is recorded
+filings are summary descriptions with no download — and for the older years the
+opinion itself is not online either, only requestable from the clerk
+(`opinion_requestable`). The detail page links the same PDF from its
+`Opinion/Order` row, so a decided case reached speculatively
+(`dockets_by_number`) reaches documents too — the URL is recorded
 on the docket as `opinion_url` / `opinion_filing_id` and archived as a
 `GaCoaOpinion`. Both paths share the `opinion-<case_number>` dedup key, so a
 case reached both ways downloads once.

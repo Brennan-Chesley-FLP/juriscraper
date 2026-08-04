@@ -6,8 +6,19 @@ import re
 from datetime import date, datetime
 from urllib.parse import parse_qs, urlparse
 
+from jkent.common.exceptions import HTMLStructuralAssumptionException
+
 # Values the site uses to mean "this section is empty".
 PLACEHOLDER_VALUES = {"", "none", "n/a"}
+
+# Host serving the opinion/order PDFs.
+_EFAST_HOST = "efast.gaappeals.gov"
+
+# Markers for an ``Opinion/Order`` cell that offers a paper copy rather than a
+# PDF: on the case-detail page the cell reads "This document isn't available
+# online." and links the clerk's records-request page.
+_RECORDS_REQUEST_PATH = "/clerks-office/records-requests"
+_NOT_ONLINE_MARKER = "available online"
 
 _FILING_ID_PATTERN = re.compile(r"filingId=([0-9a-fA-F-]+)")
 
@@ -87,3 +98,50 @@ def extract_filing_id(url: str) -> str | None:
     params = parse_qs(parsed.query)
     ids = params.get("filingId")
     return ids[0] if ids else None
+
+
+def classify_opinion_href(
+    href: str | None, cell_text: str = ""
+) -> tuple[str | None, bool]:
+    """Classify an ``Opinion/Order`` link as ``(download url, requestable)``.
+
+    An opinion is only downloadable when its link carries a ``filingId`` value
+    on ``efast.gaappeals.gov``. Cases whose opinion was never published online —
+    the norm before roughly the 2010s — still render *a* link in that cell, in
+    two site-specific shapes, neither of which is a document:
+
+    - **case-detail page**: "This document isn't available online." plus a link
+      to the clerk's records-request page. Only this shape says a copy can be
+      had on request, so it is the only one that returns ``requestable=True``.
+    - **opinion-search table**: the usual "View PDF File" anchor, but with an
+      **empty** ``filingId`` (``download?filingId=``). A dead placeholder; the
+      cell asserts nothing about requesting a copy, and the case-detail page is
+      where ``opinion_requestable`` gets decided for that docket anyway.
+
+    Anything else means the row's meaning changed and the caller would queue a
+    non-document URL as a PDF download, so it raises rather than guess.
+    """
+    if not href:
+        return None, False
+    if extract_filing_id(href):
+        return href, False
+    lowered = href.lower()
+    if _RECORDS_REQUEST_PATH in lowered or _NOT_ONLINE_MARKER in (
+        cell_text.lower()
+    ):
+        return None, True
+    if _EFAST_HOST in lowered:
+        # ``download?filingId=`` — the opinion is simply not online.
+        return None, False
+    raise HTMLStructuralAssumptionException(
+        selector=".//a/@href",
+        selector_type="xpath",
+        description=(
+            "Opinion/Order link: an efast download, or the clerk's "
+            f"records-request page, got {href!r}"
+        ),
+        expected_min=1,
+        expected_max=1,
+        actual_count=1,
+        request_url="",
+    )

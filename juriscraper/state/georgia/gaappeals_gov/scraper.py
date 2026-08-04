@@ -297,6 +297,9 @@ class GeorgiaCourtOfAppealsScraper(BaseScraper[_Yield]):
         only way the speculative entry point reaches documents. The
         ``opinion-<case_number>`` dedup key is shared with
         ``parse_opinion_search``, so a case reached both ways downloads once.
+        When that row instead points at the clerk's records-request page, the
+        parser leaves ``opinion_url`` unset and flags
+        ``opinion_requestable``, so no archive request goes out.
 
         The soft-404 check comes first: the driver consults
         ``actually_successful`` only to stop speculation, so a soft-404 body

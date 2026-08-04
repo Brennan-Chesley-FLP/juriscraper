@@ -31,6 +31,7 @@ Flow:
     dockets_by_number ──────────────────────────────→ parse_case_detail
 
     parse_case_detail ┬→ ParsedData(GaCoaDocket)
+                      ├→ ParsedData(GaCoaDocketUnavailable)   (soft-404)
                       └→ handle_opinion_download → ParsedData(GaCoaOpinion)
 """
 
@@ -64,6 +65,7 @@ from .models import (
     OPINION_SEARCH_URL,
     SITE_BASE,
     GaCoaDocket,
+    GaCoaDocketUnavailable,
     GaCoaOpinion,
 )
 from .parsers import CaseDetailParser, OpinionSearchParser
@@ -83,6 +85,8 @@ CASE_TYPE_LETTERS: tuple[str, ...] = ("A", "D", "E", "I", "O")
 # reliable marker is an empty heading ``<h2>Case Number: </h2>``.
 _SOFT_404_PATTERN = re.compile(r"<h2>\s*Case Number:\s*</h2>", re.IGNORECASE)
 
+_Yield = GaCoaDocket | GaCoaOpinion | GaCoaDocketUnavailable
+
 
 class GaCoaCaseNumberRange(YearlySpeculativeRange):
     """A year-partitioned speculative range tagged with its case-type letter.
@@ -99,16 +103,18 @@ class GaCoaCaseNumberRange(YearlySpeculativeRange):
     """Case-type letter — one of ``CASE_TYPE_LETTERS``."""
 
 
-class GeorgiaCourtOfAppealsScraper(BaseScraper[GaCoaDocket | GaCoaOpinion]):
+class GeorgiaCourtOfAppealsScraper(BaseScraper[_Yield]):
     """Scraper for the Georgia Court of Appeals docket and opinion search.
 
-    Speaks the site's PHP HTML endpoints directly over plain HTTP. Emits two
+    Speaks the site's PHP HTML endpoints directly over plain HTTP. Emits three
     record types:
 
     - ``GaCoaDocket`` — one per case, with nested entries / attorneys /
       trial-court info.
     - ``GaCoaOpinion`` — one per archived opinion/order PDF (only available
       via the opinion-search path).
+    - ``GaCoaDocketUnavailable`` — one per case number whose detail page came
+      back as the site's soft-404 (chiefly speculative misses).
     """
 
     # === Metadata (§3) ===
@@ -278,7 +284,7 @@ class GeorgiaCourtOfAppealsScraper(BaseScraper[GaCoaDocket | GaCoaOpinion]):
         page: PageElement,
         response: Response,
         accumulated_data: dict,
-    ) -> Generator[ScraperYield[GaCoaDocket | GaCoaOpinion], None, None]:
+    ) -> Generator[ScraperYield[_Yield], None, None]:
         """Parse the per-case detail HTML into a GaCoaDocket.
 
         ``CaseDetailParser`` owns the page extraction; the step stamps the
@@ -296,9 +302,21 @@ class GeorgiaCourtOfAppealsScraper(BaseScraper[GaCoaDocket | GaCoaOpinion]):
         ``actually_successful`` only to stop speculation, so a soft-404 body
         still reaches this step. Its skeleton of empty tables has nothing to
         parse (and, being invalid HTML, lxml re-nests it into rows that look
-        like real ones), so bail out rather than emit an empty docket.
+        like real ones), so it yields a ``GaCoaDocketUnavailable`` recording
+        the searched number rather than an empty docket.
         """
         if not self.actually_successful(response):
+            searched = (accumulated_data.get("docket_number") or "").strip()
+            searched = searched.upper()
+            yield ParsedData(
+                GaCoaDocketUnavailable(
+                    docket_number=searched,
+                    court=COURT_ID,
+                    case_type=searched[3:4] or None,
+                    source_url=response.url,
+                    source_entry_point=accumulated_data.get("entry_point"),
+                )
+            )
             return
 
         raw = CaseDetailParser()(page)[0].raw_data

@@ -59,7 +59,9 @@ This is the per-case detail page. It always returns HTTP 200; **for invalid
 case numbers it returns a soft-404** with an empty heading
 (`<h2>Case Number: </h2>`). The scraper detects this via
 `actually_successful` — and `parse_case_detail` re-checks it, because the
-driver consults that hook only to stop speculation (see [Soft-404](#soft-404-10)).
+driver consults that hook only to stop speculation, emitting a
+`GaCoaDocketUnavailable` for the searched number (see
+[Soft-404](#soft-404-10)).
 
 ### Opinion search
 
@@ -215,6 +217,7 @@ opinions_by_decision_date ──▶ parse_opinion_search (3) ──┬─▶ par
 dockets_by_number ─────────────────────────────────────────▶ parse_case_detail (2) ──┤
                                                                                      │
 parse_case_detail (2) ──┬─▶ ParsedData(GaCoaDocket)                             ◀────┘
+                        ├─▶ ParsedData(GaCoaDocketUnavailable)   (soft-404)
                         └─▶ handle_opinion_download (0) ──▶ ParsedData(GaCoaOpinion)
 ```
 
@@ -246,10 +249,17 @@ was dead code in jkent v0.1.0.)
 
 The driver calls that hook **only** to decide whether speculation keeps
 advancing (`_speculation_support._track_speculation_outcome`); the response
-still flows into the step. So `parse_case_detail` re-checks it and returns
-without yielding. That matters beyond emitting an empty docket: a soft-404
-body is a skeleton of empty and mis-nested tables, which lxml re-parents into
-rows that look real enough to reach the row selectors and blow up on them.
+still flows into the step. So `parse_case_detail` re-checks it and, instead of
+parsing, yields a `GaCoaDocketUnavailable` for the searched number. Skipping
+the parse matters beyond emitting an empty docket: a soft-404 body is a
+skeleton of empty and mis-nested tables, which lxml re-parents into rows that
+look real enough to reach the row selectors and blow up on them.
+
+Recording the miss (rather than returning silently) mirrors California's
+`CaAppCaseUnavailable`: every speculative probe becomes a captured outcome, so
+a run's coverage of a (year, letter) bucket is auditable from the collected
+data. The site gives no reason for the absence — never-assigned, not-yet-filed,
+or sealed are indistinguishable — so the model asserts none.
 
 ### Models
 
@@ -262,3 +272,6 @@ rows that look real enough to reach the row selectors and blow up on them.
 - `GaCoaSupremeCourtInfo` — embedded Supreme Court block (when populated)
 - `GaCoaOpinion` — the archived opinion/order PDF (yielded as a separate
   top-level record so it can join back to the docket via `docket_number`)
+- `GaCoaDocketUnavailable` — a case number whose detail page came back as the
+  site's soft-404 (chiefly speculative misses); carries only the searched
+  number, its case-type letter, and provenance

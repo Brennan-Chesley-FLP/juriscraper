@@ -106,6 +106,37 @@ class GaCoaSupremeCourtInfo(ScrapedData):
     """Raw header/value pairs as seen on the page."""
 
 
+class GaCoaDocketUnavailable(ScrapedData):
+    """Yielded when a case-detail lookup hits the site's soft-404.
+
+    ``results_one_record.php`` answers HTTP 200 for a case number it does not
+    know, returning a skeleton page with an empty ``<h2>Case Number: </h2>``
+    heading (see ``GeorgiaCourtOfAppealsScraper.actually_successful``).
+
+    Mirrors California's ``CaAppCaseUnavailable``: it records the number that
+    was searched so a speculative miss is a captured outcome rather than a
+    silent no-op. The site does not distinguish among the reasons a case is
+    absent — the number was never assigned, the sequence has not been reached
+    yet, or the case is sealed/confidential — so none is asserted here.
+    """
+
+    docket_number: str
+    """The case number that was searched, e.g. 'A26A9999'."""
+
+    court: str = COURT_ID
+    """CourtListener court ID (``gactapp``) — this site backs only one court."""
+
+    case_type: CleanString | None = None
+    """The case-type letter carried by the searched number; see
+    ``CASE_TYPE_DESCRIPTIONS``."""
+
+    source_url: str | None = None
+    """The detail-page URL that produced the soft-404."""
+
+    source_entry_point: str | None = None
+    """Entry point used for the lookup (e.g. ``dockets_by_number``)."""
+
+
 class GaCoaOpinion(ScrapedData):
     """An archived opinion/order PDF.
 

@@ -78,6 +78,39 @@ finish before new ones start. File downloads use `priority=0` / `archive=True`.
   `dl` only ever carries four labels on real pages (Argument Date,
   Decision Date, Official Citation, Reported Below);
 
+### Vocabularies (§9)
+
+`vocabularies.py` holds every controlled vocabulary the Court publishes —
+`FilingType` (34 FILINGS table types), `FilingRole` (9), `FilingDocType` (25
+file-name abbreviations), `IssueCategory` (153) and `IssueSubcategory` (689).
+Classification happens here during the scrape: the parsers and
+`filename_convention.py` emit members, so a consumer never reads the Court's
+prose. `None` means the Court stated nothing or wrote something unreadable; a
+value no member covers is reported (`recognized=False`, or a `None` beside a
+non-empty raw string) rather than guessed at, which is the signal to add a
+member.
+
+Each member carries three things: its **value**, the string Court-PASS prints
+(so a member compares and serializes as that string), a **`code`**, a small
+integer that is part of the published vocabulary and is never renumbered or
+reused, and a **`label`** for display. Codes 0 and 999 are reserved and belong
+to no member, so a consumer storing codes has a value for "the Court stated
+nothing" and one for "the Court stated something this vocabulary does not
+cover" — CourtListener stores `code` in integer columns and uses exactly those
+two. Appending a member is therefore safe; renumbering or reusing a code is not.
+
+Reading the vocabularies does not load the scraper: the package's `__init__`
+resolves the parsers, models and scraper on attribute access (PEP 562), so
+CourtListener importing `vocabularies` for its database choices does not pull in
+jkent.
+
+Issue strings are classified by `classify_issue`, which splits the Court's
+`Category--Subcategory` form. The Court never nests deeper than two levels
+(3,883 two-part and 603 bare-category issues across the corpus, nothing else)
+and states ~13% as a bare category. Subcategories are flat rather than nested
+under their category because 45 of them are shared across categories
+("Accounting" under both Receivers and Trusts).
+
 ### File-name convention and the gvFiles → FILINGS join
 
 `filename_convention.py` (package root, not a page parser — it reads no HTML)
@@ -173,10 +206,14 @@ invariants below hold on every one):
   on dockets where nothing was posted at all. Resolution runs 90–97% for
   2012–2025 and ~49% for the current term, which is pending-case lag, not
   breakage.
-- ~8% of file names have an unreadable doctype token (pre-2013 filings,
-  `JurRsp`, `PSI`, typos). These get `doc_type=None`, an
-  `Unclassified Filing` inferred entry, and still match on role + party when
-  possible.
+- ~3% of file names have an unreadable doctype token (717 of 21,281 on a later
+  5,068-docket export): pre-2013 filings, document kinds the vocabulary has no
+  member for (`JurRsp`, `PSI`, `PSR`, `Review`), and misspellings (`RplyBrf`,
+  `apdx`, `decsion`). These get `doc_type=None`, an `Unclassified Filing`
+  inferred entry, and still match on role + party when possible. The figure was
+  ~8% before the parser learned to read a part written as its own segment and to
+  strip decorations glued onto the doctype; both used to spill the doctype into
+  the party name as well.
 
 Order in `_DOCTYPE_PATTERNS` is load-bearing: the Appellate Division variants
 must precede their Court of Appeals counterparts, or `ADreplybrf` matches the
@@ -210,10 +247,16 @@ downloads use a colon-free sha1 of the case/file identifiers.
 ### Data types
 
 `NYCourtPassDocket` (main, → CL `Docket` + `NYCoADocketMetadata`) with nested
-`NYCourtPassDocketEntry` (→ `DocketEntry`), `NYCourtPassAttorney` (→
-`Attorney`/`Role`), and `NYCourtPassFile` (→ `RECAPDocument`). File binaries
-are emitted separately via `handle_file_download` and joined back by
-`docket_number`.
+`NYCourtPassDocketEntry` (→ `NYCoADocketEntry`), `NYCourtPassIssue` (→
+`NYCoADocketIssue`), `NYCourtPassAttorney` (→ `Attorney`/`Role`), and
+`NYCourtPassFile` (→ `NYCoADocument`). File binaries are emitted separately via
+`handle_file_download` and joined back by `docket_number`.
+
+The classified fields (`entry_filing_type`, `entry_role`, `entry_doctype`,
+`doc_role`, `doc_type`, and an issue's `category`/`subcategory`) carry
+`vocabularies.py` members. CourtListener mirrors those vocabularies as integer
+choices in `cl/search/state/new_york/vocabularies.py`, member name for member
+name, so the two must be kept in step when a member is added here.
 
 The `DocketEntry ──*── RECAPDocument` edge CL expects is resolved in-scraper by
 `NYCourtPassFile.docket_entry_index` (see the file-name convention section

@@ -85,7 +85,10 @@ The site has two distinct page layouts: **Supreme Court** and **Court of Appeal*
 - Issues (detailed text describing legal questions)
 - Disposition Date
 - Case Citation
-- Cross Referenced Cases
+- Cross Referenced Cases — **not scraped.** `CaAppDocket` carried a
+  `cross_referenced_cases` field that no parser ever wrote, so it was removed
+  rather than left as a permanently-empty list. Capturing it needs the SC
+  page's markup for this field confirmed first (no SC run has been swept yet).
 
 ### Case Summary -- Courts of Appeal (dist=1-6, 41-43)
 - Trial Court Case Number
@@ -96,6 +99,19 @@ The site has two distinct page layouts: **Supreme Court** and **Court of Appeal*
 - Filing Date (mm/dd/yyyy)
 - Completion Date
 - Oral Argument Date/Time
+- Supreme Court Case — present only when review was sought (18,663 of 98,002
+  Third District pages), as a link to the SC case:
+  `<dd><a href="mainCaseScreen.cfm?dist=0&doc_id=…&doc_no=S278438">S278438</a></dd>`.
+  Exactly one link wherever the field appears (verified across the full
+  district), so it is scraped as the scalar
+  `CaAppDocket.supreme_court_case_number` — the reciprocal of the SC page's
+  `coa_case_numbers`. Matched on `dist=0` because the sibling-tab links are
+  also `mainCaseScreen.cfm`. Recorded only; the scraper does not follow it
+  into `dist=0`.
+
+Note: `Division` is present as a label on every CoA page but is empty
+throughout the Third District (it has no divisions) — a null `division` there
+is correct, not a parse failure.
 
 ### Docket Entries (both)
 | Field | Type |
@@ -117,6 +133,70 @@ Also shows case caption, division, and case number at top.
 
 The Supreme Court table omits the Due Date column (4 columns; CoA has 5), so
 cells must be mapped by header text, not fixed index.
+
+`Due Date` is the deadline for a brief that has **not** been filed yet; the
+site clears it once the brief arrives. Measured over the Third District
+(137,337 rows): populated on 1,101 rows, and 1,098 of those are exactly the
+rows whose `Date Filed` is blank. Dropping it makes pending briefs look like
+missing data, so it is scraped as `CaAppBrief.date_due`.
+
+`Party and Attorney` and `Notes` are `<br>`-separated line lists, and `<br>`
+contributes no text — so `text_content()` glues the lines together
+("The People" + "Attorney: Eric L. Christoffersen" →
+`"The PeopleAttorney: Eric L. Christoffersen"`, 64% of rows). Both cells are
+read through `BriefsParser._cell_lines`, which pulls the text nodes
+individually to keep the boundaries. The party cell's grammar is a
+`"<Role>: <Name>"` line followed by zero or more `"Attorney: <Name>"` lines
+or a bare `"Pro Per"`, repeatable — one cell can list several parties — so it
+parses into `CaAppBrief.filed_by: list[CaAppBriefParty]`.
+
+#### Party/attorney credits inside the `Notes` cell (older cases)
+On older cases the `Notes` cell repeats the filing credit as
+`Party: Last, First` / `Attorney: Last, First`, and sometimes names an attorney
+the party cell omits — e.g. C033959, where the party cell has only
+"Defendant and Appellant: Craig Boyd Drennan" while Notes carries
+"Attorney: Riordan, Dennis P.". `BriefsParser._parse_notes` lifts those into
+`CaAppBrief.notes_filed_by` and leaves the remaining prose in `notes`.
+
+Measured over the Third District: 27,328 rows carry labelled credits (28,351
+party + 28,894 attorney values).
+
+Three things make this cell harder than the party cell:
+
+- **Labels are not one per line.** `<br>` is unreliable here — a row can read
+  `Attorney: Tilner, Mitchell C. Party: Fire Insurance Exchange` with no `<br>`
+  between the two labels (C024332), and a name can also *split across* one
+  (`Party: People Of The<br>State Of Califoria.`). So each line is scanned for
+  labels rather than matched by prefix. (This is not a fixed-column wrap —
+  line widths are spread with a max of 70, so it can't be un-wrapped
+  mechanically.)
+- **Label spellings vary**: `Party:`, `Attorney:`, `Atty:`, and the `Atty::`
+  typo.
+- **Parties come first, attorneys after, paired positionally** — *not*
+  interleaved the way the party cell is. C025527 lists four parties then
+  repeats `Somach, Stuart L.` four times. 92% of rows are the trivial
+  1-party/1-attorney shape; 877 rows have ≥2 parties with ≥1 attorney, and 178
+  have attorneys with no `Party:` label at all (hence
+  `CaAppBriefNotesCredit.party` being optional).
+
+Known limitation: 33 label occurrences across the district (0.06% of 57,245)
+sit at the end of a line with their value on the next one
+(`… Attorney: Shore, Dennis Party:` / `<br>` / `Wilson, Robin`). Those values
+stay in `notes` as prose instead of becoming credits. Stitching them would mean
+guessing which `<br>`s are continuations, and the line-width spread rules out
+doing that mechanically, so the text is left where it is rather than risk
+mis-attributing names.
+
+These values are **deliberately not merged into `filed_by`**, which stays
+canonical from the "Party and Attorney" column. They use `Last, First` order,
+are sometimes abbreviated to initials (`Atty: Tone, F.`), carry trailing
+rule/document parentheticals (`Ott, Thomas H. (Rule 40(k).)`), can be compound
+(`Eisen, Jay-Allen & Boone, Daniel`), and ~77% of them merely duplicate the
+party cell (attorneys were fully redundant on 20,895 of 27,001 rows). Merging
+would trade a clean field for abbreviated duplicates; the genuine gain is
+narrow — 2,339 rows where the party cell names no attorney and Notes does,
+plus 1,955 where the party cell is empty entirely. Reconciliation is left to
+the consumer, which can be done with full information from both fields.
 
 ### Disposition -- Supreme Court
 Table with Date and Description columns.
@@ -159,6 +239,22 @@ Table with Party and Attorney columns:
 | Trial Court Case Number | str |
 | Trial Court Judge | str |
 | Trial Court Judgment Date | mm/dd/yyyy |
+
+**`trial_court_info` vs `lower_court_info`** — two different court levels, not
+two names for one thing:
+
+- `CaAppDocket.trial_court_info` (`CaAppTrialCourtInfo`) is the **CoA-only**
+  Trial Court tab above. This is the CL `OriginatingCourtInformation`
+  analogue (`court_name`, `docket_number_raw`, `judge_str`, `date_judgment`).
+- `CaAppDocket.lower_court_info` (`CaAppLowerCourtInfo`) is the **SC-only**
+  Lower Court tab — from the SC's vantage the "lower court" is the Court of
+  Appeal, so it holds linked CoA cases, the CoA disposition, *and* a list of
+  trial courts one further level down.
+
+For an SC docket the CL OCI analogue is therefore `lower_court_info.coa_cases`
+(originating court = the CoA); `lower_court_info.trial_courts` is a second
+level that a single CL OCI row cannot hold. In a CoA-only run
+`lower_court_info` is null on every docket by design.
 
 ### Scheduled Actions -- Courts of Appeal only
 "Future Scheduled Actions" tab. Table with scheduled events (Date, Description). Not present on Supreme Court cases.
@@ -277,7 +373,12 @@ re-parsed at confirm.
 - `CaAppDocket` — main output (`docket_number`, `court`, `case_name`, `date_filed`,
   `date_terminated`, `date_argued`, …); maps to CL `Docket`
 - `CaAppDocketEntry` — `DocketEntry` (date_filed, description, notes)
-- `CaAppBrief` — brief record (type, date_filed, party_attorney, notes)
+- `CaAppBrief` — brief record (type, date_filed, date_due, filed_by,
+  notes_filed_by, notes)
+- `CaAppBriefParty` — a party credited with filing a brief, plus its attorneys
+- `CaAppBriefNotesCredit` — lower-fidelity party/attorney credit recovered from
+  the Briefs `Notes` cell on older cases; deliberately not merged into
+  `filed_by`
 - `CaAppDisposition` — disposition info (varies by court type)
 - `CaAppParty` / `CaAppAttorney` — `Party`/`PartyType` + `Attorney`
 - `CaAppTrialCourtInfo` — CoA trial court → `OriginatingCourtInformation`

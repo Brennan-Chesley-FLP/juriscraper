@@ -69,6 +69,51 @@ class CaAppDocketEntry(ScrapedData):
     """Additional notes, may contain party/attorney names."""
 
 
+class CaAppBriefParty(ScrapedData):
+    """One party (with its attorneys) credited with filing a brief.
+
+    The Briefs table's "Party and Attorney" cell is a ``<br>``-separated run
+    of ``"<Role>: <Name>"`` lines each followed by zero or more
+    ``"Attorney: <Name>"`` lines (or a bare ``"Pro Per"``), and a single cell
+    can list several parties — so one cell becomes a list of these.
+    """
+
+    name: CleanString
+    """Party name (e.g., 'Randy Copley')."""
+
+    role: CleanString | None = None
+    """Role on the appeal (e.g., 'Defendant and Appellant')."""
+
+    attorneys: list[CleanString] = []
+    """Attorneys named for this party. Empty when self-represented."""
+
+    pro_per: bool = False
+    """True when the cell says 'Pro Per' instead of naming an attorney."""
+
+
+class CaAppBriefNotesCredit(ScrapedData):
+    """A party/attorney credit recovered from the Briefs ``Notes`` cell.
+
+    Deliberately separate from :class:`CaAppBriefParty`, and lower-fidelity:
+    older cases repeat the filing party and attorney inside ``Notes`` in a
+    ``Party: Last, First`` / ``Attorney: Last, First`` form, and on some rows
+    that is the *only* place an attorney appears. The values are kept
+    verbatim rather than reconciled into ``filed_by`` because they are not
+    trustworthy as canonical names — they use ``Last, First`` order, are
+    sometimes abbreviated to initials (``Atty: Tone, F.``), carry trailing
+    rule/document parentheticals (``Ott, Thomas H. (Rule 40(k).)``), can be
+    compound (``Eisen, Jay-Allen & Boone, Daniel``), and occasionally split
+    across a ``<br>``. Roughly 77% of them merely duplicate the authoritative
+    "Party and Attorney" cell.
+    """
+
+    party: CleanString | None = None
+    """Party name as written in ``Notes``. None for an unpaired attorney."""
+
+    attorneys: list[CleanString] = []
+    """Attorneys the ``Notes`` cell pairs with this party (positionally)."""
+
+
 class CaAppBrief(ScrapedData):
     """A brief filing record from the Briefs tab."""
 
@@ -76,13 +121,39 @@ class CaAppBrief(ScrapedData):
     """Type/description (e.g., 'Opening brief on the merits filed')."""
 
     date_filed: date | None = None
-    """Date the brief was filed."""
+    """Date the brief was filed. None while the brief is still outstanding."""
 
-    party_attorney: CleanString | None = None
-    """Party and attorney associated with the brief."""
+    date_due: date | None = None
+    """Deadline for a brief not yet filed.
+
+    The site clears this once the brief arrives, so in practice it is
+    populated exactly on the rows where ``date_filed`` is None.
+    """
+
+    filed_by: list[CaAppBriefParty] = []
+    """Parties (and their attorneys) associated with the brief.
+
+    From the authoritative "Party and Attorney" column. Left exactly as that
+    column reports it — ``notes_filed_by`` is *not* merged in.
+    """
+
+    notes_filed_by: list[CaAppBriefNotesCredit] = []
+    """Party/attorney credits recovered from the ``Notes`` column.
+
+    Older cases put filing credits here, sometimes naming an attorney absent
+    from ``filed_by``. Kept separate because the values are lower-fidelity;
+    see :class:`CaAppBriefNotesCredit`.
+    """
 
     notes: CleanString | None = None
-    """Additional notes."""
+    """Additional notes, with any ``Party:``/``Attorney:`` credits removed.
+
+    Whatever prose remains after the labelled credits are lifted into
+    ``notes_filed_by``. On the oldest cases this column instead continues the
+    brief description (``brief_type`` "Supplemental brief filed by:" +
+    ``notes`` "Respondents Cross-Appellants."), which has no labels and so
+    passes through untouched.
+    """
 
 
 class CaAppDisposition(ScrapedData):
@@ -288,6 +359,14 @@ class CaAppDocket(ScrapedData):
     coa_case_numbers: list[str] = []
     """Court of Appeal case numbers linked from SC case."""
 
+    supreme_court_case_number: str | None = None
+    """Supreme Court case number linked from a CoA case summary.
+
+    The reciprocal of ``coa_case_numbers``: the CoA page's "Supreme Court
+    Case" field, present when review was sought. Scalar because the field
+    carries exactly one link wherever it appears.
+    """
+
     trial_court_case_numbers: list[str] = []
     """Trial court case numbers associated with this CoA case.
 
@@ -296,9 +375,6 @@ class CaAppDocket(ScrapedData):
     results page (consolidated lower-court matters under a single CoA
     docket), all of the row's trial-court numbers are collected here.
     """
-
-    cross_referenced_cases: list[str] = []
-    """Cross-referenced case numbers."""
 
     # Nested data
     entries: list[CaAppDocketEntry] = []

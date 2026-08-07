@@ -116,4 +116,24 @@ class CaseSummaryParser(JKentParser[CaAppDocket]):
                 fields.get("Trial Court Case")
             )
 
+            # Reciprocal of the SC branch's coa_case_numbers: the upward link
+            # to the Supreme Court case, present when review was sought
+            # (18,663 of 98,002 Third District pages). Matched on dist=0 so
+            # the sibling-tab mainCaseScreen links can't be mistaken for it.
+            # max_count=1 because the field carries exactly one link wherever
+            # it appears -- drift should surface as a structural error rather
+            # than a silent truncation.
+            sc_links = page.find_links(
+                XPath(
+                    "//dl/dd//a[starts-with(@href, 'mainCaseScreen')"
+                    " and contains(@href, 'dist=0')]"
+                ),
+                "Supreme Court case link",
+                min_count=0,
+                max_count=1,
+            )
+            bag["supreme_court_case_number"] = (
+                sc_links[0].text if sc_links else None
+            )
+
         return [CaAppDocket.raw(**bag)]

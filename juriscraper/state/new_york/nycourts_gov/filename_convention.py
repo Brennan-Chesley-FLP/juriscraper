@@ -37,28 +37,50 @@ Two structural asymmetries are expected and are *not* match failures:
   pending cases. Those entries come back with ``file_indexes == []``.
 
 Court-generated artifacts (``-Decision``, ``-Transcript``, ``-Webcast``) are
-excluded from matching up front and get no synthesized entry -- they are the
-court's own output, not filings.
+excluded from *matching* up front -- a decision is not the appellant's brief and
+must never claim a FILINGS row -- but they do get a synthesized entry, so every
+document on the docket hangs off exactly one. They keep
+``link_status='court_generated'`` to stay distinguishable from filer
+submissions, which is the only thing separating them once both are inferred.
 
 Both directions are therefore plain group-bys over the returned pair; see
 :func:`reconcile_files_and_entries` for the exact keys.
+
+Every entry also gets a ``docket_entry_id`` — unique within the docket and
+stable between scrapes, which no position on the page is. Court-PASS sorts
+FILINGS by ``date_due`` ascending with blank-due rows first, so a newly
+scheduled filing is *inserted above* existing rows rather than appended, and
+``gvFiles`` is sorted alphabetically by file name, so a new PDF lands mid-table.
+Both make row position useless as an identity across runs. See
+:func:`entry_id_from_row` and :func:`entry_id_from_document`.
 """
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 from dataclasses import dataclass, field
 
+from .vocabularies import (
+    COURT_GENERATED_DOCTYPES,
+    DOCTYPE_LABELS,
+    ROLE_LABELS,
+    FilingDocType,
+    FilingRole,
+    FilingType,
+    filing_type_from_value,
+)
+
 __all__ = [
-    "COURT_GENERATED_DOCTYPES",
-    "DOCTYPE_LABELS",
     "FILING_TYPE_MAP",
-    "NOT_ON_FILINGS_TABLE",
     "FilingTypeClassification",
     "ParsedFileName",
+    "archive_dedup_keys",
     "classify_filing_type",
     "describe_filing",
+    "entry_id_from_document",
+    "entry_id_from_row",
     "parse_file_name",
     "reconcile_files_and_entries",
 ]
@@ -69,39 +91,43 @@ __all__ = [
 
 #: Party-role abbreviations. The spec defines ``app`` / ``res`` / ``amic``;
 #: the rest are variants filers actually use.
-ROLES = {
-    "app": "appellant",
-    "appellant": "appellant",
-    "appellants": "appellant",
-    "apps": "appellant",
-    "aplt": "appellant",
-    "defapp": "appellant",
-    "res": "respondent",
-    "respondent": "respondent",
-    "respondents": "respondent",
-    "resp": "respondent",
-    "rspt": "respondent",
-    "amic": "amicus",
-    "amici": "amicus",
-    "amicus": "amicus",
-    "amicis": "amicus",
-    "pet": "petitioner",
-    "petitioner": "petitioner",
-    "petitioners": "petitioner",
-    "lawguardian": "law guardian",
-    "lg": "law guardian",
-    "afc": "law guardian",
-    "attyforchild": "law guardian",
-    "at": "law guardian",
-    "scjc": "scjc",
-    "prose": "pro se",
+ROLES: dict[str, FilingRole] = {
+    "app": FilingRole.APPELLANT,
+    "appellant": FilingRole.APPELLANT,
+    "appellants": FilingRole.APPELLANT,
+    "apps": FilingRole.APPELLANT,
+    "aplt": FilingRole.APPELLANT,
+    "defapp": FilingRole.APPELLANT,
+    "res": FilingRole.RESPONDENT,
+    "respondent": FilingRole.RESPONDENT,
+    "respondents": FilingRole.RESPONDENT,
+    "resp": FilingRole.RESPONDENT,
+    "rspt": FilingRole.RESPONDENT,
+    "amic": FilingRole.AMICUS,
+    "amici": FilingRole.AMICUS,
+    "amicus": FilingRole.AMICUS,
+    "amicis": FilingRole.AMICUS,
+    "pet": FilingRole.PETITIONER,
+    "petitioner": FilingRole.PETITIONER,
+    "petitioners": FilingRole.PETITIONER,
+    "lawguardian": FilingRole.LAW_GUARDIAN,
+    "lg": FilingRole.LAW_GUARDIAN,
+    "afc": FilingRole.LAW_GUARDIAN,
+    "attyforchild": FilingRole.LAW_GUARDIAN,
+    "at": FilingRole.LAW_GUARDIAN,
+    "scjc": FilingRole.SCJC,
+    "prose": FilingRole.PRO_SE,
 }
 
 #: Cross-appeals are written as two adjacent role segments
 #: (``...-app-res-Name-brf``).
-_ROLE_PAIRS = {
-    ("appellant", "respondent"): "appellant-respondent",
-    ("respondent", "appellant"): "respondent-appellant",
+_ROLE_PAIRS: dict[tuple[FilingRole, FilingRole], FilingRole] = {
+    (FilingRole.APPELLANT, FilingRole.RESPONDENT): (
+        FilingRole.APPELLANT_RESPONDENT
+    ),
+    (FilingRole.RESPONDENT, FilingRole.APPELLANT): (
+        FilingRole.RESPONDENT_APPELLANT
+    ),
 }
 
 #: Canonical document type -> pattern matching the trailing doctype segment.
@@ -109,96 +135,114 @@ _ROLE_PAIRS = {
 #: Appeals counterparts or ``ADreplybrf`` matches the plain ``replybrf``
 #: pattern. Doctypes prefixed ``_`` are court-generated, not filer
 #: submissions. Types marked (spec) appear in the published abbreviation list.
-_DOCTYPE_PATTERNS: tuple[tuple[str, str], ...] = (
+_DOCTYPE_PATTERNS: tuple[tuple[FilingDocType, str], ...] = (
     (
-        "ssmreplyltrbrf",
+        FilingDocType.SSM_REPLY_LETTER,
         r"^ssmreplyltr(brf|brief)?$|^ssmltrreplybrf$"
         r"|^replyssmltrbrf$|^ssmltrbrfreply$|^ssmreply$"
         r"|^ssmltrreply$|^replyltrbrf$|^ssmreplybrf$",
     ),
     (
-        "ssmltrbrf",
+        FilingDocType.SSM_LETTER,
         r"^ssm(ltr|letter)?(brf|brief)?$"  # (spec)
         r"|^(ssm)?l(e)?t(te)?r(brf|brief)$|^letterbrief$|^ltr$"
         r"|^(app|res|amic)?ltrbrf$",
     ),
     (
-        "brfrspamic",
+        FilingDocType.RESPONSE_TO_AMICUS_BRIEF,
         r"^brf?rs?p?amic.*$"  # (spec)
         r"|^(brf|brief|resp(onse)?)(in)?(rsp|resp)?(onse)?to?amic.*$"
         r"|^amicresp(onse)?$|^rspamicbrf$",
     ),
-    ("amicbrf", r"^amic(us|i)?(ltr)?(brf|brief|br)?$"),  # (spec)
     (
-        "adreplybrf",
+        FilingDocType.AMICUS_BRIEF,
+        r"^amic(us|i)?(ltr)?(brf|brief|br)?$",
+    ),  # (spec)
+    (
+        FilingDocType.AD_REPLY_BRIEF,
         r"^ad(app|res|resp|appellant|respondent)?"  # (spec)
         r"repl(y)?(brf|brief|br)$"
         r"|^(app|res|resp)adrepl(y)?(brf|brief)$",
     ),
     (
-        "replybrf",
+        FilingDocType.REPLY_BRIEF,
         r"^(app|appellant|res|respondent|pet|petitioner|cross|at)?"
         r"repl(y)?(brf|brief|br)$|^reply$|^replybr$",
     ),  # (spec)
     (
-        "suppappdx",
+        FilingDocType.SUPPLEMENTAL_APPENDIX,
         r"^s(upp|uppl|upplemental)?(app|jt|joint)?"  # (spec)
         r"app(dx|endix|x|pdx)$",
     ),
-    ("suppbrf", r"^s(upp|uppl|upplemental)?(brf|brief|br)$"),
     (
-        "adappdx",
+        FilingDocType.SUPPLEMENTAL_BRIEF,
+        r"^s(upp|uppl|upplemental)?(brf|brief|br)$",
+    ),
+    (
+        FilingDocType.AD_APPENDIX,
         r"^ad(app|res|resp|jt|joint)?app(dx|endix|x|px)$"
         r"|^(app|res|resp)adapp(dx|endix|x|px)$",
     ),
-    ("adrec", r"^ad(jt|joint)?rec(ord)?$|^(jt|joint)adrec(ord)?$"),  # (spec)
     (
-        "adbrf",
+        FilingDocType.AD_RECORD,
+        r"^ad(jt|joint)?rec(ord)?$|^(jt|joint)adrec(ord)?$",
+    ),  # (spec)
+    (
+        FilingDocType.AD_BRIEF,
         r"^ad(app|res|resp|appellant|respondent|pet|amic)?"  # (spec)
         r"(brf|brief|br)$|^(app|res|resp|amic|at)ad(brf|brief|br)$",
     ),
     (
-        "opptomotforlv",
+        FilingDocType.OPPOSITION_TO_MOTION_FOR_LEAVE_TO_APPEAL,
         r"^opp(osition|osn)?to?mot(ion)?"
         r"for(lv|leave|leavetoappeal|lve)$",
     ),
     (
-        "motforlv",
+        FilingDocType.MOTION_FOR_LEAVE_TO_APPEAL,
         r"^mot(ion)?for"
         r"(lv|leave|leavetoappeal|lve|reargument|reconsideration)$",
     ),
     (
-        "opp",
+        FilingDocType.OPPOSITION,
         r"^opp(osition|osn)?(to?mot(ion)?)?$"
         r"|^opposingaffirmation$|^oppaff$",
     ),
-    ("mot", r"^mot(ion)?$|^affirmation$|^affidavit$|^supportingpapers$|^aff$"),
-    ("compendium", r"^comp(end|endium|endia|endiumofauthorities)?$"),
-    ("addendum", r"^add(end|endum|enda)?$"),
     (
-        "rec",
+        FilingDocType.MOTION,
+        r"^mot(ion)?$|^affirmation$|^affidavit$|^supportingpapers$|^aff$",
+    ),
+    (
+        FilingDocType.COMPENDIUM,
+        r"^comp(end|endium|endia|endiumofauthorities)?$",
+    ),
+    (FilingDocType.ADDENDUM, r"^add(end|endum|enda)?$"),
+    (
+        FilingDocType.RECORD,
         r"^(jt|joint)?rec(ord)?(onappeal)?$"  # (spec)
         r"|^rec(ord)?(jt|joint)?$",
     ),
     (
-        "appdx",
+        FilingDocType.APPENDIX,
         r"^(jt|joint|app|res|resp|pet)?app(dx|endix|x|pdx|end|px)$"
         r"|^app(dx|endix|x|px)(jt|joint)?$",
     ),  # (spec)
-    ("exhibits", r"^(trial)?exh(s|ibits)?$"),
+    (FilingDocType.EXHIBITS, r"^(trial)?exh(s|ibits)?$"),
     (
-        "brf",
+        FilingDocType.BRIEF,
         r"^(app|appellant|res|resp|respondent|pet|petitioner"  # (spec)
         r"|cross|prose|at)?(brf|brief|br)$",
     ),
     # court-generated, never a filer submission
-    ("_decision", r"^decision(s)?$|^opn$|^opinion$|^memorandum$|^order$"),
     (
-        "_transcript",
+        FilingDocType.DECISION,
+        r"^decision(s)?$|^opn$|^opinion$|^memorandum$|^order$",
+    ),
+    (
+        FilingDocType.ORAL_ARGUMENT_TRANSCRIPT,
         r"^transcript(s)?$|^oralargumenttranscript$"
         r"|^technicalrecordingfailure$|^trialtranscript(s)?$",
     ),
-    ("_webcast", r"^webcast$|^video$|^audio$"),
+    (FilingDocType.ORAL_ARGUMENT_WEBCAST, r"^webcast$|^video$|^audio$"),
 )
 
 #: One PDF satisfying two filings (e.g. ``-brf&appdx``).
@@ -207,153 +251,168 @@ _COMBINED = re.compile(
     r"|^(brf|brief)(and|&|\+)rec(ord)?$"
     r"|^app(dx|endix|x)(and|&|\+)(brf|brief)$"
 )
-
-#: ``filing_type`` (FILINGS table) -> (role, canonical doctype).
-FILING_TYPE_MAP: dict[str, tuple[str | None, str | None]] = {
-    "Appellant Brief": ("appellant", "brf"),
-    "Respondent Brief": ("respondent", "brf"),
-    "Petitioner Brief": ("petitioner", "brf"),
-    "Appellant Reply Brief": ("appellant", "replybrf"),
-    "Petitioner Reply Brief": ("petitioner", "replybrf"),
-    "Amicus Brief": ("amicus", "amicbrf"),
-    "Appellant Appendix": ("appellant", "appdx"),
-    "Respondent Appendix": ("respondent", "appdx"),
-    "Appellant COA Record": ("appellant", "rec"),
-    "Respondent COA Record": ("respondent", "rec"),
-    "Appellant Record": ("appellant", "rec"),
-    "Record on Review": (None, "rec"),
-    "Appellant SSM Letter": ("appellant", "ssmltrbrf"),
-    "Respondent SSM Letter": ("respondent", "ssmltrbrf"),
-    "Law Guardian SSM letter": ("law guardian", "ssmltrbrf"),
-    "Respondent Response to Amicus Brief": ("respondent", "brfrspamic"),
-    "Appellant Response to Amicus Brief": ("appellant", "brfrspamic"),
-    "AD - Record": (None, "adrec"),
-    "AD - Appendix": (None, "adappdx"),
-    "AD - Appellant Brief": ("appellant", "adbrf"),
-    "AD - Respondent Brief": ("respondent", "adbrf"),
-    "AD - Appellant Reply Brief": ("appellant", "adreplybrf"),
-    "AD - Respondent Appendix": ("respondent", "adappdx"),
-    "Appellant-Respondent Brief": ("appellant-respondent", "brf"),
-    "Respondent-Appellant Brief": ("respondent-appellant", "brf"),
-    "Appellant-Respondent Reply Brief": ("appellant-respondent", "replybrf"),
-    "Respondent-Appellant Reply Brief": ("respondent-appellant", "replybrf"),
-    "Law Guardian Brief": ("law guardian", "brf"),
-    "Pro Se Supplemental Brief": (None, "suppbrf"),
-    "Petitioner Response - Review": ("petitioner", "brf"),
-    "Petitioner Response - Suspension": ("petitioner", "brf"),
-    "Respondent Response - Suspension": ("respondent", "brf"),
-    "SCJC Response - Suspension": ("scjc", "brf"),
-    "SCJC Determination": ("scjc", None),
+#: FILINGS-table filing type -> the (role, document type) it implies.
+FILING_TYPE_MAP: dict[
+    FilingType, tuple[FilingRole | None, FilingDocType | None]
+] = {
+    FilingType.APPELLANT_BRIEF: (FilingRole.APPELLANT, FilingDocType.BRIEF),
+    FilingType.RESPONDENT_BRIEF: (FilingRole.RESPONDENT, FilingDocType.BRIEF),
+    FilingType.PETITIONER_BRIEF: (FilingRole.PETITIONER, FilingDocType.BRIEF),
+    FilingType.APPELLANT_REPLY_BRIEF: (
+        FilingRole.APPELLANT,
+        FilingDocType.REPLY_BRIEF,
+    ),
+    FilingType.PETITIONER_REPLY_BRIEF: (
+        FilingRole.PETITIONER,
+        FilingDocType.REPLY_BRIEF,
+    ),
+    FilingType.AMICUS_BRIEF: (FilingRole.AMICUS, FilingDocType.AMICUS_BRIEF),
+    FilingType.APPELLANT_APPENDIX: (
+        FilingRole.APPELLANT,
+        FilingDocType.APPENDIX,
+    ),
+    FilingType.RESPONDENT_APPENDIX: (
+        FilingRole.RESPONDENT,
+        FilingDocType.APPENDIX,
+    ),
+    FilingType.APPELLANT_COA_RECORD: (
+        FilingRole.APPELLANT,
+        FilingDocType.RECORD,
+    ),
+    FilingType.RESPONDENT_COA_RECORD: (
+        FilingRole.RESPONDENT,
+        FilingDocType.RECORD,
+    ),
+    FilingType.APPELLANT_RECORD: (FilingRole.APPELLANT, FilingDocType.RECORD),
+    FilingType.RECORD_ON_REVIEW: (None, FilingDocType.RECORD),
+    FilingType.APPELLANT_SSM_LETTER: (
+        FilingRole.APPELLANT,
+        FilingDocType.SSM_LETTER,
+    ),
+    FilingType.RESPONDENT_SSM_LETTER: (
+        FilingRole.RESPONDENT,
+        FilingDocType.SSM_LETTER,
+    ),
+    FilingType.LAW_GUARDIAN_SSM_LETTER: (
+        FilingRole.LAW_GUARDIAN,
+        FilingDocType.SSM_LETTER,
+    ),
+    FilingType.RESPONDENT_RESPONSE_TO_AMICUS_BRIEF: (
+        FilingRole.RESPONDENT,
+        FilingDocType.RESPONSE_TO_AMICUS_BRIEF,
+    ),
+    FilingType.APPELLANT_RESPONSE_TO_AMICUS_BRIEF: (
+        FilingRole.APPELLANT,
+        FilingDocType.RESPONSE_TO_AMICUS_BRIEF,
+    ),
+    FilingType.AD_RECORD: (None, FilingDocType.AD_RECORD),
+    FilingType.AD_APPENDIX: (None, FilingDocType.AD_APPENDIX),
+    FilingType.AD_APPELLANT_BRIEF: (
+        FilingRole.APPELLANT,
+        FilingDocType.AD_BRIEF,
+    ),
+    FilingType.AD_RESPONDENT_BRIEF: (
+        FilingRole.RESPONDENT,
+        FilingDocType.AD_BRIEF,
+    ),
+    FilingType.AD_APPELLANT_REPLY_BRIEF: (
+        FilingRole.APPELLANT,
+        FilingDocType.AD_REPLY_BRIEF,
+    ),
+    FilingType.AD_RESPONDENT_APPENDIX: (
+        FilingRole.RESPONDENT,
+        FilingDocType.AD_APPENDIX,
+    ),
+    FilingType.APPELLANT_RESPONDENT_BRIEF: (
+        FilingRole.APPELLANT_RESPONDENT,
+        FilingDocType.BRIEF,
+    ),
+    FilingType.RESPONDENT_APPELLANT_BRIEF: (
+        FilingRole.RESPONDENT_APPELLANT,
+        FilingDocType.BRIEF,
+    ),
+    FilingType.APPELLANT_RESPONDENT_REPLY_BRIEF: (
+        FilingRole.APPELLANT_RESPONDENT,
+        FilingDocType.REPLY_BRIEF,
+    ),
+    FilingType.RESPONDENT_APPELLANT_REPLY_BRIEF: (
+        FilingRole.RESPONDENT_APPELLANT,
+        FilingDocType.REPLY_BRIEF,
+    ),
+    FilingType.LAW_GUARDIAN_BRIEF: (
+        FilingRole.LAW_GUARDIAN,
+        FilingDocType.BRIEF,
+    ),
+    FilingType.PRO_SE_SUPPLEMENTAL_BRIEF: (
+        None,
+        FilingDocType.SUPPLEMENTAL_BRIEF,
+    ),
+    FilingType.PETITIONER_RESPONSE_REVIEW: (
+        FilingRole.PETITIONER,
+        FilingDocType.BRIEF,
+    ),
+    FilingType.PETITIONER_RESPONSE_SUSPENSION: (
+        FilingRole.PETITIONER,
+        FilingDocType.BRIEF,
+    ),
+    FilingType.RESPONDENT_RESPONSE_SUSPENSION: (
+        FilingRole.RESPONDENT,
+        FilingDocType.BRIEF,
+    ),
+    FilingType.SCJC_RESPONSE_SUSPENSION: (
+        FilingRole.SCJC,
+        FilingDocType.BRIEF,
+    ),
+    FilingType.SCJC_DETERMINATION: (FilingRole.SCJC, None),
 }
-
 #: Filename roles that may legitimately stand in for the entry's role. Filers
 #: routinely write ``app`` on a cross-appeal the FILINGS table calls
 #: "Appellant-Respondent".
-_ROLE_COMPATIBLE: dict[str, tuple[str, ...]] = {
-    "appellant-respondent": ("appellant", "respondent"),
-    "respondent-appellant": ("respondent", "appellant"),
-    "appellant": ("appellant-respondent", "petitioner"),
-    "respondent": ("respondent-appellant",),
-    "petitioner": ("appellant",),
-    "law guardian": ("appellant", "respondent"),
+_ROLE_COMPATIBLE: dict[FilingRole, tuple[FilingRole, ...]] = {
+    FilingRole.APPELLANT_RESPONDENT: (
+        FilingRole.APPELLANT,
+        FilingRole.RESPONDENT,
+    ),
+    FilingRole.RESPONDENT_APPELLANT: (
+        FilingRole.RESPONDENT,
+        FilingRole.APPELLANT,
+    ),
+    FilingRole.APPELLANT: (
+        FilingRole.APPELLANT_RESPONDENT,
+        FilingRole.PETITIONER,
+    ),
+    FilingRole.RESPONDENT: (FilingRole.RESPONDENT_APPELLANT,),
+    FilingRole.PETITIONER: (FilingRole.APPELLANT,),
+    FilingRole.LAW_GUARDIAN: (
+        FilingRole.APPELLANT,
+        FilingRole.RESPONDENT,
+    ),
 }
-
-#: Doctype pairs close enough to match on when the exact type differs.
-_COMPATIBLE_DOCTYPES: frozenset[tuple[str, str]] = frozenset(
-    {
-        ("brf", "suppbrf"),
-        ("appdx", "suppappdx"),
-        ("appdx", "adappdx"),
-        ("rec", "adrec"),
-        ("rec", "appdx"),
-        ("ssmltrbrf", "ssmreplyltrbrf"),
-        ("brf", "adbrf"),
-        ("replybrf", "adreplybrf"),
-        ("brf", "amicbrf"),
-        ("brf", "brfrspamic"),
-        ("brf", "ssmltrbrf"),
-        ("appdx", "compendium"),
-        ("rec", "compendium"),
-        ("appdx", "addendum"),
-        ("appdx", "exhibits"),
-        ("rec", "exhibits"),
-    }
+#: Document-type pairs close enough to match on when the exact type differs.
+#: Stated one way round and symmetrized, since matching cares only that the two
+#: types are compatible.
+_COMPATIBLE_PAIRS: tuple[tuple[FilingDocType, FilingDocType], ...] = (
+    (FilingDocType.BRIEF, FilingDocType.SUPPLEMENTAL_BRIEF),
+    (FilingDocType.APPENDIX, FilingDocType.SUPPLEMENTAL_APPENDIX),
+    (FilingDocType.APPENDIX, FilingDocType.AD_APPENDIX),
+    (FilingDocType.RECORD, FilingDocType.AD_RECORD),
+    (FilingDocType.RECORD, FilingDocType.APPENDIX),
+    (FilingDocType.SSM_LETTER, FilingDocType.SSM_REPLY_LETTER),
+    (FilingDocType.BRIEF, FilingDocType.AD_BRIEF),
+    (FilingDocType.REPLY_BRIEF, FilingDocType.AD_REPLY_BRIEF),
+    (FilingDocType.BRIEF, FilingDocType.AMICUS_BRIEF),
+    (FilingDocType.BRIEF, FilingDocType.RESPONSE_TO_AMICUS_BRIEF),
+    (FilingDocType.BRIEF, FilingDocType.SSM_LETTER),
+    (FilingDocType.APPENDIX, FilingDocType.COMPENDIUM),
+    (FilingDocType.RECORD, FilingDocType.COMPENDIUM),
+    (FilingDocType.APPENDIX, FilingDocType.ADDENDUM),
+    (FilingDocType.APPENDIX, FilingDocType.EXHIBITS),
+    (FilingDocType.RECORD, FilingDocType.EXHIBITS),
 )
-_COMPATIBLE_DOCTYPES = frozenset(_COMPATIBLE_DOCTYPES) | frozenset(
-    (b, a) for a, b in _COMPATIBLE_DOCTYPES
+_COMPATIBLE_DOCTYPES: frozenset[tuple[FilingDocType, FilingDocType]] = (
+    frozenset(_COMPATIBLE_PAIRS)
+    | frozenset((b, a) for a, b in _COMPATIBLE_PAIRS)
 )
-
-#: Doctypes produced by the court rather than filed by a party. These never
-#: correspond to a FILINGS row and never get a synthesized entry.
-COURT_GENERATED_DOCTYPES = frozenset({"_decision", "_transcript", "_webcast"})
-
-#: Doctypes the FILINGS table never enumerates. A *filed* document of one of
-#: these types having no FILINGS row is expected, not a failed match -- so an
-#: entry with ``inferred_from_file=True`` and an ``entry_doctype`` in this set
-#: is normal, while one outside it means the table omitted something it
-#: usually lists.
-NOT_ON_FILINGS_TABLE = frozenset(
-    {
-        "mot",
-        "opp",
-        "motforlv",
-        "opptomotforlv",
-        "compendium",
-        "addendum",
-        "exhibits",
-        "ssmreplyltrbrf",
-        "suppappdx",
-        "adbrf",
-        "adrec",
-        "adappdx",
-        "adreplybrf",
-    }
-)
-
-#: Human-readable label per canonical doctype, used to synthesize a
-#: ``filing_type`` for documents the FILINGS table never listed. Phrased to
-#: read like the court's own vocabulary so real and inferred entries sort and
-#: display together.
-DOCTYPE_LABELS = {
-    "brf": "Brief",
-    "replybrf": "Reply Brief",
-    "suppbrf": "Supplemental Brief",
-    "rec": "Record",
-    "appdx": "Appendix",
-    "suppappdx": "Supplemental Appendix",
-    "amicbrf": "Amicus Brief",
-    "brfrspamic": "Response to Amicus Brief",
-    "ssmltrbrf": "SSM Letter",
-    "ssmreplyltrbrf": "SSM Reply Letter",
-    "adbrf": "AD - Brief",
-    "adreplybrf": "AD - Reply Brief",
-    "adrec": "AD - Record",
-    "adappdx": "AD - Appendix",
-    "mot": "Motion",
-    "motforlv": "Motion for Leave to Appeal",
-    "opp": "Opposition",
-    "opptomotforlv": "Opposition to Motion for Leave to Appeal",
-    "compendium": "Compendium",
-    "addendum": "Addendum",
-    "exhibits": "Exhibits",
-    "_combined": "Brief and Appendix",
-    "_decision": "Decision",
-    "_transcript": "Oral Argument Transcript",
-    "_webcast": "Oral Argument Webcast",
-}
-
-#: Display form of each normalized role.
-ROLE_LABELS = {
-    "appellant": "Appellant",
-    "respondent": "Respondent",
-    "appellant-respondent": "Appellant-Respondent",
-    "respondent-appellant": "Respondent-Appellant",
-    "amicus": "Amicus",
-    "petitioner": "Petitioner",
-    "law guardian": "Law Guardian",
-    "scjc": "SCJC",
-    "pro se": "Pro Se",
-}
 
 #: ``filing_type`` used when the file name yielded no recognizable doctype.
 UNCLASSIFIED_FILING_LABEL = "Unclassified Filing"
@@ -386,17 +445,32 @@ _ROMAN = {
     "xxv": 25,
 }
 
-#: ``vol1`` / ``volIV`` / ``part2`` / ``vol1 part2`` / ``vol 3``
+#: ``vol1`` / ``volIV`` / ``vol 3`` / ``vol1 part2``
 _VOLUME = re.compile(
-    r"^(?:vol(?:ume)?|v|part|pt)\s*0*(\d+|[ivxl]+)"
+    r"^(?:vol(?:ume)?|v)\s*0*(\d+|[ivxl]+)"
     r"(?:\s*(?:part|pt)\s*0*(\d+|[ivxl]+))?$"
 )
+#: ``part2`` / ``pt II`` on its own, which filers write as a segment of its own
+#: as often as they glue it to the volume (``-Rec-vol1-part2``).
+_PART = re.compile(r"^(?:part|pt)\s*0*(\d+|[ivxl]+)$")
 #: doctype and volume glued into one segment: ``Rec Vol 1``, ``recvol2``
 _GLUED_VOLUME = re.compile(
     r"^(?P<doctype>.*?)\s*(?P<volume>(?:vol(?:ume)?|part|pt)\s*0*(?:\d+|[ivxl]+)"
     r"(?:\s*(?:part|pt)\s*0*(?:\d+|[ivxl]+))?)$",
     re.IGNORECASE,
 )
+#: Decorative words filers add to a file name. They appear as segments of their
+#: own (``-brf-redacted``) and glued onto the doctype (``-RecRedacted``,
+#: ``-amended.brf``), so both spellings are stripped before classification.
+_NOISE_WORDS = (
+    r"redacted|unredacted|revised|rev|corrected|corr|amended|amend|final"
+    r"|sealed|unsealed|conf|confidential|replacement|resubmitted|resubmission"
+    r"|copy|new|updated"
+)
+#: A decorative word glued to either end of the doctype segment.
+_GLUED_NOISE = re.compile(rf"^(?:{_NOISE_WORDS})|(?:{_NOISE_WORDS})$")
+#: ``brf.pdf.`` -- a doubled or dot-trailed extension the outer strip missed.
+_STRAY_EXTENSION = re.compile(r"(?:\.pdf)+\.*$", re.IGNORECASE)
 #: decorative trailing segments that are not the doctype
 _NOISE = re.compile(
     r"^(redacted|revised|rev|corrected|corr|amended|amend|final|sealed"
@@ -452,13 +526,14 @@ class ParsedFileName:
     raw: str
     title: str | None = None
     """Title of the action, as the filer wrote it (``SmithvJones``)."""
-    role: str | None = None
-    """Normalized party role (``appellant``, ``respondent``, ``amicus``...)."""
+    role: FilingRole | None = None
+    """The role the name states, or ``None`` when it states none this
+    vocabulary recognizes."""
     party: str | None = None
     """Party name segment, un-normalized (``ConcernedCitizens``)."""
-    doctype: str | None = None
-    """Canonical document type, or ``None`` when the token is unrecognized.
-    ``_``-prefixed values are court-generated artifacts."""
+    doctype: FilingDocType | None = None
+    """The document type the name states, or ``None`` when the trailing token
+    is unrecognizable. The ``_``-prefixed members are court output."""
     volume: int | None = None
     part: int | None = None
     unparsed_token: str | None = None
@@ -472,7 +547,7 @@ class ParsedFileName:
     @property
     def is_combined(self) -> bool:
         """True when one PDF satisfies two filings (``-brf&appdx``)."""
-        return self.doctype == "_combined"
+        return self.doctype is FilingDocType.BRIEF_AND_APPENDIX
 
 
 def _clean(value: str | None) -> str:
@@ -506,13 +581,51 @@ def _volume_numbers(token: str) -> tuple[int, int | None] | None:
     return major, minor
 
 
-def _classify_doctype(token: str) -> str | None:
-    normalized = _normalize(token)
+def _part_number(token: str) -> int | None:
+    """``"part2"`` -> ``2``; ``"pt II"`` -> ``2``. None when not a part."""
+    cleaned = re.sub(r"[^a-z0-9 ]", "", _clean(token).lower()).strip()
+    match = _PART.match(cleaned)
+    if not match:
+        return None
+    raw = match.group(1)
+    return int(raw) if raw.isdigit() else _ROMAN.get(raw)
+
+
+def _strip_decoration(token: str) -> str:
+    """Peel the decorations filers glue onto a doctype off both ends.
+
+    ``"RecRedacted"`` -> ``"rec"``, ``"amended.brf"`` -> ``"brf"``,
+    ``"brf.pdf."`` -> ``"brf"``. A token that is *only* decoration is returned
+    untouched, since there is no doctype hiding in it.
+    """
+    stripped = _normalize(_STRAY_EXTENSION.sub("", token))
+    while True:
+        peeled = _GLUED_NOISE.sub("", stripped)
+        if peeled == stripped or not peeled:
+            return stripped
+        stripped = peeled
+
+
+def _match_doctype(normalized: str) -> FilingDocType | None:
     if _COMBINED.match(normalized):
-        return "_combined"
+        return FilingDocType.BRIEF_AND_APPENDIX
     for canonical, pattern in _DOCTYPE_PATTERNS:
         if re.match(pattern, normalized):
             return canonical
+    return None
+
+
+def _classify_doctype(token: str) -> FilingDocType | None:
+    normalized = _normalize(token)
+    doctype = _match_doctype(normalized)
+    if doctype is not None:
+        return doctype
+    # Try again without the decorations, so a filer writing "SEALEDappdx" or
+    # "brf.pdf." still gets read. Only ever a second attempt: an undecorated
+    # token that already matched is never touched.
+    undecorated = _strip_decoration(token)
+    if undecorated and undecorated != normalized:
+        return _match_doctype(undecorated)
     return None
 
 
@@ -528,8 +641,9 @@ class FilingTypeClassification:
     """
 
     raw: str | None
-    role: str | None = None
-    doctype: str | None = None
+    filing_type: FilingType | None = None
+    role: FilingRole | None = None
+    doctype: FilingDocType | None = None
     recognized: bool = False
 
 
@@ -544,24 +658,31 @@ def classify_filing_type(
     """
     if raw_filing_type is None:
         return FilingTypeClassification(raw=None)
-    mapped = FILING_TYPE_MAP.get(raw_filing_type)
-    if mapped is None:
+    filing_type = filing_type_from_value(raw_filing_type)
+    if filing_type is None:
         return FilingTypeClassification(raw=raw_filing_type, recognized=False)
-    role, doctype = mapped
+    role, doctype = FILING_TYPE_MAP[filing_type]
     return FilingTypeClassification(
-        raw=raw_filing_type, role=role, doctype=doctype, recognized=True
+        raw=raw_filing_type,
+        filing_type=filing_type,
+        role=role,
+        doctype=doctype,
+        recognized=True,
     )
 
 
-def describe_filing(role: str | None, doctype: str | None) -> str:
+def describe_filing(
+    role: FilingRole | None, doctype: FilingDocType | None
+) -> str:
     """Compose a FILINGS-style label, for entries the table never carried.
 
-    ``("appellant", "motforlv")`` -> ``"Appellant Motion for Leave to Appeal"``.
+    ``(APPELLANT, MOTION_FOR_LEAVE_TO_APPEAL)`` ->
+    ``"Appellant Motion for Leave to Appeal"``.
     """
-    doctype_label = DOCTYPE_LABELS.get(doctype or "")
+    doctype_label = DOCTYPE_LABELS.get(doctype) if doctype else None
     if doctype_label is None:
         return UNCLASSIFIED_FILING_LABEL
-    role_label = ROLE_LABELS.get(role or "")
+    role_label = ROLE_LABELS.get(role) if role else None
     if role_label is None:
         return doctype_label
     # "Amicus" + "Amicus Brief" reads badly; the doctype already says it
@@ -573,13 +694,156 @@ def describe_filing(role: str | None, doctype: str | None) -> str:
     return f"{role_label} {doctype_label}"
 
 
+def _id_slug(value: str | None) -> str:
+    """Fold one ``docket_entry_id`` component to a stable token."""
+    slug = re.sub(r"[^a-z0-9]+", "-", _clean(value).lower()).strip("-")
+    return slug or "none"
+
+
+def entry_id_from_row(
+    filing_type: str | None, party: str | None, ordinal: int
+) -> str:
+    """Compose the ``e:`` id for a real FILINGS row.
+
+    Built from ``(filing_type, party, ordinal)`` and nothing else. Both dates
+    are deliberately excluded: ``date_received`` fills in blank -> date, and
+    ``date_due`` gets adjourned, so either in the key would retire the id on a
+    routine update. Measured over 14647 FILINGS rows, this is unique within a
+    docket, whereas ``(filing_type, party)`` alone collides on 156 rows and the
+    full four-column row still collides on 39.
+    """
+    return f"e:{_id_slug(filing_type)}:{_id_slug(party)}:{ordinal}"
+
+
+def _document_id_components(
+    parsed: ParsedFileName,
+) -> tuple[str | None, str | None, str | None]:
+    """The ``(role, party, doctype)`` an inferred entry's id is built from."""
+    if parsed.is_court_generated:
+        # Court output carries no role or party -- the title is what separates
+        # one decision from another ("123ent25" vs "51opn21"), and a docket can
+        # hold several. Without it every decision on a docket would differ only
+        # by an ordinal taken over alphabetical file order, so a newly published
+        # decision sorting first would re-key the others.
+        doctype = parsed.doctype.value if parsed.doctype else ""
+        return "court", parsed.title, doctype.lstrip("_")
+    return (
+        parsed.role.value if parsed.role else None,
+        parsed.party,
+        parsed.doctype.value if parsed.doctype else parsed.unparsed_token,
+    )
+
+
+def entry_id_from_document(parsed: ParsedFileName, ordinal: int) -> str:
+    """Compose the ``d:`` id for an entry synthesized from a file name.
+
+    Keyed on ``(role, party, doctype)`` -- the triple that groups volumes
+    together -- rather than on any one file name, so withdrawing one volume of a
+    record leaves the surviving siblings' id untouched.
+    """
+    role, party, doctype = _document_id_components(parsed)
+    return (
+        f"d:{_id_slug(role)}:{_id_slug(party)}:{_id_slug(doctype)}:{ordinal}"
+    )
+
+
+#: Byte cap for one archive key. The key is used verbatim as a single
+#: directory name (``{storage}/{xx}/{yy}/{key}/{sha256}.pdf``), and the common
+#: filesystem limit for one component is 255; leave headroom.
+_MAX_KEY_BYTES = 200
+
+
+def _archive_key_body(file_row: dict) -> str:
+    """The document-identifying middle of an archive key."""
+    entry_id = file_row.get("docket_entry_id")
+    if entry_id is None:
+        # Every reconciled file has an entry, so this is a bug path rather than
+        # a real case. Degrade to the file's own name: an ugly key beats a
+        # colliding one, because a collision loses the download outright.
+        return f"unlinked_{_id_slug(file_row.get('file_name'))}"
+    namespace, _, rest = entry_id.partition(":")
+    body = rest.replace(":", "_")
+    # 'e' is the ordinary case and adds nothing to a path; 'd' is worth keeping
+    # so an inferred entry stays recognizable on disk
+    return body if namespace == "e" else f"{namespace}_{body}"
+
+
+def archive_dedup_keys(
+    docket_number: str | None, files: list[dict]
+) -> list[str]:
+    """One archive/deduplication key per file, unique within the docket.
+
+    Takes the reconciled file rows for a single docket -- all of them, not just
+    the fetchable ones, so a file that becomes available later keeps the same
+    key -- and returns keys positionally.
+
+    Shaped ``{docket}_{entry id}[_volN][_pM][_altK]``, e.g.
+    ``APL-2025-00221_appellant-brief_ray-vassell-a_1``. The docket number is
+    required because the key must be unique across the whole run and 443 file
+    names in the corpus appear on more than one docket, some legitimately (one
+    decision resolving ten companion appeals).
+
+    ``volume``/``part`` are needed because a multi-volume record is several
+    files under one entry. ``altK`` disambiguates what is left: the parser
+    deliberately discards ``redacted`` / ``revised`` / ``corrected`` as noise
+    when matching, so a redacted and an unredacted upload of one brief reduce
+    to the same entry and the same volume. Without ``altK`` those 26 files
+    (13 keys, measured over 18575) would share a key, and since
+    ``requests.deduplication_key`` is ``UNIQUE ON CONFLICT IGNORE`` the second
+    request is dropped -- silently losing precisely the revised and redacted
+    variants.
+    """
+    prefix = re.sub(r"[^A-Za-z0-9.-]+", "-", docket_number or "").strip("-")
+    keys: list[str] = []
+    used: dict[str, int] = {}
+    for file_row in files:
+        parts = [prefix or "no-docket-number", _archive_key_body(file_row)]
+        if file_row.get("volume") is not None:
+            parts.append(f"vol{file_row['volume']}")
+        if file_row.get("part") is not None:
+            parts.append(f"p{file_row['part']}")
+        key = "_".join(parts)
+        if len(key.encode()) > _MAX_KEY_BYTES:
+            # keep the head readable and make the tail carry the uniqueness
+            digest = hashlib.sha1(key.encode()).hexdigest()[:8]
+            room = _MAX_KEY_BYTES - len(digest) - 1
+            key = f"{key.encode()[:room].decode(errors='ignore')}-{digest}"
+        used[key] = used.get(key, 0) + 1
+        if used[key] > 1:
+            key = f"{key}_alt{used[key]}"
+        keys.append(key)
+    return keys
+
+
+def _group_id_key(parsed: ParsedFileName) -> tuple:
+    """The components :func:`entry_id_from_document` builds an id from.
+
+    Must stay in step with that function: the ordinal exists only to separate
+    groups whose ids would otherwise be identical, so counting it over a
+    different set of fields would either hand out a spurious ordinal or let two
+    groups collide.
+    """
+    role, party, doctype = _document_id_components(parsed)
+    return (role, _normalize(party), doctype)
+
+
+def _ordinals(keys: list) -> list[int]:
+    """1-based occurrence counter per repeated key, in source order."""
+    seen: dict = {}
+    out = []
+    for key in keys:
+        seen[key] = seen.get(key, 0) + 1
+        out.append(seen[key])
+    return out
+
+
 def parse_file_name(file_name: str) -> ParsedFileName:
     """Split a Court-PASS file name into its convention components.
 
     Reads right-to-left: trailing volume/noise segments are consumed first,
     then the doctype, then the remaining left segments are split at the role
     into title and party. Any field the filer omitted or mangled comes back
-    ``None`` rather than raising -- roughly 8% of the historical corpus has an
+    ``None`` rather than raising -- roughly 3% of the corpus has an
     unrecognizable doctype token and pre-2013 filings predate the convention.
     """
     stem = re.sub(
@@ -594,7 +858,17 @@ def parse_file_name(file_name: str) -> ParsedFileName:
         token = _normalize(segments[index])
         numbers = _volume_numbers(segments[index])
         if numbers and volume is None:
-            volume, part = numbers
+            volume, glued_part = numbers
+            if part is None:
+                part = glued_part
+            index -= 1
+            continue
+        # A part on its own must not be read as the volume, or a tail written
+        # ``-vol1-part2`` consumes its volume slot and the doctype is never
+        # reached.
+        part_only = _part_number(segments[index])
+        if part_only is not None and part is None:
+            part = part_only
             index -= 1
             continue
         if not token or _NOISE.match(token):
@@ -808,10 +1082,11 @@ def reconcile_files_and_entries(
     * whether the absence is expected -> ``entry_doctype`` in
       :data:`NOT_ON_FILINGS_TABLE`
 
-    Court-generated files (``-Decision``, ``-Transcript``, ``-Webcast``) are
-    deliberately *not* given synthesized entries: they are the court's own
-    output, never a filing, and the FILINGS table is a filing register. They
-    come back with ``link_status='court_generated'`` and no entry.
+    Court-generated files (``-Decision``, ``-Transcript``, ``-Webcast``) take
+    part in synthesis but not in matching: they are the court's own output, so
+    they may not claim a FILINGS row, but they do get an entry of their own.
+    They come back ``link_status='court_generated'`` rather than ``'inferred'``
+    -- both have a synthesized entry, only one is something a party filed.
     """
     parsed_all = [
         (index, parse_file_name(file_row.get("file_name") or ""))
@@ -829,6 +1104,7 @@ def reconcile_files_and_entries(
             part=parsed.part,
             document_group=None,
             docket_entry_index=None,
+            docket_entry_id=None,
             match_confidence=None,
             date_received=None,
             date_due=None,
@@ -850,34 +1126,51 @@ def reconcile_files_and_entries(
         classify_filing_type(entry.get("filing_type"))
         for entry in docket_entries
     ]
+    # Ordinal is taken over FILINGS table order. The table is sorted by
+    # date_due ascending with blank-due rows first (100% of 3210 tables), so
+    # this only matters for rows sharing a (filing_type, party) -- 124 such
+    # groups, 65 of them identical in all four columns. Ordering the ordinal by
+    # date_received or date_due instead was measured to be indistinguishable
+    # here (same 0 collisions, 0 identity breakage), so table order wins on
+    # needing no extra sort.
+    row_ordinals = _ordinals(
+        [
+            (entry.get("filing_type"), entry.get("party"))
+            for entry in docket_entries
+        ]
+    )
     reconciled_entries = [
         {
             **entry,
             "entry_index": entry_index,
+            "docket_entry_id": entry_id_from_row(
+                entry.get("filing_type"), entry.get("party"), ordinal
+            ),
             "raw_filing_type": entry.get("filing_type"),
+            "entry_filing_type": classification.filing_type,
             "entry_role": classification.role,
             "entry_doctype": classification.doctype,
             "filing_type_recognized": classification.recognized,
             "inferred_from_file": False,
             "file_indexes": [],
         }
-        for entry_index, (entry, classification) in enumerate(
-            zip(docket_entries, classifications, strict=True)
+        for entry_index, (entry, classification, ordinal) in enumerate(
+            zip(docket_entries, classifications, row_ordinals, strict=True)
         )
     ]
 
-    filer_files = [
-        (index, parsed)
-        for index, parsed in parsed_all
-        if not parsed.is_court_generated
-    ]
-    if not filer_files:
+    if not parsed_all:
         return linked, reconciled_entries
 
-    groups = _group_volumes(filer_files)
+    groups = _group_volumes(parsed_all)
     for group_index, group in enumerate(groups):
         for file_index in group.file_indexes:
             linked[file_index]["document_group"] = group_index
+
+    # Ordinals span *all* groups, not just the unclaimed ones, so a group's id
+    # does not shift when a sibling with the same key stops being claimed by a
+    # FILINGS row.
+    group_ordinals = _ordinals([_group_id_key(g.parsed) for g in groups])
 
     candidates: list[_Candidate] = []
     for entry_index, classification in enumerate(classifications):
@@ -885,6 +1178,11 @@ def reconcile_files_and_entries(
         entry_role, entry_doctype = classification.role, classification.doctype
         for group_index, group in enumerate(groups):
             parsed = group.parsed
+            if parsed.is_court_generated:
+                # The court's own output is never a filing, so it must not be
+                # able to claim a FILINGS row -- a decision is not the
+                # appellant's brief. It still gets a synthesized entry below.
+                continue
             doctype_exact = False
             if entry_doctype and parsed.doctype and not parsed.is_combined:
                 if parsed.doctype == entry_doctype:
@@ -939,6 +1237,7 @@ def reconcile_files_and_entries(
         for file_index in positions:
             linked[file_index].update(
                 docket_entry_index=candidate.entry_index,
+                docket_entry_id=entry["docket_entry_id"],
                 match_confidence=confidence,
                 date_received=entry.get("date_received"),
                 date_due=entry.get("date_due"),
@@ -953,6 +1252,7 @@ def reconcile_files_and_entries(
             continue
         parsed = group.parsed
         entry_index = len(reconciled_entries)
+        entry_id = entry_id_from_document(parsed, group_ordinals[group_index])
         reconciled_entries.append(
             {
                 "filing_type": describe_filing(parsed.role, parsed.doctype),
@@ -960,8 +1260,10 @@ def reconcile_files_and_entries(
                 "date_due": None,
                 "date_received": None,
                 "entry_index": entry_index,
+                "docket_entry_id": entry_id,
                 # nothing on the page said this; it is read off the file name
                 "raw_filing_type": None,
+                "entry_filing_type": None,
                 "entry_role": parsed.role,
                 "entry_doctype": parsed.doctype,
                 "filing_type_recognized": parsed.doctype is not None,
@@ -972,7 +1274,15 @@ def reconcile_files_and_entries(
         for file_index in group.file_indexes:
             linked[file_index].update(
                 docket_entry_index=entry_index,
+                docket_entry_id=entry_id,
                 match_confidence=None,
-                link_status="inferred",
+                # 'court_generated' is kept rather than folded into 'inferred':
+                # both now have a synthesized entry, but only one of them is
+                # something a party filed
+                link_status=(
+                    "court_generated"
+                    if parsed.is_court_generated
+                    else "inferred"
+                ),
             )
     return linked, reconciled_entries

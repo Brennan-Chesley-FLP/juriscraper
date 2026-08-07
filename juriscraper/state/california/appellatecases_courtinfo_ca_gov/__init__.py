@@ -3,6 +3,8 @@
 from .models import (
     CaAppAttorney,
     CaAppBrief,
+    CaAppBriefNotesCredit,
+    CaAppBriefParty,
     CaAppCaseUnavailable,
     CaAppCoaCaseLink,
     CaAppDisposition,
@@ -28,6 +30,8 @@ __all__ = [
     "CaCourtRange",
     "CaAppAttorney",
     "CaAppBrief",
+    "CaAppBriefNotesCredit",
+    "CaAppBriefParty",
     "CaAppCaseUnavailable",
     "CaAppCoaCaseLink",
     "CaAppDisposition",

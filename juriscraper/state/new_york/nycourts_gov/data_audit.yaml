@@ -1,0 +1,361 @@
+# Data audit ledger for the Court-PASS scraper.
+#
+# One entry per dotted path, verdicts qualified by `when:` SQL predicates.
+# Evidence counts are measured against the corpus named in `corpus:` below and
+# are PRE-FIX -- the fixes applied on 2026-08-15 do not move them; the next
+# sweep does. See data-revisions-report-2026-08-15.md.
+
+corpus:
+  dbs: [../juriscraper-runs/new_york/nycoa/complete/2026-08-08.cc-guided.db]
+  swept: 2026-08-08
+  scraper_commit: c99dff073
+  audited: 2026-08-15
+  rows: {NYCourtPassDocket: 5088, NYCourtPassFile: 14206}
+  # No `result_type='dict'` rows and no `is_valid=0` rows: every payload
+  # confirmed against its model.
+  validation_failures: 0
+  errors: 0
+
+identity: [court, docket_number]
+
+roots:
+  NYCourtPassDocket: {}
+  NYCourtPassFile: {join: [docket_number, file_index], as: downloaded_files}
+
+# One court (`ny`) and one entry point (`dockets_by_bulk`) in this corpus, so no
+# `when:` predicate discriminates a stratum yet. Add one the moment a second
+# entry point (`docket_by_number`) is swept -- `search_page`, `search_row` and
+# `case_short_name` are all null-by-design on that path.
+
+paths:
+  # ---- NYCourtPassDocket -------------------------------------------------
+  NYCourtPassDocket.docket_number:
+    - verdict: suspect
+      evidence: {rows: 5088, filled: 5088, distinct: 4832}
+      note: >-
+        256 dockets emitted more than once (240 numbers; up to 5 copies). The
+        Docket.aspx grid lists one case on several consecutive rows -- verified
+        on request 9018, where JCR-2019-00006 occupies rows 0-4 with identical
+        aria-labels -- and the scraper follows every row. Copies agree on
+        case_name, argument_date, source_url and file count; only search_row
+        differs. DECIDED 2026-08-16: not deduped, left as the site states it.
+        Downloads are unaffected -- `deduplication_key` collapses them -- so
+        this costs requests, not correctness. Re-raise only if the request
+        budget becomes a constraint.
+      assert:
+        id: docket-number-emitted-once
+        on: dockets
+        find: "docket_number IN (SELECT docket_number FROM dockets GROUP BY 1 HAVING count(*) > 1)"
+        rows: 496
+  NYCourtPassDocket.court:
+    - {verdict: ok, evidence: {rows: 5088, filled: 5088, distinct: 1}}
+  NYCourtPassDocket.case_name:
+    - {verdict: ok, evidence: {rows: 5088, filled: 5088}}
+  NYCourtPassDocket.case_short_name:
+    - verdict: ok
+      when: "source_entry_point = 'dockets_by_bulk'"
+      evidence: {rows: 5088, filled: 5088}
+      note: "Null-by-design on `docket_by_number`, which this corpus never ran."
+  NYCourtPassDocket.argument_date:
+    - {verdict: ok, evidence: {rows: 5088, filled: 3117}}
+  NYCourtPassDocket.decision_date:
+    - verdict: ok
+      evidence: {rows: 5088, filled: 4924}
+      note: >-
+        13 dockets state a decision date before the argument date. Verified on
+        result 12 (APL-2023-00146): the page itself prints argued 09/10/2024,
+        decided 08/21/2024. Court-side, not a parse error. All 13 have a null
+        official_citation, so the "decision" is likely a dismissal rather than
+        an opinion.
+      assert:
+        id: decision-not-before-argument
+        on: dockets
+        find: "decision_date < argument_date"
+        rows: 13
+  NYCourtPassDocket.official_citation:
+    - verdict: suspect
+      evidence: {rows: 5088, filled: 2639}
+      note: >-
+        One docket (APL-2016-00240, result 9838) carries `Withdrawn` where the
+        citation goes -- an affirmative statement about the case, verified on
+        the page, not a placeholder, so `clean_optional` deliberately keeps it.
+        Nine more are the Court's own typos (`32NY3d 1010`, `17 NYed 118`,
+        `15 NY3D 391`, `40 Ny3d 417`, `93 NY2d 01`, `19 NYS3d 463`, and three
+        2013 appeals reported as `NY2d`). Stored verbatim on purpose; the
+        assertion measures the Court's data quality, not ours.
+      assert:
+        id: official-citation-is-a-citation
+        on: dockets
+        find: "official_citation IS NOT NULL AND NOT regexp_matches(official_citation, '^[0-9]+ NY[23]d [0-9]+$')"
+        rows: 10
+  NYCourtPassDocket.lower_court_citation:
+    - verdict: suspect
+      evidence: {rows: 5088, filled: 1221}
+      note: >-
+        11 dockets stored the site's placeholder as a value -- `N/A` x10 (padded
+        with trailing spaces) and `NA` x1. FIXED 2026-08-15 by `clean_optional`
+        in `parsers/_common.py`; expect 1210 filled next sweep.
+      assert:
+        id: lower-court-citation-not-a-sentinel
+        on: dockets
+        find: "lower(trim(lower_court_citation)) IN ('n/a','na','none','-','--')"
+        rows: 11
+  NYCourtPassDocket.no_files_for_case:
+    - {verdict: ok, evidence: {rows: 5088, filled: 5088}}
+  NYCourtPassDocket.source_url:
+    - {verdict: ok, evidence: {rows: 5088, filled: 5088}}
+  NYCourtPassDocket.source_entry_point:
+    - verdict: ok
+      evidence: {rows: 5088, filled: 5088, distinct: 1}
+      note: "Constant `dockets_by_bulk` because that is the only entry point this sweep ran. Not redundant: it discriminates the other entry point's strata."
+  NYCourtPassDocket.search_page:
+    - {verdict: ok, when: "source_entry_point = 'dockets_by_bulk'", evidence: {rows: 5088, filled: 5088}}
+  NYCourtPassDocket.search_row:
+    - {verdict: ok, when: "source_entry_point = 'dockets_by_bulk'", evidence: {rows: 5088, filled: 5088}}
+  NYCourtPassDocket.aria_case_info:
+    - verdict: redundant
+      evidence: {rows: 5088, filled: 5088, offending: 2057}
+      note: >-
+        DROPPED 2026-08-16 -- removed from the model, the parser and the
+        scraper's accumulated_data. Stated nothing beyond `case_short_name` +
+        `argument_date`, both read from the grid's own cells (it contained the
+        short name verbatim on 4921/5088). It also carried the site's entities:
+        Court-PASS double-escapes the attribute (`O&amp;#39;Connor`,
+        `date &amp;nbsp;.`), so the HTML parse left one layer behind on 2057
+        rows -- which is exactly what the other 167 apparent mismatches were.
+        Dropping was preferred to unescaping. This entry names a path the
+        current model no longer has; delete it once a post-fix sweep replaces
+        the corpus.
+
+  # ---- NYCourtPassIssue --------------------------------------------------
+  NYCourtPassDocket.issues[].category_raw:
+    - {verdict: ok, evidence: {rows: 4503, filled: 4503, distinct: 832}}
+  NYCourtPassDocket.issues[].category:
+    - {verdict: coded, evidence: {rows: 4503, filled: 4503}}
+  NYCourtPassDocket.issues[].subcategory:
+    - verdict: coded
+      evidence: {rows: 4503, filled: 3894}
+      note: "The 609 unfilled are the bare categories the Court states without one, per the field's docstring."
+  NYCourtPassDocket.issues[].detail:
+    - {verdict: ok, evidence: {rows: 4503, filled: 4325}}
+  NYCourtPassDocket.issues[].recognized:
+    - verdict: null-bug
+      evidence: {rows: 4503, offending: 1}
+      note: >-
+        One issue unrecognized across the whole corpus:
+        `Corporations--Not-For-Profit Corporation` (result 10543,
+        APL-2026-00100). FIXED 2026-08-15 -- `IssueSubcategory.
+        NOT_FOR_PROFIT_CORPORATION`, code 690.
+      assert:
+        id: every-issue-recognized
+        on: issues
+        find: "NOT recognized"
+        rows: 1
+
+  # ---- NYCourtPassDocketEntry --------------------------------------------
+  NYCourtPassDocket.docket_entries[].filing_type:
+    - {verdict: ok, evidence: {rows: 24516, filled: 24516, distinct: 100}}
+  NYCourtPassDocket.docket_entries[].party:
+    - verdict: suspect
+      evidence: {rows: 24516, filled: 19284, offending: 5513}
+      note: >-
+        5513 values carry the page's column layout as doubled internal spaces
+        (`Frank  Brady Esq.`) -- Court-PASS renders names from fixed slots and
+        leaves the run behind when one is blank, and the parser only stripped
+        the ends. FIXED 2026-08-15 by `collapse_ws`.
+      assert:
+        id: party-whitespace-collapsed
+        on: entries
+        find: "party LIKE '%  %'"
+        rows: 5513
+  NYCourtPassDocket.docket_entries[].date_due:
+    - {verdict: ok, evidence: {rows: 24516, filled: 14214}}
+  NYCourtPassDocket.docket_entries[].date_received:
+    - {verdict: ok, evidence: {rows: 24516, filled: 14874}}
+  NYCourtPassDocket.docket_entries[].docket_entry_id:
+    - verdict: ok
+      evidence: {rows: 24516, filled: 24516}
+      note: "Unique within every docket (0 collisions), and every file's docket_entry_id resolves to one (0 orphans, both nested and root-emitted)."
+  NYCourtPassDocket.docket_entries[].entry_index:
+    - {verdict: ok, evidence: {rows: 24516, filled: 24516}}
+  NYCourtPassDocket.docket_entries[].raw_filing_type:
+    - verdict: ok
+      evidence: {rows: 24516, filled: 16096}
+      note: "Filled exactly on the 16096 real FILINGS rows; null on all 8420 inferred entries, per the docstring."
+  NYCourtPassDocket.docket_entries[].entry_filing_type:
+    - {verdict: coded, evidence: {rows: 24516, filled: 16096}}
+  NYCourtPassDocket.docket_entries[].entry_role:
+    - {verdict: coded, evidence: {rows: 24516, filled: 19079}}
+  NYCourtPassDocket.docket_entries[].entry_doctype:
+    - {verdict: coded, evidence: {rows: 24516, filled: 23429}}
+  NYCourtPassDocket.docket_entries[].filing_type_recognized:
+    - verdict: ok
+      evidence: {rows: 24516, drift: 0}
+      note: >-
+        Zero entries with `filing_type_recognized=false AND
+        inferred_from_file=false` -- the vocabulary-drift signal the docstring
+        describes is silent, as it claims. The 963 false ones are all inferred
+        entries whose file-name doctype token was unreadable.
+  NYCourtPassDocket.docket_entries[].inferred_from_file:
+    - {verdict: ok, evidence: {rows: 24516, true: 8420}}
+  NYCourtPassDocket.docket_entries[].file_indexes:
+    - verdict: ok
+      evidence: {rows: 24516, empty: 5269}
+      note: "All 5269 empty ones are real FILINGS rows; zero inferred entries have an empty list, which the docstring says is structurally impossible."
+
+  # ---- NYCourtPassAttorney -----------------------------------------------
+  NYCourtPassDocket.attorneys[].party_name:
+    - verdict: suspect
+      evidence: {rows: 13281, filled: 13281, offending: 3738}
+      note: "Same doubled-space defect as `docket_entries[].party`. FIXED 2026-08-15."
+      assert: {id: party-name-whitespace-collapsed, on: attorneys, find: "party_name LIKE '%  %'", rows: 3738}
+  NYCourtPassDocket.attorneys[].party_role:
+    - verdict: coded
+      evidence: {rows: 13281, filled: 13281, distinct: 27, singletons: 1, p_unseen: 0.000075}
+      note: >-
+        A closed vocabulary stored as free text. CODED 2026-08-15 as
+        `PartyRole` (27 members, codes 1-27), with the verbatim string kept in
+        the new `party_role_raw`. Distinct from `FilingRole`: this names the
+        party's posture in the action below as well as on the appeal, and
+        covers roles that never file (`Child`, `Certifying Court`).
+  NYCourtPassDocket.attorneys[].party_role_raw:
+    - verdict: null-unreachable
+      note: "Added 2026-08-15 alongside the `PartyRole` coding; postdates this corpus. Next sweep should fill it on all 13281 rows and agree with the pre-fix `party_role` string."
+  NYCourtPassDocket.attorneys[].firm:
+    - verdict: suspect
+      evidence: {rows: 13281, filled: 12259, offending: 4317}
+      note: >-
+        35% of values are `person, office` rather than a firm -- `Hon. Eric T.
+        Schneiderman, New York State Attorney General`, `Robert S. Dean, Esq.,
+        Center for Appellate Litigation`. This is Court-PASS's attorney-of-
+        record line: the named principal plus the office. `attorney_name` holds
+        a *different* person (the lawyer who appeared), so the two are not
+        duplicates. DECIDED 2026-08-16: not split. CL's `Attorney`/`Role` has
+        nowhere to put the named principal, so the split field would have no
+        destination downstream. Nothing is lost -- the whole line is stored.
+      assert:
+        id: firm-is-an-org-name
+        on: attorneys
+        find: "firm LIKE 'Hon.%' OR firm LIKE '%, Esq.,%'"
+        rows: 4317
+  NYCourtPassDocket.attorneys[].attorney_name:
+    - verdict: suspect
+      evidence: {rows: 13281, filled: 12750, offending: 3170}
+      note: "Same doubled-space defect. FIXED 2026-08-15."
+      assert: {id: attorney-name-whitespace-collapsed, on: attorneys, find: "attorney_name LIKE '%  %'", rows: 3170}
+  NYCourtPassDocket.attorneys[].address:
+    - verdict: ok
+      evidence: {rows: 13281, filled: 13281, offending: 52}
+      note: >-
+        Filled on every row and every value contains a digit -- no sentinel
+        addresses (`CONFIDENTIAL`, `Unknown`) anywhere in this corpus, and no
+        entity leakage. 52 rows had doubled internal spaces; FIXED 2026-08-15
+        by `collapse_ws_lines`, which collapses per line so the newlines
+        separating address lines survive.
+  NYCourtPassDocket.attorneys[].phone:
+    - verdict: ok
+      evidence: {rows: 13281, filled: 12968}
+      note: "Every filled value matches `(NNN) NNN-NNNN`; zero shape outliers."
+
+  # ---- NYCourtPassFile, nested on the docket -----------------------------
+  NYCourtPassDocket.files[].file_name:
+    - {verdict: ok, evidence: {rows: 21331, filled: 21331}}
+  NYCourtPassDocket.files[].file_index:
+    - {verdict: ok, evidence: {rows: 21331, filled: 21331}}
+  NYCourtPassDocket.files[].document_number:
+    - {verdict: ok, evidence: {rows: 21331, filled: 21331}}
+  NYCourtPassDocket.files[].local_path:
+    - verdict: null-by-design
+      evidence: {rows: 21331, filled: 0}
+      note: >-
+        Never set on the nested copy: the driver sets it on the separately
+        emitted `NYCourtPassFile`, which is a different record. DECIDED
+        2026-08-16: kept, not dropped -- the merge SQL joins the docket's files
+        to the emitted ones on `(docket_number, file_index)` to pick the path
+        up, so the field is the join's landing site rather than dead weight.
+        Recorded in the field's docstring.
+  NYCourtPassDocket.files[].available:
+    - {verdict: ok, evidence: {rows: 21331, true: 15783, false: 5548}}
+  NYCourtPassDocket.files[].docket_number:
+    - {verdict: ok, evidence: {rows: 21331, filled: 21331}}
+  NYCourtPassDocket.files[].doc_role:
+    - {verdict: coded, evidence: {rows: 21331, filled: 15914}}
+  NYCourtPassDocket.files[].doc_party:
+    - {verdict: ok, evidence: {rows: 21331, filled: 15706}}
+  NYCourtPassDocket.files[].doc_type:
+    - verdict: coded
+      evidence: {rows: 21331, filled: 19864}
+      note: "1467 unreadable (6.9%), matching the docstring's ~6%. 970 inferred, 497 matched; 264 have neither role nor doctype."
+  NYCourtPassDocket.files[].volume:
+    - {verdict: ok, evidence: {rows: 21331, filled: 2860}}
+  NYCourtPassDocket.files[].part:
+    - {verdict: ok, evidence: {rows: 21331, filled: 160}}
+  NYCourtPassDocket.files[].document_group:
+    - {verdict: ok, evidence: {rows: 21331, filled: 21331}}
+  NYCourtPassDocket.files[].docket_entry_id:
+    - {verdict: ok, evidence: {rows: 21331, filled: 21331, orphans: 0}}
+  NYCourtPassDocket.files[].docket_entry_index:
+    - {verdict: ok, evidence: {rows: 21331, filled: 21331}}
+  NYCourtPassDocket.files[].link_status:
+    - verdict: coded
+      evidence: {rows: 21331, distinct: 3, p_unseen: 0.0, matched: 12566, court_generated: 4441, inferred: 4324}
+      note: >-
+        A closed 3-value set typed `str`. Zero `unlinked`, which the docstring
+        calls a bug signal. DECIDED 2026-08-16: left as `str`. It is our
+        provenance label rather than the Court's vocabulary, so it does not
+        want a `CourtVocabulary` code, and the set is small enough that the
+        string is self-describing.
+  NYCourtPassDocket.files[].match_confidence:
+    - verdict: coded
+      evidence: {rows: 21331, filled: 12566, distinct: 3, p_unseen: 0.0, exact: 8947, strong: 2145, weak: 1474}
+      note: "Filled on exactly the 12566 `matched` files and null on the rest, as documented. Left as `str`, same as `link_status`."
+  NYCourtPassDocket.files[].date_received:
+    - {verdict: ok, evidence: {rows: 21331, filled: 12454}}
+  NYCourtPassDocket.files[].date_due:
+    - {verdict: ok, evidence: {rows: 21331, filled: 10454}}
+
+  # ---- NYCourtPassFile, emitted as a root result -------------------------
+  # The record that carries the downloaded binary. `handle_file_download`
+  # rebuilt it from four accumulated_data keys, so eleven of the eighteen
+  # fields were null on all 14206 rows while the nested copy of the same file
+  # had them. FIXED 2026-08-15: the reconciled row now travels with the
+  # download request and the emitted record is built from it. Verified on a
+  # replay of request 3998 -- all 18 fields populated, 0 errors.
+  NYCourtPassFile.file_name:
+    - {verdict: ok, evidence: {rows: 14206, filled: 14206}}
+  NYCourtPassFile.file_index:
+    - {verdict: ok, evidence: {rows: 14206, filled: 14206}}
+  NYCourtPassFile.document_number:
+    - {verdict: ok, evidence: {rows: 14206, filled: 14206}}
+  NYCourtPassFile.local_path:
+    - {verdict: ok, evidence: {rows: 14206, filled: 14206}}
+  NYCourtPassFile.available:
+    - verdict: ok
+      evidence: {rows: 14206, true: 14206}
+      note: "Constant true by construction -- only fetchable rows get a download request. The sealed ones are reachable through the nested copy."
+  NYCourtPassFile.docket_number:
+    - {verdict: ok, evidence: {rows: 14206, filled: 14206}}
+  NYCourtPassFile.docket_entry_id:
+    - {verdict: ok, evidence: {rows: 14206, filled: 14206, orphans: 0}}
+  NYCourtPassFile.doc_role:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15; see the block comment above."}
+  NYCourtPassFile.doc_party:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15."}
+  NYCourtPassFile.doc_type:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15."}
+  NYCourtPassFile.volume:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15."}
+  NYCourtPassFile.part:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15."}
+  NYCourtPassFile.document_group:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15."}
+  NYCourtPassFile.docket_entry_index:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15."}
+  NYCourtPassFile.link_status:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15."}
+  NYCourtPassFile.match_confidence:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15."}
+  NYCourtPassFile.date_received:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15."}
+  NYCourtPassFile.date_due:
+    - {verdict: null-bug, evidence: {rows: 14206, filled: 0}, note: "FIXED 2026-08-15."}

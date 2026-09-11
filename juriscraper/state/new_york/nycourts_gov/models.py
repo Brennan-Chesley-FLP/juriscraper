@@ -25,6 +25,7 @@ from .vocabularies import (
     FilingType,
     IssueCategory,
     IssueSubcategory,
+    PartyRole,
 )
 
 # Court ID mapping
@@ -54,10 +55,36 @@ class NYCourtPassFile(ScrapedData):
     when attaching documents to dockets in the downstream pipeline."""
 
     local_path: str | None = None
-    """Local filesystem path where the file was downloaded (set by driver)"""
+    """Local filesystem path where the file was downloaded (set by driver).
+
+    Set **only** on the ``NYCourtPassFile`` emitted as its own result by
+    ``handle_file_download``, never on the copy nested in
+    ``NYCourtPassDocket.files``: the download is a separate request, and the
+    docket is already emitted by the time it lands. The nested copy is the one
+    that covers sealed files, which are never fetched and so have no path at
+    all.
+
+    Downstream, the merge joins the docket's files to the emitted ones on
+    ``(docket_number, file_index)`` to pick this up. Every other field on the
+    two is identical -- the emitted record is rebuilt from the same reconciled
+    row -- so the join carries the path and nothing else."""
 
     available: bool = True
     """False for sealed/not-available files"""
+
+    file_type: str | None = None
+    """File extension the page states for this document ('pdf', 'asx').
+
+    Read off the ``gvFiles`` download button, which labels itself ``Download
+    PDF`` / ``Video`` / ``Not Available`` and repeats the file name with its
+    extension in ``aria-label``. The Court states this outright, so the type is
+    data rather than something to sniff from the bytes -- and it is known
+    *before* the download, which is what lets it be passed as the request's
+    ``expected_type``.
+
+    None when the page named no extension. Sealed rows do carry one (``.txt``,
+    ``.docx``, ``.rtf``), so this is set for them too; it describes a file the
+    scrape will never hold."""
 
     docket_number: str | None = None
     """APL/CTQ/JCR number (e.g., 'APL-2024-00177') when reached via docket flow"""
@@ -79,7 +106,7 @@ class NYCourtPassFile(ScrapedData):
     """Document type from the file name. The '_'-prefixed members are court
     output rather than a filing, and '_combined' is one PDF covering two
     filings. None when the trailing token was unrecognizable, which is roughly
-    3% of names -- filings that predate the Court's convention, document kinds
+    6% of names -- filings that predate the Court's convention, document kinds
     this vocabulary has no member for, and misspellings."""
 
     volume: int | None = None
@@ -153,8 +180,43 @@ class NYCourtPassDocketEntry(ScrapedData):
     Leave to Appeal') when ``inferred_from_file``."""
 
     party: str | None = None
-    """Party name associated with the filing. From the FILINGS table, or from
-    the file name's party segment when ``inferred_from_file``."""
+    """Party name associated with the filing, without the FILINGS table's
+    trailing ``(A)`` / ``(R)`` side marker — that is a role, and it is carried
+    on ``party_side``.
+
+    For a real row this is the Court's own wording (``'122 East 42nd Street,
+    LLC'``). For an ``inferred_from_file`` entry the source is the file name's
+    party segment, which is a squashed short form (``'122East42ndStreet'``,
+    ``'1995CAM'``, ``'Scharf'``); it is aligned back onto the wording the
+    FILINGS table or the ATTORNEY DETAILS section uses for the same party
+    where that can be done unambiguously, so the two kinds of entry read
+    alike. ``party_match`` says whether that happened, and the unaligned
+    segment remains on ``NYCourtPassFile.doc_party``."""
+
+    party_side: PartyRole | None = None
+    """Which side the FILINGS table put this filing's party on, from the ``(A)``
+    / ``(R)`` marker it appends to the party name. Only ever ``APPELLANT`` or
+    ``RESPONDENT`` — the table states no other side — and always None for an
+    ``inferred_from_file`` entry, whose file name carries a filing role
+    (``entry_role``) rather than a party's posture.
+
+    Narrower than the ``NYCourtPassAttorney.party_role`` for the same party,
+    which is the full ``Party Role`` line and distinguishes an amicus, an
+    intervenor and a defendant below. The two never disagreed across the 6,579
+    rows where both were stated."""
+
+    party_match: str | None = None
+    """How an ``inferred_from_file`` entry's ``party`` was aligned onto a name
+    the docket states: 'exact', 'containment', 'initialism', 'subsequence' or
+    'overlap', weakest last — see ``align_party_name``. None means no alignment
+    took place: a real FILINGS row (which needs none), or a file-name segment
+    that matched nothing on the docket unambiguously, in which case ``party``
+    is still the raw segment. 94.6% of inferred entries with a party align, the
+    great majority at 'exact' or 'containment'.
+
+    The tier is about how the *name* was reached, not how sure we are the entry
+    is that party's — a 'containment' match on a distinctive full name is
+    firmer evidence than an 'exact' match on a two-letter token."""
 
     date_due: date | None = None
     """Due date for the filing. Always None when ``inferred_from_file``:
@@ -229,7 +291,7 @@ class NYCourtPassDocketEntry(ScrapedData):
     (currently zero across the historical corpus; such an entry still matches
     files, just without role/doctype constraints). ``False`` on an inferred
     entry merely means the file name's document-type token was unreadable,
-    which is common (~3% of names) and not drift."""
+    which is common (~6% of names) and not drift."""
 
     inferred_from_file: bool = False
     """True when this entry was synthesized from a file name rather than read
@@ -288,8 +350,16 @@ class NYCourtPassAttorney(ScrapedData):
     party_name: str
     """Name of the party this attorney represents"""
 
-    party_role: str
-    """Party's role (e.g., 'Appellant', 'Respondent', 'Amicus Curiae')"""
+    party_role: PartyRole | None = None
+    """The party's role, classified. None when the page stated nothing, and
+    also None when it stated a role ``PartyRole`` does not cover -- compare
+    with ``party_role_raw``, which is always intact, to tell those apart. A
+    nonempty ``party_role_raw`` beside a None here is the signal to add a
+    member."""
+
+    party_role_raw: str = ""
+    """The ``Party Role`` line exactly as the page stated it (e.g.
+    'Appellant', 'Respondent', 'Amicus Curiae'), with whitespace collapsed."""
 
     firm: str | None = None
     """Law firm name"""
@@ -369,7 +439,11 @@ class NYCourtPassDocket(ScrapedData):
     found on. None when reached via a direct-APL lookup (``docket_by_number``)."""
 
     search_row: int | None = None
-    """0-based row index within ``search_page`` of the Docket.aspx grid."""
+    """0-based row index within ``search_page`` of the Docket.aspx grid.
 
-    aria_case_info: str | None = None
-    """Raw ``aria-label`` string from the grid's Select button."""
+    The grid's Select button also carries an ``aria-label`` restating the case
+    name and argument date. It was captured as ``aria_case_info`` until
+    2026-08-16, when the data audit found it stated nothing beyond
+    ``case_short_name`` and ``argument_date`` -- both read from the grid's own
+    cells -- while carrying the site's double-escaped HTML entities into the
+    data on 2,057 of 5,088 dockets. Dropped rather than repaired."""

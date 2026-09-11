@@ -16,7 +16,13 @@ from juriscraper.state.new_york.nycourts_gov.models import (
 )
 from juriscraper.state.new_york.nycourts_gov.vocabularies import classify_issue
 
-from ._common import _parse_date_mdy
+from ._common import (
+    _parse_date_mdy,
+    clean_case_title,
+    clean_optional,
+    collapse_ws,
+    file_type_from_button,
+)
 
 if TYPE_CHECKING:
     from jkent.common.page_element import PageElement
@@ -47,7 +53,7 @@ class FilingDetailParser(JKentParser[NYCourtPassDocket]):
             "case caption text",
             min_count=0,
         )
-        case_name = " ".join(t.strip() for t in caption_parts if t.strip())
+        case_name = clean_case_title(caption_parts)
 
         detail_map: dict[str, str] = {}
         dt_elements = page.query(
@@ -73,8 +79,10 @@ class FilingDetailParser(JKentParser[NYCourtPassDocket]):
 
         argument_date_str = _m("Argument Date")
         decision_date_str = _m("Decision Date")
-        official_citation = _m("Official Citation")
-        lower_court_citation = _m("Reported Below")
+        # Both are optional on the page, and ``Reported Below`` states ``N/A``
+        # rather than staying blank when the decision below went unreported.
+        official_citation = clean_optional(_m("Official Citation"))
+        lower_court_citation = clean_optional(_m("Reported Below"))
 
         if argument_date_str and not re.match(
             r"\d{2}/\d{2}/\d{4}", argument_date_str
@@ -151,7 +159,9 @@ class FilingDetailParser(JKentParser[NYCourtPassDocket]):
         (see ``repair_pdffont_leakage``), so the DOM here is clean.
         """
         elements = page.query(XPath(xpath), "issue p", min_count=0)
-        return [text for el in elements if (text := el.text_content().strip())]
+        return [
+            text for el in elements if (text := collapse_ws(el.text_content()))
+        ]
 
     @staticmethod
     def _parse_files(
@@ -188,6 +198,9 @@ class FilingDetailParser(JKentParser[NYCourtPassDocket]):
                 {
                     "file_name": file_name,
                     "available": available,
+                    "file_type": file_type_from_button(
+                        buttons[0] if buttons else None
+                    ),
                     "row_index": j,
                 }
             )
@@ -199,6 +212,7 @@ class FilingDetailParser(JKentParser[NYCourtPassDocket]):
                 file_index=f["row_index"],
                 document_number=total_files - i,
                 available=f["available"],
+                file_type=f["file_type"],
             )
             for i, f in enumerate(files_info)
         ]

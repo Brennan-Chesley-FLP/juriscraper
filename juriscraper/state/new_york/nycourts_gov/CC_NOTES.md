@@ -69,7 +69,7 @@ finish before new ones start. File downloads use `priority=0` / `archive=True`.
 ### Parsers (§9)
 
 - `DocketResultsParser` — one record per `gvResults` grid row
-  (`case_short_name`, `argument_date`, `aria_case_info`, `search_row`).
+  (`case_short_name`, `argument_date`, `search_row`).
 - `DocketDetailParser` — caption, argument date, FILINGS (docket_entries),
   ATTORNEY DETAILS (attorneys) from `cphMain_lbDetails`.
 - `FilingDetailParser` — decision date, official_citation,
@@ -81,8 +81,16 @@ finish before new ones start. File downloads use `priority=0` / `archive=True`.
 ### Vocabularies (§9)
 
 `vocabularies.py` holds every controlled vocabulary the Court publishes —
-`FilingType` (34 FILINGS table types), `FilingRole` (9), `FilingDocType` (25
-file-name abbreviations), `IssueCategory` (153) and `IssueSubcategory` (689).
+`FilingType` (34 FILINGS table types), `FilingRole` (12), `PartyRole` (27),
+`FilingDocType` (33 file-name abbreviations), `IssueCategory` (153) and
+`IssueSubcategory` (690).
+
+`FilingRole` and `PartyRole` are deliberately separate. `FilingRole` is the
+role a *filing* belongs to, read off a filing type or a file name.  `PartyRole`
+is what ATTORNEY DETAILS prints on the `Party Role` line, and it is a wider
+set: it names the party's posture in the action below (`Defendant`,
+`Third-Party Defendant`) as well as on the appeal, and covers roles that never
+file anything (`Child`, `Certifying Court`).
 Classification happens here during the scrape: the parsers and
 `filename_convention.py` emit members, so a consumer never reads the Court's
 prose. `None` means the Court stated nothing or wrote something unreadable; a
@@ -154,6 +162,8 @@ On each `NYCourtPassDocketEntry`:
   the verbatim table string plus its `(role, doctype)` reading.
 - `file_indexes` — the `file_index` of its zero or more files.
 - `inferred_from_file` — see below.
+- `party_match` — for an inferred entry only, how its `party` was aligned onto
+  the docket's own wording; see below.
 
 Matching is a greedy best-first assignment over (entry, logical-document)
 pairs, so a docket with two `Respondent Brief` rows distributes its two
@@ -190,6 +200,78 @@ On a real row it is the drift signal — Court-PASS used a filing kind
 `FILING_TYPE_MAP` predates (**zero** across the historical corpus). On an
 inferred entry it just means the file name's doctype token was unreadable,
 which is common. Always pair it with `inferred_from_file`.
+
+### Party names
+
+Two things sat in `docket_entries[].party` that were not the party's name.
+
+**The side marker.** The FILINGS table appends the filer's side to the name as a
+single-letter parenthetical — `Joseph Scharf (A)`, `The People (R)`. That is a
+role, so `split_party_side` lifts it onto `party_side` and leaves `party` as the
+name. Only `(A)` and `(R)` occur (13,495 of the corpus's 13,535 trailing
+parentheticals; the other 40 are part of the name — `(12 Broadway)`,
+`(NELA/NY)`, `(Confidential)`, a lowercase `(b)`, which is why the match is
+case-sensitive). The letter agreed with the attorney table's `Party Role` on all
+6,579 rows where both were stated, and no docket ever writes one base name as
+both `(A)` and `(R)`, so nothing is merged by dropping it — `docket_entry_id`
+keys the same set of rows before and after.
+
+**The file-name short form.** An inferred entry takes its party from the file
+name, which carries a squashed short form — `1995CAM`, `Scharf`,
+`122East42ndStreet`, `CityofNY` — so it read worse than the entry beside it for
+no reason but which page it came off. `align_party_name` resolves it against the
+names the docket itself states, pooling the FILINGS parties and the attorney
+table's `party_name` (the two agree exactly on 95.5% of 9,034 FILINGS names;
+where only one has the party it is usually a pro-se filer or an individual
+amicus the attorney table omits, so both are needed). Tiers, strongest first:
+
+| Tier | Reaches | Share |
+|---|---|---|
+| `exact` | the same string | 4.9% |
+| `containment` | `1995CAM` → `1995 CAM LLC` | 78.9% |
+| `initialism` | `NYCTA`, `DHCR`, `SNY` | 5.0% |
+| `subsequence` | `IroquoisCSD`, `DLJMortage`, `Wiliam` | 3.2% |
+| `overlap` | `Alf` → `Christopher J. Alf` | 2.6% |
+| unresolved | `Lelchook`, `GEICO`, `Apollo` | 5.4% |
+
+**94.6%** of the 3,188 inferred entries carrying a party resolve. Two rules do
+the safety work. Every tier requires a *unique* winner. And the subsequence tier
+requires the token to start where one of the candidate's words starts, without
+which `Lee` runs `l…e…e` through half the corpus.
+
+A tie is usually two relatives or two co-parties, where picking wrong is worse
+than not picking, so `_break_tie` resolves only the two ties that carry their own
+evidence — 21 entries, every one verified:
+
+- **A pinned-on given initial.** Filers already disambiguate two same-surname
+  parties the way we would want to: `ColeS` → Samantha Cole and `ColeJ` → Jesse
+  Cole, `NunezR` → Reinaldo Nunez, `TrumpE` → Eric Trump. Only the initial-*last*
+  shape is read; written first it is indistinguishable from a doctype (`RRec`,
+  `ADresp`), and the corpus's one initial-first party name (`BStrianese`) is
+  ambiguous anyway.
+- **The name the token opens.** `JPMorgan` → `J.P. Morgan Mortgage Acquisition
+  Corporation`, not the trust carrying "J.P. Morgan" mid-title;
+  `WyomingCountySoil` → the conservation district, not the joint board of two of
+  them.
+
+The second rule stands down when another tied candidate is one the token is a
+*whole* reference to — its trailing words, which for a person is the surname.
+`Bloomberg` opens "Bloomberg L.P." but is also just how one refers to "Michael
+Bloomberg", and APL-2019-00218 has both; two live readings is not a tie worth
+breaking. Genuine ambiguity still survives both rules (`Bennett` against Joseph
+and Tracey Bennett).
+
+Because the convention gives the party one segment, `_party_probes` tries the
+whole segment and then each shorter prefix of it — decoration filers glue on
+(`Bonczar-ADreplybrf-Appeal 2`, `Scharf-Rec-vol3-Filed Under Seal`) falls off
+without having to guess which tail is decoration, and genuinely hyphenated names
+survive because the longest probe is tried first. Trying prefixes rather than
+only stripping recognizable decoration is worth 17 points of coverage.
+
+The raw segment is not lost: it stays on `NYCourtPassFile.doc_party`. And
+`docket_entry_id` is still keyed on the raw segment, deliberately — the id has
+to mean the same thing on every run, and the aligned name depends on an
+attorney table that gains and loses parties between scrapes.
 
 ### Measured behaviour
 
@@ -261,3 +343,46 @@ name, so the two must be kept in step when a member is added here.
 The `DocketEntry ──*── RECAPDocument` edge CL expects is resolved in-scraper by
 `NYCourtPassFile.docket_entry_index` (see the file-name convention section
 above); Court-PASS itself never states which file belongs to which filing.
+
+### Data quality (2026-08-15 audit)
+
+Measured over the 2026-08-08 sweep — 5,088 dockets, 14,206 downloaded files,
+zero errors and zero validation failures. Full ledger in `data_audit.yaml`,
+findings in `data-revisions-report-2026-08-15.md`.
+
+- **A file is emitted twice and the two copies now agree.** The
+  `NYCourtPassFile` nested on the docket and the one `handle_file_download`
+  emits are the same file. Until 2026-08-15 only the nested copy carried the
+  reconciliation output; the emitted one had 11 of its 18 fields null on all
+  14,206 rows. Both carry everything now. Two asymmetries remain by design:
+  `local_path` is only on the emitted record (the merge joins on
+  `(docket_number, file_index)` to pick it up), and `available=false` files
+  exist only on the nested one, since a sealed file is never fetched.
+- **The Docket.aspx grid lists one case on several consecutive rows.** 240
+  docket numbers appear more than once in the 2026-08-08 sweep, 256 extra
+  dockets in all, up to 5 copies of one JCR number. Copies are identical but
+  for `search_row`. Left as-is deliberately. File downloads are unaffected —
+  `deduplication_key` collapses them, and available-vs-downloaded reconciles to
+  zero on both sides (19,399 distinct nested files = 14,206 available, all
+  downloaded, + 5,193 sealed).
+- **Court-PASS renders names from fixed-width slots**, leaving doubled internal
+  spaces where a slot is blank (`Frank  Brady Esq.`). 12,606 values across
+  `attorneys[].party_name`/`attorney_name`/`firm`/`address`,
+  `docket_entries[].party` and `issues[].detail` carried them until the parsers
+  moved to `collapse_ws` (2026-08-15).
+- **`attorneys[].firm` is the attorney-of-record line, not a firm name.** 35%
+  of values (4,317) are `person, office` — `Hon. Letitia James, New York State
+  Attorney General`. `attorney_name` names a different person, the lawyer who
+  actually appeared, so nothing is lost; the field is just wider than its name.
+  Not split: CL's `Attorney`/`Role` has nowhere to put the principal.
+- **Court-side anomalies, stored verbatim.** One `official_citation` reads
+  `Withdrawn` (APL-2016-00240); 9 more are the Court's own typos (`32NY3d
+  1010`, `17 NYed 118`, `15 NY3D 391`, `93 NY2d 01`). 13 dockets state a
+  decision date *before* the argument date — page-verified, and all 13 lack a
+  citation, so the "decision" is likely a dismissal.
+- **The reconciliation machinery checks out.** Zero orphan files, zero
+  duplicate `docket_entry_id`s within a docket, zero `link_status='unlinked'`,
+  zero vocabulary drift, and zero inferred entries with an empty
+  `file_indexes`. `doc_type` is unreadable on 6.9% of file names, against a
+  docstring claiming ~6%. Attorney addresses are filled on all 13,281 rows with
+  no sentinel values at all, and every phone matches `(NNN) NNN-NNNN`.

@@ -21,8 +21,13 @@ class DocketResultsParser(JKentParser[NYCourtPassDocket]):
 
     Returns one ``DeferredValidation[NYCourtPassDocket]`` per data row,
     carrying the fields that survive into NYCourtPassDocket:
-    ``case_short_name``, ``argument_date``, ``aria_case_info``, plus
-    ``search_row`` (the 0-based row index within this page of search results).
+    ``case_short_name``, ``argument_date``, plus ``search_row`` (the 0-based
+    row index within this page of search results).
+
+    The Select button's ``aria-label`` is deliberately not read: it restates
+    the two cells above it and nothing more, and Court-PASS double-escapes it,
+    so carrying it meant carrying the site's entities as well. Dropped
+    2026-08-16 after the data audit.
     """
 
     def __call__(
@@ -43,21 +48,10 @@ class DocketResultsParser(JKentParser[NYCourtPassDocket]):
                 continue
             case_title = " ".join(cells[1].text_content().split())
             argument_date_str = cells[2].text_content().strip()
-            select_buttons = row.query(
-                XPath(".//input[contains(@id, 'btnSelect')]"),
-                "select button",
-                min_count=0,
-            )
-            aria_case_info = (
-                select_buttons[0].get_attribute("aria-label")
-                if select_buttons
-                else None
-            )
             results.append(
                 NYCourtPassDocket.raw(
                     case_short_name=case_title or None,
                     argument_date=_parse_date_mdy(argument_date_str),
-                    aria_case_info=aria_case_info,
                     search_row=i,
                 )
             )

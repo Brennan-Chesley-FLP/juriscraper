@@ -31,8 +31,10 @@ __all__ = [
     "IssueCategory",
     "IssueClassification",
     "IssueSubcategory",
+    "PartyRole",
     "classify_issue",
     "filing_type_from_value",
+    "party_role_from_value",
 ]
 
 
@@ -193,6 +195,27 @@ class FilingRole(CourtVocabulary):
     RESPONDENT_APPELLANT = "respondent-appellant", 8, "Respondent-Appellant"
     SCJC = "scjc", 9, "SCJC"
 
+    # ---- not a role the Court publishes; see FilingDocType's docstring ----
+
+    INTERVENOR = "intervenor", 10, "Intervenor"
+    """A party who intervened rather than appealing or answering -- most often
+    the Attorney General, defending a statute's constitutionality on a criminal
+    appeal. The FILINGS table has no intervenor filing type, but the ATTORNEY
+    DETAILS section names the role for 80 parties and filers abbreviate it
+    ``ivnr``. 20 files."""
+
+    INTERVENOR_APPELLANT = "intervenor-appellant", 11, "Intervenor-Appellant"
+    """An intervenor on the appellant's side; the court names this role for 20
+    parties. Written ``-intervenor-app-`` in a file name, the same way a
+    cross-appeal writes its two roles."""
+
+    INTERVENOR_RESPONDENT = (
+        "intervenor-respondent",
+        12,
+        "Intervenor-Respondent",
+    )
+    """An intervenor on the respondent's side; 36 parties."""
+
 
 class FilingDocType(CourtVocabulary):
     """The kind of document a filing consists of.
@@ -200,6 +223,27 @@ class FilingDocType(CourtVocabulary):
     Values are the Court's own abbreviations. The three underscore-prefixed
     members are the court's own output rather than a party's filing, and
     ``_combined`` is one PDF that satisfies two filings at once.
+
+    **Members with a code of 26 or higher are ours, not the Court's.** The
+    Court's published abbreviation list
+    (https://www.nycourts.gov/ctapps/techspecs.htm) covers the documents that
+    carry a FILINGS-table filing type, and stops there -- but filers upload
+    plenty that it does not name, and those arrived here as an unreadable
+    doctype, which is worse than a wrong one: an unreadable type also disables
+    the type veto in the matcher, leaving the file free to claim any FILINGS
+    row left in the docket. Each of these was drawn from the corpus rather
+    than invented, and the docstring on each says how many files it covers so
+    a later reader can judge whether it earned its place.
+
+    Their ``value`` is a plausible abbreviation in the Court's style but is
+    *not* published by it, so nothing on a Court-PASS page will ever equal one
+    -- they are reached only through the file-name patterns in
+    :mod:`~juriscraper.state.new_york.nycourts_gov.filename_convention`. None
+    of them appears in ``FILING_TYPE_MAP`` either, for the same reason, so all
+    of them are listed in :data:`NOT_ON_FILINGS_TABLE`.
+
+    Codes are assigned in the order members were added, not alphabetically,
+    because a code, once published, never changes or gets reused.
     """
 
     AD_APPENDIX = "adappdx", 1, "AD - Appendix"
@@ -231,6 +275,51 @@ class FilingDocType(CourtVocabulary):
     SSM_REPLY_LETTER = "ssmreplyltrbrf", 23, "SSM Reply Letter"
     SUPPLEMENTAL_APPENDIX = "suppappdx", 24, "Supplemental Appendix"
     SUPPLEMENTAL_BRIEF = "suppbrf", 25, "Supplemental Brief"
+
+    # ---- classifications the Court does not publish (see the docstring) ----
+
+    PRE_SENTENCE_REPORT = "psr", 26, "Pre-Sentence Report"
+    """The probation department's pre-sentence investigation report, filed as
+    record material on a criminal appeal. Filers write ``PSI`` as often as
+    ``PSR`` and frequently mark it confidential. 25 files."""
+
+    AD_ORDER = "adorder", 27, "AD - Order"
+    """An Appellate Division order, filed as part of the record. Distinct from
+    ``_decision``, which is this Court's own output: a party filed this one,
+    and the court that made it is not this court. 5 files."""
+
+    AD_MOTION = "admot", 28, "AD - Motion"
+    """A motion made in the Appellate Division -- usually for reargument or for
+    leave to appeal here -- filed as record material. 11 files."""
+
+    AFFIDAVIT_OF_SERVICE = "aos", 29, "Affidavit of Service"
+    """Proof that a filing was served. Not a ``mot``: it is the paperwork
+    accompanying some other document, and letting it read as a motion (the
+    pattern for which matches a bare ``affidavit``) put it in reach of motion
+    entries. 8 files."""
+
+    JURISDICTIONAL_RESPONSE = "jurrsp", 30, "Jurisdictional Response"
+    """A party's response to the Court's inquiry into its own jurisdiction over
+    the appeal. 7 files."""
+
+    APPELLATE_TERM_BRIEF = "atermbrf", 31, "Appellate Term - Brief"
+    """A brief filed in the Appellate Term, the intermediate court for appeals
+    from the New York City and district courts. The ``AD`` members cover the
+    Appellate Division only, so these had nowhere to go. 7 files."""
+
+    POST_ARGUMENT_BRIEF = "postargbrf", 32, "Post-Argument Brief"
+    """A brief or submission filed after oral argument, usually at the Court's
+    request. 5 files."""
+
+    HEARING_TRANSCRIPT = "hearingtranscript", 33, "Hearing Transcript"
+    """A transcript of proceedings *below* -- a trial, or a hearing before an
+    administrative tribunal such as OATH -- filed by a party as part of the
+    record.
+
+    Deliberately separate from ``_transcript``, which is this Court's own
+    recording of its oral argument. Reading a trial transcript as that made it
+    court-generated, which excluded it from matching and labelled a party's
+    record material as the court's output. 10 files."""
 
 
 class IssueCategory(CourtVocabulary):
@@ -1709,6 +1798,15 @@ class IssueSubcategory(CourtVocabulary):
         "No-Fault Automobile Insurance",
     )
     NOMINATING_PETITIONS = "Nominating Petitions", 430, "Nominating Petitions"
+    NOT_FOR_PROFIT_CORPORATION = (
+        "Not-For-Profit Corporation",
+        690,
+        "Not-For-Profit Corporation",
+    )
+    """Added 2026-08-15, from ``Corporations--Not-For-Profit Corporation``.
+    Its code sits after the alphabetical run because codes are never reassigned
+    once published."""
+
     NOTICE_OF_CLAIM = "Notice of Claim", 431, "Notice of Claim"
     NOTICE_OF_DEFICIENCY = "Notice of Deficiency", 432, "Notice of Deficiency"
     NOTICE_OF_INTENTION_TO_ARBITRATE = (
@@ -2381,13 +2479,127 @@ NOT_ON_FILINGS_TABLE: frozenset[FilingDocType] = frozenset(
         FilingDocType.AD_RECORD,
         FilingDocType.AD_APPENDIX,
         FilingDocType.AD_REPLY_BRIEF,
+        # Every doctype the Court does not itself publish belongs here by
+        # construction: no FILINGS filing type maps to one, so a file of this
+        # type can never have a row to be missing from.
+        FilingDocType.PRE_SENTENCE_REPORT,
+        FilingDocType.AD_ORDER,
+        FilingDocType.AD_MOTION,
+        FilingDocType.AFFIDAVIT_OF_SERVICE,
+        FilingDocType.JURISDICTIONAL_RESPONSE,
+        FilingDocType.APPELLATE_TERM_BRIEF,
+        FilingDocType.POST_ARGUMENT_BRIEF,
+        FilingDocType.HEARING_TRANSCRIPT,
     }
 )
+
+
+class PartyRole(CourtVocabulary):
+    """The role the ATTORNEY DETAILS section states for a represented party.
+
+    Distinct from :class:`FilingRole`, which is the role a *filing* belongs to
+    and is read off a filing type or a file name. This is what the docket page
+    prints on the ``Party Role`` line, and it is a wider set: it names the
+    party's posture in the action below (``Defendant``, ``Third-Party
+    Defendant``) as well as its posture on the appeal, and it covers roles that
+    never file anything (``Child``, ``Certifying Court``).
+
+    Court-PASS states one of these on every attorney block in the historical
+    corpus -- 27 distinct values over 13,281 blocks, with a single value
+    appearing once -- so a value this vocabulary does not cover is the signal
+    that the Court has started publishing a new role, and comes back as
+    ``None`` beside an intact ``party_role_raw``.
+    """
+
+    APPELLANT = "Appellant", 1, "Appellant"
+    RESPONDENT = "Respondent", 2, "Respondent"
+    APPELLANT_RESPONDENT = (
+        "Appellant-Respondent",
+        3,
+        "Appellant-Respondent",
+    )
+    RESPONDENT_APPELLANT = (
+        "Respondent-Appellant",
+        4,
+        "Respondent-Appellant",
+    )
+    AMICUS_CURIAE = "Amicus Curiae", 5, "Amicus Curiae"
+    PETITIONER = "Petitioner", 6, "Petitioner"
+    PLAINTIFF = "Plaintiff", 7, "Plaintiff"
+    DEFENDANT = "Defendant", 8, "Defendant"
+    CLAIMANT = "Claimant", 9, "Claimant"
+    INTERVENOR = "Intervenor", 10, "Intervenor"
+    INTERVENOR_APPELLANT = (
+        "Intervenor-Appellant",
+        11,
+        "Intervenor-Appellant",
+    )
+    INTERVENOR_RESPONDENT = (
+        "Intervenor-Respondent",
+        12,
+        "Intervenor-Respondent",
+    )
+    INTERVENOR_DEFENDANT = (
+        "Intervenor-Defendant",
+        13,
+        "Intervenor-Defendant",
+    )
+    NONPARTY = "Nonparty", 14, "Nonparty"
+    NONPARTY_APPELLANT = "Nonparty-Appellant", 15, "Nonparty-Appellant"
+    NONPARTY_RESPONDENT = "Nonparty-Respondent", 16, "Nonparty-Respondent"
+    THIRD_PARTY_APPELLANT = (
+        "Third-Party Appellant",
+        17,
+        "Third-Party Appellant",
+    )
+    THIRD_PARTY_RESPONDENT = (
+        "Third-Party Respondent",
+        18,
+        "Third-Party Respondent",
+    )
+    THIRD_PARTY_DEFENDANT = (
+        "Third-Party Defendant",
+        19,
+        "Third-Party Defendant",
+    )
+    FOURTH_PARTY_DEFENDANT = (
+        "Fourth-Party Defendant",
+        20,
+        "Fourth-Party Defendant",
+    )
+    INTERESTED_PARTY = "Interested Party", 21, "Interested Party"
+    RESPONDENT_IN_ORIGINAL_PROCEEDING = (
+        "Respondent in Original Proceeding",
+        22,
+        "Respondent in Original Proceeding",
+    )
+    """The respondent to a proceeding commenced in the Appellate Division --
+    an Article 78 against a court or agency -- as distinct from the respondent
+    to the appeal."""
+
+    CHILD = "Child", 23, "Child"
+    """The subject child of a Family Court matter, represented in their own
+    right rather than through a party."""
+
+    LAW_GUARDIAN = "Law Guardian", 24, "Law Guardian"
+    GUARDIAN_AD_LITEM = "Guardian Ad Litem", 25, "Guardian Ad Litem"
+    INCAPACITATED_PERSON = (
+        "Incapacitated Person",
+        26,
+        "Incapacitated Person",
+    )
+    CERTIFYING_COURT = "Certifying Court", 27, "Certifying Court"
+    """The federal court that certified the question, on a CTQ docket. Not a
+    litigant; the Court lists its counsel for service."""
+
 
 # --------------------------------------------------------------------------
 # Lookups and issue classification
 # --------------------------------------------------------------------------
 
+_PARTY_ROLES_BY_VALUE: dict[str, PartyRole] = {
+    role.value.casefold(): role for role in PartyRole
+}
 _FILING_TYPES_BY_VALUE: dict[str, FilingType] = {
     filing_type.value: filing_type for filing_type in FilingType
 }
@@ -2397,6 +2609,20 @@ _ISSUE_CATEGORIES_BY_VALUE: dict[str, IssueCategory] = {
 _ISSUE_SUBCATEGORIES_BY_VALUE: dict[str, IssueSubcategory] = {
     subcategory.value: subcategory for subcategory in IssueSubcategory
 }
+
+
+def party_role_from_value(raw: str | None) -> PartyRole | None:
+    """Read an ATTORNEY DETAILS ``Party Role``.
+
+    :param raw: The string the page printed. Whitespace is collapsed and case
+        is ignored, since the page's capitalization is not load-bearing.
+    :return: The matching :class:`PartyRole`, or ``None`` when the page printed
+        nothing or printed a role this vocabulary does not cover -- the caller
+        keeps ``raw`` either way.
+    """
+    if not raw:
+        return None
+    return _PARTY_ROLES_BY_VALUE.get(" ".join(raw.split()).casefold())
 
 
 def filing_type_from_value(raw: str | None) -> FilingType | None:

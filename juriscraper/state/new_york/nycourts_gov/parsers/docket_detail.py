@@ -14,8 +14,17 @@ from juriscraper.state.new_york.nycourts_gov.models import (
     NYCourtPassDocket,
     NYCourtPassDocketEntry,
 )
+from juriscraper.state.new_york.nycourts_gov.vocabularies import (
+    party_role_from_value,
+)
 
-from ._common import _parse_date_mdy
+from ._common import (
+    _parse_date_mdy,
+    clean_case_title,
+    collapse_ws,
+    collapse_ws_lines,
+    split_party_side,
+)
 
 if TYPE_CHECKING:
     from jkent.common.page_element import PageElement
@@ -74,7 +83,7 @@ class DocketDetailParser(JKentParser[NYCourtPassDocket]):
             "case title",
             min_count=0,
         )
-        case_name = " ".join(t.strip() for t in title_texts if t.strip())
+        case_name = clean_case_title(title_texts)
 
         docket_entries = self._parse_filings(page)
         attorneys = self._parse_attorneys(page)
@@ -111,10 +120,12 @@ class DocketDetailParser(JKentParser[NYCourtPassDocket]):
             cells = filing_row.query(XPath("td"), "filing cells", min_count=0)
             if len(cells) < 4:
                 continue
+            party, party_side = split_party_side(cells[1].text_content())
             entries.append(
                 NYCourtPassDocketEntry.raw(
-                    filing_type=cells[0].text_content().strip(),
-                    party=cells[1].text_content().strip() or None,
+                    filing_type=collapse_ws(cells[0].text_content()) or "",
+                    party=party,
+                    party_side=party_role_from_value(party_side),
                     date_due=_parse_date_mdy(cells[2].text_content()),
                     date_received=_parse_date_mdy(cells[3].text_content()),
                 )
@@ -159,7 +170,9 @@ class DocketDetailParser(JKentParser[NYCourtPassDocket]):
                 continue
 
             label = cells[0].text_content().strip().rstrip(":")
-            value = cells[1].text_content().strip()
+            # Every one of these is rendered from a fixed-width slot, so a
+            # blank middle name or suffix leaves a run of spaces behind.
+            value = collapse_ws(cells[1].text_content()) or ""
 
             if label == "Party Name":
                 if current.get("party_name"):
@@ -181,7 +194,7 @@ class DocketDetailParser(JKentParser[NYCourtPassDocket]):
             elif label == "Address":
                 current["address"] = value or None
             elif label == "Phone":
-                current["phone"] = value.strip() or None
+                current["phone"] = value or None
             elif not label and value and current.get("address"):
                 current["address"] += "\n" + value
 
@@ -193,11 +206,13 @@ class DocketDetailParser(JKentParser[NYCourtPassDocket]):
     def _build_attorney(
         raw: dict,
     ) -> DeferredValidation[NYCourtPassAttorney]:
+        party_role_raw = raw.get("party_role", "")
         return NYCourtPassAttorney.raw(
             party_name=raw["party_name"],
-            party_role=raw.get("party_role", ""),
+            party_role_raw=party_role_raw,
+            party_role=party_role_from_value(party_role_raw),
             firm=raw.get("firm"),
             attorney_name=raw.get("attorney_name"),
-            address=raw.get("address"),
+            address=collapse_ws_lines(raw.get("address")),
             phone=raw.get("phone"),
         )

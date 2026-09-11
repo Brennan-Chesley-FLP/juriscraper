@@ -113,6 +113,7 @@ from .models import (
 )
 from .parsers._common import (
     _parse_date_mdy,
+    file_type_from_button,
     repair_pdffont_leakage,
 )
 from .parsers.docket_detail import DocketDetailParser
@@ -221,12 +222,16 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
     @staticmethod
     def _archive_keys(
         docket_number: str | None, files: list[dict]
-    ) -> tuple[dict[int, str], dict[int, str | None]]:
-        """Archive keys and entry ids for a docket's files, by gvFiles row.
+    ) -> tuple[dict[int, str], dict[int, dict]]:
+        """Archive keys and reconciled file rows for a docket, by gvFiles row.
 
         Both are computed over *every* reconciled row rather than only the
         fetchable ones, so a file that becomes downloadable in a later run keeps
         the key it would have had all along.
+
+        The rows travel with the download request so the emitted
+        ``NYCourtPassFile`` carries the same classification and entry link as
+        the copy nested on the docket -- see ``handle_file_download``.
         """
         keys = archive_dedup_keys(docket_number, files)
         rows = [
@@ -235,10 +240,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         ]
         return (
             dict(zip(rows, keys, strict=True)),
-            {
-                row: file_row.get("docket_entry_id")
-                for row, file_row in zip(rows, files, strict=True)
-            },
+            dict(zip(rows, files, strict=True)),
         )
 
     @staticmethod
@@ -269,6 +271,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         *,
         docket_number: str | None,
         docket_entries: list[dict],
+        attorneys: list[dict],
     ) -> tuple[list[dict], list[dict]]:
         """Attach the cross-page join key, then reconcile files against FILINGS.
 
@@ -284,11 +287,24 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         synthesized entry appended with ``inferred_from_file=True``, so the
         emitted ``docket_entries`` covers every filed document rather than
         only the ones the table happened to register.
+
+        ``attorneys`` are along only for their party names, which join the
+        FILINGS parties as the vocabulary a synthesized entry's file-name party
+        segment is aligned against. They are the docket's other statement of
+        who the parties are, and on 4.5% of names its only one.
         """
         stamped = [
             {**f, "docket_number": docket_number or None} for f in files
         ]
-        return reconcile_files_and_entries(stamped, docket_entries)
+        return reconcile_files_and_entries(
+            stamped,
+            docket_entries,
+            party_names=[
+                name
+                for attorney in attorneys
+                if (name := attorney.get("party_name"))
+            ],
+        )
 
     @staticmethod
     def _extract_file_download_buttons(
@@ -328,6 +344,10 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "row_index": j,
                     "file_name": file_cells[0].text_content().strip(),
                     "button_name": enabled[0].get_attribute("name"),
+                    # The button says what it will hand back, so the download
+                    # can declare its type up front rather than leaving the
+                    # archive to infer one from the bytes afterwards.
+                    "file_type": file_type_from_button(enabled[0]),
                 }
             )
         return buttons
@@ -517,8 +537,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=60000),
-            WaitForSelector("#Form2", timeout=30000),
+            WaitForSelector("#cphMain_btnFind", timeout=60000),
         ],
         priority=6,
     )
@@ -549,8 +568,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("#Form2", timeout=15000),
+            WaitForSelector("#cphMain_gvResults", timeout=30000),
         ],
         priority=5,
     )
@@ -605,7 +623,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         arg_end = accumulated_data.get("argument_date_end")
 
         # DocketResultsParser owns the per-row extraction (title,
-        # argument date, aria-label, row index). The step keeps the
+        # argument date, row index). The step keeps the
         # date-range filtering and per-row postback because those drive
         # navigation, not data. ``search_row`` is the parser's 0-based
         # index over the same gvResults rows, so it lines up with the
@@ -636,7 +654,6 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "argument_date_from_grid": argument_date_from_grid,
                     "search_page": expected_page,
                     "search_row": i,
-                    "aria_case_info": row.get("aria_case_info"),
                 },
                 deduplication_key=f"docket_detail:{expected_page}:{i}",
             )
@@ -652,8 +669,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("#Form2", timeout=15000),
+            WaitForSelector("#cphMain_lbDetails", timeout=30000),
         ],
         priority=4,
     )
@@ -725,8 +741,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("#cphMain_lbDetails2", timeout=15000),
+            WaitForSelector("#cphMain_lbDetails2", timeout=30000),
         ],
         priority=3,
         preprocess=repair_pdffont_leakage,
@@ -788,6 +803,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             parser_files,
             docket_number=docket_number,
             docket_entries=deferred.get("docket_entries") or [],
+            attorneys=deferred.get("attorneys") or [],
         )
         document_numbers_by_row = {
             f["file_index"]: f["document_number"] for f in files
@@ -815,11 +831,10 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 source_entry_point=accumulated_data.get("entry_point"),
                 search_page=accumulated_data.get("search_page"),
                 search_row=accumulated_data.get("search_row"),
-                aria_case_info=accumulated_data.get("aria_case_info"),
             )
         )
 
-        archive_keys_by_row, entry_ids_by_row = self._archive_keys(
+        archive_keys_by_row, file_rows_by_row = self._archive_keys(
             docket_number, files
         )
 
@@ -843,11 +858,16 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "file_name": button["file_name"],
                     "file_index": row,
                     "document_number": document_numbers_by_row.get(row),
-                    "docket_entry_id": entry_ids_by_row.get(row),
+                    "file_row": file_rows_by_row.get(row),
                 },
                 bypass_rate_limit=True,
                 priority=0,
                 archive=True,
+                # The grid's button already named the type; passing it here
+                # puts the extension on the stored blob
+                # (``{key}/{sha256}.pdf``) and records it on the archive row,
+                # so nothing downstream has to sniff the bytes to find out.
+                expected_type=button.get("file_type"),
                 deduplication_key=self._archive_key_for_row(
                     archive_keys_by_row, docket_number, button
                 ),
@@ -870,18 +890,27 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         Yields a NYCourtPassFile with the local path and docket_number
         so it can be joined with the parent NYCourtPassDocket later
         in the data pipeline.
+
+        The row this rebuilds from is the *reconciled* one the docket carries,
+        so the emitted record repeats everything the file name and the FILINGS
+        match established -- role, document type, volume, entry link, dates --
+        rather than only the four fields the download mechanic needs. Without
+        it the copy that has the binary is the one with no classification on
+        it, and a consumer would have to re-join to the docket to read any of
+        it. Falls back to those four fields if the row is missing, which only
+        happens when the parser dropped a gvFiles row the live form still
+        carries.
         """
-        yield ParsedData(
-            data=NYCourtPassFile.raw(
-                file_name=accumulated_data.get("file_name", ""),
-                file_index=accumulated_data.get("file_index"),
-                document_number=accumulated_data.get("document_number"),
-                local_path=local_filepath,
-                available=True,
-                docket_number=accumulated_data.get("docket_number"),
-                docket_entry_id=accumulated_data.get("docket_entry_id"),
-            )
+        file_row = dict(accumulated_data.get("file_row") or {})
+        file_row.update(
+            file_name=accumulated_data.get("file_name", ""),
+            file_index=accumulated_data.get("file_index"),
+            document_number=accumulated_data.get("document_number"),
+            docket_number=accumulated_data.get("docket_number"),
+            local_path=local_filepath,
+            available=True,
         )
+        yield ParsedData(data=NYCourtPassFile.raw(**file_row))
 
     # =========================================================================
     # Docket Entry Point Flow (Steps for docket_by_number)
@@ -889,8 +918,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=60000),
-            WaitForSelector("#Form2", timeout=30000),
+            WaitForSelector("#cphMain_btnFind", timeout=60000),
         ],
     )
     def parse_docket_page(
@@ -999,8 +1027,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("#Form2", timeout=15000),
+            WaitForSelector("#cphMain_lbDetails", timeout=30000),
         ],
     )
     def parse_docket_detail_for_entry(
@@ -1064,8 +1091,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("#cphMain_lbDetails2", timeout=15000),
+            WaitForSelector("#cphMain_lbDetails2", timeout=30000),
         ],
         preprocess=repair_pdffont_leakage,
     )
@@ -1111,6 +1137,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             parser_files,
             docket_number=docket_number,
             docket_entries=deferred.get("docket_entries") or [],
+            attorneys=deferred.get("attorneys") or [],
         )
         document_numbers_by_row = {
             f["file_index"]: f["document_number"] for f in files
@@ -1133,7 +1160,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 source_entry_point=accumulated_data.get("entry_point"),
             )
         )
-        archive_keys_by_row, entry_ids_by_row = self._archive_keys(
+        archive_keys_by_row, file_rows_by_row = self._archive_keys(
             docket_number, files
         )
         # Download available files. Button names come from the form
@@ -1156,9 +1183,14 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "file_name": button["file_name"],
                     "file_index": row,
                     "document_number": document_numbers_by_row.get(row),
-                    "docket_entry_id": entry_ids_by_row.get(row),
+                    "file_row": file_rows_by_row.get(row),
                 },
                 archive=True,
+                # The grid's button already named the type; passing it here
+                # puts the extension on the stored blob
+                # (``{key}/{sha256}.pdf``) and records it on the archive row,
+                # so nothing downstream has to sniff the bytes to find out.
+                expected_type=button.get("file_type"),
                 deduplication_key=self._archive_key_for_row(
                     archive_keys_by_row, docket_number, button
                 ),

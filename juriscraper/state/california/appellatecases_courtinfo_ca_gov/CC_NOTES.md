@@ -76,19 +76,49 @@ The site has two distinct page layouts: **Supreme Court** and **Court of Appeal*
 
 ### Case Summary -- Supreme Court (dist=0)
 - Supreme Court Case Number (e.g., S280000)
-- Supreme Court Opinion (PDF/DOCX download links when available)
+- Supreme Court Opinion — `[PDF]` / `[DOC]` links, `<a id="pdf">` and
+  `<a id="doc">`, on 793 of 297,487 pages (0.27%). `id="doc"` serves **both**
+  `.DOCX` (484) and `.DOC` (309), which is why `CaDocument` separates
+  `file_format` from `document_type`; see "Documents" below.
+- Supreme Court Order — a *separate* `<a id="courtOrders">` PDF on 8 pages,
+  with a root-relative `/documents/*.pdf` href on the appellatecases host
+  (`Link.url` resolves it against the page URL). Archived as a `CaDocument`
+  with `document_type=order`; SC-only, 0 on the Third District.
 - Court of Appeal Case(s) (district, division, case number with link)
 - Case Caption
 - Case Category (e.g., "Review - Criminal Appeal", "Review - Civil Appeal")
 - Start Date (mm/dd/yyyy)
 - Case Status (e.g., "case initiated", "closed; remittitur issued")
 - Issues (detailed text describing legal questions)
-- Disposition Date
+- Disposition Date — the SC's equivalent of the CoA "Completion Date", so it
+  is scraped into `CaAppDocket.date_terminated`. Present on 12,445 of 12,500
+  sampled SC summaries; before this was read, `date_terminated` was null on
+  **all** 302,103 SC dockets of a full sweep.
+- Trial Court Case — a `<br>`-separated run rather than a field: a court name
+  followed by its case number ("Fresno County Superior Court - Main" /
+  "3237203"), repeated once per consolidated matter and occasionally flagged
+  "(lead)". Sometimes just a bare number with no court named. Over 4,490
+  sampled SC summaries: two lines on 371 pages, one on 132, four or six on
+  three.
+
+  Read into `CaAppTrialCourtRef` records, which feed
+  `CaAppDocket.trial_court_case_numbers` and stand in for
+  `lower_court_info.trial_courts` when the Lower Court tab has no data at all
+  — which it does not on 139,775 of 302,103 SC dockets, mostly the older ones
+  and those that never reached a Court of Appeal.
 - Case Citation
-- Cross Referenced Cases — **not scraped.** `CaAppDocket` carried a
-  `cross_referenced_cases` field that no parser ever wrote, so it was removed
-  rather than left as a permanently-empty list. Capturing it needs the SC
-  page's markup for this field confirmed first (no SC run has been swept yet).
+- Cross Referenced Cases — scraped into
+  `CaAppDocket.cross_referenced_cases` (`CaAppCrossReferencedCase`:
+  docket_number, case_name, case_link). Present on 9,881 of 297,487 SC pages
+  (3.3%) and on **no** Third District page.
+
+  Its markup is unlike every other field in the `<dl>`: the block opens with a
+  bare `<dt>Cross Referenced Cases:</dt>` that has **no** `<dd>`, and then each
+  case is a further `<dt>` holding
+  `<a id="relatedCase_S168103" href="mainCaseScreen.cfm?dist=0&…">S168103</a>`,
+  paired with a `<dd>` carrying the caption. It is therefore read off the
+  `a[id^="relatedCase_"]` anchors, not by term lookup — the label names no value
+  to walk from, and the cases are its siblings rather than its children.
 
 ### Case Summary -- Courts of Appeal (dist=1-6, 41-43)
 - Trial Court Case Number
@@ -113,12 +143,33 @@ Note: `Division` is present as a label on every CoA page but is empty
 throughout the Third District (it has no divisions) — a null `division` there
 is correct, not a parse failure.
 
+### The tab banner (every tab except Case Summary)
+
+Each of the other tabs repeats a two-line banner above its content: the case
+caption, then `Division X`. `_read_tab_header` reads it on all five, for the
+division — a Supreme Court summary `<dl>` has **no** Division term at all, so
+this banner is the only place the SC's sitting location is printed ("Division
+SF" on 1,877 of 3,000 sampled tab pages, then LA 1,069, SD 40, SA 9, FR 5).
+`division` was consequently null on every SC docket.
+
+Reading it also clears what was, before this, the single largest residual
+cluster on every non-summary tab of both court types. The caption is taken
+only as a fallback; the summary's Case Caption is authoritative where it has
+one.
+
+An earlier attempt at the division read looked for
+`//div[contains(@class,'caseInfo')]` — a class this site does not emit
+anywhere. It matched nothing, on every page, silently.
+
 ### Docket Entries (both)
 | Field | Type |
 |-------|------|
 | Date | mm/dd/yyyy |
 | Description | str |
 | Notes | str (may contain party name, attorney name) |
+
+Scheduled Actions rows are **not** in this list -- they are deadlines, and
+live in `CaAppDocket.scheduled_actions`. See that section.
 
 Also shows case caption, division, and case number at top.
 
@@ -132,7 +183,19 @@ Also shows case caption, division, and case number at top.
 | Notes | str |
 
 The Supreme Court table omits the Due Date column (4 columns; CoA has 5), so
-cells must be mapped by header text, not fixed index.
+cells must be mapped by header text, not fixed index. Verified on both sides:
+all 4,156 SC brief tables are
+`brief | date filed | party and attorney | notes`, and all 50,003 Third
+District tables are `brief | due date | date filed | party and attorney |
+notes`.
+
+On the Supreme Court side the "Party and Attorney" cell is **always empty**
+(`&nbsp;` on all 22,178 SC brief rows) — the filing party is instead described
+in Notes prose ("By Apps, Lucia Mar Unified School Dist.", "by respondent
+Commission on State Mandates"), with none of the `Party:`/`Attorney:` labels
+the CoA cell uses. So an SC brief legitimately has empty `filed_by` and
+`notes_filed_by` and keeps everything in `notes`; that is the site, not a
+parse failure.
 
 `Due Date` is the deadline for a brief that has **not** been filed yet; the
 site clears it once the brief arrives. Measured over the Third District
@@ -210,11 +273,30 @@ Structured key-value fields:
 |-------|------|
 | Description | str (e.g., "Voluntary dismissal") |
 | Date | mm/dd/yyyy |
-| Disposition Type | str (e.g., "Final") |
+| Disposition Type | str (e.g., "Final") **+ the order's text** — see below |
 | Publication Status | str |
 | Author | str |
 | Participants | str |
 | Case Citation | str |
+
+**The `Disposition Type` cell holds two fields.** The site prints the type,
+then a `<br>`, then the text of the order itself:
+
+```html
+<th scope="row">Disposition Type:</th>
+<td>
+Final<br>
+The petition for writ of mandate, filed May 2, 2022, and the opposition
+thereto, filed May 5, 2022, have been read and considered.
+The petition is denied.<br>
+</td>
+```
+
+Read whole, `disposition_type` comes out as a paragraph — which it did on
+2,788 of 6,000 sampled Second District dispositions (46%). The first line goes
+to `disposition_type`, the remainder to `CaAppDisposition.disposition_notes`.
+Observed first lines are `Final`, `Partial`, `Vacated`, `Reverse Final`; a few
+old Sixth District rows put a note there with no type at all.
 
 ### Parties and Attorneys (both)
 Table with Party and Attorney columns:
@@ -257,11 +339,228 @@ level that a single CL OCI row cannot hold. In a CoA-only run
 `lower_court_info` is null on every docket by design.
 
 ### Scheduled Actions -- Courts of Appeal only
-"Future Scheduled Actions" tab. Table with scheduled events (Date, Description). Not present on Supreme Court cases.
 
-### Documents
-- Supreme Court opinions available as PDF and DOCX: `https://www.courts.ca.gov/opinions/archive/{case_no}.PDF`
-- No general document download tab; documents appear inline on summary page.
+Every Court of Appeal case page carries a seventh tab, `a#actionTab` →
+`scheduledActions.cfm`, headed "Future Scheduled Actions". Supreme Court
+pages have six tabs and no such anchor. `parse_parties` branches on that
+anchor -- the site's own signal -- rather than on `is_supreme`.
+
+**Despite the name it is a list of deadlines, not of calendared events.** The
+columns are `Description | Due Date | Notes`, inside `div#DispoList` (the
+same container id the Docket tab uses):
+
+| Field | Type |
+|-------|------|
+| Description | str (e.g., "Appellant's opening brief.") |
+| Due Date | mm/dd/yyyy, **often blank** |
+| Notes | str |
+
+```
+Record on appeal filed.                    10/05/2026
+Filing fee.                                            No filing fee paid.07/23/2026
+Civil case information statement filed.                07/23/2026
+Appeal dismissed per rule 8.100(c).        08/10/2026
+Something is due; see note.                08/17/2026  check status dismissal order
+```
+
+Rows become `CaAppScheduledAction` on `CaAppDocket.scheduled_actions` --
+**not** `CaAppDocketEntry`, and not part of `entries`.
+
+The general convention for these scrapers is that a per-case future-calendar
+block is just more docket entries, on the reasoning that it is the same shape
+(date + description) feeding the same consumer. That reasoning does not reach
+this tab. It is a deadline ledger, not a calendar of sittings:
+
+- The date is a **due date**. "Appellant's opening brief." against 06/17/2026
+  means the brief is *owed* by then. Carried as `date_filed` it asserts the
+  opposite, and every row would enter the CourtListener `DocketEntry` stream
+  with a null `date_filed` — which on a real entry means missing data.
+- The descriptions are the **anticipated forms of entries the Register of
+  Actions gets later**: "Record on appeal filed.", "Filing fee.", "Civil case
+  information statement filed.". Merged into one list, a case ends up holding
+  both the expected and the actual row for a single event.
+
+The nearest existing analogue is `CaAppBrief.date_due` — a filing the court
+is waiting on — not a register-of-actions row. `Due Date` is blank on plenty
+of rows (the site puts the detail in Notes instead), so a scheduled action
+with neither a date nor a note is normal.
+
+Verified live against G067160 (4th/Div 3, six rows incl. blank due dates),
+B353492 (2nd, one row), H000102 (6th, empty) and D088532 (4th/Div 1, empty).
+The empty state is the usual `<p>No information found.</p>` -- and it is
+common, empty on two of the four. Note `#DispoList` is *absent* on an empty
+tab, so the step waits on `#centerColumn` rather than on the table.
+
+**No page of this tab exists in the `cal-complete` corpus** -- the scraper
+never requested it before. One consequence: replaying a Court of Appeal chain
+against that corpus now stops at `parse_scheduled_actions` and emits no
+docket, because there is no stored response to serve. That is the corpus
+being older than the scraper. Supreme Court chains replay unchanged.
+
+### Multi-result pages paginate at 25 rows
+
+`searchResults.cfm` caps a result set at 25 and offers the rest behind
+`<a class="nextprev btn btnSmaller">next &gt;&gt;</a>` → `&start=26`.
+`_fan_out_multi_result` therefore **walks every page before fanning out**,
+accumulating `{doc_id: trial_court_numbers}` in `multi_result_groups` on
+`accumulated_data` and emitting case requests only once a page arrives with no
+next link.
+
+Worked example — B302074 (2nd District), 38 rows over two pages, all of them
+the same `doc_id`:
+
+| | URL | rows |
+|---|---|---|
+| page 1 | `searchResults.cfm?dist=2&search=number&query_caseNumber=B302074` | 25 |
+| page 2 | `…&start=26` | 13 |
+
+Reading only page 1 gave that case 25 of its 38 trial-court case numbers.
+Measured over 6,000 Second District summary responses, one page was truncated
+against ~1,400 complete ones.
+
+**Why the walk, and not just "fetch page 2 as well":** the fan-out has to
+*click*. A row's href carries `request_token=auth` — a literal placeholder —
+and navigating to it directly lands back on the search form (verified). So a
+case can only be reached from a page that still shows its row. `&start=N`
+pages themselves *are* directly navigable, which is why the walk between pages
+needs no `via`.
+
+Two details the markup makes easy to get wrong:
+
+- Only the *next* control carries `class="nextprev"`; `<< previous` is a plain
+  `a.btnSmaller`. The selector asserts the link text as well rather than
+  resting on that asymmetry.
+- The last page has **no** `nextprev` link at all, which is what ends the walk.
+
+`_fan_out_groups` handles the case where a `doc_id` was seen only on an
+earlier page: rather than dropping it, it sends one request back to *that*
+page carrying `multi_result_single`, which re-enters the walk with pagination
+off and the merge restricted to that one `doc_id`. In the one paginated set
+observed, every page repeated the same `doc_id`, so this second hop should
+stay rare — it exists so a stranded case fails loudly rather than vanishing.
+
+### Documents -- opinions and orders (`CaDocument`)
+The Case Summary page links each document with its own anchor id, and **the id
+is the only reliable signal of what the document is** — an order and an opinion
+are both served as `.pdf`:
+
+| anchor id | label | `document_type` |
+|---|---|---|
+| `a#pdf` | Supreme Court / Court of Appeal Opinion | `opinion` |
+| `a#doc` | same block, word-processor copy | `opinion` |
+| `a#courtOrders` | Supreme Court Order | `order` |
+
+`parse_case_summary` archives each one, yielding a `CaDocument` carrying
+`document_type` (the `CaDocumentType` enum), `file_format` (the extension),
+`source_url`, and the downloaded `local_path`. `document_type` and
+`file_format` are separate fields because they answer different questions: the
+same opinion appears as both a PDF and a word file, and `a#doc` serves `.DOCX`
+on newer cases but `.DOC` on older ones.
+
+Measured coverage, both runs:
+
+| run | pages | `a#pdf` | `a#doc` | `a#courtOrders` |
+|---|---|---|---|---|
+| Supreme Court | 297,487 | 793 | 793 | 8 |
+| Third District | 114,817 | 14,708 | 14,708 | 0 |
+
+Every case with an opinion has exactly one PDF plus one word file, and no page
+carries more than one of any id, so `max_count=1` per id is safe. All 1,586 SC
+and 29,416 CA3 files downloaded successfully.
+
+`CaAppDocket` deliberately carries **no** opinion-URL fields. It used to have
+`opinion_pdf_url` / `opinion_docx_url`, populated only on the SC branch, but
+they never produced a value in either court — null on all 296,617 SC dockets
+and all 97,968 Third District dockets — for two independent reasons:
+
+1. The extraction passed an `@href` XPath to `page.query()`, which returns
+   *elements* and silently drops lxml's string results (`query()` -> `[]`,
+   `query_strings()` -> the href). `min_count=0` meant the empty result raised
+   nothing.
+2. `.DOCX` was matched literally, but 309 of the 793 SC files (and 6,823 of
+   14,708 in the Third District) are `.DOC`.
+
+`CaDocument` covers both, plus the orders those fields could never name.
+
+#### Which collection served the file (`source_collection`)
+Opinion URLs carry a collection segment (`/opinions/<segment>/`), recorded as
+`CaDocument.source_collection` (the `CaOpinionCollection` enum). Observed across
+both sweeps:
+
+| segment | meaning | SC | CA3 |
+|---|---|---|---|
+| `nonpub` | unpublished | 0 | 27,086 |
+| `archive` | archived | 1,360 | 1,128 |
+| `revnppub` | not published after review granted | 0 | 454 |
+| `revpub` | published after review granted | 0 | 422 |
+| `documents` | generic | 226 | 326 |
+
+Two cautions. **`archive` is not SC-only** — the Third District uses it for
+1,128 files. And **the segment is not a publication signal**: 88 CA3 dockets
+whose disposition reads "Signed Published" have their file under `nonpub`, and
+97 "Signed Unpublished" ones sit under `revpub`. Use
+`CaAppDisposition.publication_status`. An unrecognised segment becomes
+`UNKNOWN` rather than failing the scrape (only 2 of 9 courts swept); the raw
+segment always remains in `source_url`.
+
+#### Published opinions the site will not serve (`CaUnavailableOpinion`)
+courts.ca.gov only serves opinion files for a limited window, so the site
+documents far more published opinions than it offers files for. When a
+disposition shows a published opinion and the summary page links no document at
+all, a `CaUnavailableOpinion` records that gap with everything needed to fetch
+the text elsewhere: case name, citation, disposition description/date/type,
+author, participants, docket dates, trial-court numbers, and the summary URL.
+
+The evidence differs by court (`CaOpinionEvidence`), because the courts state it
+differently:
+
+| court | signal | records |
+|---|---|---|
+| Courts of Appeal | `publication_status` says published | 2,647 (CA3) |
+| Supreme Court | disposition description starts "Opinion" | 2,864 |
+
+The Supreme Court has **no** Publication Status field — null on all 298,163
+dispositions — and its opinions are published as a matter of course, so the
+disposition description is the signal there. It has to be the description: the
+overwhelming majority of SC dispositions ("Petition for review denied",
+145,440 of them) are not opinions at all.
+
+Matching publication status needs care: `"published" in status` is true for both
+"Unpublished" *and* "Depublished" (a publication later withdrawn). CA3's full
+vocabulary, and how it splits:
+
+| publication_status | dockets | counts as published |
+|---|---|---|
+| Signed Unpublished | 39,732 | no |
+| Signed Published | 3,240 | **yes** |
+| Signed Partial Published | 285 | **yes** |
+| Ordered Published | 111 | **yes** |
+| By the Court - Unpublished | 15 | no |
+| By the Court - Published | 13 | **yes** |
+| Depublished - Review Granted or By Order | 12 | no |
+| By the Court - Partial Published | 6 | **yes** |
+
+So 3,655 of CA3's 43,404 status-bearing dockets (8.4%) are published, but only
+about 1,008 come with a downloadable file. These skew old — heaviest in
+1986-1990, only a handful after 2020 — consistent with the serving window rather
+than a scrape failure.
+
+The check keys on "the summary page linked no document", not on "no `CaDocument`
+exists": the archive requests are still in flight when the docket is assembled,
+so their results cannot be consulted at that point.
+
+#### The literal `none` citation
+The Supreme Court summary prints `none` in the Case Citation slot when there is
+no citation — on 294,221 of 296,617 dockets (99.2%). Stored verbatim that reads
+as data, so `_common.clean_optional` maps the site's placeholders (`none`,
+`no data found`, `n/a`) to None. The disposition parser already guarded this
+ad hoc; the summary parser did not, which is where the 294,221 came from.
+
+Host patterns: opinions live off-site on `courts.ca.gov`
+(`/opinions/archive/{case_no}.PDF` for the Supreme Court,
+`/opinions/nonpub/{case_no}.PDF` for unpublished CoA opinions), while orders are
+served from the appellatecases host itself under `/documents/`. There is no
+general document-download tab — everything is linked inline on the summary page.
 
 ## Email Notifications
 
@@ -346,14 +645,21 @@ Each entry returns a single search Request; the site redirects to the case
 detail page. Step priorities descend by depth (downloads at 1):
 
 ```
-entry → parse_case_summary  (7)  CaseSummaryParser; not-found → CaAppCaseUnavailable;
-   │                              multi-result → fan out; opinion files → archive (1)
-   ├→ parse_docket          (6)  DocketEntriesParser
-   ├→ parse_briefs          (5)  BriefsParser
-   ├→ parse_disposition     (4)  DispositionParser (+ SC citation promotion)
-   ├→ parse_parties         (3)  PartiesParser
-   └→ parse_trial_court     (2)  TrialCourtParser → _assemble_docket → ParsedData
+entry → parse_case_summary     (8)  CaseSummaryParser; not-found → CaAppCaseUnavailable;
+   │                                 multi-result → fan out; documents → archive_document (1)
+   ├→ parse_docket             (7)  DocketEntriesParser
+   ├→ parse_briefs             (6)  BriefsParser
+   ├→ parse_disposition        (5)  DispositionParser (+ SC citation promotion)
+   ├→ parse_parties            (4)  PartiesParser; branches on the a#actionTab anchor
+   ├→ parse_scheduled_actions  (3)  ScheduledActionsParser — CoA only, skipped
+   │                                 entirely when the a#actionTab anchor is absent
+   └→ parse_trial_court        (2)  TrialCourtParser → _assemble_docket → ParsedData
 ```
+
+Scheduled Actions sits *before* the Trial Court tab, not after it, so that
+`parse_trial_court` stays the one place a docket is assembled. Put last, it
+would have had to assemble too — two assembly sites, and a docket that
+disappears whenever that one tab fails to load.
 
 `is_supreme` (set in the entry from the `S` prefix) is threaded down
 `accumulated_data` and selects the SC vs CoA branch in the summary,
@@ -362,17 +668,28 @@ the parsers and survive `accumulated_data` JSON round-trips as ISO strings,
 re-parsed at confirm.
 
 ### Parsers (`parsers/`)
-- `CaseSummaryParser(is_supreme)` — summary `<dl>`, opinion links, subscriptions
+- `CaseSummaryParser(is_supreme)` — summary `<dl>`, cross-referenced cases,
+  subscriptions (document links are the step's job, not the parser's)
 - `DocketEntriesParser` — Register of Actions rows
 - `BriefsParser` — brief rows
 - `DispositionParser(is_supreme)` — SC table vs CoA key-value; `extract_case_citation`
 - `PartiesParser` — party + attorney cells
 - `TrialCourtParser(is_supreme)` — CoA trial court vs SC lower court
+- `_common.definition_list_pairs` — the shared `<dl>` reader. Pairs each `<dt>`
+  with the `<dd>` *immediately* following it instead of zipping two parallel
+  lists, because the two are not always balanced. Zipping misaligned every
+  caption in the cross-referenced-cases block on 9,881 SC pages (each caption
+  landed on the previous case); measured zero difference on SC Lower Court tabs
+  and on every Third District page, so no field a parser read was ever wrong —
+  but correct pairing is a prerequisite for reading that block at all.
 
 ### Models (aligned to [`../../CL_MODELS.md`](../../CL_MODELS.md))
 - `CaAppDocket` — main output (`docket_number`, `court`, `case_name`, `date_filed`,
   `date_terminated`, `date_argued`, …); maps to CL `Docket`
 - `CaAppDocketEntry` — `DocketEntry` (date_filed, description, notes)
+- `CaAppScheduledAction` — an outstanding deadline from the CoA Scheduled
+  Actions tab (description, date_due, notes); deliberately not a
+  `CaAppDocketEntry`, see that section
 - `CaAppBrief` — brief record (type, date_filed, date_due, filed_by,
   notes_filed_by, notes)
 - `CaAppBriefParty` — a party credited with filing a brief, plus its attorneys
@@ -382,6 +699,62 @@ re-parsed at confirm.
 - `CaAppDisposition` — disposition info (varies by court type)
 - `CaAppParty` / `CaAppAttorney` — `Party`/`PartyType` + `Attorney`
 - `CaAppTrialCourtInfo` — CoA trial court → `OriginatingCourtInformation`
-- `CaAppLowerCourtInfo` / `CaAppCoaCaseLink` — SC lower court block
-- `CaAppOpinionFile` — archived opinion file → `RECAPDocument`
+- `CaAppLowerCourtInfo` / `CaAppCoaCaseLink` / `CaAppTrialCourtRef` — SC
+  lower court block; `CaAppTrialCourtRef` also carries the trial courts
+  named on the SC *summary* page, for the ~46% of SC dockets whose Lower
+  Court tab is empty
+- `CaDocument` / `CaDocumentType` / `CaOpinionCollection` — archived opinion or
+  order → `RECAPDocument`; the only representation of a case's documents
+- `CaUnavailableOpinion` / `CaOpinionEvidence` — a published opinion the site
+  records but serves no file for, with everything needed to fetch it elsewhere
+- `CaAppCrossReferencedCase` — a related case from the SC "Cross Referenced
+  Cases" block
 - `CaAppCaseUnavailable` — yielded for "Case Not Found" probes
+
+
+## Coverage ledger
+
+Residual identifications live in [`residuals.yaml`](residuals.yaml) next to
+this file, so they ride with the scraper. Against the `cal-complete` corpus
+(11 run dbs, SC + all six CoA districts, cutoff 2026-08-07) the ledger is 63
+entries, **all `chrome`** — no `pending`, no `out-of-scope`. Nothing this site
+serves is left unclaimed, and nothing it serves was judged real-but-unwanted.
+
+Twenty-two of the `chrome` entries are not site chrome at all but the
+Cloudflare interstitial, captured in place of a real response on four pages
+of a 1.8M-request Supreme Court sweep and one of a 217k Fifth District one.
+They are identified so the ledger stays readable; the pages themselves are
+worth re-fetching. A further two identify the site's own ColdFusion error
+page, which `_check_application_error` now rejects as transient rather than
+parsing (see "Partial pages" below).
+
+The two items that were `pending` — the Scheduled Actions tab and
+multi-result pagination — are both implemented now. Neither is exercised by
+the `cal-complete` corpus, which predates them: no `scheduledActions.cfm` and
+no `&start=26` response was ever fetched. Both were designed against live
+pages instead, and both are described in full above.
+
+### Partial pages
+
+`_check_application_error` raises a `TransientException` on
+`<h1>We're sorry - An Error Occurred</h1>`. Unlike the 502/503 pages this one
+does not *replace* the content, it interrupts it: on S297578's Lower Court
+tab the site rendered the tab strip, the case banner, and the first two
+fields of the trial-court block, then emitted the error where the rest
+belonged. Nothing marked the page as broken, so the parser read the two
+fields it got and produced a truncated `CaAppTrialCourtInfo` — worse than no
+docket, because it reads as a case whose county the court simply never
+recorded. Three pages in a 1.8M-request sweep, all surfaced by the residual
+ledger rather than by any error.
+
+Two further things worth knowing when reading a coverage report:
+
+- The transient-page detectors (502, 503, `NOTICE: MAINTENANCE`,
+  `An Error Occurred`, visible spinner) match ~0% of pages on a healthy corpus, which `report.py` counts as
+  unmatched selectors. That is the detectors working, not a defect.
+- `residuals` cannot see the definition-list gaps on this site: the parsers
+  read every `<dt>`/`<dd>` into a dict, so a term the parser never *maps* is
+  still marked consumed. The SC `Disposition Date` and `Trial Court Case`
+  fields, and the CoA `Disposition Type` cell holding two fields, were all
+  found by scanning the stored bodies for labels no parser maps -- worth
+  redoing that scan after any template change here.

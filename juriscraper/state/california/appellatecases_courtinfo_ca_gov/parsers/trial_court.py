@@ -20,7 +20,14 @@ from juriscraper.state.california.appellatecases_courtinfo_ca_gov.models import 
     CaAppTrialCourtInfo,
 )
 
-from ._common import clean_text, fields_from_definition_list, parse_date
+from ._common import (
+    DefinitionPair,
+    clean_text,
+    definition_list_pairs,
+    definition_term,
+    fields_from_definition_list,
+    parse_date,
+)
 
 if TYPE_CHECKING:
     from jkent.common.page_element import PageElement
@@ -42,15 +49,16 @@ class TrialCourtParser(JKentParser[_TrialCourt]):
     def __call__(
         self, page: PageElement
     ) -> list[DeferredValidation[_TrialCourt]]:
-        dts = page.query(XPath("//dl/dt"), "tc definition terms", min_count=0)
-        dds = page.query(XPath("//dl/dd"), "tc definition values", min_count=0)
+        pairs = definition_list_pairs(page)
         if self.is_supreme:
-            return [self._parse_supreme(dts, dds)]
-        return [self._parse_coa(dts, dds)]
+            return [self._parse_supreme(pairs)]
+        return [self._parse_coa(pairs)]
 
     @staticmethod
-    def _parse_coa(dts, dds) -> DeferredValidation[CaAppTrialCourtInfo]:
-        fields = fields_from_definition_list(dts, dds)
+    def _parse_coa(
+        pairs: list[DefinitionPair],
+    ) -> DeferredValidation[CaAppTrialCourtInfo]:
+        fields = fields_from_definition_list(pairs)
         return CaAppTrialCourtInfo.raw(
             trial_court_name=clean_text(fields.get("Trial Court Name")),
             county=clean_text(fields.get("County")),
@@ -62,16 +70,20 @@ class TrialCourtParser(JKentParser[_TrialCourt]):
         )
 
     @staticmethod
-    def _parse_supreme(dts, dds) -> DeferredValidation[CaAppLowerCourtInfo]:
-        fields = fields_from_definition_list(dts, dds)
+    def _parse_supreme(
+        pairs: list[DefinitionPair],
+    ) -> DeferredValidation[CaAppLowerCourtInfo]:
+        fields = fields_from_definition_list(pairs)
 
         coa_cases: list[dict] = []
         trial_courts: list[dict[str, str | None]] = []
         current_district: str | None = None
         current_trial_court: str | None = None
 
-        for dt_el, dd_el in zip(dts, dds):
-            key = dt_el.text_content().strip().rstrip(":")
+        for dt_el, dd_el in pairs:
+            if dd_el is None:
+                continue
+            key = definition_term(dt_el)
             if key == "Court of Appeal District/Division":
                 current_district = clean_text(dd_el.text_content())
             elif key == "Court of Appeal Case Number":

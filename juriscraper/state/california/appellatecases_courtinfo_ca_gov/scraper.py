@@ -13,13 +13,18 @@ and is seeded once per court. The request navigates to the search-results URL
 for one case number; the site redirects to the case-detail page, and the
 scraper then walks the tabs:
 
-    parse_case_summary (priority 7) → parse_docket (6) → parse_briefs (5)
-      → parse_disposition (4) → parse_parties (3) → parse_trial_court (2)
-        → _assemble_docket (emit CaAppDocket)
+    parse_case_summary (priority 8) → parse_docket (7) → parse_briefs (6)
+      → parse_disposition (5) → parse_parties (4)
+        → parse_scheduled_actions (3, Courts of Appeal only)
+          → parse_trial_court (2)
+            → _assemble_docket (emit CaAppDocket [+ CaUnavailableOpinion])
 
-Opinion files linked off the summary page are downloaded as separate
-``CaAppOpinionFile`` records (archive requests, priority 1), joined back to
-the docket via ``docket_number`` + ``court``.
+Documents linked off the summary page -- opinions and, on the Supreme Court,
+orders -- are downloaded as separate ``CaDocument`` records (archive requests,
+priority 1), joined back to the docket via ``docket_number`` + ``court``. Where
+the site shows a published opinion but links no file at all, a
+``CaUnavailableOpinion`` records the gap instead, carrying what is needed to
+fetch the text from the Official Reports.
 
 Per-page HTML extraction lives in the ``parsers`` package; the steps keep
 navigation concerns (tab-URL building, the multi-result fan-out, archive
@@ -59,7 +64,10 @@ from .models import (
     COURT_IDS,
     CaAppCaseUnavailable,
     CaAppDocket,
-    CaAppOpinionFile,
+    CaDocument,
+    CaDocumentType,
+    CaOpinionEvidence,
+    CaUnavailableOpinion,
 )
 from .parsers import (
     BriefsParser,
@@ -67,15 +75,26 @@ from .parsers import (
     DispositionParser,
     DocketEntriesParser,
     PartiesParser,
+    ScheduledActionsParser,
     TrialCourtParser,
 )
+from .parsers._common import tab_header
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
     from jkent.data_types import ScraperYield
 
-_Yield = CaAppDocket | CaAppCaseUnavailable | CaAppOpinionFile
+_Yield = CaAppDocket | CaAppCaseUnavailable | CaDocument | CaUnavailableOpinion
+
+# Case-summary anchor id -> what the document behind it is. The id is the only
+# reliable signal of kind: an order and an opinion are both served as .pdf.
+# ``a#doc`` covers .DOCX and, on older cases, .DOC.
+_DOCUMENT_LINK_IDS: dict[str, CaDocumentType] = {
+    "pdf": CaDocumentType.OPINION,
+    "doc": CaDocumentType.OPINION,
+    "courtOrders": CaDocumentType.ORDER,
+}
 
 # Speculation seed hints: highest case number observed per court as of
 # 2026-04-03 (largest_observed_gap was 100 for every court). Use these as the
@@ -127,6 +146,49 @@ def _build_tab_url(response_url: str, tab_page: str) -> str:
     )
     base = response_url.rsplit("/", 1)[0]
     return f"{base}/{tab_page}?{query}"
+
+
+#: Matches a panel spinner that has *not* finished. The site renders each AJAX
+#: panel (Summary, Docket, Briefs, ...) as a button reading "…Loading...", then
+#: hides it with an inline ``display: none`` once that panel's JS has swapped in
+#: real content. The buttons stay in the DOM either way, so "still loading"
+#: means "a Loading button that has not been hidden".
+#:
+#: This single XPath is both what the driver waits for (``_SPINNER_CLEARED``)
+#: and what the page is asserted against (``_check_loading_spinners``). Keeping
+#: them one expression is the point: waiting on a *different* predicate than the
+#: one asserted lets the wait pass while panels are still spinning, and the
+#: assertion then raises a transient on a page that was merely a moment from
+#: ready — which is a self-inflicted failure, indistinguishable downstream from
+#: the server actually being in distress.
+_SPINNER_XPATH = (
+    "//button[contains(., 'Loading') and "
+    "not(contains(@style, 'display: none'))]"
+)
+
+#: Wait until *zero* spinners remain visible.
+#:
+#: The XPath above is self-filtering — a hidden spinner stops matching it — so
+#: as each panel finishes it drops out of the match set. That matters because
+#: Playwright resolves a selector to its *first* match: waiting on a predicate
+#: that keeps matching finished panels would be satisfied by whichever panel
+#: happened to load first. Here the match set shrinks to empty, and the
+#: ``hidden`` state (which "no such element" satisfies) is reached only once the
+#: last panel has been hidden.
+_SPINNER_CLEARED = WaitForSelector(
+    f"xpath={_SPINNER_XPATH}", state="hidden", timeout=20000
+)
+
+#: Per-attempt navigation budget, in seconds.
+#:
+#: Held well under the old 60s because a page slower than this is not going to
+#: satisfy the spinner wait either — the attempt is already lost, and the only
+#: question is how long it takes to find that out. That cost is paid twice over:
+#: once by the request, and again by the circuit breaker, whose half-open probe
+#: is drawn from exactly this pool of requeued requests. A long navigation
+#: timeout makes every probe expensive, which is what turns a short cool-down
+#: into a multi-minute stall.
+_NAV_TIMEOUT_S = 25
 
 
 class CaAppScraper(BaseScraper[_Yield]):
@@ -202,7 +264,9 @@ class CaAppScraper(BaseScraper[_Yield]):
         )
         return Request(
             request=HTTPRequestParams(
-                method=HttpMethod.GET, url=search_results_url, timeout=60
+                method=HttpMethod.GET,
+                url=search_results_url,
+                timeout=_NAV_TIMEOUT_S,
             ),
             continuation=self.parse_case_summary,
             reseedable=True,
@@ -229,11 +293,11 @@ class CaAppScraper(BaseScraper[_Yield]):
             # states (single-result mainCaseScreen.cfm, multi-result
             # searchResults.cfm, and Case Not Found) but is absent from the
             # Cloudflare challenge page.
-            WaitForSelector("#centerColumn", timeout=60000),
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("button[disabled]", state="hidden", timeout=15000),
+            WaitForSelector("#centerColumn", timeout=15000),
+            WaitForLoadState("networkidle", timeout=15000),
+            _SPINNER_CLEARED,
         ],
-        priority=7,
+        priority=8,
     )
     def parse_case_summary(
         self,
@@ -273,7 +337,9 @@ class CaAppScraper(BaseScraper[_Yield]):
         # table. Group rows by doc_id, then fan out one Request per unique
         # doc_id, carrying that group's trial-court case numbers forward.
         if "searchResults.cfm" in response.url:
-            yield from self._fan_out_multi_result(page, accumulated_data)
+            yield from self._fan_out_multi_result(
+                page, response, accumulated_data
+            )
             return
 
         accumulated_data["source_url"] = response.url
@@ -290,31 +356,51 @@ class CaAppScraper(BaseScraper[_Yield]):
 
         bag = CaseSummaryParser(is_supreme=is_supreme)(page)[0].raw_data
 
-        # Archive any opinion files (PDF / DOC / DOCX) linked from this page.
-        # The links are found here, not in the parser, so each Link keeps the
-        # selector the Playwright driver clicks to trigger the download. They
-        # are addressed by their unique element id (``a#pdf`` / ``a#doc``).
-        opinion_links = [
-            link
-            for elem_id in ("pdf", "doc")
+        # Archive the documents linked from this page. The links are found
+        # here, not in the parser, so each Link keeps the selector the
+        # Playwright driver clicks to trigger the download. Each is addressed
+        # by its element id, which is also what tells us the document's kind:
+        # the opinion is offered as ``a#pdf`` plus ``a#doc`` (the latter serving
+        # both .DOCX and, on older cases, .DOC), while a court order is a
+        # separate ``a#courtOrders`` under its own "Supreme Court Order" label.
+        #
+        # The id is *not* unique on the page: a Supreme Court case with several
+        # orders repeats ``id="courtOrders"`` once per order, invalid HTML that
+        # the site emits anyway (S263043 carries two, each a distinct PDF with
+        # its own date). So every match is taken, not just the first -- capping
+        # this at one failed the whole docket rather than dropping the extras.
+        document_links = [
+            (document_type, link)
+            for elem_id, document_type in _DOCUMENT_LINK_IDS.items()
             for link in page.find_links(
                 CSS(f"a#{elem_id}"),
-                f"opinion {elem_id} link",
+                f"{document_type.value} {elem_id} link",
                 min_count=0,
-                max_count=1,
             )
         ]
-        yield from self._yield_opinion_archives(
-            opinion_links, accumulated_data
+        # Recorded so _assemble_docket can tell "no opinion offered" apart from
+        # "opinion offered": a docket the disposition says was published but
+        # that links no file becomes a CaUnavailableOpinion.
+        accumulated_data["document_links_found"] = len(document_links)
+
+        yield from self._yield_document_archives(
+            document_links, accumulated_data
         )
 
-        # CoA only: fall back to the case-summary "Trial Court Case" field
-        # only if the multi-result fan-out hasn't already supplied a list.
+        # Fall back to the case-summary "Trial Court Case" block only if the
+        # multi-result fan-out hasn't already supplied an authoritative list.
+        # The CoA prints a single number there; the SC prints one court
+        # name/number pair per consolidated matter, so the two branches yield
+        # different shapes and are unpacked separately.
         single_tc = bag.pop("trial_court_case_single", None)
+        summary_trial_courts = bag.pop("summary_trial_courts", [])
+        accumulated_data["summary_trial_courts"] = summary_trial_courts
         if not accumulated_data.get("trial_court_case_numbers"):
-            accumulated_data["trial_court_case_numbers"] = (
-                [single_tc] if single_tc else []
-            )
+            accumulated_data["trial_court_case_numbers"] = [
+                number
+                for court in summary_trial_courts
+                if (number := court.get("case_number"))
+            ] or ([single_tc] if single_tc else [])
 
         # Merge the remaining (model-field) summary data forward.
         accumulated_data.update(bag)
@@ -323,7 +409,7 @@ class CaAppScraper(BaseScraper[_Yield]):
         docket_url = _build_tab_url(response.url, "dockets.cfm")
         yield Request(
             request=HTTPRequestParams(
-                method=HttpMethod.GET, url=docket_url, timeout=60
+                method=HttpMethod.GET, url=docket_url, timeout=_NAV_TIMEOUT_S
             ),
             continuation=self.parse_docket,
             accumulated_data=accumulated_data,
@@ -332,52 +418,62 @@ class CaAppScraper(BaseScraper[_Yield]):
             ),
         )
 
-    def _yield_opinion_archives(
+    def _yield_document_archives(
         self,
-        opinion_links: list[Link],
+        document_links: list[tuple[CaDocumentType, Link]],
         accumulated_data: dict,
     ) -> Generator[Request, None, None]:
-        """Yield an archive Request for each opinion file on the case page.
+        """Yield an archive Request for each document on the case page.
 
-        ``opinion_links`` are the ``Link`` objects for the opinion-file <a>
-        elements (id ``pdf`` / ``doc``). Each carries the selector the
-        Playwright driver clicks to trigger the download (an archive request
-        needs a ``ViaLink``/``ViaFormSubmit``, not just a URL), so we build the
-        request with ``Link.follow``. Each becomes one ``CaAppOpinionFile`` via
-        ``archive_opinion_file``.
+        Each ``Link`` carries the selector the Playwright driver clicks to
+        trigger the download (an archive request needs a
+        ``ViaLink``/``ViaFormSubmit``, not just a URL), so the request is built
+        with ``Link.follow``. Each becomes one ``CaDocument`` via
+        ``archive_document``.
+
+        The kind comes from the anchor id the caller matched, not from the URL —
+        an order and an opinion are both ``.pdf``, so the file format cannot
+        tell them apart.
         """
         docket_number = accumulated_data["docket_number"]
-        for link in opinion_links:
+        for document_type, link in document_links:
             url = link.url
             m = re.search(r"\.([A-Za-z]{2,4})(?:$|\?)", url)
             ext = m.group(1).lower() if m else "bin"
             filename = url.rsplit("/", 1)[-1].split("?")[0]
+            collection = re.search(r"/opinions/([^/]+)/", url)
             yield link.follow(
                 archive=True,
-                continuation=self.archive_opinion_file,
+                continuation=self.archive_document,
                 bypass_rate_limit=True,
                 expected_type=ext,
                 accumulated_data={
                     "docket_number": docket_number,
                     "court": accumulated_data["court"],
-                    "document_type": ext,
+                    "document_type": document_type.value,
+                    "file_format": ext,
+                    "source_collection": (
+                        collection.group(1).lower() if collection else None
+                    ),
                     "source_url": url,
                 },
                 deduplication_key=f"{docket_number}-{filename}",
             )
 
     @step()
-    def archive_opinion_file(
+    def archive_document(
         self,
         accumulated_data: dict,
         local_filepath: str | None,
     ) -> Generator[ScraperYield[_Yield], None, None]:
-        """Yield a CaAppOpinionFile referring to the archived opinion file."""
+        """Yield a CaDocument referring to the archived file."""
         yield ParsedData(
-            data=CaAppOpinionFile(
+            data=CaDocument(
                 docket_number=accumulated_data["docket_number"],
                 court=accumulated_data["court"],
                 document_type=accumulated_data["document_type"],
+                file_format=accumulated_data["file_format"],
+                source_collection=accumulated_data.get("source_collection"),
                 source_url=accumulated_data["source_url"],
                 local_path=local_filepath,
             )
@@ -386,14 +482,15 @@ class CaAppScraper(BaseScraper[_Yield]):
     def _fan_out_multi_result(
         self,
         page: PageElement,
+        response: Response,
         accumulated_data: dict,
     ) -> Generator[ScraperYield[_Yield], None, None]:
-        """Yield one Request per unique doc_id on a multi-result page.
+        """Walk every page of a multi-result set, then fan out per doc_id.
 
-        Each row's trial-court case number (column 2) is collected into
-        the group for its doc_id and stashed on accumulated_data so the
-        next ``parse_case_summary`` pass sees them as the authoritative
-        list (overriding the singular "Trial Court Case" dt/dd field).
+        Each row's trial-court case number (column 2) is collected into the
+        group for its doc_id and stashed on accumulated_data so the next
+        ``parse_case_summary`` pass sees them as the authoritative list
+        (overriding the singular "Trial Court Case" dt/dd field).
 
         A multi-result page does *not* always mean "one CoA case, several
         lower-court matters": a search by a shared number (e.g. a trial-court
@@ -401,12 +498,39 @@ class CaAppScraper(BaseScraper[_Yield]):
         appellate cases. Each fanned-out child therefore lands on a case page
         with its own ``doc_no``; ``parse_case_summary`` adopts that as the
         child's ``docket_number``, keeping the sibling chains distinct.
+
+        **The result set paginates at 25 rows**, so the fan-out cannot happen
+        on the page it was handed. ``searchResults.cfm`` offers the remainder
+        behind ``<a class="nextprev">next &gt;&gt;</a>`` → ``&start=26``;
+        B302074 holds 38 rows over two pages, all of them the same doc_id, so
+        reading only the first page silently dropped 13 of that case's
+        trial-court numbers. Groups are therefore accumulated across pages in
+        ``multi_result_groups`` and only fanned out once a page arrives with
+        no next link.
+
+        The walk exists because the fan-out has to *click*: a row's href
+        carries ``request_token=auth``, a placeholder, and navigating to it
+        directly lands back on the search form. So each case is reached by
+        clicking its row, which means reaching it from a page that has that
+        row -- see ``_fan_out_groups``.
         """
-        rows = page.query(
-            XPath("//table//tbody//tr"), "multi-result rows", min_count=0
+        groups: dict[str, dict] = accumulated_data.get(
+            "multi_result_groups", {}
         )
-        groups: dict[str, dict] = {}
-        for row in rows:
+        # A revisit (see ``_fan_out_groups``) is here for one stranded case
+        # only. Its page carries every other row too, and merging those would
+        # re-fan cases the first pass already emitted -- harmless, since the
+        # dedup key stops them, but it would put a pile of doomed requests on
+        # the queue for nothing.
+        wanted = (
+            set(groups)
+            if accumulated_data.get("multi_result_single")
+            else None
+        )
+        page_url = response.url
+        for row in page.query(
+            XPath("//table//tbody//tr"), "multi-result rows", min_count=0
+        ):
             cells = row.query(XPath("td"), "row cells", min_count=0)
             if len(cells) < 2:
                 continue
@@ -422,19 +546,91 @@ class CaAppScraper(BaseScraper[_Yield]):
             if not m:
                 continue
             doc_id = m.group(1)
+            if wanted is not None and doc_id not in wanted:
+                continue
             tc_number = cells[1].text_content().strip()
             group = groups.setdefault(
-                doc_id, {"url": url, "trial_court_numbers": []}
+                doc_id,
+                {"url": url, "page_url": page_url, "trial_court_numbers": []},
             )
+            # Keep the *latest* page a doc_id was seen on, so the fan-out
+            # prefers a page it can still click the row on.
+            group["url"] = url
+            group["page_url"] = page_url
             if tc_number and tc_number not in group["trial_court_numbers"]:
                 group["trial_court_numbers"].append(tc_number)
 
+        # Only the "next" control carries class="nextprev" -- "<< previous" is
+        # a plain a.btnSmaller -- but the text is asserted too rather than
+        # resting on that asymmetry. Its absence is what ends the walk: the
+        # last page has no nextprev link at all.
+        next_links = page.find_links(
+            XPath("//a[contains(@class, 'nextprev') and contains(., 'next')]"),
+            "multi-result next-page link",
+            min_count=0,
+        )
+        if next_links and not accumulated_data.get("multi_result_single"):
+            accumulated_data["multi_result_groups"] = groups
+            yield Request(
+                request=HTTPRequestParams(
+                    method=HttpMethod.GET,
+                    url=next_links[0].url,
+                    timeout=_NAV_TIMEOUT_S,
+                ),
+                continuation=self.parse_case_summary,
+                accumulated_data=accumulated_data,
+                deduplication_key=f"multi_result_page:{next_links[0].url}",
+            )
+            return
+
+        yield from self._fan_out_groups(groups, page_url, accumulated_data)
+
+    def _fan_out_groups(
+        self,
+        groups: dict[str, dict],
+        page_url: str,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Emit one case Request per accumulated doc_id.
+
+        A case is reached by clicking its row, so it can only be fanned out
+        from a page that still shows that row. Every doc_id seen on the final
+        page is fanned out there; one seen only on an earlier page gets a
+        request back to *that* page carrying ``multi_result_single``, which
+        re-enters this walk with pagination switched off so it fans out from
+        the page its row is on. In the one paginated set observed every page
+        repeated the same doc_id, so this second hop is expected to stay rare
+        -- but it is what keeps a stranded case from being dropped in silence.
+        """
         for doc_id, group in groups.items():
-            new_data = dict(accumulated_data)
+            new_data = {
+                key: value
+                for key, value in accumulated_data.items()
+                if key not in ("multi_result_groups", "multi_result_single")
+            }
+
+            if group["page_url"] != page_url:
+                revisit = dict(new_data)
+                revisit["multi_result_groups"] = {doc_id: group}
+                revisit["multi_result_single"] = True
+                yield Request(
+                    request=HTTPRequestParams(
+                        method=HttpMethod.GET,
+                        url=group["page_url"],
+                        timeout=_NAV_TIMEOUT_S,
+                    ),
+                    continuation=self.parse_case_summary,
+                    accumulated_data=revisit,
+                    deduplication_key=f"multi_result_revisit:{doc_id}",
+                )
+                continue
+
             new_data["trial_court_case_numbers"] = group["trial_court_numbers"]
             yield Request(
                 request=HTTPRequestParams(
-                    method=HttpMethod.GET, url=group["url"], timeout=60
+                    method=HttpMethod.GET,
+                    url=group["url"],
+                    timeout=_NAV_TIMEOUT_S,
                 ),
                 via=ViaLink(
                     selector=(
@@ -457,8 +653,9 @@ class CaAppScraper(BaseScraper[_Yield]):
     @step(
         await_list=[
             WaitForSelector("#DispoList"),
+            _SPINNER_CLEARED,
         ],
-        priority=6,
+        priority=7,
     )
     def parse_docket(
         self,
@@ -468,22 +665,7 @@ class CaAppScraper(BaseScraper[_Yield]):
     ) -> Generator[ScraperYield[_Yield], None, None]:
         """Extract docket entries, then navigate to the briefs tab."""
         self._check_transient_errors(page)
-
-        # Extract division from the docket header if not already set.
-        if not accumulated_data.get("division"):
-            div_texts = page.query_strings(
-                XPath(
-                    "//div[contains(@class, 'caseInfo')]"
-                    "//text()[contains(., 'Division')]"
-                ),
-                "division text",
-                min_count=0,
-            )
-            for t in div_texts:
-                m = re.search(r"Division\s+(\S+)", t)
-                if m:
-                    accumulated_data["division"] = m.group(1)
-                    break
+        self._read_tab_header(page, accumulated_data)
 
         accumulated_data["entries"] = [
             e.raw_data for e in DocketEntriesParser()(page)
@@ -492,7 +674,7 @@ class CaAppScraper(BaseScraper[_Yield]):
         briefs_url = _build_tab_url(response.url, "briefing.cfm")
         yield Request(
             request=HTTPRequestParams(
-                method=HttpMethod.GET, url=briefs_url, timeout=60
+                method=HttpMethod.GET, url=briefs_url, timeout=_NAV_TIMEOUT_S
             ),
             continuation=self.parse_briefs,
             accumulated_data=accumulated_data,
@@ -507,10 +689,17 @@ class CaAppScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("button[disabled]", state="hidden", timeout=15000),
+            # Same reasoning as parse_case_summary: assert site chrome that
+            # only exists once CF has cleared. Without a positive condition
+            # this list is satisfied by the challenge page itself —
+            # networkidle settles on it, and a "hidden" wait passes when
+            # button[disabled] is merely absent — so the driver treated the
+            # interstitial as real content and never ran the CF handler.
+            WaitForSelector("#centerColumn", timeout=15000),
+            WaitForLoadState("networkidle", timeout=15000),
+            _SPINNER_CLEARED,
         ],
-        priority=5,
+        priority=6,
     )
     def parse_briefs(
         self,
@@ -520,13 +709,14 @@ class CaAppScraper(BaseScraper[_Yield]):
     ) -> Generator[ScraperYield[_Yield], None, None]:
         """Extract brief records, then navigate to the disposition tab."""
         self._check_transient_errors(page)
+        self._read_tab_header(page, accumulated_data)
 
         accumulated_data["briefs"] = [b.raw_data for b in BriefsParser()(page)]
 
         dispo_url = _build_tab_url(response.url, "disposition.cfm")
         yield Request(
             request=HTTPRequestParams(
-                method=HttpMethod.GET, url=dispo_url, timeout=60
+                method=HttpMethod.GET, url=dispo_url, timeout=_NAV_TIMEOUT_S
             ),
             continuation=self.parse_disposition,
             accumulated_data=accumulated_data,
@@ -541,10 +731,17 @@ class CaAppScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("button[disabled]", state="hidden", timeout=15000),
+            # Same reasoning as parse_case_summary: assert site chrome that
+            # only exists once CF has cleared. Without a positive condition
+            # this list is satisfied by the challenge page itself —
+            # networkidle settles on it, and a "hidden" wait passes when
+            # button[disabled] is merely absent — so the driver treated the
+            # interstitial as real content and never ran the CF handler.
+            WaitForSelector("#centerColumn", timeout=15000),
+            WaitForLoadState("networkidle", timeout=15000),
+            _SPINNER_CLEARED,
         ],
-        priority=4,
+        priority=5,
     )
     def parse_disposition(
         self,
@@ -554,6 +751,7 @@ class CaAppScraper(BaseScraper[_Yield]):
     ) -> Generator[ScraperYield[_Yield], None, None]:
         """Extract disposition data. Structure differs SC vs CoA."""
         self._check_transient_errors(page)
+        self._read_tab_header(page, accumulated_data)
         is_supreme = accumulated_data["is_supreme"]
 
         parser = DispositionParser(is_supreme=is_supreme)
@@ -574,7 +772,7 @@ class CaAppScraper(BaseScraper[_Yield]):
         parties_url = _build_tab_url(response.url, "partiesAndAttorneys.cfm")
         yield Request(
             request=HTTPRequestParams(
-                method=HttpMethod.GET, url=parties_url, timeout=60
+                method=HttpMethod.GET, url=parties_url, timeout=_NAV_TIMEOUT_S
             ),
             continuation=self.parse_parties,
             accumulated_data=accumulated_data,
@@ -589,10 +787,17 @@ class CaAppScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("button[disabled]", state="hidden", timeout=15000),
+            # Same reasoning as parse_case_summary: assert site chrome that
+            # only exists once CF has cleared. Without a positive condition
+            # this list is satisfied by the challenge page itself —
+            # networkidle settles on it, and a "hidden" wait passes when
+            # button[disabled] is merely absent — so the driver treated the
+            # interstitial as real content and never ran the CF handler.
+            WaitForSelector("#centerColumn", timeout=15000),
+            WaitForLoadState("networkidle", timeout=15000),
+            _SPINNER_CLEARED,
         ],
-        priority=3,
+        priority=4,
     )
     def parse_parties(
         self,
@@ -602,21 +807,103 @@ class CaAppScraper(BaseScraper[_Yield]):
     ) -> Generator[ScraperYield[_Yield], None, None]:
         """Extract parties and their attorneys, then navigate to trial court."""
         self._check_transient_errors(page)
+        self._read_tab_header(page, accumulated_data)
 
         accumulated_data["parties"] = [
             p.raw_data for p in PartiesParser()(page)
         ]
 
-        tc_url = _build_tab_url(response.url, "trialCourt.cfm")
-        yield Request(
+        # Detour through Scheduled Actions when the case has that tab. Gated
+        # on the site's own signal -- the ``a#actionTab`` anchor in the tab
+        # strip, repeated on every tab page -- rather than on ``is_supreme``.
+        # It happens to be exactly the Courts of Appeal that carry it today
+        # (Supreme Court pages have six tabs, not seven), but the anchor is
+        # what actually says so.
+        if page.find_links(
+            CSS("a#actionTab"),
+            "Scheduled Actions tab link",
+            min_count=0,
+            max_count=1,
+        ):
+            yield self._tab_request(
+                response,
+                "scheduledActions.cfm",
+                self.parse_scheduled_actions,
+                accumulated_data,
+            )
+            return
+
+        yield self._tab_request(
+            response,
+            "trialCourt.cfm",
+            self.parse_trial_court,
+            accumulated_data,
+        )
+
+    def _tab_request(
+        self,
+        response: Response,
+        tab_page: str,
+        continuation: object,
+        accumulated_data: dict,
+    ) -> Request:
+        """Build the request for one case tab, reusing the current page's URL."""
+        return Request(
             request=HTTPRequestParams(
-                method=HttpMethod.GET, url=tc_url, timeout=60
+                method=HttpMethod.GET,
+                url=_build_tab_url(response.url, tab_page),
+                timeout=_NAV_TIMEOUT_S,
             ),
-            continuation=self.parse_trial_court,
+            continuation=continuation,
             accumulated_data=accumulated_data,
             deduplication_key=(
-                f"parse_trial_court:{accumulated_data['docket_number']}"
+                f"{continuation.__name__}:{accumulated_data['docket_number']}"
             ),
+        )
+
+    # =========================================================================
+    # Step: Scheduled Actions tab (Courts of Appeal only)
+    #
+    # Sits *before* the Trial Court tab rather than after it so that
+    # ``parse_trial_court`` remains the one place a docket is assembled. Put
+    # last, it would have had to assemble too -- two assembly sites, and a
+    # docket that silently disappears whenever this one tab fails to load.
+    # =========================================================================
+
+    @step(
+        await_list=[
+            # Same reasoning as parse_case_summary: assert site chrome that
+            # only exists once CF has cleared.
+            WaitForSelector("#centerColumn", timeout=15000),
+            WaitForLoadState("networkidle", timeout=15000),
+            _SPINNER_CLEARED,
+        ],
+        priority=3,
+    )
+    def parse_scheduled_actions(
+        self,
+        page: PageElement,
+        response: Response,
+        accumulated_data: dict,
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Read the case's outstanding deadlines, then go to trial court.
+
+        The rows land in ``CaAppDocket.scheduled_actions``, not in
+        ``entries``: they are deadlines the court is waiting on, not things
+        that happened -- see ``CaAppScheduledAction``.
+        """
+        self._check_transient_errors(page)
+        self._read_tab_header(page, accumulated_data)
+
+        accumulated_data["scheduled_actions"] = [
+            a.raw_data for a in ScheduledActionsParser()(page)
+        ]
+
+        yield self._tab_request(
+            response,
+            "trialCourt.cfm",
+            self.parse_trial_court,
+            accumulated_data,
         )
 
     # =========================================================================
@@ -625,8 +912,15 @@ class CaAppScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForLoadState("networkidle", timeout=30000),
-            WaitForSelector("button[disabled]", state="hidden", timeout=15000),
+            # Same reasoning as parse_case_summary: assert site chrome that
+            # only exists once CF has cleared. Without a positive condition
+            # this list is satisfied by the challenge page itself —
+            # networkidle settles on it, and a "hidden" wait passes when
+            # button[disabled] is merely absent — so the driver treated the
+            # interstitial as real content and never ran the CF handler.
+            WaitForSelector("#centerColumn", timeout=15000),
+            WaitForLoadState("networkidle", timeout=15000),
+            _SPINNER_CLEARED,
         ],
         priority=2,
     )
@@ -638,15 +932,42 @@ class CaAppScraper(BaseScraper[_Yield]):
     ) -> Generator[ScraperYield[_Yield], None, None]:
         """Extract trial/lower court info, then assemble the docket."""
         self._check_transient_errors(page)
+        self._read_tab_header(page, accumulated_data)
         is_supreme = accumulated_data["is_supreme"]
 
         info = TrialCourtParser(is_supreme=is_supreme)(page)[0].raw_data
         if is_supreme:
+            # The Lower Court tab has no data at all on roughly half of SC
+            # cases (139,775 of 302,103 in a full sweep) -- typically the
+            # older ones and those that never reached a Court of Appeal. The
+            # summary page still names their trial court, so it stands in
+            # rather than the whole block being left empty.
+            if not info.get("trial_courts"):
+                info["trial_courts"] = accumulated_data.get(
+                    "summary_trial_courts", []
+                )
             accumulated_data["lower_court_info"] = info
         else:
             accumulated_data["trial_court_info"] = info
 
         yield from self._assemble_docket(accumulated_data)
+
+    @staticmethod
+    def _read_tab_header(page: PageElement, accumulated_data: dict) -> None:
+        """Adopt the case-name / division banner every case tab repeats.
+
+        The division is the reason this runs on every tab rather than just
+        one: a Supreme Court summary has no Division term at all, so the
+        banner ("Division SF", "Division LA", ...) is the only place the SC's
+        sitting location is printed. The case name is taken only as a
+        fallback -- the summary's Case Caption is authoritative where it has
+        one.
+        """
+        case_name, division = tab_header(page)
+        if division and not accumulated_data.get("division"):
+            accumulated_data["division"] = division
+        if case_name and not accumulated_data.get("case_name"):
+            accumulated_data["case_name"] = case_name
 
     # =========================================================================
     # Final assembly
@@ -673,12 +994,12 @@ class CaAppScraper(BaseScraper[_Yield]):
             date_argued=data.get("date_argued"),
             issues=data.get("issues"),
             case_citation=data.get("case_citation"),
-            opinion_pdf_url=data.get("opinion_pdf_url"),
-            opinion_docx_url=data.get("opinion_docx_url"),
             coa_case_numbers=data.get("coa_case_numbers", []),
             supreme_court_case_number=data.get("supreme_court_case_number"),
             trial_court_case_numbers=data.get("trial_court_case_numbers", []),
+            cross_referenced_cases=data.get("cross_referenced_cases", []),
             entries=data.get("entries", []),
+            scheduled_actions=data.get("scheduled_actions", []),
             briefs=data.get("briefs", []),
             dispositions=data.get("dispositions", []),
             parties=data.get("parties", []),
@@ -689,6 +1010,94 @@ class CaAppScraper(BaseScraper[_Yield]):
             subscription_urls=data.get("subscription_urls", []),
         )
         yield ParsedData(data=docket)
+        yield from self._yield_unavailable_opinions(data)
+
+    @staticmethod
+    def _is_published(status: str | None) -> bool:
+        """True when a publication status says the opinion *was* published.
+
+        Substring matching has two traps this avoids: "Unpublished" contains
+        "published", and so does "Depublished" (a publication later withdrawn,
+        which must not count as published).
+        """
+        if not status:
+            return False
+        lowered = status.lower()
+        return (
+            "published" in lowered
+            and "unpublished" not in lowered
+            and "depublished" not in lowered
+        )
+
+    @classmethod
+    def _opinion_evidence(
+        cls, disposition: dict, is_supreme: bool
+    ) -> CaOpinionEvidence | None:
+        """Which signal, if any, shows this disposition is a published opinion.
+
+        The courts state it differently. A Court of Appeal disposition carries a
+        Publication Status. The Supreme Court has no such field at all, but its
+        opinions are published as a matter of course, so a description reading
+        "Opinion: Reversed" is the equivalent signal — and it does have to be
+        the description, since the overwhelming majority of Supreme Court
+        dispositions ("Petition for review denied") are not opinions.
+        """
+        if cls._is_published(disposition.get("publication_status")):
+            return CaOpinionEvidence.PUBLICATION_STATUS
+        description = (disposition.get("description") or "").strip().lower()
+        if is_supreme and description.startswith("opinion"):
+            return CaOpinionEvidence.OPINION_DISPOSITION
+        return None
+
+    def _yield_unavailable_opinions(
+        self, data: dict
+    ) -> Generator[ScraperYield[_Yield], None, None]:
+        """Emit a CaUnavailableOpinion per published-but-unserved opinion.
+
+        The site documents far more published opinions than it offers files for
+        — courts.ca.gov only serves them for a limited window, so the older ones
+        have to be fetched from the Official Reports. When the disposition says
+        published and the summary page linked no document at all, that gap is
+        recorded as data rather than passed over silently.
+
+        Keyed on ``document_links_found`` being 0 rather than on the absence of
+        a ``CaDocument``: the archive requests are still in flight when the
+        docket is assembled, so their results cannot be consulted here.
+        """
+        if data.get("document_links_found"):
+            return
+        is_supreme = bool(data.get("is_supreme"))
+        for disposition in data.get("dispositions", []):
+            evidence = self._opinion_evidence(disposition, is_supreme)
+            if evidence is None:
+                continue
+            yield ParsedData(
+                data=CaUnavailableOpinion.raw(
+                    docket_number=data["docket_number"],
+                    court=data["court"],
+                    evidence=evidence.value,
+                    publication_status=disposition.get("publication_status"),
+                    case_name=data.get("case_name"),
+                    case_citation=(
+                        disposition.get("case_citation")
+                        or data.get("case_citation")
+                    ),
+                    disposition_description=disposition.get("description"),
+                    disposition_date=disposition.get("disposition_date"),
+                    disposition_type=disposition.get("disposition_type"),
+                    author=disposition.get("author"),
+                    participants=disposition.get("participants"),
+                    date_filed=data.get("date_filed"),
+                    date_terminated=data.get("date_terminated"),
+                    trial_court_case_numbers=data.get(
+                        "trial_court_case_numbers", []
+                    ),
+                    supreme_court_case_number=data.get(
+                        "supreme_court_case_number"
+                    ),
+                    source_url=data.get("source_url"),
+                )
+            )
 
     # =========================================================================
     # Transient error detection
@@ -704,6 +1113,7 @@ class CaAppScraper(BaseScraper[_Yield]):
         cls._check_502_bad_gateway(page)
         cls._check_503_challenge(page)
         cls._check_maintenance(page)
+        cls._check_application_error(page)
         cls._check_loading_spinners(page)
 
     @staticmethod
@@ -731,6 +1141,32 @@ class CaAppScraper(BaseScraper[_Yield]):
             raise TransientException("502 Bad Gateway")
 
     @staticmethod
+    def _check_application_error(page: PageElement) -> None:
+        """Raise TransientException on the site's ColdFusion error page.
+
+        Unlike the 502/503 pages, this one does not *replace* the content --
+        it interrupts it. On S297578's Lower Court tab the site rendered the
+        tab strip, the case banner, and the first two fields of the
+        trial-court block, then emitted "We're sorry - An Error Occurred"
+        where the rest belonged. Nothing marks the page as broken, so the
+        parser read the two fields it got and produced a truncated
+        ``CaAppTrialCourtInfo`` -- worse than no docket, because it looks
+        like a case whose county the court simply never recorded.
+
+        Rare: 3 pages across a 1.8M-request Supreme Court sweep, all found by
+        the residual ledger rather than by any error. Retrying is the right
+        response -- the same URLs served normally on a later run.
+        """
+        errors = page.query(
+            XPath("//h1[contains(., 'An Error Occurred')]"),
+            "ColdFusion application error heading",
+            min_count=0,
+            max_count=1,
+        )
+        if errors:
+            raise TransientException("Site application error page")
+
+    @staticmethod
     def _check_maintenance(page: PageElement) -> None:
         """Raise TransientException if the site is in a maintenance window.
 
@@ -753,17 +1189,14 @@ class CaAppScraper(BaseScraper[_Yield]):
     def _check_loading_spinners(page: PageElement) -> None:
         """Raise TransientException if spinner buttons are still visible.
 
-        The site uses disabled buttons with "Loading..." text as
-        placeholders while JavaScript replaces them with real links.
-        Once loaded, JS sets ``style="display: none;"`` on these buttons
-        but they remain in the DOM.  Only match spinners that are NOT
-        hidden via inline style.
+        Reads :data:`_SPINNER_XPATH` — the same expression the driver waited on
+        via :data:`_SPINNER_CLEARED`. Sharing it is the point: this check only
+        ever runs on a page the wait already passed, so any drift between the
+        two predicates turns "one panel is still slow" into a transient
+        failure, and pool-wide into a circuit-breaker trip.
         """
         spinners = page.query(
-            XPath(
-                "//button[contains(., 'Loading') and "
-                "not(contains(@style, 'display: none'))]"
-            ),
+            XPath(_SPINNER_XPATH),
             "visible loading spinner buttons",
             min_count=0,
         )

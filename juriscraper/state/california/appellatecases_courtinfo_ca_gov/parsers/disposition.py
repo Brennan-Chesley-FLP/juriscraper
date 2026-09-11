@@ -17,7 +17,7 @@ from juriscraper.state.california.appellatecases_courtinfo_ca_gov.models import 
     CaAppDisposition,
 )
 
-from ._common import clean_text, parse_date
+from ._common import cell_lines, clean_optional, clean_text, parse_date
 
 if TYPE_CHECKING:
     from jkent.common.page_element import PageElement
@@ -88,17 +88,20 @@ class DispositionParser(JKentParser[CaAppDisposition]):
             elif key == "Date":
                 dispo["disposition_date"] = parse_date(val)
             elif key == "Disposition Type":
-                dispo["disposition_type"] = clean_text(val)
+                # Two fields in one cell: the type, then -- after a <br> --
+                # the text of the order itself. Read whole, the "type" comes
+                # out as a paragraph on nearly half of all CoA dispositions.
+                type_line, *note_lines = cell_lines(v) or [""]
+                dispo["disposition_type"] = clean_text(type_line)
+                dispo["disposition_notes"] = clean_text("\n".join(note_lines))
             elif key == "Publication Status":
                 dispo["publication_status"] = clean_text(val)
             elif key == "Author":
                 dispo["author"] = clean_text(val)
             elif key == "Participants":
                 dispo["participants"] = clean_text(val)
-            elif key == "Case Citation":
-                citation = clean_text(val)
-                if citation and citation != "none":
-                    dispo["case_citation"] = citation
+            elif key == "Case Citation" and (citation := clean_optional(val)):
+                dispo["case_citation"] = citation
         if not dispo.get("description"):
             return []
         return [CaAppDisposition.raw(**dispo)]
@@ -121,7 +124,7 @@ class DispositionParser(JKentParser[CaAppDisposition]):
         )
         if not citation_texts:
             return None
-        val = clean_text(citation_texts[0])
-        if val and val != "none":
+        val = clean_optional(citation_texts[0])
+        if val:
             return val
         return None

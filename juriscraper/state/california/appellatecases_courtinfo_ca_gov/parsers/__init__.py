@@ -10,6 +10,7 @@ from .case_summary import CaseSummaryParser
 from .disposition import DispositionParser
 from .docket import DocketEntriesParser
 from .parties import PartiesParser
+from .scheduled_actions import ScheduledActionsParser
 from .trial_court import TrialCourtParser
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     "DispositionParser",
     "DocketEntriesParser",
     "PartiesParser",
+    "ScheduledActionsParser",
     "TrialCourtParser",
 ]

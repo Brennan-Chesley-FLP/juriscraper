@@ -1,0 +1,627 @@
+scraper: juriscraper.state.california.appellatecases_courtinfo_ca_gov.scraper:CaAppScraper
+residuals:
+  - continuation: parse_trial_court
+    path: html/body/div/div/div/div/div/div/div/dl/dd
+    ident: Lower Court tab help copy, and the "(lead)" marker
+    disposition: chrome
+    note: >-
+      Two texts share this path. "Click the above Court of Appeal Case
+      Number link for further information." is help copy the site prints in
+      a value slot -- it names no data. "(lead)" is a marker appended to a
+      Court of Appeal Case Number; it is read (as CaAppCoaCaseLink.is_lead)
+      but only the link text lands in output, so the marker itself reads as
+      residual.
+    example: Click the above Court of Appeal Case Number link for further information.
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/div/dl/dt
+    ident: Case Summary definition-list labels and disclaimers
+    disposition: chrome
+    note: >-
+      The <dt> terms of the summary list ("Trial Court Case:", "Court of
+      Appeal Case:", "Division:", "Supreme Court Opinion:"), plus the
+      italic "NOTE: The statement of the issues is intended simply to
+      inform the public and the press..." disclaimer. Every value these
+      label is extracted; the labels themselves are template text. They
+      surface as residual rather than as chrome only because several of
+      them appear on well under 90% of pages.
+    example: 'Trial Court Case:'
+  - continuation: parse_disposition
+    path: html/body/div/div/div/div/div/div/p
+    ident: '"No information found." placeholder'
+    disposition: chrome
+    note: >-
+      What the Disposition tab prints instead of a table when the case has
+      no disposition yet. The absence is already representable --
+      CaAppDocket.dispositions is simply empty.
+    example: No information found.
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/div/div/div/button
+    ident: AJAX panel spinner buttons
+    disposition: chrome
+    note: >-
+      One "<panel> Loading..." button per tab, hidden with an inline
+      display:none once that panel's JS has swapped in real content. The
+      buttons stay in the DOM either way; _SPINNER_XPATH asserts that none
+      of them is still visible.
+    example: Summary Loading...
+  - continuation: parse_case_summary
+    path: html/head/title
+    ident: Page title
+    disposition: chrome
+    note: >-
+      "California Courts - Appellate Court Case Information | Case Summary"
+      / "| Search Results". Names the page type, which the scraper already
+      knows from the response URL.
+    example: California Courts - Appellate Court Case Information | Case Summary
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/div/div/div/a
+    ident: Case tab navigation links
+    disposition: chrome
+    note: >-
+      The tab strip. Every one of these anchors is now followed as a step --
+      mainCaseScreen, dockets, briefing, disposition, partiesAndAttorneys,
+      trialCourt, and (Courts of Appeal only) a#actionTab ->
+      scheduledActions.cfm, which parse_parties detours through. The labels
+      themselves name tabs, not data. NOTE: no scheduledActions.cfm response
+      exists in this corpus -- the tab is scraped but unsampled, so re-check
+      this continuation's ledger after the next sweep.
+    example: Case Summary
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/div/div/div/div/p
+    ident: Search-results banner (record count, search-form echo)
+    disposition: chrome
+    note: >-
+      "Search by Court of Appeal or Trial Court", "Click on the case number
+      for more information about a case.", and the record count ("1 - 25 of
+      38 Records Found."). The count is a rendering of the result set, not
+      data about a case; what it used to flag -- that the set paginates and
+      the fan-out only read page one -- is now handled:
+      _fan_out_multi_result walks the a.nextprev links and accumulates every
+      page's trial-court numbers before fanning out.
+    example: Search by Court of Appeal or Trial Court
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/div/div/h2
+    ident: Court name heading
+    disposition: chrome
+    note: >-
+      "2nd Appellate District" / "Search Results - 2nd Appellate
+      District". The court is already known from the request's
+      accumulated_data (it is what was seeded).
+    example: 2nd Appellate District
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/div/div/p
+    ident: No-results explanatory copy
+    disposition: chrome
+    note: >-
+      "There are no cases matching the search criteria supplied." and the
+      misspelling/Search-Tips advice beneath it. The fact this page states
+      is already captured: parse_case_summary yields a
+      CaAppCaseUnavailable off the "Case Not Found" heading.
+    example: There are no cases matching the search criteria supplied.
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/div/div/div/div/table/thead/tr/th
+    ident: Search-results table headers
+    disposition: chrome
+    note: >-
+      "Court of Appeal Case Number" / "Trial Court Case Number" / "Case
+      Caption". _fan_out_multi_result reads the columns these head (the
+      case link and column 2's trial-court number) positionally, so the
+      header cells themselves are never consumed. The Case Caption column
+      is deliberately not read -- the same caption is on the case page.
+    example: Court of Appeal
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/div/div/h3
+    ident: Section title
+    disposition: chrome
+    note: '"Case Summary" -- names the tab, not its content.'
+    example: Case Summary
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/div/div/p/strong
+    ident: '"IMPORTANT NOTE" lead-in'
+    disposition: chrome
+    note: >-
+      Opens the site's standing disclaimer that confidential cases are
+      excluded from the index. Site policy, not case data.
+    example: IMPORTANT NOTE
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/div/div/p/a
+    ident: '"Search Tips" help link'
+    disposition: chrome
+    note: Link into the site's help page, offered on no-results pages.
+    example: Search Tips
+  - continuation: parse_docket
+    path: html/body/div/div/div/div/div/div/div/table/thead/tr/th
+    ident: Register of Actions column headers
+    disposition: chrome
+    note: >-
+      "Date" / "Description" / "Notes". All three columns are scraped into
+      CaAppDocketEntry; DocketEntriesParser reads the row cells by index,
+      so the header row is never consumed. It shows as residual only in
+      slices where too few pages have a docket table for the headers to
+      count as recurring chrome.
+    example: Date
+  - continuation: parse_briefs
+    path: html/body/div/div/div/div/div/div/p
+    ident: '"No information found." placeholder'
+    disposition: chrome
+    note: >-
+      What the Briefs tab prints when no brief has been filed. The absence
+      is already representable -- CaAppDocket.briefs is simply empty.
+    example: No information found.
+  - continuation: parse_parties
+    path: html/body/div/div/div/div/div/div/p
+    ident: '"No information found." placeholder'
+    disposition: chrome
+    note: >-
+      What the Parties and Attorneys tab prints when the case lists no
+      parties. The absence is already representable -- CaAppDocket.parties
+      is simply empty.
+    example: No information found.
+  - continuation: parse_parties
+    path: html/head/title
+    ident: Cloudflare interstitial ("Just a moment...")
+    disposition: chrome
+    note: >-
+      Not site content: a Cloudflare challenge page stored in place of the
+      real response. Every cluster below at html/body/div/div/... comes from
+      the same one page (ca-calctapp_5th:response:151144, the run report's
+      "unexplained structural outlier") -- 1 of 28,677 parties pages, in the
+      one run whose status is 'error'. The step's await_list (#centerColumn
+      + spinner-cleared) is what normally keeps these out; a page that slips
+      through yields no docket rather than a wrong one. CORPUS: worth
+      re-fetching, not worth scraping.
+    example: Just a moment...
+  - continuation: parse_parties
+    path: html/body/div/div/p
+    ident: Cloudflare interstitial body copy
+    disposition: chrome
+    note: See the html/head/title entry -- same stored challenge page.
+    example: This website uses a security service to protect against malicious bots.
+  - continuation: parse_parties
+    path: html/body/div/div/h2
+    ident: Cloudflare interstitial heading
+    disposition: chrome
+    note: See the html/head/title entry -- same stored challenge page.
+    example: Verifying you are human. This may take a few seconds.
+  - continuation: parse_parties
+    path: html/body/div/div/div/h1
+    ident: Cloudflare interstitial hostname heading
+    disposition: chrome
+    note: See the html/head/title entry -- same stored challenge page.
+    example: appellatecases.courtinfo.ca.gov
+  - continuation: parse_parties
+    path: html/body/div/div/div/h2
+    ident: Cloudflare interstitial status line
+    disposition: chrome
+    note: See the html/head/title entry -- same stored challenge page.
+    example: Verification successful. Waiting for appellatecases.courtinfo.ca.gov to respond
+  - continuation: parse_parties
+    path: html/body/div/div/noscript/div/span
+    ident: Cloudflare interstitial noscript notice
+    disposition: chrome
+    note: See the html/head/title entry -- same stored challenge page.
+    example: Enable JavaScript and cookies to continue
+  - continuation: parse_parties
+    path: html/body/div/div/div/div/span
+    ident: Cloudflare interstitial footer
+    disposition: chrome
+    note: See the html/head/title entry -- same stored challenge page.
+    example: Performance and Security by
+  - continuation: parse_parties
+    path: html/body/div/div/div/div/span/a
+    ident: Cloudflare interstitial footer link
+    disposition: chrome
+    note: See the html/head/title entry -- same stored challenge page.
+    example: Cloudflare
+  - continuation: parse_parties
+    path: html/body/div/div/div/div/a
+    ident: Cloudflare interstitial privacy link
+    disposition: chrome
+    note: See the html/head/title entry -- same stored challenge page.
+    example: Privacy
+  - continuation: parse_parties
+    path: html/body/div/div/div/div/div
+    ident: Cloudflare interstitial Ray ID label
+    disposition: chrome
+    note: See the html/head/title entry -- same stored challenge page.
+    example: 'Ray ID:'
+  - continuation: parse_parties
+    path: html/body/div/div/div/div/div/code
+    ident: Cloudflare interstitial Ray ID value
+    disposition: chrome
+    note: See the html/head/title entry -- same stored challenge page.
+    example: a188812769a0e578
+  - continuation: parse_briefs
+    path: html/body/div/div/div/div/a
+    ident: Cloudflare interstitial privacy link
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Privacy'
+  - continuation: parse_briefs
+    path: html/body/div/div/div/div/div
+    ident: Cloudflare interstitial Ray ID label
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Ray ID:'
+  - continuation: parse_briefs
+    path: html/body/div/div/div/div/div/code
+    ident: Cloudflare interstitial Ray ID value
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'a1e5411d68ce5e37'
+  - continuation: parse_briefs
+    path: html/body/div/div/div/div/span
+    ident: Cloudflare interstitial footer
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Performance and Security by'
+  - continuation: parse_briefs
+    path: html/body/div/div/div/div/span/a
+    ident: Cloudflare interstitial footer link
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Cloudflare'
+  - continuation: parse_briefs
+    path: html/body/div/div/div/h1
+    ident: Cloudflare interstitial hostname heading
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'appellatecases.courtinfo.ca.gov'
+  - continuation: parse_briefs
+    path: html/body/div/div/div/h2
+    ident: Cloudflare interstitial status line
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Verification successful. Waiting for appellatecases.courtinfo.ca.gov to respond'
+  - continuation: parse_briefs
+    path: html/body/div/div/h2
+    ident: Cloudflare interstitial heading
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Performing security verification'
+  - continuation: parse_briefs
+    path: html/body/div/div/noscript/div/span
+    ident: Cloudflare interstitial noscript notice
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Enable JavaScript and cookies to continue'
+  - continuation: parse_briefs
+    path: html/body/div/div/p
+    ident: Cloudflare interstitial body copy
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'This website uses a security service to protect against malicious bots. This pag'
+  - continuation: parse_briefs
+    path: html/head/title
+    ident: Cloudflare interstitial ("Just a moment...")
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Just a moment...'
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/a
+    ident: Cloudflare interstitial privacy link
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Privacy'
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div
+    ident: Cloudflare interstitial Ray ID label
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Ray ID:'
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/code
+    ident: Cloudflare interstitial Ray ID value
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'a192ba4198a13c9c'
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/div/div/h4
+    ident: '"No information found." placeholder'
+    disposition: chrome
+    note: >-
+      What the Case Summary tab prints when the case has nothing to show
+      there. The absence is already representable -- CaAppDocket is not
+      emitted for it at all.
+    example: 'No information found.'
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/span
+    ident: Cloudflare interstitial footer
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Performance and Security by'
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/div/span/a
+    ident: Cloudflare interstitial footer link
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Cloudflare'
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/h1
+    ident: Cloudflare interstitial hostname heading
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'appellatecases.courtinfo.ca.gov'
+  - continuation: parse_case_summary
+    path: html/body/div/div/div/h2
+    ident: Cloudflare interstitial status line
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Verification successful. Waiting for appellatecases.courtinfo.ca.gov to respond'
+  - continuation: parse_case_summary
+    path: html/body/div/div/h2
+    ident: Cloudflare interstitial heading
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Verifying you are human. This may take a few seconds.'
+  - continuation: parse_case_summary
+    path: html/body/div/div/noscript/div/span
+    ident: Cloudflare interstitial noscript notice
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Enable JavaScript and cookies to continue'
+  - continuation: parse_case_summary
+    path: html/body/div/div/p
+    ident: Cloudflare interstitial body copy
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'This website uses a security service to protect against malicious bots. This pag'
+  - continuation: parse_docket
+    path: html/body/div/div/div/div/div/div/p
+    ident: '"No information found." placeholder'
+    disposition: chrome
+    note: >-
+      What the Docket (Register of Actions) tab prints when the case has
+      nothing to show there. The absence is already representable --
+      CaAppDocket.entries is simply empty.
+    example: 'No information found.'
+  - continuation: parse_parties
+    path: html/body/div/div/div/div/div/div/h1
+    ident: Site application-error heading
+    disposition: chrome
+    note: >-
+      "We're sorry - An Error Occurred" -- the site's ColdFusion error,
+      emitted mid-page where the rest of the content belonged (3 pages in
+      a 1.8M-request sweep). Not data, and no longer parsed:
+      _check_application_error now raises a TransientException on it,
+      because the truncated block it used to leave behind read as a case
+      whose fields the court had simply never recorded.
+    example: 'We''re sorry - An Error Occurred'
+  - continuation: parse_trial_court
+    path: html/body/div/div/div/div/a
+    ident: Cloudflare interstitial privacy link
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Privacy'
+  - continuation: parse_trial_court
+    path: html/body/div/div/div/div/div
+    ident: Cloudflare interstitial Ray ID label
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Ray ID:'
+  - continuation: parse_trial_court
+    path: html/body/div/div/div/div/div/code
+    ident: Cloudflare interstitial Ray ID value
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'a1e79f79782edfff'
+  - continuation: parse_trial_court
+    path: html/body/div/div/div/div/div/div/h1
+    ident: Site application-error heading
+    disposition: chrome
+    note: >-
+      "We're sorry - An Error Occurred" -- the site's ColdFusion error,
+      emitted mid-page where the rest of the content belonged (3 pages in
+      a 1.8M-request sweep). Not data, and no longer parsed:
+      _check_application_error now raises a TransientException on it,
+      because the truncated block it used to leave behind read as a case
+      whose fields the court had simply never recorded.
+    example: 'We''re sorry - An Error Occurred'
+  - continuation: parse_trial_court
+    path: html/body/div/div/div/div/span
+    ident: Cloudflare interstitial footer
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Performance and Security by'
+  - continuation: parse_trial_court
+    path: html/body/div/div/div/div/span/a
+    ident: Cloudflare interstitial footer link
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Cloudflare'
+  - continuation: parse_trial_court
+    path: html/body/div/div/div/h1
+    ident: Cloudflare interstitial hostname heading
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'appellatecases.courtinfo.ca.gov'
+  - continuation: parse_trial_court
+    path: html/body/div/div/div/h2
+    ident: Cloudflare interstitial status line
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Verification successful. Waiting for appellatecases.courtinfo.ca.gov to respond'
+  - continuation: parse_trial_court
+    path: html/body/div/div/h2
+    ident: Cloudflare interstitial heading
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Performing security verification'
+  - continuation: parse_trial_court
+    path: html/body/div/div/noscript/div/span
+    ident: Cloudflare interstitial noscript notice
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Enable JavaScript and cookies to continue'
+  - continuation: parse_trial_court
+    path: html/body/div/div/p
+    ident: Cloudflare interstitial body copy
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'This website uses a security service to protect against malicious bots. This pag'
+  - continuation: parse_trial_court
+    path: html/head/title
+    ident: Cloudflare interstitial ("Just a moment...")
+    disposition: chrome
+    note: >-
+      One of a handful of Cloudflare challenge pages stored in place of
+      the real response -- 4 across a 1.8M-request Supreme Court sweep.
+      Not site content. The step await_list (#centerColumn + spinner-cleared) is what normally keeps these out; a page that slips through
+      yields no docket rather than a wrong one. CORPUS: worth re-fetching,
+      not worth scraping.
+    example: 'Just a moment...'

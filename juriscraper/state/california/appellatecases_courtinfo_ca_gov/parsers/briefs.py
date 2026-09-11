@@ -13,7 +13,7 @@ from juriscraper.state.california.appellatecases_courtinfo_ca_gov.models import 
     CaAppBrief,
 )
 
-from ._common import clean_text, parse_date
+from ._common import cell_lines, clean_text, parse_date
 
 if TYPE_CHECKING:
     from jkent.common.page_element import PageElement
@@ -101,24 +101,6 @@ class BriefsParser(JKentParser[CaAppBrief]):
             )
         return briefs
 
-    @staticmethod
-    def _cell_lines(cell: PageElement | None) -> list[str]:
-        """Read a cell as the list of lines its ``<br>`` tags separate.
-
-        ``text_content()`` drops ``<br>`` entirely, gluing adjacent lines into
-        one run ("The PeopleAttorney: Eric L. Christoffersen"). Collecting the
-        text nodes individually keeps the boundaries.
-        """
-        if cell is None:
-            return []
-        return [
-            line
-            for text in cell.query_strings(
-                XPath(".//text()"), "cell lines", min_count=0
-            )
-            if (line := " ".join(text.split()))
-        ]
-
     @classmethod
     def _parse_filed_by(cls, cell: PageElement | None) -> list[dict]:
         """Split the "Party and Attorney" cell into one dict per party.
@@ -133,7 +115,7 @@ class BriefsParser(JKentParser[CaAppBrief]):
         opens a new party.
         """
         parties: list[dict] = []
-        for line in cls._cell_lines(cell):
+        for line in cell_lines(cell):
             if line.startswith("Attorney:"):
                 if parties:
                     parties[-1]["attorneys"].append(
@@ -182,7 +164,7 @@ class BriefsParser(JKentParser[CaAppBrief]):
         attorneys: list[str] = []
         prose: list[str] = []
 
-        for line in cls._cell_lines(cell):
+        for line in cell_lines(cell):
             labels = list(_NOTES_LABEL.finditer(line))
             if not labels:
                 prose.append(line)

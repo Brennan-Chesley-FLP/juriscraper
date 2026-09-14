@@ -179,6 +179,30 @@ _SPINNER_CLEARED = WaitForSelector(
     f"xpath={_SPINNER_XPATH}", state="hidden", timeout=20000
 )
 
+#: The Docket tab's content region, in *either* of its two settled states.
+#:
+#: ``#DispoList`` is the wrapper the site puts around a Register of Actions
+#: table. A case whose docket is empty never gets that wrapper: the panel
+#: settles into a bare "No information found." instead. Requiring
+#: ``#DispoList`` alone therefore makes this wait unsatisfiable on a
+#: legitimately empty docket -- and unsatisfiable is worse here than wrong.
+#: G067222 (4th District, Division 3) is such a case: it spent ten retries
+#: and ~15 minutes of cumulative backoff waiting for an element the final
+#: page does not contain, never raised, and so sat *pending* forever --
+#: pinning the lone worker instead of surfacing as an error anyone could see.
+#:
+#: Both branches are written by the same AJAX swap that hides the panel's
+#: spinner, and neither ever appears on a page bearing the other, so pairing
+#: this with ``_SPINNER_CLEARED`` still rules out reading a half-rendered
+#: panel. The union is also a positive assertion in both branches, which is
+#: what keeps the CF interstitial from satisfying the list (see
+#: ``parse_case_summary``).
+_DOCKET_PANEL_SETTLED = WaitForSelector(
+    "xpath=//*[@id='DispoList'] | "
+    "//p[contains(normalize-space(.), 'No information found')]",
+    timeout=20000,
+)
+
 #: Per-attempt navigation budget, in seconds.
 #:
 #: Held well under the old 60s because a page slower than this is not going to
@@ -652,7 +676,7 @@ class CaAppScraper(BaseScraper[_Yield]):
 
     @step(
         await_list=[
-            WaitForSelector("#DispoList"),
+            _DOCKET_PANEL_SETTLED,
             _SPINNER_CLEARED,
         ],
         priority=7,

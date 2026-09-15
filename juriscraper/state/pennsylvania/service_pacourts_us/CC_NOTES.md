@@ -21,10 +21,11 @@ redundant**, and both should run.
 | Briefing schedule | Not exposed | Structured deadline ledger |
 | Lower-court history | Not exposed | Structured originations + related dockets |
 | **Documents (PDFs)** | **Docket-sheet PDF, archived** | **None — API exposes no document URLs** |
-| Date-range search | Yes (server-side, cap 500 + split) | **No** — see "Search capabilities" |
+| Date-range search | Yes (server-side, cap 500 + split) | **Borrowed from the portal** — see below |
 
 Net: this API is the source of truth for **structured case data**; the portal
-remains the only source for **document files**.
+remains the only source for **document files** — *and* for the filing-date
+search, which this scraper now reaches across the domain boundary to use.
 
 ## Site Overview
 
@@ -137,8 +138,70 @@ Applying `courtName` server-side both scopes results to one appellate court
 and materially reduces truncation risk (unfiltered "Smith" → 150 rows, 100 of
 them trial-court noise; `courtName`-filtered → 50 real appellate rows).
 
-**Recommended approach: speculative docket-number enumeration** via
-`dockets_by_number`, seeded per `(docket_type, year)`.
+**Primary approach: cross-domain docket discovery** via
+`dockets_by_filing_date` (below). Speculative docket-number enumeration
+(`dockets_by_number`, seeded per `(docket_type, year)`) remains available as a
+fallback and a cross-check.
+
+## Cross-domain docket discovery
+
+This scraper's bulk entry point issues requests to **`ujsportal.pacourts.us`**,
+not just `services.pacourts.us`. That is deliberate, and it is the one place in
+this scraper where the domain boundary is crossed.
+
+**Why.** The one search mode that matters for ongoing collection — "what was
+filed in this window" — is the one this API refuses to serve (above).
+Speculative enumeration was the only alternative, and it is a poor one:
+
+- it can never distinguish *"this sequence number doesn't exist"* from *"the
+  sequence numbers stop here"*, so coverage is a guess parameterized by `gap`;
+- the sequence space is sparse and does not reliably start at 1, so the guess
+  has to be a loose one (25+ consecutive misses before stopping);
+- under the aggressive rate limit, a 429 is indistinguishable from a 404 to the
+  walk, so throttling silently truncates ranges (see "Rate limiting");
+- and it costs one request per *candidate*, most of which are misses, against
+  an API that permits roughly one request per 10 seconds.
+
+The UJS portal answers the same question directly: same operator (AOPC), same
+three appellate courts, same PACMS backend, server-side filing-date search, one
+court per POST. One portal search enumerates a window exactly, and every row it
+returns is a docket number this API can then retrieve. That was compelling
+enough to accept the cross-domain dependency.
+
+**How.** `dockets_by_filing_date` GETs the portal's `/CaseSearch` form, POSTs
+the appellate date-range search for one court, and reads **only the docket
+numbers** out of `#caseSearchResultGrid`; each one becomes a
+`GET /public/v1/cases/{docketNumber}` against this API. Nothing is emitted from
+the portal rows themselves — the sibling scraper already emits those (plus
+their docket-sheet PDFs), so emitting them here would duplicate records.
+
+**What is shared, and what is not.** The portal's form contract (`SEARCH_URL`,
+`SEARCH_FORM_XPATH`, the `AppellateCourtName` ↔ court-id map, `RESULT_ROW_CAP`,
+`MIN_SPLIT_WINDOW`, `BROWSER_HEADERS`) and its `ResultsGridParser` are
+**imported** from `ujsportal_pacourts_us.models` / `.parsers`, not copied — the
+two scrapers cannot drift apart on the portal's contract, and a portal
+selector fix lands in both at once. Those constants were moved out of the
+sibling's `scraper.py` into its `models.py` for exactly this reason. The two
+scrapers stay otherwise independent: no shared steps, no shared records.
+
+**Consequences to keep in mind:**
+
+- The portal's **500-row cap and the halve-the-window split** apply here too;
+  `parse_portal_results` implements the same split, down to the same 1-day
+  floor (a single day at the cap is accepted and logged rather than split
+  forever).
+- **`HTTP_CODE_TYPES = {400: TRANSIENT}`** is set for the portal leg — the
+  portal intermittently 400s (~1%) on well-formed POSTs, and the default
+  persistent classification would drop a whole window's rows. The JSON API
+  itself never uses 400 (missing docket = 404; bad search = 200 + error body),
+  so nothing else is affected.
+- The **rate limit is run-global, not per-host**, so portal searches spend the
+  same 1-per-10s budget as API fetches. Both hosts are AOPC and the portal's
+  own scraper uses a *slower* 15s ceiling, so this errs safe — but a window's
+  searches and its case fetches are competing for the same slots.
+- A portal outage or selector change breaks this scraper's bulk path even
+  though the API is fine. The speculative walk is the fallback, which is one
+  reason to keep it.
 
 ## Docket Number Format
 
@@ -351,9 +414,16 @@ notification affordance, and the mobile config advertises no such service.
 
 | Entry | Param | Purpose |
 |---|---|---|
-| `dockets_by_number(docket_number)` | `PaDocketRange` | **Primary.** Speculative walk of one `(court, docket type, year)` space. |
+| `dockets_by_filing_date(court_ids, date_range)` | `set[str]`, `InferrableDateRange` | **Primary.** Docket numbers from the UJS portal's filing-date search (cross-domain), fetched in full here. |
+| `dockets_by_number(docket_number)` | `PaDocketRange` | Speculative walk of one `(court, docket type, year)` space. Fallback / cross-check. |
 | `docket_by_number(court_id, docket_number)` | `str`, `str` | Single known docket. |
 | `dockets_by_participant_name(court_ids, last_name)` | `set[str]`, `str` | Name search, court-filtered server-side. |
+
+For ongoing collection, run `dockets_by_filing_date` over the window wanted —
+it enumerates exactly, where the speculative walk estimates. Keep the
+speculative walk for backfilling years the portal search struggles with (very
+wide windows split into many searches) and as an independent check that the
+portal is not hiding rows.
 
 `dockets_by_number` is the §4 multi-court speculative exception: the driver
 binds **only** the speculative param, so the court, docket type and year ride
@@ -384,6 +454,9 @@ seed_params = [
 ### Step functions and priorities (§5)
 
 ```
+dockets_by_filing_date → submit_portal_search (5) → parse_portal_results (4)
+                            ├→ (per row) parse_case (3) → ParsedData
+                            └→ (cap hit) split window & resubmit → (4)
 dockets_by_number / docket_by_number → parse_case (3) → ParsedData
 dockets_by_participant_name → parse_search_results (4)
                                 └→ (per appellate row) parse_case (3) → ParsedData
@@ -392,21 +465,34 @@ dockets_by_participant_name → parse_search_results (4)
 Priorities descend by depth so in-flight searches finish before new ones
 start. There are no downloads, so nothing occupies priorities 0–1.
 
+`parse_portal_results` is a thin wrapper over the plain generator
+`_portal_results_to_requests(page, accumulated_data)`; the logic lives there so
+it is unit-testable (a `@step` can only be driven through a real `Response`).
+`test_portal_discovery.py` exercises it offline: the fan-out, the trial-court
+row filter, the cap split, and the single-day-at-cap exception.
+
 Because the whole case arrives in one response, `parse_case` is a single
 terminal step — there is no tab walk, and no `accumulated_data` merging
 across pages beyond carrying the requested court/docket number as a fallback.
 
 ### Deduplication keys (§6)
 
-- `case:<docket_number>` — the case fetch. Dedups a docket reached by both
-  the speculative walk and a name search.
-- `participant_search:<court_id>:<last_name>` — the search POST.
+- `case:<docket_number>` — the case fetch. Dedups a docket reached by any
+  combination of the portal walk, the speculative walk and a name search.
+- `participant_search:<court_id>:<last_name>` — the API search POST.
+- `portal_search_seed:<court_id>:<start>:<end>` — the portal form GET.
+- `portal_search:<court_id>:<start>:<end>` — the portal search POST (the split
+  halves key on their own sub-window, so a re-split is idempotent).
 
 ### HTTP status handling (§10)
 
-Defaults are correct as-is: **404** (nonexistent docket) is persistent —
-which is what terminates a speculative probe — and **429** is transient, so
-throttled requests retry. No `HTTP_CODE_TYPES` override.
+API-side, the defaults are correct as-is: **404** (nonexistent docket) is
+persistent — which is what terminates a speculative probe — and **429** is
+transient, so throttled requests retry.
+
+`HTTP_CODE_TYPES = {400: HTTPCodeType.TRANSIENT}` exists **only** for the
+cross-domain portal leg (see "Cross-domain docket discovery"). It cannot
+misfire on the API, which never answers 400.
 
 `actually_successful` is **not** overridden: the retrieval endpoint uses real
 status codes rather than soft-404s. The one 200-with-an-error case is the

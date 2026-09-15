@@ -60,7 +60,17 @@ from pyrate_limiter import Duration, Rate
 
 from juriscraper.state.common.params import InferrableDateRange
 
-from .models import COURT_IDS, SEARCH_URL, PADocket, PADocketSheetPDF
+from .models import (
+    BROWSER_HEADERS,
+    COURT_ID_TO_SITE_COURT,
+    COURT_IDS,
+    MIN_SPLIT_WINDOW,
+    RESULT_ROW_CAP,
+    SEARCH_FORM_XPATH,
+    SEARCH_URL,
+    PADocket,
+    PADocketSheetPDF,
+)
 from .parsers import RESULTS_TABLE_ID, ResultsGridParser
 
 if TYPE_CHECKING:
@@ -71,47 +81,6 @@ if TYPE_CHECKING:
 
 
 _Yield = PADocket | PADocketSheetPDF
-
-
-# =========================================================================
-# Site constants
-# =========================================================================
-
-# The single search form on /CaseSearch. ``find_form()`` preserves every
-# hidden input (including ``__RequestVerificationToken``) and lets us
-# override only the fields we care about via the ``data=`` kwarg.
-SEARCH_FORM_XPATH = XPath("//form[@id='case-search-form-id']")
-
-# Empirical row cap for the results grid. A search whose result count
-# meets this cap is presumed truncated and the date range is split.
-RESULT_ROW_CAP = 500
-
-# Floor for date-range splitting. With a 1-day window we accept whatever
-# row count comes back rather than continuing to split — same-day filings
-# above the cap are extremely unlikely for these courts.
-MIN_SPLIT_WINDOW = timedelta(days=1)
-
-# The PDF endpoint (/Report/PacDocketSheet) returns 401 to clients with
-# httpx's default User-Agent. Sent on every request via Request.permanent
-# so it cascades through the form-submit POST and the PDF archive GET.
-_BROWSER_HEADERS: dict[str, str] = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/147.0.0.0 Safari/537.36"
-    ),
-}
-
-# AppellateCourtName form value ↔ CourtListener ID. The site dropdown only
-# offers these three values.
-SITE_COURT_TO_COURT_ID: dict[str, str] = {
-    "Supreme": "pa",
-    "Superior": "pasuperct",
-    "Commonwealth": "pacommwct",
-}
-COURT_ID_TO_SITE_COURT: dict[str, str] = {
-    v: k for k, v in SITE_COURT_TO_COURT_ID.items()
-}
 
 
 # =========================================================================
@@ -197,7 +166,7 @@ class PAUjsPortalScraper(BaseScraper[_Yield]):
                 "entry_point": "docket_by_number",
             },
             deduplication_key=f"docket_search_seed:{docket_number}",
-            permanent={"headers": _BROWSER_HEADERS},
+            permanent={"headers": BROWSER_HEADERS},
         )
 
     # =====================================================================
@@ -225,7 +194,7 @@ class PAUjsPortalScraper(BaseScraper[_Yield]):
             # court so the per-court seeds coexist in one scrape.
             deduplication_key=f"appellate_search_seed:{court_id}:"
             f"{date_range.start.isoformat()}:{date_range.end.isoformat()}",
-            permanent={"headers": _BROWSER_HEADERS},
+            permanent={"headers": BROWSER_HEADERS},
         )
 
     # =====================================================================

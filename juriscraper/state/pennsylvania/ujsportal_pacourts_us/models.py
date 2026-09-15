@@ -11,6 +11,15 @@ Field names follow [`../../CL_MODELS.md`](../../CL_MODELS.md): the
 CourtListener court-id string is ``court`` (not ``court_id``), the case
 caption is ``case_name``, and dates use the ``date_*`` prefix.
 
+The **site constants** below (search URL, form XPath, the
+``AppellateCourtName`` maps, the result-row cap and split floor, the browser
+headers) live here rather than in ``scraper.py`` because the sibling
+``service_pacourts_us`` JSON-API scraper imports them: that API has no
+date-range search, so it runs this portal's filing-date search cross-domain
+to discover docket numbers. Keep them here, and keep
+``ResultsGridParser``'s output keys stable — see ``CC_NOTES.md``
+→ "Search Capabilities".
+
 Models:
 
 - ``PADocket`` — the per-row case record built from
@@ -24,9 +33,10 @@ Models:
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from jkent.common.data_models import ScrapedData
+from jkent.data_types import XPath
 
 from juriscraper.state.common_models import CleanString, HarmonizedCaseName
 
@@ -45,6 +55,43 @@ COURT_IDS: dict[str, str] = {
     "pa": "Supreme Court of Pennsylvania",
     "pasuperct": "Superior Court of Pennsylvania",
     "pacommwct": "Commonwealth Court of Pennsylvania",
+}
+
+# ``AppellateCourtName`` form value <-> CourtListener ID. The site dropdown
+# only offers these three values.
+SITE_COURT_TO_COURT_ID: dict[str, str] = {
+    "Supreme": "pa",
+    "Superior": "pasuperct",
+    "Commonwealth": "pacommwct",
+}
+COURT_ID_TO_SITE_COURT: dict[str, str] = {
+    v: k for k, v in SITE_COURT_TO_COURT_ID.items()
+}
+
+# The single search form on /CaseSearch. ``find_form()`` preserves every
+# hidden input (including ``__RequestVerificationToken``) and lets us
+# override only the fields we care about via the ``data=`` kwarg.
+SEARCH_FORM_XPATH = XPath("//form[@id='case-search-form-id']")
+
+# Empirical row cap for the results grid. A search whose result count
+# meets this cap is presumed truncated and the date range is split.
+RESULT_ROW_CAP = 500
+
+# Floor for date-range splitting. With a 1-day window we accept whatever
+# row count comes back rather than continuing to split — same-day filings
+# above the cap are extremely unlikely for these courts.
+MIN_SPLIT_WINDOW = timedelta(days=1)
+
+# The PDF endpoint (/Report/PacDocketSheet) returns 401 to clients with
+# httpx's default User-Agent, and so does /CaseSearch itself for some
+# clients. Sent on every request via ``Request.permanent`` so it cascades
+# through the form-submit POST and the PDF archive GET.
+BROWSER_HEADERS: dict[str, str] = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/147.0.0.0 Safari/537.36"
+    ),
 }
 
 

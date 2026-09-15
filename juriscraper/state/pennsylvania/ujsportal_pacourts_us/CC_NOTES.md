@@ -61,6 +61,21 @@ to a 1-day floor.
 **Pagination**: none — there is no "next page" link. The cap-and-split
 strategy is the only available mechanism.
 
+> **This search has a second consumer.** The sibling
+> [`service_pacourts_us`](../service_pacourts_us/CC_NOTES.md) JSON-API scraper
+> has no date-range search of its own (its API rejects a search anchored on a
+> date range), so its `dockets_by_filing_date` entry runs **this** form,
+> cross-domain, to discover docket numbers and then fetches each case from the
+> API. It imports the form contract from this package rather than copying it:
+> `SEARCH_URL`, `SEARCH_FORM_XPATH`, `SITE_COURT_TO_COURT_ID` /
+> `COURT_ID_TO_SITE_COURT`, `RESULT_ROW_CAP`, `MIN_SPLIT_WINDOW` and
+> `BROWSER_HEADERS` now live in `models.py` (moved there from `scraper.py`) so
+> both scrapers share one definition, and it reuses `ResultsGridParser`
+> unchanged. **A fix to the form fields, the grid selectors, or the row cap
+> benefits both — but a change to where those constants live, or to the
+> parser's output keys, breaks the sibling.** Run its tests
+> (`service_pacourts_us/test_portal_discovery.py`) alongside any change here.
+
 ## Docket Number Format
 
 `<seq> <type> <year>` separated by spaces, where `<type>` is a 2–3-letter
@@ -136,6 +151,11 @@ auto-assigns priority 1.
 `HTTP_CODE_TYPES = {400: HTTPCodeType.TRANSIENT}` — the portal intermittently
 400s (~1%) on well-formed POSTs with a fresh anti-forgery token; reclassify
 as transient so they retry instead of dropping the date window's rows.
+
+### Site constants
+
+The form contract and grid constants live in `models.py`, not `scraper.py`,
+because the sibling JSON-API scraper imports them (see "Search Capabilities").
 
 ### Data types
 

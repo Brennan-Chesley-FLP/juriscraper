@@ -74,6 +74,10 @@ supplies them.
 - A parameter whose type subclasses `Speculative` (e.g. `SpeculativeRange`) makes
   the entry **speculative**: the driver seeds, tracks, and extends the probe
   range itself.
+- A **non-speculative** entry must be a **generator** — seeding does
+  `yield from method(**kwargs)`, so returning a bare `Request` fails at run
+  open with `TypeError: 'Request' object is not iterable`. A speculative entry
+  is dispatched per-ID instead and may return one `Request` directly.
 
 ### Param value types (`jkent/common/param_models.py`)
 
@@ -237,6 +241,17 @@ PERSISTENT (fail-fast). Override per-site oddities by shadowing
 default). For "200 with an error body" (soft-404s, session-timeout pages),
 override `actually_successful(self, response) -> bool`. See SCRAPER_STANDARDS
 §10.
+
+**`actually_successful` does not suppress the continuation.** It feeds the
+**speculation tracker only** — `_track_speculation_outcome` calls it to decide
+whether a probe counts as a hit, and the worker then runs the continuation on
+the same response regardless (`worker.py`: track, *then*
+`complete_request(...)`). So a soft-404 page still reaches your `@step`, where
+the parser's `min_count` assertions will raise on the missing content. Detect
+the sentinel in **both** places: `actually_successful` so speculation stops,
+and an early `return` at the top of the step so a miss is a no-op rather than
+an `HTMLStructuralAssumptionException` on every probe past the end of the ID
+space. See `delaware/courtconnect_courts_delaware_gov`.
 
 ---
 

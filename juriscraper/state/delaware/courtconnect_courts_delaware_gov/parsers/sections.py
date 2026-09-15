@@ -1,0 +1,193 @@
+"""Parsers for the two docket-report sections whose shape is unobserved.
+
+The Related Cases and Case Event Schedule sections appear on every docket
+report but were empty on all 128 cases sampled on 2026-09-14 -- 110 Court of
+Chancery cases spread across 2017-2026, plus 18 Superior Court, Common Pleas
+and Justice of the Peace cases reached through the party search. Their column
+sets have therefore never been seen.
+
+Rather than invent a shape for them, both are read generically: each row is
+zipped against the table's ``<th>`` labels and stored as a ``{label: value}``
+map. When a populated one finally turns up, ``jent residuals`` will surface the
+real columns and the mapping can be tightened then -- but the data is captured
+in the meantime instead of being silently dropped.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import TYPE_CHECKING
+
+from jkent.common.deferred_validation import DeferredValidation
+from jkent.common.parser import JKentParser
+from jkent.data_types import XPath
+
+from juriscraper.state.delaware.courtconnect_courts_delaware_gov.models import (
+    DeCourtConnectDocketEntry,
+    DeCourtConnectRelatedCase,
+)
+
+from ._common import (
+    cell_lines,
+    clean_text,
+    header_labels,
+    parse_date,
+    parse_time,
+)
+
+if TYPE_CHECKING:
+    from jkent.common.page_element import PageElement
+
+#: Header labels that plausibly hold a related case's number.
+_CASE_ID_LABELS = ("case id", "case number", "related case", "case")
+
+#: Header labels the event-schedule reader promotes onto named entry fields.
+_EVENT_DATE_LABELS = ("date", "event date", "scheduled date", "hearing date")
+_EVENT_DESCRIPTION_LABELS = ("description", "event", "event description")
+_EVENT_NAME_LABELS = ("name", "judge", "party")
+
+#: A Delaware CourtConnect case id: the Chancery ``2025-1110`` form, or one of
+#: the other courts' county-lettered forms (``N22C-09-501``, ``JP17-20-002897``,
+#: ``K21J-01335``). Used only to pick which generic column held the case id.
+_CASE_ID_RE = re.compile(r"^[A-Z0-9]{1,4}\d{2}[A-Z]?[-\d]{3,}$|^\d{4}-\d{3,}$")
+
+
+def section_tables(
+    page: PageElement, start_anchor: str, end_anchor: str
+) -> list[PageElement]:
+    """Return the tables rendered between two of the page's section anchors.
+
+    The page marks each section with ``<a name="related">``, ``<a
+    name="events">`` and so on, but never closes those anchors and never wraps
+    a section in a container -- so a section's content cannot be selected by
+    descent, only by position between two markers.
+
+    Both anchor sets are counted rather than compared for identity: the tables
+    belonging to the section are the leading ``count(after start) - count(after
+    end)`` of those following ``start_anchor``. This needs no element equality,
+    which ``PageElement`` does not define.
+    """
+    after_start = page.query(
+        XPath(f'//a[@name="{start_anchor}"]/following::table'),
+        f"tables after the {start_anchor} anchor",
+        min_count=0,
+    )
+    after_end = page.query(
+        XPath(f'//a[@name="{end_anchor}"]/following::table'),
+        f"tables after the {end_anchor} anchor",
+        min_count=0,
+    )
+    span = len(after_start) - len(after_end)
+    return after_start[:span] if span > 0 else []
+
+
+def _rows_as_maps(table: PageElement) -> list[dict[str, str]]:
+    """Read a table as one ``{column label: value}`` map per data row.
+
+    Rows with more cells than there are labels keep the surplus under
+    positional ``column N`` keys, so nothing is lost when the header is
+    narrower than the body (which is how the parties and docket tables are
+    built, and may well be how these are too).
+    """
+    rows = table.query(XPath("./tr | ./tbody/tr"), "section rows", min_count=0)
+    labels = header_labels(rows)
+    maps: list[dict[str, str]] = []
+    for row in rows:
+        cells = row.query(XPath("./td"), "section cells", min_count=0)
+        if not cells:
+            continue
+        values = ["\n".join(cell_lines(cell)) for cell in cells]
+        if not any(value.strip() for value in values):
+            # The one-cell spacer row the site puts between records.
+            continue
+        row_map: dict[str, str] = {}
+        for index, value in enumerate(values):
+            label = labels[index] if index < len(labels) else ""
+            row_map[label or f"column {index + 1}"] = value
+        maps.append(row_map)
+    return maps
+
+
+def _pick(row: dict[str, str], candidates: tuple[str, ...]) -> str | None:
+    """Pop and return the first value whose label matches a candidate label."""
+    for label in list(row):
+        if label.strip().lower() in candidates:
+            return row.pop(label)
+    return None
+
+
+class RelatedCasesParser(JKentParser[DeCourtConnectRelatedCase]):
+    """Parse the Related Cases section into one record per row."""
+
+    def __call__(
+        self, page: PageElement
+    ) -> list[DeferredValidation[DeCourtConnectRelatedCase]]:
+        records: list[DeferredValidation[DeCourtConnectRelatedCase]] = []
+        for table in section_tables(page, "related", "events"):
+            for row in _rows_as_maps(table):
+                docket_number = _pick(row, _CASE_ID_LABELS)
+                if docket_number is None:
+                    docket_number = self._first_case_id_shaped(row)
+                records.append(
+                    DeCourtConnectRelatedCase.raw(
+                        docket_number=clean_text(docket_number),
+                        extra_fields={
+                            label: value
+                            for label, value in row.items()
+                            if value.strip()
+                        },
+                    )
+                )
+        return records
+
+    @staticmethod
+    def _first_case_id_shaped(row: dict[str, str]) -> str | None:
+        """Pop the first value that looks like a Delaware case id.
+
+        The fallback for a header this parser does not recognise: the case id
+        is the one column whose *format* identifies it, so it can be found
+        without knowing what the court decided to call the column.
+        """
+        for label, value in list(row.items()):
+            if _CASE_ID_RE.match(value.strip()):
+                return row.pop(label)
+        return None
+
+
+class CaseEventsParser(JKentParser[DeCourtConnectDocketEntry]):
+    """Parse the Case Event Schedule section into docket-entry records.
+
+    Scheduled events are docket entries -- future-dated ones -- not a separate
+    kind of record, so they are emitted as ``DeCourtConnectDocketEntry`` tagged
+    ``source_section="case_event_schedule"`` and merged into the docket's
+    entries. Columns this parser cannot name land in ``extra_fields``.
+    """
+
+    def __call__(
+        self, page: PageElement
+    ) -> list[DeferredValidation[DeCourtConnectDocketEntry]]:
+        records: list[DeferredValidation[DeCourtConnectDocketEntry]] = []
+        for table in section_tables(page, "events", "parties"):
+            for index, row in enumerate(_rows_as_maps(table)):
+                raw_date = _pick(row, _EVENT_DATE_LABELS)
+                lines = (raw_date or "").split("\n")
+                records.append(
+                    DeCourtConnectDocketEntry.raw(
+                        date_filed=parse_date(lines[0] if lines else None),
+                        time_filed=parse_time(
+                            lines[1] if len(lines) > 1 else None
+                        ),
+                        description=clean_text(
+                            _pick(row, _EVENT_DESCRIPTION_LABELS)
+                        ),
+                        name=clean_text(_pick(row, _EVENT_NAME_LABELS)),
+                        sequence_number=index,
+                        source_section="case_event_schedule",
+                        extra_fields={
+                            label: value
+                            for label, value in row.items()
+                            if value.strip()
+                        },
+                    )
+                )
+        return records

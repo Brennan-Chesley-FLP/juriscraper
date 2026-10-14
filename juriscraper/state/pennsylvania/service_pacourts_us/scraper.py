@@ -169,7 +169,7 @@ class PaCourtsApiScraper(BaseScraper[_Yield]):
     # searches share this budget with the API fetches. Both hosts are AOPC,
     # and the portal's own scraper settled on a *slower* 15s ceiling, so
     # spending API budget on portal requests is the conservative direction.
-    rate_limits: ClassVar[list[Rate] | None] = [Rate(1, Duration.SECOND * 10)]
+    rate_limits: ClassVar[list[Rate] | None] = [Rate(1, Duration.SECOND * 15)]
 
     # For the cross-domain leg only: the UJS portal intermittently 400s (~1%)
     # on well-formed form POSTs carrying a fresh anti-forgery token. Default

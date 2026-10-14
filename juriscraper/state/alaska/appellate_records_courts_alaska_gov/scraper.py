@@ -201,7 +201,7 @@ class AlaskaScraper(BaseScraper[_Yield]):
                 url=f"{BASE_URL}/Search/CaseNumber?CaseNumber={search_term}",
                 headers={"Accept": "text/html"},
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={
                 "entry_point": entry_point,
                 "min_docket_number": min_docket_number,
@@ -260,7 +260,7 @@ class AlaskaScraper(BaseScraper[_Yield]):
                     url=source_url,
                     headers={"Accept": "text/html"},
                 ),
-                continuation=self.parse_case_general,
+                step=self.parse_case_general,
                 accumulated_data={"docket_data": docket_data, "tab_urls": {}},
                 deduplication_key=(
                     f"case_general:{docket_data['docket_number']}"
@@ -441,7 +441,7 @@ class AlaskaScraper(BaseScraper[_Yield]):
                 url=nxt["url"],
                 headers={"Accept": "text/html"},
             ),
-            continuation=self.parse_motion_detail,
+            step=self.parse_motion_detail,
             accumulated_data={
                 "docket_data": docket_data,
                 "tab_urls": tab_urls,
@@ -531,7 +531,7 @@ class AlaskaScraper(BaseScraper[_Yield]):
                 url=nxt["url"],
                 headers={"Accept": "text/html"},
             ),
-            continuation=self.parse_brief_history,
+            step=self.parse_brief_history,
             accumulated_data={
                 "docket_data": docket_data,
                 "tab_urls": tab_urls,
@@ -640,7 +640,7 @@ class AlaskaScraper(BaseScraper[_Yield]):
         yield Request(
             archive=True,
             request=HTTPRequestParams(method=HttpMethod.GET, url=url),
-            continuation=self.handle_document_download,
+            step=self.handle_document_download,
             accumulated_data={
                 "docket_number": docket_number,
                 "court": docket_data["court"],
@@ -661,7 +661,7 @@ class AlaskaScraper(BaseScraper[_Yield]):
     ) -> Generator[ScraperYield[_Yield], None, None]:
         """Navigate to the next available tab at or after ``next_tab``;
         emit the finished docket when the chain is exhausted."""
-        continuations = {
+        steps = {
             "parties": self.parse_case_parties,
             "records": self.parse_case_records,
             "docket": self.parse_case_docket,
@@ -682,14 +682,13 @@ class AlaskaScraper(BaseScraper[_Yield]):
                         url=url,
                         headers={"Accept": "text/html"},
                     ),
-                    continuation=continuations[tab],
+                    step=steps[tab],
                     accumulated_data={
                         "docket_data": docket_data,
                         "tab_urls": tab_urls,
                     },
                     deduplication_key=(
-                        f"{continuations[tab].__name__}:"
-                        f"{docket_data['docket_number']}"
+                        f"{steps[tab].__name__}:{docket_data['docket_number']}"
                     ),
                 )
                 return

@@ -181,7 +181,7 @@ class DWCourtsScraper(BaseScraper[DWWADocket]):
                 method=HttpMethod.GET,
                 url=SEARCH_URL,
             ),
-            continuation=self.fill_search_form,
+            step=self.fill_search_form,
             accumulated_data={
                 "court": court_id,
                 "court_code": court_code,
@@ -213,7 +213,7 @@ class DWCourtsScraper(BaseScraper[DWWADocket]):
                 "CRT_ITL_NU_appellate": accumulated_data["court_code"],
                 "caseNumber": accumulated_data["docket_number"],
             },
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data=accumulated_data,
         )
 
@@ -269,7 +269,7 @@ class DWCourtsScraper(BaseScraper[DWWADocket]):
                 method=HttpMethod.GET,
                 url=case_link,
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data=accumulated_data,
             deduplication_key=f"case_detail:{case_key}",
         )

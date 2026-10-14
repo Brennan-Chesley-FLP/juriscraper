@@ -133,7 +133,7 @@ class GeorgiaSupremeCourtScraper(BaseScraper[GaScDocket]):
                 params={"queryFilter": f"CaseNumber STARTS_WITH {prefix}"},
                 headers={"Accept": "application/json"},
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={
                 "prefix": prefix,
                 "entry_point": "dockets_by_year",
@@ -153,7 +153,7 @@ class GeorgiaSupremeCourtScraper(BaseScraper[GaScDocket]):
                 url=f"{CASE_DETAIL_URL}/{normalized}",
                 headers={"Accept": "application/json"},
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data={
                 "docket_number": normalized,
                 "entry_point": "docket_by_number",
@@ -183,7 +183,7 @@ class GeorgiaSupremeCourtScraper(BaseScraper[GaScDocket]):
                     url=f"{CASE_DETAIL_URL}/{case_number}",
                     headers={"Accept": "application/json"},
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "docket_number": case_number,
                     "preview_case_style": hit.get("caseStyle"),

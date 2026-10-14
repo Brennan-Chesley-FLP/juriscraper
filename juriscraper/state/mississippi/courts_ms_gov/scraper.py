@@ -188,7 +188,7 @@ class MississippiAppellateScraper(
                 data={**DOCKET_BODY, "case_num": str(cn)},
                 headers=XHR_HEADERS,
             ),
-            continuation=self.parse_docket_page,
+            step=self.parse_docket_page,
             accumulated_data={"case_num": cn},
             deduplication_key=f"docket_page:{cn}",
         )
@@ -210,14 +210,14 @@ class MississippiAppellateScraper(
 
         ``DocketPageParser`` owns the extraction; the step yields a fresh
         archive Request for every referenced PDF and a follow-on Request for
-        the parties tab whose continuation eventually emits the assembled
+        the parties tab whose step eventually emits the assembled
         ``MsAppDocket``.
         """
         self._check_challenge(response)
         cn = int(accumulated_data["case_num"])
         # Speculative miss (unassigned case_num): the driver has already
         # counted the outcome via actually_successful, but it still runs
-        # the continuation. Record the miss as an ``MsAppCaseUnavailable``
+        # the step. Record the miss as an ``MsAppCaseUnavailable``
         # for bookkeeping, then bail before the parser trips on the error
         # page.
         if SOFT_404_NEEDLE in response.text:
@@ -247,7 +247,7 @@ class MississippiAppellateScraper(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET, url=doc.download_url
                 ),
-                continuation=self.download_document,
+                step=self.download_document,
                 expected_type="pdf",
                 accumulated_data={"doc": doc.model_dump(mode="json")},
                 deduplication_key=f"{cn}-{doc.file_name}",
@@ -275,7 +275,7 @@ class MississippiAppellateScraper(
                 data={**PARTIES_BODY, "case_num": str(cn)},
                 headers=XHR_HEADERS,
             ),
-            continuation=self.parse_parties,
+            step=self.parse_parties,
             accumulated_data=accumulated_data,
             deduplication_key=f"parse_parties:{cn}",
         )
@@ -306,7 +306,7 @@ class MississippiAppellateScraper(
                 data={**LCOURT_BODY, "case_num": str(cn)},
                 headers=XHR_HEADERS,
             ),
-            continuation=self.parse_trial_court,
+            step=self.parse_trial_court,
             accumulated_data=accumulated_data,
             deduplication_key=f"parse_trial_court:{cn}",
         )
@@ -344,7 +344,7 @@ class MississippiAppellateScraper(
                 data={**ORALARG_BODY, "case_num": str(cn)},
                 headers=XHR_HEADERS,
             ),
-            continuation=self.parse_oral_arguments,
+            step=self.parse_oral_arguments,
             accumulated_data=accumulated_data,
             deduplication_key=f"parse_oral_arguments:{cn}",
         )

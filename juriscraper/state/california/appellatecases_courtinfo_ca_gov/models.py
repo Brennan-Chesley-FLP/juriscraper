@@ -7,6 +7,8 @@ from jkent.common.data_models import ScrapedData
 
 from juriscraper.state.common_models import CleanString, HarmonizedCaseName
 
+from .vocabularies import CodedPublicationStatus
+
 # Court ID mapping: CourtListener ID → display name. IDs match the classic
 # juriscraper opinion scrapers (juriscraper/opinions/.../state/calctapp_*),
 # which give each Fourth-District division its own id — so every site
@@ -219,8 +221,17 @@ class CaAppDisposition(ScrapedData):
     paragraph. CoA only.
     """
 
-    publication_status: CleanString | None = None
-    """Publication status. CoA only."""
+    publication_status: CodedPublicationStatus = None
+    """Publication status, coded. CoA only.
+
+    None both when the court stated nothing and when it stated something
+    :class:`~.vocabularies.CaPublicationStatus` does not cover;
+    ``publication_status_raw`` tells the two apart and is always the court's
+    own words.
+    """
+
+    publication_status_raw: CleanString | None = None
+    """The Publication Status cell verbatim, as the site printed it."""
 
     author: CleanString | None = None
     """Opinion author. CoA only."""
@@ -533,12 +544,17 @@ class CaUnavailableOpinion(ScrapedData):
     evidence: CaOpinionEvidence
     """Which signal showed a published opinion exists."""
 
-    publication_status: CleanString | None = None
-    """The disposition's publication status (e.g. 'Signed Published').
+    publication_status: CodedPublicationStatus = None
+    """The disposition's publication status, coded (e.g. ``SIGNED_PUBLISHED``).
 
     Court of Appeal only -- the Supreme Court states none, so these records rely
-    on ``disposition_description`` instead.
+    on ``disposition_description`` instead. Every one of these records is a
+    *published* opinion, so in practice this is one of the five members whose
+    ``published`` is true.
     """
+
+    publication_status_raw: CleanString | None = None
+    """The Publication Status cell verbatim, as the site printed it."""
 
     case_name: HarmonizedCaseName | None = None
     """Case caption."""
@@ -599,7 +615,21 @@ class CaAppDocket(ScrapedData):
     """Case category (SC) or case type (CoA)."""
 
     division: CleanString | None = None
-    """Division number or name (e.g., '4', 'SF')."""
+    """Division number or name (e.g., '4', 'SF').
+
+    Populated on exactly three courts, and it means something different on the
+    Supreme Court than on the Courts of Appeal. The SC's values are its sitting
+    locations (SF, LA, SD, FR, SA), not divisions. The First and Second
+    Districts give a real division number. The remaining six courts render the
+    ``Division:`` label with an empty value -- the Fourth District's divisions
+    are already carried by the court id, and the Third, Fifth and Sixth have no
+    divisions -- so None there is the site's own blank, not a missed selector.
+
+    The legacy tail is the court's, not ours: 30,121 Second District dockets
+    say ``p`` and 2,491 say ``a``; 522 First District ones say ``v``. Verified
+    against the stored page for B004324, whose markup reads
+    ``<dt>Division:</dt><dd>p</dd>``.
+    """
 
     date_filed: date | None = None
     """Filing date (CoA) or start date (SC)."""
@@ -611,7 +641,14 @@ class CaAppDocket(ScrapedData):
     """Case status (e.g., 'closed; remittitur issued'). SC only."""
 
     date_argued: str | None = None
-    """Oral argument date/time, raw text. CoA only (CL ``date_argued``)."""
+    """Oral argument date/time, raw text. CoA only (CL ``date_argued``).
+
+    Also absent on the Fourth District, Division 2, which never emits the
+    ``Oral Argument Date/Time:`` row -- 0 of 83,116 dockets in the August 2026
+    sweep, including 22,259 that have an oral-argument docket entry. Checked
+    against six random closed-and-argued Division 2 pages: the label is not in
+    the markup. The other seven CoA courts fill it on 7-23% of dockets.
+    """
 
     issues: CleanString | None = None
     """Issues text. SC only."""
@@ -656,8 +693,13 @@ class CaAppDocket(ScrapedData):
     scheduled_actions: list[CaAppScheduledAction] = []
     """Outstanding deadlines from the CoA "Future Scheduled Actions" tab.
 
-    Kept out of ``entries`` on purpose: these have not happened. Always empty
-    for Supreme Court dockets, which have no such tab.
+    Kept out of ``entries`` on purpose: these have not happened.
+
+    Empty on three courts, because their pages carry no ``a#actionTab`` at all
+    and so the tab is never fetched: the Supreme Court (six tabs, not seven),
+    the Third District and the Fifth District. Verified on stored parties pages
+    for each -- 0 of 296,776 / 98,044 / 28,677 dockets respectively in the
+    August 2026 sweep, against 1.6-8.4% of dockets on the other six courts.
     """
 
     briefs: list[CaAppBrief] = []

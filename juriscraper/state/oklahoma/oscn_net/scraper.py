@@ -137,7 +137,7 @@ class OklahomaScraper(BaseScraper[OkDocket]):
                     "FiledDateH": end.strftime("%m/%d/%Y"),
                 },
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={
                 "search_start": start.isoformat(),
                 "search_end": end.isoformat(),
@@ -156,7 +156,7 @@ class OklahomaScraper(BaseScraper[OkDocket]):
                 method=HttpMethod.GET,
                 url=detail_url,
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data={
                 "appellate_case_number": docket_number,
                 "entry_point": entry_point,
@@ -303,7 +303,7 @@ class OklahomaScraper(BaseScraper[OkDocket]):
                     method=HttpMethod.GET,
                     url=lookup_url,
                 ),
-                continuation=self.parse_lower_court_case,
+                step=self.parse_lower_court_case,
                 accumulated_data={
                     "docket": docket.model_dump(mode="json"),
                     "county": county_hint,
@@ -364,7 +364,7 @@ class OklahomaScraper(BaseScraper[OkDocket]):
         local_filepath: str | None,
         accumulated_data: dict,
     ) -> Generator[ScraperYield[OkDocket], None, None]:
-        """No-op continuation for archived TIFF/PDF downloads.
+        """No-op step for archived TIFF/PDF downloads.
 
         kent's archive store records the file location keyed by the
         ``deduplication_key`` we supply; we don't need to mutate the
@@ -412,7 +412,7 @@ class OklahomaScraper(BaseScraper[OkDocket]):
             yield Request(
                 archive=True,
                 request=HTTPRequestParams(method=HttpMethod.GET, url=url),
-                continuation=self.handle_document_download,
+                step=self.handle_document_download,
                 expected_type=expected_type,
                 accumulated_data={
                     "docket_number": docket.docket_number,

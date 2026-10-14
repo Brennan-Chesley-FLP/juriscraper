@@ -174,7 +174,7 @@ class ArizonaAppellateScraper(BaseScraper[_Yield]):
         return Request(
             archive=True,
             request=HTTPRequestParams(method=HttpMethod.GET, url=pdf_url),
-            continuation=self.handle_pdf_archive,
+            step=self.handle_pdf_archive,
             expected_type="pdf",
             accumulated_data={
                 "court": court,
@@ -209,7 +209,7 @@ class ArizonaAppellateScraper(BaseScraper[_Yield]):
                         url=_case_list_url(court, case_type, by_update=True),
                         headers={"Accept": "text/html"},
                     ),
-                    continuation=self.parse_case_list_update,
+                    step=self.parse_case_list_update,
                     accumulated_data={
                         "court": court,
                         "case_type": case_type,
@@ -236,7 +236,7 @@ class ArizonaAppellateScraper(BaseScraper[_Yield]):
                         url=_case_list_url(court, case_type, by_update=False),
                         headers={"Accept": "text/html"},
                     ),
-                    continuation=self.parse_case_list_full,
+                    step=self.parse_case_list_full,
                     accumulated_data={"court": court, "case_type": case_type},
                     deduplication_key=f"case_list_full:{court}:{case_type}",
                 )
@@ -253,7 +253,7 @@ class ArizonaAppellateScraper(BaseScraper[_Yield]):
                     url=_index_url(court, "lower_court"),
                     headers={"Accept": "text/html"},
                 ),
-                continuation=self.parse_lower_court_index,
+                step=self.parse_lower_court_index,
                 accumulated_data={"court": court},
                 deduplication_key=f"lower_court_index:{court}",
             )
@@ -270,7 +270,7 @@ class ArizonaAppellateScraper(BaseScraper[_Yield]):
                     url=_index_url(court, "party"),
                     headers={"Accept": "text/html"},
                 ),
-                continuation=self.parse_party_index,
+                step=self.parse_party_index,
                 accumulated_data={"court": court},
                 deduplication_key=f"party_index:{court}",
             )
@@ -287,7 +287,7 @@ class ArizonaAppellateScraper(BaseScraper[_Yield]):
                     url=_index_url(court, "attorney"),
                     headers={"Accept": "text/html"},
                 ),
-                continuation=self.parse_attorney_index,
+                step=self.parse_attorney_index,
                 accumulated_data={"court": court},
                 deduplication_key=f"attorney_index:{court}",
             )

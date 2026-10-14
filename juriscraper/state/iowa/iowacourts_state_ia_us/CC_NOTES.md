@@ -130,7 +130,7 @@ case-detail tab fetches. The pattern:
 
 **Implication for the scraper**: tabs must be fetched in a strict
 serialized chain per case, with `AViewCase` always first. The kent driver
-preserves cookies across a Request continuation chain and does not
+preserves cookies across a Request step chain and does not
 interleave step responses for one chain with HTTP calls from another, so
 this pattern is safe within a single chain.
 
@@ -267,8 +267,8 @@ are no downloads and nothing at priority 0–1.
 
 `AViewCase` sets the session's active caseid and returns Summary; the
 later tabs (`AViewLongTitle`/`AViewDocket`/`AViewParties`) read the session
-value, so the tabs must run as a single serialized continuation chain with
-`AViewCase` first. The driver preserves cookies across a continuation chain
+value, so the tabs must run as a single serialized step chain with
+`AViewCase` first. The driver preserves cookies across a step chain
 and doesn't interleave one chain's responses with another's, so this holds.
 
 ### Deduplication keys (§6)

@@ -173,7 +173,7 @@ class AzCoa2Scraper(BaseScraper[AzCoa2Docket]):
                 url=SEARCH_FORM_URL,
                 headers={"Accept": "text/html"},
             ),
-            continuation=self.submit_search_form,
+            step=self.submit_search_form,
             accumulated_data=accumulated,
             deduplication_key=deduplication_key,
         )
@@ -189,7 +189,7 @@ class AzCoa2Scraper(BaseScraper[AzCoa2Docket]):
                 params={"caseID": str(case_id)},
                 headers={"Accept": "text/html"},
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data={"case_id": case_id, "entry_point": entry_point},
             deduplication_key=f"case_detail:{case_id}",
         )
@@ -240,7 +240,7 @@ class AzCoa2Scraper(BaseScraper[AzCoa2Docket]):
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data=accumulated_data,
             deduplication_key=dedup,
         )

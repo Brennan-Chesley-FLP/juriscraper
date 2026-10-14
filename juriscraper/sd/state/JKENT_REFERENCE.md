@@ -142,9 +142,9 @@ Yield a `Request` to fetch a page; yield `ParsedData` to emit a finished record.
 Request(
     request=HTTPRequestParams(method=HttpMethod.GET, url=url,
                               headers={"Accept": "application/json"}),
-    continuation=self.parse_next,        # bound method or its name; priority inherited
+    step=self.parse_next,                # bound method or its name; priority inherited
     accumulated_data={...},              # deep-copied per request; safe to fan out
-    deduplication_key="continuation:ids",# stable key — see SCRAPER_STANDARDS §6
+    deduplication_key="step:ids",        # stable key — see SCRAPER_STANDARDS §6
 )
 ```
 
@@ -153,15 +153,15 @@ Request(
 | Field | Meaning |
 | --- | --- |
 | `request` | the `HTTPRequestParams` |
-| `continuation` | next step: bound method (auto-resolved to its name; inherits the target's priority) or a name string |
-| `accumulated_data` | dict carried to the continuation (deep-copied per request) |
+| `step` | next step: bound method (auto-resolved to its name; inherits the target's priority) or a name string |
+| `accumulated_data` | dict carried to the step (deep-copied per request) |
 | `priority` | queue order, lower runs sooner; usually set on `@step` instead |
 | `deduplication_key` | `str` for a stable key, or `SkipDeduplicationCheck()` to opt out (pagination postbacks, session warmups only) |
-| `archive` | `True` to download the body to disk; auto-assigns priority 1; continuation gets `local_filepath` |
+| `archive` | `True` to download the body to disk; auto-assigns priority 1; the step gets `local_filepath` |
 | `expected_type` | hint for archive downloads (`"pdf"`, `"audio"`, `"video"`, ...) |
 | `nonnavigating` | `True` for a fetch that isn't a page navigation (e.g. an API pagination call under a browser driver) |
 | `via` | `ViaLink`/`ViaFormSubmit` metadata; set for you by `link.follow()` / `form.submit()` |
-| `bypass_rate_limit` | skip the rate limiter for this one request |
+| `rate_limit` | which rate-limit *lane* gates this request, by name. `None` (default) = the scraper's `rate_limits`, unless the target step declares one via `@step(rate_limit=...)`, which is inherited like priority. `NO_RATE_LIMIT` (`"none"`) is never throttled — for fetches off the scraped origin, e.g. expiring presigned links. Any other name must be declared in the scraper's `named_rate_limits`; an unknown one fails at enqueue |
 
 `HTTPRequestParams` fields (`jkent/data_types.py`): `method`, `url`, `params`,
 `data`, `json`, `headers`, `cookies`, `files`, `auth`, `timeout`,
@@ -203,8 +203,8 @@ lean on it.
 rows  = page.query(XPath("//table[@id='results']//tr"), "result rows", min_count=1)
 links = page.find_links(Selector.XPath("//a[@class='case']"), "case links", min_count=0)
 form  = page.find_form(CSS("#search"), "search form")
-yield link.follow(continuation=self.parse_detail)      # attaches via= metadata
-yield form.submit(data={...}, continuation=self.parse_results)
+yield link.follow(step=self.parse_detail)             # attaches via= metadata
+yield form.submit(data={...}, step=self.parse_results)
 ```
 
 Selectors must be explicitly typed: `XPath(...)` / `CSS(...)` (or
@@ -226,7 +226,7 @@ plain HTTP (this is correct for pure JSON/REST or plain-HTML sites). Members
 | --- | --- |
 | `JS_EVAL` | site needs JavaScript executed (SPA / JS-rendered content) |
 | `FF_ALIKE` / `CHROME_ALIKE` | requires a Firefox-like / Chrome-like browser profile |
-| `HCAP_HANDLER` / `RCAP_HANDLER` / `CFCAP_HANDLER` | hCaptcha / reCAPTCHA / Cloudflare challenge handling |
+| `RCAP_HANDLER` / `CFCAP_HANDLER` | reCAPTCHA / Cloudflare challenge handling (there is no hCaptcha handler) |
 | `IMAGE_CAPTCHA_HANDLER` | image-captcha solving |
 | `FOLLOW_REDIRECTS` | driver should follow redirects |
 | `STRICTLY_SERIAL` | ViewState/session sites that must run one request at a time |
@@ -242,9 +242,9 @@ default). For "200 with an error body" (soft-404s, session-timeout pages),
 override `actually_successful(self, response) -> bool`. See SCRAPER_STANDARDS
 §10.
 
-**`actually_successful` does not suppress the continuation.** It feeds the
+**`actually_successful` does not suppress the step.** It feeds the
 **speculation tracker only** — `_track_speculation_outcome` calls it to decide
-whether a probe counts as a hit, and the worker then runs the continuation on
+whether a probe counts as a hit, and the worker then runs the step on
 the same response regardless (`worker.py`: track, *then*
 `complete_request(...)`). So a soft-404 page still reaches your `@step`, where
 the parser's `min_count` assertions will raise on the missing content. Detect

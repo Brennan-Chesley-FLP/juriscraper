@@ -67,7 +67,7 @@ class TestScraper(BaseScraper[MsAppDocket]):
                 data=DOCKET_BODY.format(cn=CASE_NUM),
                 headers=XHR_HEADERS,
             ),
-            continuation=self.parse_docket_page,
+            step=self.parse_docket_page,
             accumulated_data={"case_num": CASE_NUM},
         )
 

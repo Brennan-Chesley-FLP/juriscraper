@@ -1,0 +1,81 @@
+scraper: juriscraper.state.delaware.courtconnect_courts_delaware_gov.scraper:DeCourtConnectScraper
+# Dispositioned against the full 54,502-page run corpus (46 run dbs, cut off
+# 2026-09-16). Every remaining cluster is page furniture; nothing the site
+# serves on this endpoint is unclaimed.
+#
+# Two clusters were resolved by extraction rather than by an entry here and so
+# are deliberately absent: the Related Cases link list (now
+# RelatedCasesParser) and the Case Event Schedule's Date/Time, Room and
+# Location columns (now CaseEventsParser). See CC_NOTES.md.
+residuals:
+  - step: parse_docket_report
+    path: html/body/div/font/table/tr/th
+    ident: Column headers of the Case Parties and Docket Entries tables
+    disposition: chrome
+    note: >-
+      The six parties headers (Seq #, Assoc, Party End Date, Type, ID, Name)
+      and the four docket-entry ones (Filing Date, Description, Name,
+      Monetary). Every column beneath them is read into
+      DeCourtConnectParty / DeCourtConnectDocketEntry; the labels themselves
+      are template text. A corpus-wide census of every <th> on the endpoint
+      found only these plus the event schedule's five, which are now parsed
+      by label.
+    example: 'Seq #'
+  - step: parse_docket_report
+    path: html/body/div/font/a/b/u
+    ident: Underlined section headings
+    disposition: chrome
+    note: >-
+      "Report Selection Criteria", "Case Description", "Related Cases",
+      "Case Event Schedule" and "Docket Entries" -- the headings the site
+      hangs off its unclosed <a name="..."> section anchors. The anchors are
+      how the parsers find each section; the heading text names nothing that
+      is not already a field.
+    example: Case Description
+  - step: parse_docket_report
+    path: html/body/div/font/a/i
+    ident: '"No X were found" placeholders for the empty sections'
+    disposition: chrome
+    note: >-
+      What the site prints in place of a section that has no rows: "No
+      related cases were found.", "No case events were found.", "No docket
+      entries found." The absence is already representable -- the
+      corresponding list on DeCourtConnectDocket is simply empty -- so the
+      sentence itself carries nothing. It is, however, what makes these
+      sections look empty: 26,964 of 26,966 case pages print the related-case
+      placeholder and 26,901 the event one.
+    example: No related cases were found.
+  - step: parse_docket_report
+    path: html/body/div/font/i
+    ident: The soft-404 sentinel
+    disposition: chrome
+    note: >-
+      "No case was found." -- what the docket report returns, with HTTP 200,
+      for a case_id that does not exist. It is the signal
+      ``actually_successful`` and the step both test on, and it stops
+      speculation; there is no case behind it to record. 27,536 of the
+      corpus's 54,502 probes are misses.
+    example: No case was found.
+  - step: parse_docket_report
+    path: html/body/div/font/table/tr/td
+    ident: The Report Selection Criteria block echoing the request
+    disposition: chrome
+    note: >-
+      The page opens with a label/value table of the same shape as the Case
+      Description block, echoing the three request parameters back: Case ID
+      (the requested case_id), Docket Start Date and Docket Ending Date (both
+      always blank -- the scraper sends them empty because the site's own form
+      does, and CC_NOTES.md records that populating them changes nothing).
+      The Case ID value is the only non-blank one, and it is the same string
+      the Case Description block prints and the parser reads as
+      docket_number. It appears on all 54,502 pages, misses included, because
+      the block renders before the site knows whether the case exists.
+    example: N11A-01-001
+  - step: parse_docket_report
+    path: html/body/div/font/a/b
+    ident: The un-underlined "Case Parties" heading
+    disposition: chrome
+    note: >-
+      The one section heading the site renders <b> without <u>, which is why
+      it clusters separately from the others. Same disposition.
+    example: Case Parties

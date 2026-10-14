@@ -496,7 +496,7 @@ class ConnScraper(
                 method=HttpMethod.GET,
                 url=config["archive_url"],
             ),
-            continuation=self.parse_archive_index,
+            step=self.parse_archive_index,
             accumulated_data={
                 "court_id": first_court,
                 "remaining_courts": sorted(target_courts - {first_court}),
@@ -515,7 +515,7 @@ class ConnScraper(
                 method=HttpMethod.GET,
                 url=config["audio_url"],
             ),
-            continuation=self.parse_oral_arguments_index,
+            step=self.parse_oral_arguments_index,
             accumulated_data={
                 "court_id": first_court,
                 "remaining_courts": sorted(target_courts - {first_court}),
@@ -561,7 +561,7 @@ class ConnScraper(
                     method=HttpMethod.GET,
                     url=link.url,
                 ),
-                continuation=self.parse_year_page,
+                step=self.parse_year_page,
                 accumulated_data={
                     "year": year,
                     "court_id": court_id,
@@ -577,7 +577,7 @@ class ConnScraper(
                     method=HttpMethod.GET,
                     url=config["archive_url"],
                 ),
-                continuation=self.parse_archive_index,
+                step=self.parse_archive_index,
                 accumulated_data={
                     "court_id": next_court,
                     "remaining_courts": remaining_courts[1:],
@@ -747,7 +747,7 @@ class ConnScraper(
                         method=HttpMethod.GET,
                         url=first_url,
                     ),
-                    continuation=self.handle_opinion_download,
+                    step=self.handle_opinion_download,
                     expected_type="pdf",
                     accumulated_data={
                         **cluster_data,
@@ -785,7 +785,7 @@ class ConnScraper(
                     method=HttpMethod.GET,
                     url=next_opinion["download_url"],
                 ),
-                continuation=self.handle_opinion_download,
+                step=self.handle_opinion_download,
                 expected_type="pdf",
                 accumulated_data={
                     **accumulated_data,
@@ -895,7 +895,7 @@ class ConnScraper(
                     url=response.url,
                     data=post_data,
                 ),
-                continuation=self.parse_court_year_page,
+                step=self.parse_court_year_page,
                 accumulated_data={
                     "court_id": court_id,
                     "court_year": link_text,
@@ -909,7 +909,7 @@ class ConnScraper(
                 method=HttpMethod.GET,
                 url=response.url,
             ),
-            continuation=self.parse_court_year_page,
+            step=self.parse_court_year_page,
             accumulated_data={
                 "court_id": court_id,
                 "court_year": None,
@@ -1141,7 +1141,7 @@ class ConnScraper(
                 method=HttpMethod.GET,
                 url=audio_url,
             ),
-            continuation=self.parse_audio_player_page,
+            step=self.parse_audio_player_page,
             accumulated_data={
                 "docket_id": docket_id,
                 "court_id": court_id,
@@ -1210,7 +1210,7 @@ class ConnScraper(
                     method=HttpMethod.GET,
                     url=config["audio_url"],
                 ),
-                continuation=self.parse_oral_arguments_index,
+                step=self.parse_oral_arguments_index,
                 accumulated_data={
                     "court_id": next_court,
                     "remaining_courts": remaining_courts[1:],
@@ -1252,7 +1252,7 @@ class ConnScraper(
                 method=HttpMethod.GET,
                 url=mp3_url,
             ),
-            continuation=self.handle_audio_download,
+            step=self.handle_audio_download,
             expected_type="audio",
             accumulated_data=accumulated_data,
         )
@@ -1312,7 +1312,7 @@ class ConnScraper(
                 method=HttpMethod.GET,
                 url=f"{DOCKET_CONFIG['case_detail_url']}?CRN={crn}",
             ),
-            continuation=self.parse_docket_page,
+            step=self.parse_docket_page,
             accumulated_data={
                 "crn": crn,
                 "court_ids": list(court_ids) if court_ids else None,
@@ -1651,7 +1651,7 @@ class ConnScraper(
                         method=HttpMethod.GET,
                         url=entry_data["document_url"],
                     ),
-                    continuation=self.handle_docket_document_download,
+                    step=self.handle_docket_document_download,
                     expected_type="pdf",
                     accumulated_data={
                         "entry": entry.model_dump(mode="json"),
@@ -1670,7 +1670,7 @@ class ConnScraper(
                     method=HttpMethod.GET,
                     url=trial_court_docket_url,
                 ),
-                continuation=self.parse_trial_court_docket,
+                step=self.parse_trial_court_docket,
                 accumulated_data={
                     "appellate_docket_id": docket_id,
                     "trial_docket_number": trial_court_docket_number,
@@ -2379,7 +2379,7 @@ class ConnScraper(
                         method=HttpMethod.GET,
                         url=entry_data["document_url"],
                     ),
-                    continuation=self.handle_trial_court_document_download,
+                    step=self.handle_trial_court_document_download,
                     expected_type="pdf",
                     accumulated_data={
                         "entry": entry.model_dump(mode="json"),

@@ -149,7 +149,7 @@ class NJCourtsScraper(BaseScraper[NJDocket | NJDocument]):
         )
         yield Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=url),
-            continuation=self.parse_scotnj_listing,
+            step=self.parse_scotnj_listing,
             accumulated_data={
                 "court": SCOTNJ_COURT_ID,
                 "source_url": url,
@@ -185,7 +185,7 @@ class NJCourtsScraper(BaseScraper[NJDocket | NJDocument]):
         )
         yield Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=url),
-            continuation=self.parse_scad_argued_listing,
+            step=self.parse_scad_argued_listing,
             accumulated_data={
                 "court": SCAD_COURT_ID,
                 "source_url": url,
@@ -210,7 +210,7 @@ class NJCourtsScraper(BaseScraper[NJDocket | NJDocument]):
             request=HTTPRequestParams(
                 method=HttpMethod.GET, url=SCAD_ARGUMENT_SCHEDULE_URL
             ),
-            continuation=self.parse_argument_schedule,
+            step=self.parse_argument_schedule,
             accumulated_data={
                 "court": SCAD_COURT_ID,
                 "source_url": SCAD_ARGUMENT_SCHEDULE_URL,
@@ -235,7 +235,7 @@ class NJCourtsScraper(BaseScraper[NJDocket | NJDocument]):
             page=page,
             response=response,
             accumulated_data=accumulated_data,
-            continuation=self.parse_scotnj_listing,
+            step=self.parse_scotnj_listing,
             include_question=True,
         )
 
@@ -251,7 +251,7 @@ class NJCourtsScraper(BaseScraper[NJDocket | NJDocument]):
             page=page,
             response=response,
             accumulated_data=accumulated_data,
-            continuation=self.parse_scad_argued_listing,
+            step=self.parse_scad_argued_listing,
             include_question=False,
         )
 
@@ -261,7 +261,7 @@ class NJCourtsScraper(BaseScraper[NJDocket | NJDocument]):
         page: PageElement,
         response: Response,
         accumulated_data: dict,
-        continuation,
+        step,
         include_question: bool,
     ) -> Generator[ScraperYield[NJDocket | NJDocument], None, None]:
         court: str = accumulated_data["court"]
@@ -273,7 +273,7 @@ class NJCourtsScraper(BaseScraper[NJDocket | NJDocument]):
         if next_url:
             yield Request(
                 request=HTTPRequestParams(method=HttpMethod.GET, url=next_url),
-                continuation=continuation,
+                step=step,
                 accumulated_data={
                     **accumulated_data,
                     "source_url": next_url,
@@ -328,7 +328,7 @@ class NJCourtsScraper(BaseScraper[NJDocket | NJDocument]):
                     url=doc.document_url,
                     headers={"Accept": _accept_header(kind)},
                 ),
-                continuation=self.handle_document_download,
+                step=self.handle_document_download,
                 expected_type=kind,
                 accumulated_data={
                     "docket_number": docket_number,

@@ -119,7 +119,7 @@ jent --db-dir <runs> --repo . '<selection>' residuals \
     --record juriscraper/state/alaska/appellate_records_courts_alaska_gov/residuals.yaml
 ```
 
-There is no `schemas.json`: every continuation serves HTML.
+There is no `schemas.json`: every step serves HTML.
 
 ## Verified
 

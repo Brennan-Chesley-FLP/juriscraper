@@ -139,9 +139,22 @@ The site has two distinct page layouts: **Supreme Court** and **Court of Appeal*
   also `mainCaseScreen.cfm`. Recorded only; the scraper does not follow it
   into `dist=0`.
 
-Note: `Division` is present as a label on every CoA page but is empty
-throughout the Third District (it has no divisions) — a null `division` there
-is correct, not a parse failure.
+Note: `Division` is present as a label on every CoA page but its `<dd>` is
+empty on five of the seven Courts of Appeal — a null `division` there is
+correct, not a parse failure. Measured over `cal-august` (all nine courts):
+populated on the First (120,259 of 120,260) and Second (334,458 of 334,509)
+districts only, and null on **all** dockets of the Third, Fifth, Sixth, and
+all three Fourth-District divisions. The Third, Fifth and Sixth have no
+divisions at all; the Fourth's divisions are addressed by `dist` (41/42/43)
+and so are already carried by the court id, which is why the site leaves the
+field blank there rather than printing "3".
+
+Where it *is* populated the vocabulary is not purely numeric. The First
+District prints `1`-`5` plus `v` (522), `d` (6) and `a` (2); the Second prints
+`1`-`8` plus `p` (30,121) and `a` (2,491). These are the site's own values,
+not a parse artifact — B004324's summary literally serves `<dd>p</dd>` and its
+tab banner reads "Division p" — so they are stored verbatim. They cluster on
+pre-1990 cases and are left uninterpreted rather than mapped to a number.
 
 ### The tab banner (every tab except Case Summary)
 
@@ -500,8 +513,15 @@ Two cautions. **`archive` is not SC-only** — the Third District uses it for
 whose disposition reads "Signed Published" have their file under `nonpub`, and
 97 "Signed Unpublished" ones sit under `revpub`. Use
 `CaAppDisposition.publication_status`. An unrecognised segment becomes
-`UNKNOWN` rather than failing the scrape (only 2 of 9 courts swept); the raw
-segment always remains in `source_url`.
+`UNKNOWN` rather than failing the scrape; the raw segment always remains in
+`source_url`.
+
+**The vocabulary is now confirmed complete.** It was written when only 2 of
+the 9 courts had been swept. Across `cal-august` — all nine courts, 236,000
+`CaDocument` records — **zero** fall through to `UNKNOWN`, so the five
+members above cover every collection the site serves. `_missing_` stays as
+the guard for future drift. Orders remain Supreme-Court-only (8 records,
+0 in every Court of Appeal), as designed.
 
 #### Published opinions the site will not serve (`CaUnavailableOpinion`)
 courts.ca.gov only serves opinion files for a limited window, so the site
@@ -544,6 +564,15 @@ So 3,655 of CA3's 43,404 status-bearing dockets (8.4%) are published, but only
 about 1,008 come with a downloadable file. These skew old — heaviest in
 1986-1990, only a handful after 2020 — consistent with the serving window rather
 than a scrape failure.
+
+**That vocabulary is now confirmed exhaustive.** Swept across all seven Courts
+of Appeal in `cal-august`, the set of distinct `publication_status` values is
+exactly the eight above — no court contributes a ninth — and the Supreme Court
+contributes none at all, confirming it has no such field. `_is_published`
+classifies all eight correctly, and its `depublished` guard is load-bearing
+rather than defensive: "Depublished - Review Granted or By Order" occurs 294
+times across the districts, and plain substring matching would have counted
+every one of them as published.
 
 The check keys on "the summary page linked no document", not on "no `CaDocument`
 exists": the archive requests are still in flight when the docket is assembled,
@@ -733,6 +762,124 @@ multi-result pagination — are both implemented now. Neither is exercised by
 the `cal-complete` corpus, which predates them: no `scheduledActions.cfm` and
 no `&start=26` response was ever fetched. Both were designed against live
 pages instead, and both are described in full above.
+
+### Re-verified against `cal-august` (2026-09-24)
+
+A second corpus — `../juriscraper-runs/cal-august/`, 9 run dbs, one per
+court, 7,934,526 requests, **0 errors**, 1,590,894 results, **0 validation
+failures** — now covers all nine courts, and both previously-unexercised
+items with it:
+
+- **Scheduled Actions is exercised**: 695,839 `scheduledActions.cfm` pages
+  across six of the seven Courts of Appeal. (The Third and Fifth District dbs
+  predate the step and hold none — a corpus gap, not a scraper one.) Rows
+  land on 1.9-3.5% of dockets, which is the expected shape: only an open case
+  has outstanding deadlines. Residuals are clean both over a plain sample and
+  over a sample restricted to pages that actually *have* a table — the latter
+  matters, because ~97% of these pages are the empty "No information found."
+  state and a plain slice can report "no residual" having never seen a
+  populated one. The column set is `Description | Due Date | Notes` on every
+  populated page checked, matching the live verification above.
+- **Multi-result pagination is exercised**: 32 `&start=26` fetches and 27
+  `multi_result_page` steps. Zero `multi_result_revisit` requests,
+  so the stranded-`doc_id` hop has still never been needed — as predicted.
+
+**Final state, after the fixes below** — `report.py` re-run full-width over
+all nine dbs (4h26m, 2026-09-25):
+
+| check | result |
+|---|---|
+| unidentified residual clusters | **0 on every one of the nine courts** |
+| orphaned, intersected across all nine | **0 of 19** — every entry is exercised by at least one court |
+| errors | 0, across 7,934,526 requests |
+| `pending` / `out-of-scope` entries | none; the ledger is 19 entries, all `chrome` |
+
+Per-court orphan counts still read 1-4. That is the sampling artifact again,
+one level up: a court simply may not contain a given page state. The
+intersection is what matters, and at zero it says no entry in the ledger is
+dead weight. Each court still exits 1 on `--check`, for the selector-coverage
+reason documented below — read the `unidentified` row, not the exit code.
+
+Sampling said the ledger was clean. **The full-width sweep said otherwise**,
+and it was right — see "What sampling missed" below. Two real defects and one
+missing `chrome` entry came out of running `report.py` over all nine dbs
+rather than over slices of them. Orphan counts reported against a *slice* are
+still not meaningful (a 60-page sample flags the Cloudflare and
+application-error entries simply because no page in the slice was one), but
+"zero unidentified on a 60-page sample" turned out not to be meaningful
+either.
+
+### What sampling missed
+
+Per-court samples of 40-150 pages reported zero unidentified clusters on
+every step. The full-width run found 42 distinct clusters. They are
+three things, and none of them could have shown up in a sample — the two page
+states involved occur on **~34 pages out of 7.9M** (0.0004%):
+
+| pages | courts | cluster | disposition |
+|---|---|---|---|
+| ~25 | all 9 | Cloudflare edge **502 "Bad gateway"** page | bug — see below |
+| ~9 | 2 | Cloudflare **"Just a moment..."** challenge | bug — see below |
+| 36 | 6 | multi-result **`<< previous`** control | `chrome`, now in the ledger |
+
+The lesson for the next pass on this scraper: a page state that appears on a
+handful of pages per million is invisible to any feasible sample, and the
+ones that matter most here are exactly of that shape — they are *failure*
+pages, which are rare by definition and damaging out of proportion to their
+count, because each one silently truncates a docket.
+
+### Cloudflare pages were being parsed as real content
+
+`_check_502_bad_gateway` matched `//h1[contains(., '502 Bad Gateway')]` — the
+*origin's* nginx error page. Cloudflare fronts this site, and when the origin
+is unreachable Cloudflare serves its **own** page instead, which splits the
+status across two spans:
+
+```html
+<h1><span>Bad gateway</span> <span class="code-label">Error code 502</span></h1>
+```
+
+That heading's text is `"Bad gateway Error code 502"` and never contains
+`"502 Bad Gateway"`, so the detector never fired. Nothing else marked the page
+as broken either — no `#centerColumn`, no tab strip, no spinner — so it was
+parsed as content and each one emitted a docket with that tab silently empty.
+The same held for the challenge page, whose wording has moved on from the
+`Error 503` that `_check_503_challenge` looks for.
+
+This is the mechanism behind the 404 dockets that carry **no parties at all**
+(0.036% of 1.12M). Not all of those are Cloudflare — plenty of cases
+genuinely have no parties listed — but this is where the unexplained ones
+came from.
+
+Two detectors now cover it: `_check_cloudflare_error` (matched on the
+`Error code NNN` span, so it catches 520-524 as well as 502) and
+`_check_cloudflare_challenge` (matched on the `<title>` and the `<noscript>`
+notice, the two parts that have survived three rewordings).
+
+### Every transient detector was raising `TypeError`
+
+Found while fixing the above, and worse than it: `TransientException` takes a
+**required keyword-only `kind`**, and not one of the five existing detectors
+passed it. Any of them that fired would have raised `TypeError` from inside
+the exception constructor instead of the transient it meant to raise — so a
+502, a maintenance window or a stalled panel would have surfaced as an
+unexplained crash rather than a retry.
+
+It had never been observed because none of them ever fired: the corpus has
+**0 errors**, the origin 502/503 and maintenance pages never occurred in it,
+and the two page states that *did* occur were the Cloudflare ones the
+selectors missed. The bug and the gap concealed each other. All seven raises
+now pass `kind=` (`SITE_DEGRADED`, or `INTERSTITIAL` for the challenge).
+
+Two vocabularies that were open questions are now closed: `CaOpinionCollection`
+(0 `UNKNOWN` in 236,000 documents) and `publication_status` (exactly the eight
+documented values). See those sections.
+
+One thing the residual ledger cannot see, re-checked by hand per the warning
+below: every `<dt>`/`<th>` label on every tab was scanned against the labels
+the parsers actually *map*. The only unmapped label on the whole site is the
+Supreme Court summary's "No Cross Referenced Cases Found" placeholder, which
+is chrome — its absence is already representable as an empty list.
 
 ### Partial pages
 

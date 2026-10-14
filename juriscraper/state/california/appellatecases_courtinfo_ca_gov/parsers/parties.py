@@ -140,7 +140,8 @@ class PartiesParser(JKentParser[CaAppParty]):
         """Split a party cell into (name, role, address_lines).
 
         The ``party name`` run is a single ``"Name : Role"`` line (or just
-        ``"Name"``); the ``party address`` run holds the address.
+        ``"Name"``); the ``party address`` run holds the address. The name may
+        itself contain " : ", so the role is taken from the last one.
         """
         name_lines: list[str] = []
         address_lines: list[str] = []
@@ -156,7 +157,15 @@ class PartiesParser(JKentParser[CaAppParty]):
         if not name_lines:
             return "", None, []
         first, *extra = name_lines
-        name, sep, role = first.partition(" : ")
+        # Split on the *last* " : ", not the first: the role is by construction
+        # the trailing segment, and a party name can contain the separator
+        # itself. B247344's cell reads "In the Matter of : The Rael Family 1993
+        # Inter Vivos Trust, Dated February 2, 1993 : Overview party" -- read
+        # left-to-right that gives the name as "In the Matter of" and folds the
+        # rest of the name into the role.
+        name, sep, role = first.rpartition(" : ")
+        if not sep:
+            name = first
         return (
             name.strip(),
             (role.strip() if sep else None),

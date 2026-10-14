@@ -311,7 +311,7 @@ class MissouriCaseNetScraper(BaseScraper[_Yield]):
         """One initial GET to the search form.
 
         Lets the Playwright driver clear Cloudflare's managed challenge
-        and obtain the bot-protection cookie. The continuation then
+        and obtain the bot-protection cookie. The step then
         dispatches the actual data-fetching POSTs as ``nonnavigating``
         requests inside the same browser context.
         """
@@ -320,7 +320,7 @@ class MissouriCaseNetScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=SEARCH_FORM_URL,
             ),
-            continuation=after,
+            step=after,
             accumulated_data=extra,
             deduplication_key=SkipDeduplicationCheck(),
         )
@@ -367,7 +367,7 @@ class MissouriCaseNetScraper(BaseScraper[_Yield]):
                     "X-Requested-With": "XMLHttpRequest",
                 },
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             nonnavigating=True,
             accumulated_data={
                 "court_id": court_cl_id,
@@ -440,7 +440,7 @@ class MissouriCaseNetScraper(BaseScraper[_Yield]):
                     "X-Requested-With": "XMLHttpRequest",
                 },
             ),
-            continuation=self.parse_case_header,
+            step=self.parse_case_header,
             nonnavigating=True,
             accumulated_data={
                 "docket_number": docket_number,
@@ -487,7 +487,7 @@ class MissouriCaseNetScraper(BaseScraper[_Yield]):
                     "X-Requested-With": "XMLHttpRequest",
                 },
             ),
-            continuation=self.parse_case_parties,
+            step=self.parse_case_parties,
             nonnavigating=True,
             accumulated_data=accumulated_data,
         )
@@ -521,7 +521,7 @@ class MissouriCaseNetScraper(BaseScraper[_Yield]):
                     "X-Requested-With": "XMLHttpRequest",
                 },
             ),
-            continuation=self.parse_case_docket,
+            step=self.parse_case_docket,
             nonnavigating=True,
             accumulated_data=accumulated_data,
         )
@@ -594,7 +594,7 @@ class MissouriCaseNetScraper(BaseScraper[_Yield]):
                     method=HttpMethod.GET,
                     url=doc.download_url,
                 ),
-                continuation=self.handle_document_download,
+                step=self.handle_document_download,
                 expected_type="pdf",
                 nonnavigating=True,
                 accumulated_data={

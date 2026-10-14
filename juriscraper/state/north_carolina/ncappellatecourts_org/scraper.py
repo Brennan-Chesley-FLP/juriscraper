@@ -196,7 +196,7 @@ class NorthCarolinaAppellateScraper(
                     "submit": "Search",
                 },
             ),
-            continuation=self.parse_docket_search_result,
+            step=self.parse_docket_search_result,
             accumulated_data={
                 "docket_number": docket_number,
                 "court": court,
@@ -236,7 +236,7 @@ class NorthCarolinaAppellateScraper(
                     url=SEARCH_RESULTS_URL,
                     params=self._listing_params(start, end, 0),
                 ),
-                continuation=self.parse_filings_listing,
+                step=self.parse_filings_listing,
                 accumulated_data={
                     "start_date": start,
                     "end_date": end,
@@ -308,7 +308,7 @@ class NorthCarolinaAppellateScraper(
         accumulated_data["source_url"] = source_url
         yield Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=source_url),
-            continuation=self.parse_docket_sheet,
+            step=self.parse_docket_sheet,
             accumulated_data=accumulated_data,
             deduplication_key=f"docket_sheet:{accumulated_data['docket_number']}",
         )
@@ -331,7 +331,7 @@ class NorthCarolinaAppellateScraper(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET, url=case.sheet_url
                 ),
-                continuation=self.parse_docket_sheet,
+                step=self.parse_docket_sheet,
                 accumulated_data={
                     "docket_number": case.docket_number,
                     "court": case.court,
@@ -359,7 +359,7 @@ class NorthCarolinaAppellateScraper(
                     url=SEARCH_RESULTS_URL,
                     params=self._listing_params(start_date, end_date, offset),
                 ),
-                continuation=self.parse_filings_listing,
+                step=self.parse_filings_listing,
                 accumulated_data=accumulated_data,
                 deduplication_key=f"filings_listing:{start_date}:{end_date}:{offset}",
             )
@@ -406,7 +406,7 @@ class NorthCarolinaAppellateScraper(
                     "iStart": "0",
                 },
             ),
-            continuation=self.parse_case_filings,
+            step=self.parse_case_filings,
             accumulated_data={
                 "docket_number": docket_number,
                 "court": accumulated_data["court"],
@@ -438,7 +438,7 @@ class NorthCarolinaAppellateScraper(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url=doc.document_url
                     ),
-                    continuation=self.handle_document_download,
+                    step=self.handle_document_download,
                     expected_type="pdf",
                     accumulated_data={"document": doc.model_dump(mode="json")},
                     deduplication_key=(
@@ -469,7 +469,7 @@ class NorthCarolinaAppellateScraper(
                         "iStart": str(offset),
                     },
                 ),
-                continuation=self.parse_case_filings,
+                step=self.parse_case_filings,
                 accumulated_data=accumulated_data,
                 deduplication_key=f"case_filings:{docket_number}:{offset}",
             )

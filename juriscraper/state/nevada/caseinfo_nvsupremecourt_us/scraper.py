@@ -114,7 +114,7 @@ class NevadaScraper(BaseScraper[NvDocket | NvDocument | NvUnavailableCase]):
         url = f"{BASE_URL}{CASE_VIEW_PATH}?csIID={csiid}"
         return Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=url),
-            continuation=self.parse_case_view,
+            step=self.parse_case_view,
             accumulated_data={"internal_id": csiid},
             deduplication_key=f"nv-{csiid}",
         )
@@ -195,7 +195,7 @@ class NevadaScraper(BaseScraper[NvDocket | NvDocument | NvUnavailableCase]):
         )
         yield Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=combined_url),
-            continuation=self.parse_combined_view,
+            step=self.parse_combined_view,
             accumulated_data={
                 "docket_data": docket.model_dump(mode="json"),
                 "original_entry_keys": entry_keys,
@@ -289,7 +289,7 @@ class NevadaScraper(BaseScraper[NvDocket | NvDocument | NvUnavailableCase]):
                     url=docket_entry.document_url,
                     timeout=360.0,  # Longest successful download observed took 5.5 minutes.
                 ),
-                continuation=self.download_document,
+                step=self.download_document,
                 expected_type="pdf",
                 accumulated_data={
                     "internal_id": internal_id,

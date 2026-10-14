@@ -157,7 +157,7 @@ class IowaAppellateScraper(BaseScraper[IowaDocket]):
                 url=CASE_SUMMARY_URL,
                 params={"caseid": docket_number, "screen": "null"},
             ),
-            continuation=self.parse_case_summary,
+            step=self.parse_case_summary,
             accumulated_data={
                 "docket_number": docket_number,
                 "entry_point": entry_point,
@@ -197,7 +197,7 @@ class IowaAppellateScraper(BaseScraper[IowaDocket]):
                         "Content-Type": "application/x-www-form-urlencoded",
                     },
                 ),
-                continuation=self.parse_search_results,
+                step=self.parse_search_results,
                 accumulated_data={
                     "search_date": day.isoformat(),
                     "entry_point": "dockets_by_activity_date",
@@ -279,7 +279,7 @@ class IowaAppellateScraper(BaseScraper[IowaDocket]):
                 url=CASE_LONG_TITLE_URL,
                 params={"caseid": docket_number, "screen": "null"},
             ),
-            continuation=self.parse_long_title,
+            step=self.parse_long_title,
             accumulated_data=accumulated_data,
         )
 
@@ -298,7 +298,7 @@ class IowaAppellateScraper(BaseScraper[IowaDocket]):
                 url=CASE_DOCKET_URL,
                 params={"caseid": docket_number, "screen": "null"},
             ),
-            continuation=self.parse_docket_entries,
+            step=self.parse_docket_entries,
             accumulated_data=accumulated_data,
         )
 
@@ -319,7 +319,7 @@ class IowaAppellateScraper(BaseScraper[IowaDocket]):
                 url=CASE_PARTIES_URL,
                 params={"caseid": docket_number, "screen": "null"},
             ),
-            continuation=self.parse_parties,
+            step=self.parse_parties,
             accumulated_data=accumulated_data,
         )
 

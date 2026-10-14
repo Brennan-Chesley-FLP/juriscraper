@@ -210,7 +210,7 @@ class OhioSupremeCourtScraper(BaseScraper[_Yield]):
                 },
             ),
             nonnavigating=True,
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data={
                 "docket_number": docket_number,
                 "entry_point": entry_point,
@@ -315,7 +315,7 @@ class OhioSupremeCourtScraper(BaseScraper[_Yield]):
                     "User-Agent": _BROWSER_USER_AGENT,
                 },
             ),
-            continuation=self.handle_document_download,
+            step=self.handle_document_download,
             expected_type="pdf",
             accumulated_data={
                 "docket_number": docket_number,

@@ -1,0 +1,768 @@
+# Data audit ledger -- appellatecases.courtinfo.ca.gov
+#
+# One entry per dotted result path, verdicts qualified by `when:` SQL predicates
+# so one file covers all nine courts. `court` is the stratum and equals the run
+# db throughout the August 2026 sweep.
+#
+# An `assert` block's `find` selects the OFFENDING rows. Run it as
+#   SELECT result_id, request_id, court, docket_number FROM <on> WHERE <find>
+# to get refs that paste straight into a jent expression. Assertions never
+# affect a scrape -- a failing pydantic validator would turn the record into an
+# unvalidated dict row, which is worse than a flag.
+#
+# Hand edits survive. Counts are as of the 2026-09-29 audit, against the
+# pre-fix corpus; the next sweep is what moves them.
+
+identity:
+- court
+- docket_number
+roots:
+  CaAppDocket: {}
+  CaDocument:
+    join:
+    - court
+    - docket_number
+    as: documents
+  CaUnavailableOpinion:
+    join:
+    - court
+    - docket_number
+    as: unavailable_opinions
+  CaAppCaseUnavailable:
+    join:
+    - court
+    - docket_number
+    as: not_found_probes
+paths:
+  CaAppCaseUnavailable.court:
+  - verdict: ok
+    evidence:
+      rows: 209257
+      filled: 209257
+  CaAppCaseUnavailable.docket_number:
+  - verdict: ok
+    evidence:
+      rows: 209257
+      filled: 209257
+  CaAppDocket.briefs:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 391759
+  CaAppDocket.briefs[].brief_type:
+  - verdict: ok
+    evidence:
+      rows: 1231138
+      filled: 1231138
+  CaAppDocket.briefs[].date_due:
+  - verdict: ok
+    when: court NOT IN ('cal','calctapp_5th')
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: The SC briefs table has four columns (Brief / Date Filed / Party and Attorney
+      / Notes) -- no Due Date column at all. Verified on S000064's stored briefs
+      page.
+  - verdict: null-unreachable
+    when: court = 'calctapp_5th'
+    note: 'The 5th''s briefs table does have a Due Date column, but date_due is
+      populated only on briefs that are still outstanding and the 5th''s sweep reached
+      zero of them: its 53,215 briefs are all filed. A consequence of the stale
+      sweep -- see CaAppDocket.docket_number.'
+  CaAppDocket.briefs[].date_filed:
+  - verdict: ok
+    evidence:
+      rows: 1231138
+      filled: 1221127
+  CaAppDocket.briefs[].filed_by:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: The SC's 'Party and Attorney' column exists in the header but its cell
+      is &nbsp; on every row -- the filing credit is prose in Notes instead ('by
+      respondent Commission on State Mandates'). Verified on S000064. That prose
+      is unclaimed information; extracting it is proposed in the 2026-09-29 report,
+      not applied.
+  CaAppDocket.briefs[].filed_by[].attorneys:
+  - verdict: ok
+    evidence:
+      rows: 1113604
+      filled: 995804
+  CaAppDocket.briefs[].filed_by[].name:
+  - verdict: ok
+    evidence:
+      rows: 1113604
+      filled: 1113604
+  CaAppDocket.briefs[].filed_by[].pro_per:
+  - verdict: ok
+    evidence:
+      rows: 1113604
+      filled: 1113604
+  CaAppDocket.briefs[].filed_by[].role:
+  - verdict: ok
+    evidence:
+      rows: 1113604
+      filled: 1113604
+  CaAppDocket.briefs[].notes:
+  - verdict: ok
+    evidence:
+      rows: 1231138
+      filled: 343091
+  CaAppDocket.briefs[].notes_filed_by:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: notes_filed_by recovers labelled 'Party:'/'Attorney:' credits; the SC's
+      Notes use an unlabelled 'by <role> <party>' prose form that carries no labels
+      to lift. 0 of 22,178 SC briefs.
+  CaAppDocket.briefs[].notes_filed_by[].attorneys:
+  - verdict: ok
+    evidence:
+      rows: 346158
+      filled: 335454
+  CaAppDocket.briefs[].notes_filed_by[].party:
+  - verdict: ok
+    evidence:
+      rows: 346158
+      filled: 342059
+  CaAppDocket.case_citation:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 20859
+  CaAppDocket.case_name:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 1119345
+  CaAppDocket.case_status:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the field's docstring. The CoA summary page has no Case Status
+      row.
+  CaAppDocket.case_type:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 1047275
+  CaAppDocket.coa_case_numbers:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: Linked from an SC case, per the docstring.
+  CaAppDocket.court:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 1119345
+  CaAppDocket.cross_referenced_cases:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: The a[id^="relatedCase_"] block is an SC summary-page feature; no CoA
+      docket has one.
+  CaAppDocket.cross_referenced_cases[].case_link:
+  - verdict: ok
+    evidence:
+      rows: 17683
+      filled: 17683
+  CaAppDocket.cross_referenced_cases[].case_name:
+  - verdict: ok
+    evidence:
+      rows: 17683
+      filled: 17683
+  CaAppDocket.cross_referenced_cases[].docket_number:
+  - verdict: ok
+    evidence:
+      rows: 17683
+      filled: 17683
+  CaAppDocket.date_argued:
+  - verdict: ok
+    when: court NOT IN ('cal','calctapp_4th_div2')
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA only, per the field's docstring.
+  - verdict: null-by-design
+    when: court = 'calctapp_4th_div2'
+    note: Division 2 never emits the 'Oral Argument Date/Time:' row. 0 of 83,116
+      dockets, including 22,259 with an oral-argument docket entry; checked against
+      six random closed-and-argued Division 2 pages. The other seven CoA courts
+      fill it on 7-23%.
+    evidence:
+      rows: 83116
+      filled: 0
+      dockets_with_oral_argument_entry: 22259
+  CaAppDocket.date_filed:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 1116081
+    assert:
+      id: docket-date-plausible
+      'on': dockets
+      find: date_filed > '2027-01-01' OR date_filed < '1850-01-01'
+      rows: 2
+      note: S154973 and S153588 are filed '7007-07-18' and '7007-05-30', both terminated
+        in 2007 -- the court's own typo for 2007, extracted faithfully.
+  CaAppDocket.date_terminated:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 959418
+    assert:
+      id: docket-dates-ordered
+      'on': dockets
+      find: date_terminated < date_filed
+      rows: 77
+      note: Site data errors; 77 of 1,119,345.
+  CaAppDocket.dispositions:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 1102428
+  CaAppDocket.dispositions[].author:
+  - verdict: ok
+    evidence:
+      rows: 1106173
+      filled: 303331
+  CaAppDocket.dispositions[].case_citation:
+  - verdict: ok
+    evidence:
+      rows: 1106173
+      filled: 18467
+  CaAppDocket.dispositions[].description:
+  - verdict: ok
+    evidence:
+      rows: 1106173
+      filled: 1106173
+  CaAppDocket.dispositions[].disposition_date:
+  - verdict: ok
+    evidence:
+      rows: 1106173
+      filled: 1106171
+  CaAppDocket.dispositions[].disposition_notes:
+  - verdict: ok
+    evidence:
+      rows: 1106173
+      filled: 368319
+  CaAppDocket.dispositions[].disposition_type:
+  - verdict: coded
+    when: court <> 'cal'
+    note: 'Three real values over 807,976 CoA rows: Final (806,306), Vacated (1,197),
+      Partial (434). Enum NOT applied -- see the report; the field is nearly a boolean
+      and its 39-row tail is the court''s free text, not a parse error.'
+    evidence:
+      rows: 807976
+      distinct: 36
+      real_values: 3
+    assert:
+      id: dispo-type-is-a-type
+      'on': disps
+      find: disposition_type IS NOT NULL AND disposition_type NOT IN ('Final','Vacated','Partial')
+      rows: 39
+      note: 1980s-90s records where the court typed order prose or a participants
+        list into the Disposition Type field ('DISMISSED & REMANDED PER ORDER MAY
+        13, 1993', '(A) SMITH, J. (C) KLINE, P. J.'). disposition_notes is null
+        on most, so the cell holds only the prose -- there is no type to recover
+        and the parser is reporting the cell faithfully.
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA only, per the field's docstring.
+  CaAppDocket.dispositions[].participants:
+  - verdict: ok
+    evidence:
+      rows: 1106173
+      filled: 351866
+  CaAppDocket.dispositions[].publication_status:
+  - verdict: coded
+    when: court <> 'cal'
+    note: Coded 2026-09-29 as vocabularies.CaPublicationStatus, with the verbatim
+      cell kept in publication_status_raw. Eight members, complete over 350,258
+      CoA dispositions with P(unseen) 0 -- every value occurs at least 39 times.
+      Compositional on two axes, exposed as the .published/.partial/.by_the_court
+      properties.
+    evidence:
+      rows: 350258
+      distinct: 8
+      p_unseen: 0.0
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: The SC states no Publication Status; its opinions are published as a matter
+      of course.
+  CaAppDocket.division:
+  - verdict: ok
+    when: court IN ('cal','calctapp_1st','calctapp_2nd')
+    note: 'Means different things by court: the SC''s values are sitting locations
+      (SF/LA/SD/FR/SA), the 1st and 2nd Districts'' are division numbers. Documented
+      on the field 2026-09-29.'
+    assert:
+      id: division-is-a-division
+      'on': dockets
+      find: court IN ('calctapp_1st','calctapp_2nd') AND division NOT SIMILAR TO
+        '[0-9]+'
+      rows: 33143
+      note: 'The court''s own legacy codes -- ''p'' (30,121, 2nd), ''a'' (2,491,
+        2nd), ''v'' (522, 1st), plus ''d''/''Y''/''R''. Verified faithful against
+        B004324''s stored markup: <dt>Division:</dt><dd>p</dd>. Not a scraper defect.'
+  - verdict: null-by-design
+    when: court NOT IN ('cal','calctapp_1st','calctapp_2nd')
+    note: 'The site renders the Division: label with an empty value. The 4th District''s
+      divisions are already carried by the court id; the 3rd, 5th and 6th have none.
+      Verified on E088908''s stored markup: <dd class="col-7 col-md-9"></dd>.'
+  CaAppDocket.docket_number:
+  - verdict: ok
+    when: court <> 'calctapp_5th'
+  - verdict: null-unreachable
+    when: court = 'calctapp_5th'
+    note: 'Not null -- incomplete. The 5th District''s sweep stops at F067752, filed
+      2013-08-15, while all eight other courts reach July-September 2026. Its speculative
+      not-found probes stop at F066888, so the run never asked for anything later:
+      this is a truncated sweep, not a site limit. 1 open case and 0 dockets filed
+      in 2026, against 574-4,102 elsewhere. On the other courts'' rate of roughly
+      1,000-1,600 new dockets a year, order 25,000-30,000 Fifth District dockets
+      are missing. Re-sweep required; it also explains this court''s zero scheduled
+      actions and zero outstanding briefs.'
+    evidence:
+      dockets: 28677
+      max_date_filed: '2013-08-15'
+      max_docket_number: F067752
+      max_probe: F066888
+      open_cases: 1
+      filed_2026: 0
+  CaAppDocket.entries:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 1045762
+  CaAppDocket.entries[].date_filed:
+  - verdict: ok
+    evidence:
+      rows: 17140681
+      filled: 17140276
+    assert:
+      id: entry-date-plausible
+      'on': entries
+      find: date_filed > '2027-01-01' OR date_filed < '1850-01-01'
+      rows: 41
+      note: Site typos, e.g. an entry dated 2088-07-06 on E004325. 41 of 17,140,681.
+  CaAppDocket.entries[].description:
+  - verdict: ok
+    evidence:
+      rows: 17140681
+      filled: 17140681
+  CaAppDocket.entries[].notes:
+  - verdict: ok
+    evidence:
+      rows: 17140681
+      filled: 12887009
+  CaAppDocket.issues:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the field's docstring.
+  CaAppDocket.lower_court_info:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.coa_cases:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.coa_cases[].case_link:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.coa_cases[].district_division:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.coa_cases[].docket_number:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.coa_cases[].is_lead:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.coa_disposition:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.coa_disposition_date:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.trial_courts:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.trial_courts[].case_number:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.trial_courts[].is_lead:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.lower_court_info.trial_courts[].name:
+  - verdict: ok
+    when: court = 'cal'
+  - verdict: null-by-design
+    when: court <> 'cal'
+    note: SC only, per the model's docstring.
+  CaAppDocket.parties:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 1118941
+  CaAppDocket.parties[].address:
+  - verdict: ok
+    evidence:
+      rows: 3207136
+      filled: 695780
+  CaAppDocket.parties[].attorneys:
+  - verdict: ok
+    evidence:
+      rows: 3207136
+      filled: 2553011
+  CaAppDocket.parties[].attorneys[].address:
+  - verdict: ok
+    evidence:
+      rows: 3231386
+      filled: 3214098
+    assert:
+      id: attorney-address-not-sentinel
+      'on': attys
+      find: lower(address) IN ('see address above.','dismissed out of case','address
+        on file','unknown, unknown, ca','"')
+      rows: 30
+      note: Placeholders standing in for an address, 30 rows of 3,231,386. Too few
+        and too varied to be worth a clean_optional rule; recorded so the count
+        can be watched. Notably the corpus has no CONFIDENTIAL-ADDRESS sentinel
+        cluster, and no attorney name parses as an address.
+  CaAppDocket.parties[].attorneys[].firm:
+  - verdict: ok
+    evidence:
+      rows: 3231386
+      filled: 1952874
+  CaAppDocket.parties[].attorneys[].name:
+  - verdict: ok
+    evidence:
+      rows: 3231386
+      filled: 3231386
+  CaAppDocket.parties[].name:
+  - verdict: ok
+    note: 'Fixed 2026-09-29: _parse_party_cell split the ''Name : Role'' line on
+      the first '' : '' rather than the last, so a name containing the separator
+      lost everything after it to role. Two rows corpus-wide (B247344, B317107)
+      -- and that count is exact, not a sample: the rule differs from the old one
+      only on lines with two or more separators, which is precisely the set measured
+      by role LIKE ''%:%''.'
+    evidence:
+      rows: 3207136
+      filled: 3207136
+    assert:
+      id: role-has-no-name-leak
+      'on': parties
+      find: role LIKE '%:%'
+      rows: 2
+      note: Expected 0 after the next sweep.
+  CaAppDocket.parties[].pro_per:
+  - verdict: ok
+    evidence:
+      rows: 3207136
+      filled: 3207136
+  CaAppDocket.parties[].role:
+  - verdict: coded
+    note: 96 distinct values over 3,207,077 party rows, P(unseen) 1.3e-06. Compositional
+      on two axes -- party position (plaintiff / defendant / petitioner / respondent
+      / cross-complainant / cross-defendant / intervener / objector / claimant /
+      movant / contestant / amicus / real party in interest / third-party claimant)
+      and appellate posture (appellant / respondent / cross-appellant / cross-respondent)
+      -- so two small enums, not one of 96. Value set in the 2026-09-29 report;
+      enum NOT applied, pending a decision on the two-axis split.
+    evidence:
+      rows: 3207077
+      distinct: 96
+      p_unseen: 1.25e-06
+    assert:
+      id: role-is-a-party-role
+      'on': parties
+      find: lower(role) IN ('information only','overview party','other','unknown')
+      rows: 250795
+      note: 7.8% of all party rows, and these are not roles at all. The site's own
+        labels, heaviest on the 2nd District (150,543 rows, 13.2%). Not a scraper
+        defect; they need their own vocabulary members or a null.
+  - verdict: suspect
+    note: Truncated values the site itself emits; recorded, not fixable.
+    evidence:
+      rows: 3207136
+      filled: 3207077
+    assert:
+      id: role-not-truncated
+      'on': parties
+      find: role LIKE '%respond'
+      rows: 1050
+      note: 'Site-side truncation in a fixed-width legacy field: ''Plaintiff-appellant-x/respond''
+        (1,040) and ''Intervenor, appellant and cross-respond'' (10). Unrecoverable
+        from the page -- the full text is not in the markup.'
+  CaAppDocket.scheduled_actions:
+  - verdict: ok
+    when: court NOT IN ('cal','calctapp_3rd','calctapp_5th')
+  - verdict: null-by-design
+    when: court IN ('cal','calctapp_3rd','calctapp_5th')
+    note: 'These three courts do not publish a Scheduled Actions tab: their pages
+      carry no a#actionTab, so parse_scheduled_actions is never requested -- 0 rows
+      for that step on all three in the requests table, against one per docket on
+      the other six. The scraper''s gate reads the site''s own signal and is correct.
+      Verified on stored parties pages for C106762 (3rd) and the 5th, which list
+      six tab anchors, not seven, and on five more 3rd and four more 5th pages spanning
+      each court''s full request-id range. This corrects the 2026-09-24 revise-scraper
+      note, which read these two dbs as predating the step: the step ran in the
+      same run on the other six courts, and all nine courts'' parties pages were
+      fetched in the same window (3rd from 2026-08-17 20:59, 2nd from 19:06 the
+      same evening -- and the 2nd''s do carry the anchor).'
+    evidence:
+      dockets: 423497
+      with_scheduled_actions: 0
+  CaAppDocket.scheduled_actions[].date_due:
+  - verdict: ok
+    evidence:
+      rows: 23672
+      filled: 20785
+  CaAppDocket.scheduled_actions[].description:
+  - verdict: ok
+    evidence:
+      rows: 23672
+      filled: 23672
+  CaAppDocket.scheduled_actions[].notes:
+  - verdict: ok
+    evidence:
+      rows: 23672
+      filled: 3997
+  CaAppDocket.source_entry_point:
+  - verdict: redundant
+    note: 'Constant: ''dockets_by_number'' on all 1,119,345 rows across all nine
+      courts. It records the only entry point the sweep used, so it distinguishes
+      nothing. Keep it only if a future sweep adds a second entry point. Proposed
+      for drop 2026-09-29 -- not applied.'
+    evidence:
+      rows: 1119345
+      distinct: 1
+  CaAppDocket.source_url:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 1119345
+  CaAppDocket.subscription_urls:
+  - verdict: redundant
+    note: 'Exactly one URL on every one of 1,119,345 dockets, composed entirely
+      from the court''s dist parameter and the docket number: https://appellatecases.courtinfo.ca.gov/email.cfm?dist={dist}&doc_no={docket_number},
+      with dist available from COURT_CONFIG. Proposed for drop 2026-09-29 -- not
+      applied.'
+    evidence:
+      rows: 1119345
+      exactly_one: 1119345
+      zero: 0
+      more_than_one: 0
+  CaAppDocket.supreme_court_case_number:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: The reciprocal of coa_case_numbers; CoA pages only.
+  CaAppDocket.trial_court_case_numbers:
+  - verdict: ok
+    evidence:
+      rows: 1119345
+      filled: 829833
+  CaAppDocket.trial_court_info:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA only, per the model's docstring.
+  CaAppDocket.trial_court_info.county:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA only, per the model's docstring.
+  CaAppDocket.trial_court_info.judgment_date:
+  - verdict: ok
+    when: court <> 'cal'
+    assert:
+      id: judgment-date-plausible
+      'on': dockets
+      find: trial_court_info.judgment_date > '2027-01-01'
+      rows: 58
+      note: Site typos, 58 of 535,138 populated.
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA only; the SC uses lower_court_info instead.
+  CaAppDocket.trial_court_info.trial_court_case_number:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA only, per the model's docstring.
+  CaAppDocket.trial_court_info.trial_court_judge:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA only, per the model's docstring.
+  CaAppDocket.trial_court_info.trial_court_name:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA only, per the model's docstring.
+  CaDocument.court:
+  - verdict: ok
+    evidence:
+      rows: 236000
+      filled: 236000
+  CaDocument.docket_number:
+  - verdict: ok
+    evidence:
+      rows: 236000
+      filled: 236000
+  CaDocument.document_type:
+  - verdict: ok
+    evidence:
+      rows: 236000
+      filled: 236000
+  CaDocument.file_format:
+  - verdict: ok
+    evidence:
+      rows: 236000
+      filled: 236000
+  CaDocument.local_path:
+  - verdict: ok
+    evidence:
+      rows: 236000
+      filled: 236000
+  CaDocument.source_collection:
+  - verdict: ok
+    evidence:
+      rows: 236000
+      filled: 235992
+  CaDocument.source_url:
+  - verdict: ok
+    evidence:
+      rows: 236000
+      filled: 236000
+  CaUnavailableOpinion.author:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA dispositions only; the SC records none of this on these pages.
+  CaUnavailableOpinion.case_citation:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 16216
+  CaUnavailableOpinion.case_name:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 25092
+  CaUnavailableOpinion.court:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 25092
+  CaUnavailableOpinion.date_filed:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 25048
+  CaUnavailableOpinion.date_terminated:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 21345
+  CaUnavailableOpinion.disposition_date:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 25092
+  CaUnavailableOpinion.disposition_description:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 25092
+  CaUnavailableOpinion.disposition_type:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA dispositions only; the SC records none of this on these pages.
+  CaUnavailableOpinion.docket_number:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 25092
+  CaUnavailableOpinion.evidence:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 25092
+  CaUnavailableOpinion.participants:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA dispositions only; the SC records none of this on these pages.
+  CaUnavailableOpinion.publication_status:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: The SC states no Publication Status.
+  CaUnavailableOpinion.source_url:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 25092
+  CaUnavailableOpinion.supreme_court_case_number:
+  - verdict: ok
+    when: court <> 'cal'
+  - verdict: null-by-design
+    when: court = 'cal'
+    note: CoA dispositions only; the SC records none of this on these pages.
+  CaUnavailableOpinion.trial_court_case_numbers:
+  - verdict: ok
+    evidence:
+      rows: 25092
+      filled: 23168

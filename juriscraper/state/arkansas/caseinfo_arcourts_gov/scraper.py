@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from jkent.common.decorators import entry, step
 from jkent.common.param_models import DateRange
 from jkent.data_types import (
+    NO_RATE_LIMIT,
     BaseScraper,
     HttpMethod,
     HTTPRequestParams,
@@ -138,7 +139,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
                     method=HttpMethod.GET,
                     url=f"{CASE_DETAIL_URL}/{docket_number}",
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={"court_name": court_name},
                 deduplication_key=f"ar-case-{docket_number}",
             )
@@ -224,7 +225,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
                         method=HttpMethod.GET,
                         url=f"{DOCUMENT_URL}/{file_id}",
                     ),
-                    continuation=self.fetch_document_url,
+                    step=self.fetch_document_url,
                     accumulated_data={
                         "docket_number": docket_number,
                         "court_id": court_id,
@@ -263,9 +264,10 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
         yield Request(
             archive=True,
             request=HTTPRequestParams(method=HttpMethod.GET, url=download_url),
-            continuation=self.archive_document,
+            step=self.archive_document,
             expected_type="pdf",
-            bypass_rate_limit=True,  # AWS S# signed links with expiration
+            # AWS S3 signed links with expiration
+            rate_limit=NO_RATE_LIMIT,
             accumulated_data=accumulated_data,
             # Presigned URLs expire ~10 minutes after issuance, so dedup
             # against the underlying file id rather than the URL.
@@ -326,7 +328,7 @@ class ArkansasAppellateScraper(BaseScraper[ArDocket | ArDocument]):
                 headers={"Content-Type": "application/json"},
                 json=body,
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={
                 "court_name": court_name,
                 "date_start": date_range.start.isoformat(),

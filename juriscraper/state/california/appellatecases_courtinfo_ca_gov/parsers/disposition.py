@@ -16,6 +16,9 @@ from jkent.data_types import XPath
 from juriscraper.state.california.appellatecases_courtinfo_ca_gov.models import (
     CaAppDisposition,
 )
+from juriscraper.state.california.appellatecases_courtinfo_ca_gov.vocabularies import (
+    CaPublicationStatus,
+)
 
 from ._common import cell_lines, clean_optional, clean_text, parse_date
 
@@ -95,7 +98,13 @@ class DispositionParser(JKentParser[CaAppDisposition]):
                 dispo["disposition_type"] = clean_text(type_line)
                 dispo["disposition_notes"] = clean_text("\n".join(note_lines))
             elif key == "Publication Status":
-                dispo["publication_status"] = clean_text(val)
+                # Both, always: the coded value is what a consumer reads, and
+                # the raw cell is what distinguishes "the court stated nothing"
+                # from "the court stated something the vocabulary misses" --
+                # the coded field is None either way.
+                raw = clean_text(val)
+                dispo["publication_status_raw"] = raw
+                dispo["publication_status"] = CaPublicationStatus.parse(raw)
             elif key == "Author":
                 dispo["author"] = clean_text(val)
             elif key == "Participants":

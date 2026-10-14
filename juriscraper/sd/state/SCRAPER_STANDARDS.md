@@ -38,12 +38,12 @@ driver's job. A scraper never performs I/O itself.
 class FooScraper(BaseScraper[FooDocket]):   # generic over its emitted type
     @entry(FooDocket)
     def dockets_by_bulk(self, court_ids: set[str]) -> Generator[Request, None, None]:
-        yield Request(request=HTTPRequestParams(...), continuation=self.parse_list)
+        yield Request(request=HTTPRequestParams(...), step=self.parse_list)
 
     @step
     def parse_list(self, page: PageElement) -> Generator[ScraperYield[FooDocket], None, None]:
         for link in page.find_links(Selector.XPath("//a[@class='case']"), "case links"):
-            yield link.follow(continuation=self.parse_detail)
+            yield link.follow(step=self.parse_detail)
 
     @step
     def parse_detail(self, page: PageElement) -> Generator[ScraperYield[FooDocket], None, None]:
@@ -100,7 +100,11 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
   `*CAP_HANDLER` for captcha/Cloudflare, `STRICTLY_SERIAL` for ViewState/session
   sites. Full member list in [`JKENT_REFERENCE.md`](JKENT_REFERENCE.md) §7.
 - `rate_limits` is `pyrate_limiter` `Rate`s; set a real ceiling per site, don't
-  leave it `None` for a court that needs throttling.
+  leave it `None` for a court that needs throttling. It defines the `default`
+  *lane*; every scraper also gets a never-throttled `none` lane
+  (`rate_limit=NO_RATE_LIMIT` on a request). Declare extra lanes with
+  `named_rate_limits: ClassVar[dict[str, list[Rate]]]` when one endpoint
+  (say, document downloads) needs a different ceiling from the rest.
 
 ---
 
@@ -253,7 +257,7 @@ The default key is a sha256 of method+URL+params+data. Override it with a
 **stable, human-readable** key so the same logical request dedups across runs
 even when the URL carries volatile tokens (ViewState, session ids).
 
-- Format: **`<continuation-or-record>:<identifying-args>`**, colon-delimited.
+- Format: **`<step-or-record>:<identifying-args>`**, colon-delimited.
   - `f"docket_by_number:{docket_number}"`
   - `f"docket_detail:{search_page}:{search_row}"`
   - `f"docket_filing_detail:{docket_number}"`
@@ -271,16 +275,16 @@ so avoid using colons.
 
 ## 7. Requests, navigation & downloads
 
-- Build requests with `Request(request=HTTPRequestParams(...), continuation=...)`,
+- Build requests with `Request(request=HTTPRequestParams(...), step=...)`,
   or — preferred when the page gives you the affordance — `link.follow(...)` /
   `form.submit(...)` from the `PageElement` API. Form/link helpers attach `via=`
   metadata so the Playwright driver can replay the browser action.
-- `continuation` may be the bound method (`self.parse_x`) — it's auto-resolved
+- `step` may be the bound method (`self.parse_x`) — it's auto-resolved
   to its name and the target step's priority is inherited.
 - Pass data forward via `accumulated_data=`; it is deep-copied per request, so
   sibling requests never share mutable state.
 - **Downloads:** `archive=True`. The file lands locally and is injected into the
-  continuation as `local_filepath`. Emit a separate file model linked back to
+  step as `local_filepath`. Emit a separate file model linked back to
   its parent record by a shared key (NYCoA: `docket_number` on both
   `NYCourtPassDocket` and `NYCourtPassFile`).
 

@@ -155,7 +155,7 @@ class CalSupremeBriefsScraper(BaseScraper[_Yield]):
             request=HTTPRequestParams(
                 method=HttpMethod.GET, url=BRIEFS_INDEX_URL
             ),
-            continuation=self.parse_briefs_index,
+            step=self.parse_briefs_index,
             accumulated_data={
                 "target_courts": sorted(court_ids),
                 "start_date": date_range.start.isoformat(),
@@ -195,7 +195,7 @@ class CalSupremeBriefsScraper(BaseScraper[_Yield]):
                 request=HTTPRequestParams(
                     method=HttpMethod.GET, url=fields["source_url"]
                 ),
-                continuation=self.parse_session_page,
+                step=self.parse_session_page,
                 accumulated_data={
                     **accumulated_data,
                     "session_title": fields["session_title"],
@@ -249,7 +249,7 @@ class CalSupremeBriefsScraper(BaseScraper[_Yield]):
                             "Referer": response.url,
                         },
                     ),
-                    continuation=self.handle_brief_download,
+                    step=self.handle_brief_download,
                     accumulated_data={
                         "court": fields["court"],
                         "docket_number": fields["docket_number"],

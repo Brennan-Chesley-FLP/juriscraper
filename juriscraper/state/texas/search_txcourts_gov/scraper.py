@@ -172,7 +172,7 @@ class TexasTamesScraper(BaseScraper[_Yield]):
                 url=case_url,
                 headers=_GET_HEADERS,
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data={
                 "docket_number": docket_number,
                 "source_url": case_url,
@@ -207,7 +207,7 @@ class TexasTamesScraper(BaseScraper[_Yield]):
                 data=form_data,
                 headers=_POST_HEADERS,
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={
                 **accumulated_data,
                 "form_data": form_data,
@@ -254,7 +254,7 @@ class TexasTamesScraper(BaseScraper[_Yield]):
                     url=row.case_url,
                     headers=_GET_HEADERS,
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "docket_number": row.docket_number,
                     "source_url": row.case_url,
@@ -293,7 +293,7 @@ class TexasTamesScraper(BaseScraper[_Yield]):
                     data=next_form_data,
                     headers=_POST_HEADERS,
                 ),
-                continuation=self.parse_search_results,
+                step=self.parse_search_results,
                 accumulated_data={
                     **accumulated_data,
                     "form_data": next_form_data,
@@ -348,7 +348,7 @@ class TexasTamesScraper(BaseScraper[_Yield]):
                         url=doc.download_url,
                         headers=_GET_HEADERS,
                     ),
-                    continuation=self.handle_document_download,
+                    step=self.handle_document_download,
                     expected_type="pdf",
                     accumulated_data={
                         "docket_number": docket_number,
@@ -422,7 +422,7 @@ class TexasTamesScraper(BaseScraper[_Yield]):
                 url=SEARCH_URL,
                 headers=_GET_HEADERS,
             ),
-            continuation=self.fetch_search_form,
+            step=self.fetch_search_form,
             accumulated_data={
                 "start_date": start_date.isoformat(),
                 "end_date": end_date.isoformat(),

@@ -1,5 +1,9 @@
 """Michigan appellate courts scraper (courts.michigan.gov).
 
+**This site uses hCaptcha, and this scraper does not currently work.**
+jkent no longer ships an hCaptcha handler (``HCAP_HANDLER`` was removed
+from ``DriverRequirement``), so nothing solves the challenge.
+
 Site: https://www.courts.michigan.gov/case-search/
 
 Scrapes case listings and full case detail for the Michigan Court of
@@ -10,7 +14,7 @@ execute-mode hCaptcha (a JWT the SPA mints per page-load and sends in a
 ``captchatoken`` header).
 
 Rather than forge that token, this scraper runs under a real browser
-(``JS_EVAL`` + ``FF_ALIKE`` + ``HCAP_HANDLER`` → Camoufox) and lets the SPA
+(``JS_EVAL`` + ``FF_ALIKE`` → Camoufox) and lets the SPA
 mint it: it navigates to a page and **promotes** the JSON the page fetches
 in the background, using the driver's ``Request.incidental`` mechanism
 (``Singular(...)`` matches the captured XHR and its response is pre-resolved
@@ -141,13 +145,12 @@ class MichiganCourtsScraper(BaseScraper[MichDocket]):
     requires_auth: ClassVar[bool] = False
     # Runs under Camoufox: the case-detail JSON is gated by an invisible
     # hCaptcha JWT the SPA mints per page-load. We navigate a real browser and
-    # promote the resulting XHR rather than forging the token. HCAP_HANDLER is
-    # belt-and-suspenders in case the passive challenge ever escalates to a
-    # visible widget; the detail flow itself needs no interaction.
+    # promote the resulting XHR rather than forging the token. There is no
+    # hCaptcha handler any more, so a challenge that escalates to a visible
+    # widget is a dead end -- see the module docstring.
     driver_requirements: ClassVar[list[DriverRequirement]] = [
         DriverRequirement.JS_EVAL,
         DriverRequirement.FF_ALIKE,
-        DriverRequirement.HCAP_HANDLER,
     ]
     # A high-traffic public service, and every case is now a browser
     # navigation; keep it conservative.
@@ -205,7 +208,7 @@ class MichiganCourtsScraper(BaseScraper[MichDocket]):
                 # Accept); the SPA then fires the listing JSON as a client-side
                 # fetch, which promote_listing promotes.
             ),
-            continuation=self.promote_listing,
+            step=self.promote_listing,
             accumulated_data={
                 "court_id": court_id,
                 "site_court": site_court,
@@ -227,7 +230,7 @@ class MichiganCourtsScraper(BaseScraper[MichDocket]):
                 method=HttpMethod.GET,
                 url=_detail_page_url(court_id, number),
             ),
-            continuation=self.promote_detail,
+            step=self.promote_detail,
             accumulated_data={
                 "court_id": court_id,
                 "docket_number": str(number),
@@ -248,7 +251,7 @@ class MichiganCourtsScraper(BaseScraper[MichDocket]):
         yield Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=response.url),
             incidental=Singular(url=LISTING_MATCH, resource_type="fetch"),
-            continuation=self.parse_listing_page,
+            step=self.parse_listing_page,
             nonnavigating=True,
             accumulated_data=dict(accumulated_data),
             deduplication_key=SkipDeduplicationCheck(),
@@ -264,7 +267,7 @@ class MichiganCourtsScraper(BaseScraper[MichDocket]):
         yield Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=response.url),
             incidental=Singular(url=DETAIL_MATCH),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             nonnavigating=True,
             accumulated_data=dict(accumulated_data),
             deduplication_key=f"detail:{court_id}:{number}",
@@ -338,7 +341,7 @@ class MichiganCourtsScraper(BaseScraper[MichDocket]):
                         site_court=site_court, page=next_page
                     ),
                 ),
-                continuation=self.promote_listing,
+                step=self.promote_listing,
                 accumulated_data={**accumulated_data, "page": next_page},
                 deduplication_key=SkipDeduplicationCheck(),
             )

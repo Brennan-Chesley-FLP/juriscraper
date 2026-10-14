@@ -166,7 +166,7 @@ class GeorgiaCourtOfAppealsScraper(BaseScraper[_Yield]):
                     "OPendDate": date_range.end.strftime("%m/%d/%Y"),
                 },
             ),
-            continuation=self.parse_opinion_search,
+            step=self.parse_opinion_search,
             accumulated_data={
                 "date_start": date_range.start.isoformat(),
                 "date_end": date_range.end.isoformat(),
@@ -203,7 +203,7 @@ class GeorgiaCourtOfAppealsScraper(BaseScraper[_Yield]):
                 url=DETAIL_URL,
                 params={"docr_case_num": case_number},
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data={
                 "docket_number": case_number,
                 "entry_point": "dockets_by_number",
@@ -243,7 +243,7 @@ class GeorgiaCourtOfAppealsScraper(BaseScraper[_Yield]):
                     url=DETAIL_URL,
                     params={"docr_case_num": row.docket_number},
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "docket_number": row.docket_number,
                     "preview_case_name": row.case_name,
@@ -262,7 +262,7 @@ class GeorgiaCourtOfAppealsScraper(BaseScraper[_Yield]):
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url=absolute_pdf_url
                     ),
-                    continuation=self.handle_opinion_download,
+                    step=self.handle_opinion_download,
                     expected_type="pdf",
                     accumulated_data={
                         "docket_number": row.docket_number,
@@ -355,7 +355,7 @@ class GeorgiaCourtOfAppealsScraper(BaseScraper[_Yield]):
                     method=HttpMethod.GET,
                     url=urljoin(response.url, opinion_url),
                 ),
-                continuation=self.handle_opinion_download,
+                step=self.handle_opinion_download,
                 expected_type="pdf",
                 accumulated_data={
                     "docket_number": docket_number,

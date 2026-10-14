@@ -174,7 +174,7 @@ class NewMexicoCaseLookupScraper(BaseScraper[NmDocket]):
                 method=HttpMethod.GET,
                 url=LANDING_URL,
             ),
-            continuation=self.bootstrap_session,
+            step=self.bootstrap_session,
             accumulated_data={
                 "docket_number": docket_number,
                 "court": rng.court_id,
@@ -249,7 +249,7 @@ class NewMexicoCaseLookupScraper(BaseScraper[NmDocket]):
                     "If_1": "T",
                     "Submit": "I Accept",
                 },
-                continuation=self.fetch_search_form,
+                step=self.fetch_search_form,
                 accumulated_data=accumulated_data,
             )
             return
@@ -277,7 +277,7 @@ class NewMexicoCaseLookupScraper(BaseScraper[NmDocket]):
                 method=HttpMethod.GET,
                 url=SEARCH_FORM_URL,
             ),
-            continuation=self.parse_search_form,
+            step=self.parse_search_form,
             accumulated_data=accumulated_data,
         )
 
@@ -307,7 +307,7 @@ class NewMexicoCaseLookupScraper(BaseScraper[NmDocket]):
                 "caseNumber": accumulated_data["case_number"],
                 "Submit": "Case Number Search",
             },
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data=accumulated_data,
         )
 

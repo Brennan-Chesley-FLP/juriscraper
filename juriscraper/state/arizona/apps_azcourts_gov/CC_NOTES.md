@@ -111,7 +111,7 @@ no supported court fails loudly.
 
 All parse steps run at priority **2**; PDF archive requests are downloads at
 priority **1** (auto-assigned by `archive=True`); `handle_pdf_archive` is
-their continuation.
+their step.
 
 ```
 dockets_by_updated_date → parse_case_list_update (2) ─┐

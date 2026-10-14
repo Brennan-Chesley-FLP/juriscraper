@@ -170,7 +170,7 @@ class WashingtonAcdocPortalScraper(BaseScraper[_Yield]):
                 },
             ),
             nonnavigating=True,
-            continuation=self.parse_search_response,
+            step=self.parse_search_response,
             accumulated_data={
                 "court": court_id,
                 "docket_number": docket_number,
@@ -238,7 +238,7 @@ class WashingtonAcdocPortalScraper(BaseScraper[_Yield]):
                         "Referer": SEARCH_PAGE_URLS[court_id],
                     },
                 ),
-                continuation=self.handle_document_download,
+                step=self.handle_document_download,
                 accumulated_data={
                     "court": court_id,
                     "docket_number": docket_number,

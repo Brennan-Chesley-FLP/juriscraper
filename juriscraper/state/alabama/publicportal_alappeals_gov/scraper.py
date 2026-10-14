@@ -446,7 +446,7 @@ class AlabamaScraper(
                         method=HttpMethod.GET,
                         url=download_url,
                     ),
-                    continuation=self.handle_opinion_download,
+                    step=self.handle_opinion_download,
                     accumulated_data={
                         "cluster": cluster.model_dump(mode="json"),
                         "opinion_index": 0,
@@ -481,7 +481,7 @@ class AlabamaScraper(
                         method=HttpMethod.GET,
                         url=download_url,
                     ),
-                    continuation=self.handle_order_download,
+                    step=self.handle_order_download,
                     accumulated_data={
                         "order": order.model_dump(mode="json"),
                     },
@@ -588,7 +588,7 @@ class AlabamaScraper(
                         "Accept": "text/html",
                     },
                 ),
-                continuation=self.parse_historical_decisions_list,
+                step=self.parse_historical_decisions_list,
                 accumulated_data={
                     "court_id": court_id,
                     "date_gte": date_range.start.isoformat(),
@@ -690,7 +690,7 @@ class AlabamaScraper(
                     url=pdf_url,
                     verify=False,
                 ),
-                continuation=self.handle_historical_pdf_download,
+                step=self.handle_historical_pdf_download,
                 accumulated_data={
                     "release_list": release_list.model_dump(mode="json"),
                 },

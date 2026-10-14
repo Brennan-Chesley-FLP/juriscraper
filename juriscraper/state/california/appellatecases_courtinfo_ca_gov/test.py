@@ -114,7 +114,7 @@ class TestScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
                 method=HttpMethod.GET,
                 url=search_results_url,
             ),
-            continuation=self.parse_case_summary,
+            step=self.parse_case_summary,
             accumulated_data={
                 "docket_number": CASE_NUMBER,
                 "court": COURT_ID,
@@ -183,7 +183,7 @@ class TestScraper(BaseScraper[CaAppDocket | CaAppCaseUnavailable]):
         docket_url = _build_tab_url(response.url, "dockets.cfm")
         yield Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=docket_url),
-            continuation=self.parse_docket,
+            step=self.parse_docket,
             accumulated_data=accumulated_data,
         )
 

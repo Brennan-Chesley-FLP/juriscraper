@@ -199,7 +199,7 @@ class SouthCarolinaAppellateScraper(BaseScraper[SCAppDocket | SCAppDocument]):
                 url=SEARCH_URL,
                 data=self._build_search_form(cs_number=clean),
             ),
-            continuation=self.parse_case_or_miss,
+            step=self.parse_case_or_miss,
             accumulated_data={
                 "docket_number": clean,
                 "court": court_id,
@@ -229,7 +229,7 @@ class SouthCarolinaAppellateScraper(BaseScraper[SCAppDocket | SCAppDocument]):
                     start_row=start_row,
                 ),
             ),
-            continuation=self.parse_search_listing,
+            step=self.parse_search_listing,
             accumulated_data={
                 "target_courts": target_courts,
                 "from_date": from_date.isoformat(),
@@ -266,7 +266,7 @@ class SouthCarolinaAppellateScraper(BaseScraper[SCAppDocket | SCAppDocument]):
                     method=HttpMethod.GET,
                     url=f"{CASE_VIEW_URL}?csIID={site_case_id}",
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "docket_number": row["docket_number"],
                     "court": court,
@@ -405,7 +405,7 @@ class SouthCarolinaAppellateScraper(BaseScraper[SCAppDocket | SCAppDocument]):
                     ),
                     headers={"Content-Type": "text/plain"},
                 ),
-                continuation=self.fetch_event_document_links,
+                step=self.fetch_event_document_links,
                 accumulated_data={
                     "docket_number": docket_number,
                     "court": court,
@@ -437,7 +437,7 @@ class SouthCarolinaAppellateScraper(BaseScraper[SCAppDocket | SCAppDocument]):
             yield Request(
                 archive=True,
                 request=HTTPRequestParams(method=HttpMethod.GET, url=url),
-                continuation=self.handle_document_download,
+                step=self.handle_document_download,
                 expected_type="pdf",
                 accumulated_data={
                     "docket_number": docket_number,

@@ -503,7 +503,7 @@ class DeCourtConnectScraper(BaseScraper[_Yield]):
             request=HTTPRequestParams(
                 method=HttpMethod.GET, url=DOCKET_REPORT_URL, params=params
             ),
-            continuation=self.parse_docket_report,
+            step=self.parse_docket_report,
             reseedable=True,
             accumulated_data={
                 "docket_number": docket_number,
@@ -532,7 +532,7 @@ class DeCourtConnectScraper(BaseScraper[_Yield]):
             )
         if SOFT_404_PHRASE in body.lower():
             # ``actually_successful`` already told the speculation tracker this
-            # probe missed, but the driver runs the continuation either way --
+            # probe missed, but the driver runs the step either way --
             # so the miss has to be recognised here too, or every probe past
             # the end of a year raises on the absent Case Description table.
             return
@@ -553,10 +553,16 @@ class DeCourtConnectScraper(BaseScraper[_Yield]):
             docket_data["docket_number"] = requested_number
             docket_data["docket_number_raw"] = requested_number
 
+        # Only the Docket Entries rows: a Case Event Schedule row is a
+        # *scheduled* event, often in the future, and letting one set
+        # date_last_filing would report a hearing date as the last filing.
         filing_dates = [
             row["date_filed"]
             for row in entries
             if row.get("date_filed") is not None
+            # ``!=`` rather than ``==``: the docket-entry parser leaves the
+            # field to its model default, so it is absent from raw_data.
+            and row.get("source_section") != "case_event_schedule"
         ]
 
         case_type_code = docket_data.get("case_type_code")
@@ -572,8 +578,11 @@ class DeCourtConnectScraper(BaseScraper[_Yield]):
             # this case just is not ours.
             return
 
+        yield from self._related_case_requests(related, accumulated_data)
+
         docket_data.update(
             court=court,
+            is_appeal=self._is_appeal(case_type_code),
             assigned_to_str=self._assigned_judge(parties),
             date_last_filing=max(filing_dates, default=None),
             parties=parties,
@@ -587,6 +596,68 @@ class DeCourtConnectScraper(BaseScraper[_Yield]):
     # =========================================================================
     # Helpers
     # =========================================================================
+
+    def _related_case_requests(
+        self, related: list[dict], accumulated_data: dict
+    ) -> Iterable[Request]:
+        """Fetch the cases the Related Cases section points at.
+
+        The section links sibling dockets by case id, and a linked case is
+        frequently one no number space this scraper walks would reach: Chancery
+        legacy case ``6495`` links to Common Pleas ``CPU4-13-003466`` and to
+        ``N11C-12-066`` on Superior Court's *civil* docket, which is the
+        "``CA`` appeals" gap CC_NOTES.md records. Following the link is the
+        only way to those records short of walking the whole civil space.
+
+        Three things are worth noting about how the request is built:
+
+        * It does **not** use ``link.follow()``, although the affordance is
+          right there. The href points at ``cp_dktrpt_frames`` -- the frameset
+          wrapper, which returns two ``<frame>`` tags and no docket. Only the
+          case id is taken from the link; the request is built against the
+          inner endpoint, as every other request here is.
+        * ``space=None``, exactly as ``docket_by_number`` passes it. That makes
+          the request non-speculative (it is a link the site published, not a
+          guess) and exempts it from ``_in_scope`` -- which is the point, since
+          a related case is usually out of scope by number space and is wanted
+          anyway because a case we *do* collect points at it.
+        * ``deduplication_key`` is the same ``docket_report:{case_id}`` every
+          other request uses, and it is the **only** thing bounding the walk:
+          the links are symmetric and densely reciprocal, so a group of related
+          cases is fetched once each and then collapses.
+
+        There is deliberately **no depth cap**. In principle that leaves the
+        walk bounded only by the size of the related-cases graph's connected
+        component, which is unbounded a priori; in practice the one component
+        the corpus reaches was measured on 2026-09-30 and is *closed at four
+        cases* (``6495``, ``8918``, ``CPU4-13-003466``, ``N11C-12-066``, each
+        listing the other three), and only 2 of 54,502 pages carry any links at
+        all. Completeness of the cross-court linkage is worth more here than a
+        bound on a walk that has nowhere to go -- see CC_NOTES.md.
+
+        One cost this accepts: a probe stores **no** deduplication key
+        (``insert_root_request(deduplicate=False)`` -- a deduplicated probe
+        would never run, so the speculation tracker would never see its
+        outcome), so a link to a case speculation already enumerated does not
+        dedup against it and is fetched a second time. That is 2 requests
+        across this corpus.
+
+        Only cases that survive the scope filter follow their links: a case
+        this scraper discards has no relations worth chasing.
+        """
+        for row in related:
+            case_id = row.get("docket_number")
+            if not case_id:
+                continue
+            yield self._docket_report_request(
+                case_id,
+                # The related case's court is unknown until its own page
+                # prints a case type; seed it with this case's court so the
+                # fallback in ``_court_for`` is at least a Delaware court.
+                court=accumulated_data["court"],
+                entry_point="related_case",
+                space=None,
+            )
 
     @staticmethod
     def _in_scope(
@@ -619,6 +690,27 @@ class DeCourtConnectScraper(BaseScraper[_Yield]):
         if number_space in CHANCERY_SPACES:
             return court == "delch"
         return (case_type_code or "") in APPEAL_CASE_TYPES
+
+    @staticmethod
+    def _is_appeal(case_type_code: str | None) -> bool | None:
+        """Is this case an appeal? The case-type code is the only signal.
+
+        Superior Court and Common Pleas each sit both at first instance and on
+        appeal, and a docket report never says which -- so the ``Type:`` line
+        has to answer it. Party roles do not: measured over the corpus,
+        ``APPELLANT``/``APPELLEE`` appear on only 45-70% of cases whose type is
+        unambiguously appellate.
+
+        Note this is **not** ``_in_scope``. That decides what to collect and
+        trusts Superior's ``A`` docket wholesale; this labels what was
+        collected, and so disagrees with it on the 11 Superior records whose
+        type is a trial-court one (``3C``, ``MH``, ``M3``, ``ME``) despite the
+        appellate docket number. Labelling them is the point -- they are real
+        cases and are kept, just not as appeals.
+        """
+        if not case_type_code:
+            return None
+        return case_type_code in APPEAL_CASE_TYPES
 
     @staticmethod
     def _court_for(case_type_code: str | None, fallback: str) -> str:

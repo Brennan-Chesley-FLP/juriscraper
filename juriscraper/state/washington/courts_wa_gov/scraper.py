@@ -175,7 +175,7 @@ class WashingtonBriefsScraper(BaseScraper[_Yield]):
                         url=url,
                         headers=_BROWSER_HEADERS,
                     ),
-                    continuation=self.parse_briefs_page,
+                    step=self.parse_briefs_page,
                     accumulated_data={
                         "court": court,
                         "year": year,
@@ -245,7 +245,7 @@ class WashingtonBriefsScraper(BaseScraper[_Yield]):
                             "Referer": response.url,
                         },
                     ),
-                    continuation=self.handle_brief_download,
+                    step=self.handle_brief_download,
                     accumulated_data={
                         "court": court_id,
                         "docket_number": case["docket"],

@@ -160,7 +160,7 @@ class ConnAppInquiryScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=f"{CASE_DETAIL_URL}?CRN={crn}",
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             reseedable=True,
             accumulated_data={
                 "crn": crn,
@@ -249,7 +249,7 @@ class ConnAppInquiryScraper(BaseScraper[_Yield]):
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url=doc_url
                     ),
-                    continuation=self.handle_appellate_document,
+                    step=self.handle_appellate_document,
                     expected_type="pdf",
                     accumulated_data={
                         "docket_number": docket_number,
@@ -269,7 +269,7 @@ class ConnAppInquiryScraper(BaseScraper[_Yield]):
             tc_raw = self._docket_no_from_url(tc_url)
             yield Request(
                 request=HTTPRequestParams(method=HttpMethod.GET, url=tc_url),
-                continuation=self.parse_trial_court_detail,
+                step=self.parse_trial_court_detail,
                 accumulated_data={
                     "appellate_docket_number": docket_number,
                     "trial_docket_number_raw": tc_raw,
@@ -366,7 +366,7 @@ class ConnAppInquiryScraper(BaseScraper[_Yield]):
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url=doc_url
                     ),
-                    continuation=self.handle_trial_document,
+                    step=self.handle_trial_document,
                     expected_type="pdf",
                     accumulated_data={
                         "trial_docket_number": trial_docket_number,

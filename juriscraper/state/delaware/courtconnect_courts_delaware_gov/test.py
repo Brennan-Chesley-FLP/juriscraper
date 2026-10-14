@@ -127,11 +127,17 @@ ORDER ENTERED
 </body></html>
 """
 
-# A docket report whose Related Cases and Case Event Schedule sections are
-# populated. No real page with either has been seen (128 sampled, all empty),
-# so this fixture is synthetic: it pins the *generic* reading -- header labels
-# become keys, unrecognised columns land in ``extra_fields`` -- rather than any
-# particular column set, which is exactly what is unknown.
+# A docket report whose Related Cases and Case Event Schedule sections are both
+# populated -- the markup of both taken verbatim from the run corpus (Chancery
+# legacy case 6495 for the related cases, Superior Court N11A-04-016 for the
+# event schedule). They are rare: of 54,502 stored pages, 2 list related cases
+# and 65 carry a scheduled event.
+#
+# The two sections are built quite differently, which is the point of the
+# fixture. Related Cases is *not a table* -- it is a bare run of ``<a>`` links
+# separated by ``&nbsp;&nbsp;`` -- while the event schedule is a five-column
+# table (Event, Date/Time, Room, Location, Judge) whose Date/Time cell is
+# ``<br>``-split.
 POPULATED_SECTIONS_PAGE = """
 <html><body>
 <a name="description">
@@ -141,16 +147,35 @@ POPULATED_SECTIONS_PAGE = """
 <tr valign="top"><td>&nbsp;<td><b>Status:</b><td>&nbsp;<i>none</i>
 </table>
 <a name="related">
-<table>
-<tr><th>Case ID</th><th>Relationship</th></tr>
-<tr valign="top"><td>N24C-01-001</td><td>CONSOLIDATED WITH</td></tr>
-</table>
+<br />
+<br />
+<b><u>Related Cases</u></b>
+<br />
+<br />
+<a href="ck_public_qry_doct.cp_dktrpt_frames?backto=D&case_id=8918&begin_date=&end_date=" TARGET="_parent">8918</a>
+&nbsp;&nbsp;
+<a href="ck_public_qry_doct.cp_dktrpt_frames?backto=D&case_id=CPU4-13-003466&begin_date=&end_date=" TARGET="_parent">CPU4-13-003466</a>
+&nbsp;&nbsp;
 <a name="events">
-<table>
-<tr><th>Date</th><th>Description</th><th>Judge</th><th>Room</th></tr>
-<tr valign="top">
-<td>03-MAR-2026<br />10:00 AM</td><td>TRIAL</td><td>ZURN, MORGAN T</td><td>3B</td>
+<br />
+<br />
+<b><u>Case Event Schedule</u></b>
+<br />
+<br />
+<table  nowrap="nowrap" border width=100% cellspacing=1 cellpadding=4>
+<tr align="left">
+<th>Event</th>
+<th>Date/Time</th>
+<th>Room</th>
+<th>Location</th>
+<th>Judge</th>
 </tr>
+<tr valign="top">
+<td>MOTION TO STAY</td>
+<td nowrap="nowrap">14-JUN-2011<br>09:00 AM</td>
+<td>SCN COURTROOM TBD</td>
+<td>SUPERIOR CT NEW CASTLE COUNTY</td>
+<td nowrap="nowrap">SCOTT, CALVIN L</td>
 </table>
 <a name="parties">
 <a name="dockets">
@@ -283,20 +308,47 @@ class TestDocketEntriesParser(unittest.TestCase):
         )
 
 
+class TestIsAppeal(unittest.TestCase):
+    """The case-type code is the only trial-vs-appeal signal the page has."""
+
+    def test_appellate_types_are_appeals(self) -> None:
+        for code in ("AA", "AB", "AC", "AD", "AF", "AI", "3A", "CA", "4L"):
+            with self.subTest(code=code):
+                self.assertIs(DeCourtConnectScraper._is_appeal(code), True)
+
+    def test_trial_types_on_the_appellate_docket_are_not(self) -> None:
+        """All four were found on Superior's ``A`` docket in the corpus.
+
+        The ``A`` number space is collected wholesale (``_in_scope`` trusts
+        it), so these are kept -- but they are trial-court matters and must
+        not be labelled appeals.
+        """
+        for code in ("3C", "MH", "M3", "ME"):
+            with self.subTest(code=code):
+                self.assertIs(DeCourtConnectScraper._is_appeal(code), False)
+
+    def test_chancery_is_original_jurisdiction(self) -> None:
+        self.assertIs(DeCourtConnectScraper._is_appeal("2A"), False)
+
+    def test_no_case_type_is_unknown_not_false(self) -> None:
+        self.assertIsNone(DeCourtConnectScraper._is_appeal(None))
+        self.assertIsNone(DeCourtConnectScraper._is_appeal(""))
+
+
 class TestSectionParsers(unittest.TestCase):
     def test_empty_sections_yield_nothing(self) -> None:
         self.assertEqual(RelatedCasesParser.from_string(CHANCERY_PAGE), [])
         self.assertEqual(CaseEventsParser.from_string(CHANCERY_PAGE), [])
 
-    def test_related_cases_read_generically(self) -> None:
+    def test_related_cases_read_from_the_link_list(self) -> None:
+        """The section is a run of links, not a table -- one record each."""
         related = [
             row.raw_data
             for row in RelatedCasesParser.from_string(POPULATED_SECTIONS_PAGE)
         ]
-        self.assertEqual(len(related), 1)
-        self.assertEqual(related[0]["docket_number"], "N24C-01-001")
         self.assertEqual(
-            related[0]["extra_fields"], {"Relationship": "CONSOLIDATED WITH"}
+            [row["docket_number"] for row in related],
+            ["8918", "CPU4-13-003466"],
         )
 
     def test_events_become_docket_entries(self) -> None:
@@ -306,16 +358,25 @@ class TestSectionParsers(unittest.TestCase):
         ]
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["source_section"], "case_event_schedule")
-        self.assertEqual(events[0]["date_filed"], date(2026, 3, 3))
-        self.assertEqual(events[0]["time_filed"], time(10, 0))
-        self.assertEqual(events[0]["description"], "TRIAL")
-        self.assertEqual(events[0]["name"], "ZURN, MORGAN T")
-        self.assertEqual(events[0]["extra_fields"], {"Room": "3B"})
+        self.assertEqual(events[0]["date_filed"], date(2011, 6, 14))
+        self.assertEqual(events[0]["time_filed"], time(9, 0))
+        self.assertEqual(events[0]["description"], "MOTION TO STAY")
+        self.assertEqual(events[0]["name"], "SCOTT, CALVIN L")
+        self.assertEqual(events[0]["courtroom"], "SCN COURTROOM TBD")
+        self.assertEqual(
+            events[0]["location"], "SUPERIOR CT NEW CASTLE COUNTY"
+        )
+        self.assertEqual(events[0]["extra_fields"], {})
 
     def test_sections_do_not_bleed_into_each_other(self) -> None:
-        """The anchors are unclosed, so the span is counted, not descended."""
+        """The anchors are unclosed, so the span is counted, not descended.
+
+        The related-case reader must not run past the ``events`` anchor and
+        pick up the person-detail links in the parties table, and the event
+        reader must not take the parties table for its own.
+        """
         self.assertEqual(
-            len(RelatedCasesParser.from_string(POPULATED_SECTIONS_PAGE)), 1
+            len(RelatedCasesParser.from_string(POPULATED_SECTIONS_PAGE)), 2
         )
         self.assertEqual(
             len(CaseEventsParser.from_string(POPULATED_SECTIONS_PAGE)), 1

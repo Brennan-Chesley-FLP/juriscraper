@@ -150,7 +150,7 @@ class VermontPortalScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=DASHBOARD_URL,
             ),
-            continuation=self.submit_search_form,
+            step=self.submit_search_form,
             accumulated_data={
                 "court_id": COURT_ID,
                 "docket_number": docket_id,
@@ -185,7 +185,7 @@ class VermontPortalScraper(BaseScraper[_Yield]):
                 "caseCriteria.SearchCriteria": docket_id,
                 "caseCriteria.CourtLocation": court_location,
             },
-            continuation=self.fetch_results_grid,
+            step=self.fetch_results_grid,
             accumulated_data=accumulated_data,
         )
 
@@ -212,7 +212,7 @@ class VermontPortalScraper(BaseScraper[_Yield]):
                 url=SEARCH_RESULTS_URL,
                 params={"_": "1"},
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data=accumulated_data,
         )
 
@@ -262,7 +262,7 @@ class VermontPortalScraper(BaseScraper[_Yield]):
                 headers=JSON_HEADERS,
             ),
             nonnavigating=True,
-            continuation=self.parse_case_summary,
+            step=self.parse_case_summary,
             accumulated_data=accumulated_data,
         )
 
@@ -335,7 +335,7 @@ class VermontPortalScraper(BaseScraper[_Yield]):
                 headers=JSON_HEADERS,
             ),
             nonnavigating=True,
-            continuation=self.parse_combined_events,
+            step=self.parse_combined_events,
             accumulated_data=accumulated_data,
         )
 
@@ -395,7 +395,7 @@ class VermontPortalScraper(BaseScraper[_Yield]):
                 headers=JSON_HEADERS,
             ),
             nonnavigating=True,
-            continuation=self.parse_parties,
+            step=self.parse_parties,
             accumulated_data=accumulated_data,
         )
 
@@ -502,7 +502,7 @@ class VermontPortalScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=download_url,
             ),
-            continuation=self.handle_document_download,
+            step=self.handle_document_download,
             expected_type="pdf",
             accumulated_data=accumulated_data,
         )
@@ -560,7 +560,7 @@ class VermontPortalScraper(BaseScraper[_Yield]):
                     "eventName": doc.get("event_name") or "",
                 },
             ),
-            continuation=self.fetch_document_download,
+            step=self.fetch_document_download,
             accumulated_data={
                 "court_id": parent["court_id"],
                 "docket_number": parent["docket_number"],

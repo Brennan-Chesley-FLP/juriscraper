@@ -167,7 +167,7 @@ class MarylandJudiciaryCaseSearchScraper(BaseScraper[MdAppellateDocket]):
                 url=f"{DETAIL_API}/{case_id_param}",
                 headers={"Accept": "application/json"},
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data={
                 "case_id_param": case_id_param,
                 "docket_number": case_id.docket_number(),

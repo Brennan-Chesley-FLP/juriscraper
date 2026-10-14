@@ -186,7 +186,7 @@ class HiAppellateScraper(BaseScraper[HiAppDocket]):
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url=DISCLAIMER_URL
                     ),
-                    continuation=self.ensure_disclaimer,
+                    step=self.ensure_disclaimer,
                     accumulated_data={
                         "search_mode": "date",
                         "site_court_type": site_court_type,
@@ -217,7 +217,7 @@ class HiAppellateScraper(BaseScraper[HiAppDocket]):
             request=HTTPRequestParams(
                 method=HttpMethod.GET, url=DISCLAIMER_URL
             ),
-            continuation=self.ensure_disclaimer,
+            step=self.ensure_disclaimer,
             accumulated_data={
                 "search_mode": "case_id",
                 "docket_number": docket_number.docket_number(),
@@ -255,7 +255,7 @@ class HiAppellateScraper(BaseScraper[HiAppDocket]):
             )
             yield form.submit(
                 data={"frm:acceptButtonCaptcha": ""},
-                continuation=self.navigate_to_search,
+                step=self.navigate_to_search,
                 accumulated_data=accumulated_data,
                 deduplication_key=SkipDeduplicationCheck(),
             )
@@ -277,13 +277,13 @@ class HiAppellateScraper(BaseScraper[HiAppDocket]):
         a current ViewState / ice.view triple."""
         if accumulated_data.get("search_mode") == "case_id":
             target = CASE_SEARCH_URL
-            continuation = self.fill_caseid_search_form
+            step = self.fill_caseid_search_form
         else:
             target = DATE_SEARCH_URL
-            continuation = self.fill_date_search_form
+            step = self.fill_date_search_form
         yield Request(
             request=HTTPRequestParams(method=HttpMethod.GET, url=target),
-            continuation=continuation,
+            step=step,
             accumulated_data=accumulated_data,
             deduplication_key=SkipDeduplicationCheck(),
         )
@@ -320,7 +320,7 @@ class HiAppellateScraper(BaseScraper[HiAppDocket]):
                 "frm:caseType": "",
                 "frm:searchButtonCaptcha": "",
             },
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data=accumulated_data,
         )
 
@@ -342,7 +342,7 @@ class HiAppellateScraper(BaseScraper[HiAppDocket]):
                 "frm:caseId": accumulated_data["docket_number"],
                 "frm:searchButtonCaptcha": "",
             },
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data=accumulated_data,
         )
 
@@ -406,7 +406,7 @@ class HiAppellateScraper(BaseScraper[HiAppDocket]):
                     method=HttpMethod.GET,
                     url=urljoin(response.url, href),
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data=child_data,
                 deduplication_key=(
                     f"parse_case_detail:{child_data['docket_number']}"

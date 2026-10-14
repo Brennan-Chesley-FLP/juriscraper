@@ -1,5 +1,9 @@
 """NYSCEF appellate-case scraper (iapps.courts.state.ny.us).
 
+**This site uses hCaptcha, and this scraper does not currently work.**
+jkent no longer ships an hCaptcha handler (``HCAP_HANDLER`` was removed
+from ``DriverRequirement``), so nothing solves the challenge.
+
 Scrapes appellate case data from the New York State Courts Electronic
 Filing system (NYSCEF), covering the four Appellate Division departments
 and the Court of Claims.
@@ -36,7 +40,8 @@ Filing-date flow::
 
 Design decisions:
 - The site returns 403 for plain HTTP and presents an hCaptcha challenge,
-  so it runs under Playwright (JS_EVAL, FF_ALIKE, HCAP_HANDLER).
+  so it runs under Playwright (JS_EVAL, FF_ALIKE). Nothing answers the
+  challenge itself.
 - HTML extraction lives in the ``parsers`` package (§9); the steps keep the
   navigation (form fills, pagination, the per-case fan-out, downloads).
 - ``court`` (the CL court id) and the filing-date window ride down the
@@ -127,7 +132,8 @@ class NYSCEFScraper(BaseScraper[_Yield]):
     last_verified: ClassVar[str] = "2026-03-02"
     requires_auth: ClassVar[bool] = False
     driver_requirements: ClassVar[list[DriverRequirement]] = [
-        DriverRequirement.HCAP_HANDLER,
+        DriverRequirement.JS_EVAL,
+        DriverRequirement.FF_ALIKE,
     ]
     rate_limits: ClassVar[list[Rate] | None] = [Rate(2, Duration.SECOND)]
 
@@ -150,7 +156,7 @@ class NYSCEFScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=CASE_SEARCH_URL,
             ),
-            continuation=self.parse_search_page,
+            step=self.parse_search_page,
             accumulated_data={
                 "docket_number": docket_number,
                 "court": court_id,
@@ -183,7 +189,7 @@ class NYSCEFScraper(BaseScraper[_Yield]):
                         method=HttpMethod.GET,
                         url=CASE_SEARCH_URL,
                     ),
-                    continuation=self.fill_date_search_form,
+                    step=self.fill_date_search_form,
                     accumulated_data={
                         "digit": str(digit),
                         "court": court,
@@ -212,7 +218,7 @@ class NYSCEFScraper(BaseScraper[_Yield]):
             data={
                 "txtCaseIdentifierNumber": accumulated_data["docket_number"]
             },
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data=accumulated_data,
             deduplication_key=(
                 f"search_results:{accumulated_data['docket_number']}"
@@ -241,7 +247,7 @@ class NYSCEFScraper(BaseScraper[_Yield]):
                 "txtFilingDateTo": accumulated_data["end_date"],
             },
             submit_selector=XPath("(//button[@name='btnSubmit'])[2]"),
-            continuation=self.parse_date_search_results,
+            step=self.parse_date_search_results,
             accumulated_data=accumulated_data,
             deduplication_key=SkipDeduplicationCheck(),
         )
@@ -307,7 +313,7 @@ class NYSCEFScraper(BaseScraper[_Yield]):
                         method=HttpMethod.GET,
                         url=urljoin(response.url, href),
                     ),
-                    continuation=self.parse_date_search_results,
+                    step=self.parse_date_search_results,
                     accumulated_data=accumulated_data,
                     deduplication_key=SkipDeduplicationCheck(),
                 )
@@ -347,7 +353,7 @@ class NYSCEFScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=urljoin(base_url, f"CaseDetails?docketId={docket_id}"),
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data=forwarded,
             deduplication_key=f"case_detail:{docket_id}",
         )
@@ -393,7 +399,7 @@ class NYSCEFScraper(BaseScraper[_Yield]):
                     f"DocumentList?docketId={docket_id}&display=all",
                 ),
             ),
-            continuation=self.parse_document_list,
+            step=self.parse_document_list,
             accumulated_data={
                 **accumulated_data,
                 "detail_fields": detail_fields,
@@ -507,7 +513,7 @@ class NYSCEFScraper(BaseScraper[_Yield]):
             ),
             archive=True,
             expected_type="pdf",
-            continuation=self.handle_document_download,
+            step=self.handle_document_download,
             accumulated_data={
                 "iapps_internal_docket_id": docket_id,
                 "entry_number": entry_number,

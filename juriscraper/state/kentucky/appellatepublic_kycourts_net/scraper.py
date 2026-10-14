@@ -342,7 +342,7 @@ class KentuckyAppellateScraper(BaseScraper[KyDocket | KyDocument]):
                 url=url,
                 headers=_paging_headers(start_index, _PAGE_SIZE),
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={
                 "search_prefix": prefix,
                 "start_index": start_index,
@@ -363,7 +363,7 @@ class KentuckyAppellateScraper(BaseScraper[KyDocket | KyDocument]):
                 url=url,
                 headers=_paging_headers(1, 5),
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={
                 "search_prefix": case_number,
                 "start_index": 1,
@@ -411,7 +411,7 @@ class KentuckyAppellateScraper(BaseScraper[KyDocket | KyDocument]):
                     url=f"{API_BASE_URL}/cases/{case_id}",
                     headers=_API_HEADERS,
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "case_id": case_id,
                     "court_id_hint": court_id_hint,
@@ -499,7 +499,7 @@ class KentuckyAppellateScraper(BaseScraper[KyDocket | KyDocument]):
                 url=f"{API_BASE_URL}/cases/{case_id}/docketentries",
                 headers=_API_HEADERS,
             ),
-            continuation=self.parse_docket_entries,
+            step=self.parse_docket_entries,
             accumulated_data={"docket_data": docket.model_dump(mode="json")},
         )
 
@@ -545,7 +545,7 @@ class KentuckyAppellateScraper(BaseScraper[KyDocket | KyDocument]):
                 url=f"{API_BASE_URL}/cases/{docket.case_id}/parties",
                 headers=_API_HEADERS,
             ),
-            continuation=self.parse_parties,
+            step=self.parse_parties,
             accumulated_data={"docket_data": docket.model_dump(mode="json")},
         )
 
@@ -596,7 +596,7 @@ class KentuckyAppellateScraper(BaseScraper[KyDocket | KyDocument]):
                 url=f"{API_BASE_URL}/cases/{docket.case_id}/lowercourts",
                 headers=_API_HEADERS,
             ),
-            continuation=self.parse_trial_courts,
+            step=self.parse_trial_courts,
             accumulated_data={"docket_data": docket.model_dump(mode="json")},
         )
 
@@ -644,7 +644,7 @@ class KentuckyAppellateScraper(BaseScraper[KyDocket | KyDocument]):
                     url=url,
                     headers=_API_HEADERS,
                 ),
-                continuation=self.parse_documents_list,
+                step=self.parse_documents_list,
                 accumulated_data={
                     "case_id": docket.case_id,
                     "docket_number": docket.docket_number,
@@ -677,7 +677,7 @@ class KentuckyAppellateScraper(BaseScraper[KyDocket | KyDocument]):
                     method=HttpMethod.GET,
                     url=download_url,
                 ),
-                continuation=self.parse_document_download,
+                step=self.parse_document_download,
                 expected_type="pdf",
                 accumulated_data={
                     **accumulated_data,

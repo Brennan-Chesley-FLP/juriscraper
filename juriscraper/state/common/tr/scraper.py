@@ -22,7 +22,7 @@ Required class variables for model creation:
     DOCUMENT_CLASS: type  -- the document ScrapedData subclass
     ORAL_ARGUMENT_CLASS: type  -- the oral argument ScrapedData subclass
 
-Expected step method names on the subclass (referenced by continuations):
+Expected step method names on the subclass (referenced by steps):
     parse_dockets_search, parse_case_detail, parse_case_parties,
     parse_docket_entries, parse_documents_list, parse_document_download,
     parse_events_list, parse_event_hearings,
@@ -258,7 +258,7 @@ class TRPortalMixin:
     ) -> Generator[Request, None, None]:
         """Yield a search request for dockets in the given date range.
 
-        The continuation targets ``self.parse_dockets_search``. The
+        The step targets ``self.parse_dockets_search``. The
         ``cms/cases`` endpoint searches all courts by filed date, so the
         court allow-list rides in ``accumulated_data["target_courts"]``
         (seeded by the entry from its ``court_ids`` argument) and the step
@@ -284,7 +284,7 @@ class TRPortalMixin:
                 url=url,
                 headers={"Accept": "application/json"},
             ),
-            continuation=self.parse_dockets_search,
+            step=self.parse_dockets_search,
             accumulated_data={
                 "start_date": start_date.isoformat(),
                 "end_date": end_date.isoformat(),
@@ -382,7 +382,7 @@ class TRPortalMixin:
                     url=detail_url,
                     headers={"Accept": "application/json"},
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "case_instance_uuid": case_instance_uuid,
                     "court_guid": court_guid,
@@ -412,7 +412,7 @@ class TRPortalMixin:
                     url=url,
                     headers={"Accept": "application/json"},
                 ),
-                continuation=self.parse_dockets_search,
+                step=self.parse_dockets_search,
                 accumulated_data={
                     "start_date": start_date.isoformat(),
                     "end_date": end_date.isoformat(),
@@ -504,7 +504,7 @@ class TRPortalMixin:
                 url=parties_url,
                 headers={"Accept": "application/json"},
             ),
-            continuation=self.parse_case_parties,
+            step=self.parse_case_parties,
             accumulated_data={
                 "docket_data": docket.model_dump(mode="json"),
             },
@@ -585,7 +585,7 @@ class TRPortalMixin:
                 url=entries_url,
                 headers={"Accept": "application/json"},
             ),
-            continuation=self.parse_docket_entries,
+            step=self.parse_docket_entries,
             accumulated_data={
                 "docket_data": docket.model_dump(mode="json"),
             },
@@ -687,7 +687,7 @@ class TRPortalMixin:
                     url=entries_url,
                     headers={"Accept": "application/json"},
                 ),
-                continuation=self.parse_docket_entries,
+                step=self.parse_docket_entries,
                 accumulated_data={
                     "docket_data": docket.model_dump(mode="json"),
                 },
@@ -710,7 +710,7 @@ class TRPortalMixin:
     ) -> Generator[Request, None, None]:
         """Yield a ticklers (deadlines) request for the given case.
 
-        The continuation targets ``self.parse_ticklers_list``. Only used
+        The step targets ``self.parse_ticklers_list``. Only used
         when the subclass sets ``TR_FETCH_TICKLERS``; the chain runs after
         docket entries and, once the last tickler page is parsed, hands off
         to the documents fetch.
@@ -732,7 +732,7 @@ class TRPortalMixin:
                 url=url,
                 headers={"Accept": "application/json"},
             ),
-            continuation=self.parse_ticklers_list,
+            step=self.parse_ticklers_list,
             accumulated_data={
                 "docket_data": docket.model_dump(mode="json"),
             },
@@ -807,7 +807,7 @@ class TRPortalMixin:
     ) -> Generator[Request, None, None]:
         """Yield a docketentrydocumentsaccess request for the given case.
 
-        The continuation targets ``self.parse_documents_list``. The
+        The step targets ``self.parse_documents_list``. The
         access endpoint is preferred over ``/docketentrydocuments``
         because it includes ``docketEntryUUID`` (linking each document
         back to its parent docket entry) and ``documentInfo`` metadata.
@@ -828,7 +828,7 @@ class TRPortalMixin:
                 url=url,
                 headers={"Accept": "application/json"},
             ),
-            continuation=self.parse_documents_list,
+            step=self.parse_documents_list,
             accumulated_data={
                 "docket_data": docket.model_dump(mode="json"),
             },
@@ -849,7 +849,7 @@ class TRPortalMixin:
         """Core logic for parse_documents_list step.
 
         Pages through the documents-access listing for a case. For each
-        document, yields an archive request whose continuation is
+        document, yields an archive request whose step is
         ``self.parse_document_download``. On the last page also yields
         the final docket.
         """
@@ -912,7 +912,7 @@ class TRPortalMixin:
                     method=HttpMethod.GET,
                     url=download_url,
                 ),
-                continuation=self.parse_document_download,
+                step=self.parse_document_download,
                 expected_type=expected_type,
                 accumulated_data=meta,
                 deduplication_key=f"{docket.docket_number}-{doc_uuid}",
@@ -974,7 +974,7 @@ class TRPortalMixin:
     ) -> Generator[Request, None, None]:
         """Yield an events search request.
 
-        The continuation targets ``self.parse_events_list``. ``target_courts``
+        The step targets ``self.parse_events_list``. ``target_courts``
         rides in ``accumulated_data`` so the step (and its pagination) can
         filter the all-courts events feed without re-reading entry args.
         """
@@ -998,7 +998,7 @@ class TRPortalMixin:
                 url=url,
                 headers={"Accept": "application/json"},
             ),
-            continuation=self.parse_events_list,
+            step=self.parse_events_list,
             accumulated_data={
                 "start_date": date_gte.isoformat(),
                 "end_date": date_lte.isoformat(),
@@ -1070,7 +1070,7 @@ class TRPortalMixin:
                     url=hearings_url,
                     headers={"Accept": "application/json"},
                 ),
-                continuation=self.parse_event_hearings,
+                step=self.parse_event_hearings,
                 accumulated_data={
                     "court_id": court_id,
                     "court_guid": court_guid,
@@ -1103,7 +1103,7 @@ class TRPortalMixin:
                     url=url,
                     headers={"Accept": "application/json"},
                 ),
-                continuation=self.parse_events_list,
+                step=self.parse_events_list,
                 accumulated_data={
                     "start_date": start_date.isoformat(),
                     "end_date": end_date.isoformat(),
@@ -1174,7 +1174,7 @@ class TRPortalMixin:
     ) -> Generator[Request, None, None]:
         """Yield publication list requests for target courts.
 
-        The continuation targets ``self.parse_publications_list``.
+        The step targets ``self.parse_publications_list``.
         """
         for court_id in sorted(target_courts):
             config = self.TR_COURT_CONFIG.get(court_id)
@@ -1197,7 +1197,7 @@ class TRPortalMixin:
                     url=url,
                     headers={"Accept": "application/json"},
                 ),
-                continuation=self.parse_publications_list,
+                step=self.parse_publications_list,
                 accumulated_data={
                     "court_id": court_id,
                     "court_guid": court_guid,
@@ -1276,7 +1276,7 @@ class TRPortalMixin:
                     url=detail_url,
                     headers={"Accept": "application/json"},
                 ),
-                continuation=self.parse_publication_detail,
+                step=self.parse_publication_detail,
                 accumulated_data={
                     "court_id": court_id,
                     "court_guid": court_guid,
@@ -1309,7 +1309,7 @@ class TRPortalMixin:
                     url=url,
                     headers={"Accept": "application/json"},
                 ),
-                continuation=self.parse_publications_list,
+                step=self.parse_publications_list,
                 accumulated_data={
                     "court_id": court_id,
                     "court_guid": court_guid,

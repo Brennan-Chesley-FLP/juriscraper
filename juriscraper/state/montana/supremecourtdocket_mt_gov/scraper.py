@@ -184,7 +184,7 @@ class MontanaSupremeCourtScraper(
                         page=0,
                     ),
                 ),
-                continuation=self.parse_search_results,
+                step=self.parse_search_results,
                 accumulated_data={
                     "category": category,
                     "date_range": None,
@@ -232,7 +232,7 @@ class MontanaSupremeCourtScraper(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET, url=detail_url
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "category": category,
                     "case_id": case_id,
@@ -262,7 +262,7 @@ class MontanaSupremeCourtScraper(
                         page=next_page,
                     ),
                 ),
-                continuation=self.parse_search_results,
+                step=self.parse_search_results,
                 accumulated_data={
                     **accumulated_data,
                     "page": next_page,
@@ -387,7 +387,7 @@ class MontanaSupremeCourtScraper(
                     page=page,
                 ),
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={
                 "category": category,
                 "date_range": (
@@ -571,7 +571,7 @@ class MontanaSupremeCourtScraper(
                         request=HTTPRequestParams(
                             method=HttpMethod.GET, url=download_url
                         ),
-                        continuation=self.download_document,
+                        step=self.download_document,
                         expected_type="pdf",
                         accumulated_data={
                             "docket_number": docket_number,

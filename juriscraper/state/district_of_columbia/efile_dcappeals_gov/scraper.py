@@ -187,7 +187,7 @@ class DCCourtOfAppealsScraper(BaseScraper[DCAppDocket | DCAppDocument]):
                 url=SEARCH_URL,
                 data=self._build_search_form(cs_number=clean),
             ),
-            continuation=self.parse_case_or_miss,
+            step=self.parse_case_or_miss,
             accumulated_data={"docket_number": clean, "court": court_id},
             deduplication_key=f"docket_by_number:{clean}",
         )
@@ -209,7 +209,7 @@ class DCCourtOfAppealsScraper(BaseScraper[DCAppDocket | DCAppDocument]):
                     start_row=start_row,
                 ),
             ),
-            continuation=self.parse_search_listing,
+            step=self.parse_search_listing,
             accumulated_data={
                 "from_date": from_date.isoformat(),
                 "to_date": to_date.isoformat(),
@@ -240,7 +240,7 @@ class DCCourtOfAppealsScraper(BaseScraper[DCAppDocket | DCAppDocument]):
                     method=HttpMethod.GET,
                     url=f"{CASE_VIEW_URL}?csIID={site_case_id}",
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "docket_number": row["docket_number"],
                     "site_case_id": site_case_id,
@@ -377,7 +377,7 @@ class DCCourtOfAppealsScraper(BaseScraper[DCAppDocket | DCAppDocument]):
                     ),
                     headers={"Content-Type": "text/plain"},
                 ),
-                continuation=self.fetch_event_document_links,
+                step=self.fetch_event_document_links,
                 accumulated_data={
                     "docket_number": docket_number,
                     "court": "dc",
@@ -409,7 +409,7 @@ class DCCourtOfAppealsScraper(BaseScraper[DCAppDocket | DCAppDocument]):
             yield Request(
                 archive=True,
                 request=HTTPRequestParams(method=HttpMethod.GET, url=url),
-                continuation=self.handle_document_download,
+                step=self.handle_document_download,
                 expected_type="pdf",
                 accumulated_data={
                     "docket_number": docket_number,

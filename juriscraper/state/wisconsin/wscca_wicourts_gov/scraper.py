@@ -1,5 +1,9 @@
 """Wisconsin Supreme Court & Court of Appeals docket scraper (WSCCA).
 
+**This site uses hCaptcha, and this scraper does not currently work.**
+jkent no longer ships an hCaptcha handler (``HCAP_HANDLER`` was removed
+from ``DriverRequirement``), so nothing solves the challenge.
+
 Scrapes dockets from https://wscca.wicourts.gov/case-search.
 
 The site is a PureScript SPA backed by a JSON API. The case-search
@@ -128,7 +132,6 @@ class WisconsinWsccaScraper(BaseScraper[_Yield]):
     driver_requirements: ClassVar[list[DriverRequirement]] = [
         DriverRequirement.JS_EVAL,
         DriverRequirement.FF_ALIKE,
-        DriverRequirement.HCAP_HANDLER,
     ]
 
     # =========================================================================
@@ -198,7 +201,7 @@ class WisconsinWsccaScraper(BaseScraper[_Yield]):
 
         The Playwright driver navigates the page to the API URL; the
         response body is the raw JSON object, available as ``text`` in
-        the continuation.
+        the step.
         """
         return Request(
             request=HTTPRequestParams(
@@ -206,7 +209,7 @@ class WisconsinWsccaScraper(BaseScraper[_Yield]):
                 url=CASE_API_TEMPLATE.format(docket_number=docket_number),
                 headers={"Accept": "application/json"},
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data={
                 "docket_number": docket_number,
                 "source_entry_point": entry_point,
@@ -302,7 +305,7 @@ class WisconsinWsccaScraper(BaseScraper[_Yield]):
                     url=d.download_url,
                     headers={"Accept": "application/pdf, */*"},
                 ),
-                continuation=self.handle_document,
+                step=self.handle_document,
                 accumulated_data={
                     "court": court,
                     "docket_number": docket.docket_number,

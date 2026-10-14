@@ -65,7 +65,7 @@ class TestScraper(BaseScraper[AzAppDocket]):
                 url=f"{BASE_URL}stage_ASC_{CASE_TYPE}.htm",
                 headers={"Accept": "text/html"},
             ),
-            continuation=self.parse_case_list,
+            step=self.parse_case_list,
             accumulated_data={"court": COURT_ID, "case_type": CASE_TYPE},
         )
 

@@ -4,7 +4,7 @@
 > Two courts (`michctapp` Court of Appeals, `mich` Supreme Court). Episerver
 > SSR SPA fronted by Cloudflare. The full per-case detail JSON is gated by an
 > *invisible* hCaptcha the SPA mints per page-load, so the scraper runs under
-> **Camoufox** (`driver_requirements = [JS_EVAL, FF_ALIKE, HCAP_HANDLER]`) and
+> **Camoufox** (`driver_requirements = [JS_EVAL, FF_ALIKE]`) and
 > lets the page mint the token: it navigates to a page and **promotes** the
 > JSON the page fetches in the background via the driver's `Request.incidental`
 > mechanism (`Singular(...)` matches the captured request; its response is
@@ -35,8 +35,9 @@
   binary, the whole scraper is browser-bound — the listing is obtained by
   promoting the SPA's client-side `fetch` (a top-level navigation always
   returns the HTML shell, and the SSR HTML does **not** embed results). The
-  passive hCaptcha resolves without interaction in practice; `HCAP_HANDLER` is
-  belt-and-suspenders for a visible-challenge escalation.
+  passive hCaptcha resolves without interaction in practice; jkent has no
+  hCaptcha handler any more, so a visible-challenge escalation is a dead
+  end.
   - **Document downloads (PDFs)** — direct, no captcha (not yet implemented).
 
 The user-facing site terms ("Bulk data downloads … prohibited") apply to

@@ -123,7 +123,7 @@ class RhodeIslandPublicPortalScraper(BaseScraper[RIDocket]):
                 method=HttpMethod.GET,
                 url=DASHBOARD_URL,
             ),
-            continuation=self.submit_search_form,
+            step=self.submit_search_form,
             accumulated_data={
                 "court_id": COURT_ID,
                 "case_number_query": query,
@@ -160,7 +160,7 @@ class RhodeIslandPublicPortalScraper(BaseScraper[RIDocket]):
                 "caseCriteria.CourtLocation": court_location,
                 "caseCriteria.CourtLocation_input": court_location,
             },
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data=accumulated_data,
             deduplication_key=f"parse_search_results:{case_number_query}",
         )

@@ -114,7 +114,7 @@ class TennesseePublicCaseHistoryScraper(BaseScraper[TnDocket | TnDocument]):
                     "Referer": INDEX_URL,
                 },
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={"sequence": sequence, "page_number": 1},
             deduplication_key=f"dockets_by_number:{sequence}",
         )
@@ -169,7 +169,7 @@ class TennesseePublicCaseHistoryScraper(BaseScraper[TnDocket | TnDocument]):
                         "Referer": response.url,
                     },
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "internal_case_id": mast_id,
                     "docket_number": row["docket_number"],
@@ -206,7 +206,7 @@ class TennesseePublicCaseHistoryScraper(BaseScraper[TnDocket | TnDocument]):
                     data=postback_data,
                     headers={"Referer": INDEX_URL},
                 ),
-                continuation=self.parse_search_results,
+                step=self.parse_search_results,
                 accumulated_data=next_accum,
                 deduplication_key=SkipDeduplicationCheck(),
             )
@@ -271,7 +271,7 @@ class TennesseePublicCaseHistoryScraper(BaseScraper[TnDocket | TnDocument]):
                         url=response.url,
                         data=request_data,
                     ),
-                    continuation=self.handle_document_download,
+                    step=self.handle_document_download,
                     accumulated_data={
                         "docket_number": docket_number,
                         "court": court,

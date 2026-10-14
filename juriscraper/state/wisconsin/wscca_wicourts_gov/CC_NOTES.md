@@ -5,8 +5,8 @@
 > `courtType` (`SC`/`CA`) routes each docket to its CourtListener id.
 > **JSON-only** scraper — the steps decode the JSON body directly, so there
 > is **no `parsers/` package** (§3.5; cf. arkansas/nevada). Runs entirely
-> under Playwright (`driver_requirements = [JS_EVAL, FF_ALIKE,
-> HCAP_HANDLER]`) because every `/api/...` endpoint 403s to non-browser
+> under Playwright (`driver_requirements = [JS_EVAL, FF_ALIKE]`) because
+> every `/api/...` endpoint 403s to non-browser
 > clients. Model fields follow [`../../CL_MODELS.md`](../../CL_MODELS.md):
 > `court` (not `court_id`), `docket_number` (not `case_id`), `date_*` date
 > naming, `CleanString`/`HarmonizedCaseName` cleaning.
@@ -109,7 +109,7 @@ always pass the canonical form to `/api/case/{caseNo}`.
 
 ### Driver
 
-`driver_requirements = [JS_EVAL, FF_ALIKE, HCAP_HANDLER]`. The whole
+`driver_requirements = [JS_EVAL, FF_ALIKE]`. The whole
 scraper is Playwright; per-step driver requirements are not used.
 
 ### Entry points (§4)

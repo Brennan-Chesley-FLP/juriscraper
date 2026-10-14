@@ -203,7 +203,7 @@ class PaCourtsApiScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=f"{CASE_URL}/{quote(docket_number)}",
             ),
-            continuation=self.parse_case,
+            step=self.parse_case,
             reseedable=reseedable,
             accumulated_data={
                 "docket_number": docket_number,
@@ -229,7 +229,7 @@ class PaCourtsApiScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=PORTAL_SEARCH_URL,
             ),
-            continuation=self.submit_portal_search,
+            step=self.submit_portal_search,
             accumulated_data={
                 "court": court_id,
                 "date_gte": start.isoformat(),
@@ -267,7 +267,7 @@ class PaCourtsApiScraper(BaseScraper[_Yield]):
                 "FiledStartDate": start.isoformat(),
                 "FiledEndDate": end.isoformat(),
             },
-            continuation=self.parse_portal_results,
+            step=self.parse_portal_results,
             accumulated_data={
                 "court": court_id,
                 "date_gte": start.isoformat(),
@@ -405,7 +405,7 @@ class PaCourtsApiScraper(BaseScraper[_Yield]):
                         "courtName": site_court,
                     },
                 ),
-                continuation=self.parse_search_results,
+                step=self.parse_search_results,
                 accumulated_data={
                     "court": court_id,
                     "last_name": last_name,

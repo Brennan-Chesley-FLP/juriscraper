@@ -8,7 +8,7 @@
 > by `min_count`/`max_count` count assertions in the parsers and by the
 > pydantic models. The site returns 403 to plain HTTP and presents an
 > hCaptcha challenge, so it runs under Playwright
-> (`driver_requirements = [JS_EVAL, FF_ALIKE, HCAP_HANDLER]`). Model fields
+> (`driver_requirements = [JS_EVAL, FF_ALIKE]`). Model fields
 > follow [`../../CL_MODELS.md`](../../CL_MODELS.md): `court` is the CL court id
 > (the display name is kept in `court_name_raw`), `docket_number` (not
 > `case_number`), `date_*` date naming, `CleanString`/`HarmonizedCaseName`
@@ -82,7 +82,7 @@ docIndex / docId), `split_party_name_role`, `parse_attorney_reps`, and
 
 ### Deduplication keys (§6)
 
-`<continuation-or-record>:<args>` format, no court-id prefix:
+`<step-or-record>:<args>` format, no court-id prefix:
 `parse_search_page:<dn>`, `search_results:<dn>`, `case_detail:<docketId>`,
 `document_list:<docketId>`, and `document:<docketId>:<entry_number>:<docIndex>`
 for each archive download (colon-free index segment is the opaque base64 id).

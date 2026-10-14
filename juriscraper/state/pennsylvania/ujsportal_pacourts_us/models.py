@@ -188,7 +188,7 @@ class PADocketSheetPDF(ScrapedData):
     those structured records is performed post-hoc by a downstream PDF
     parser, not by this scraper.
 
-    Emitted by ``handle_docket_sheet_pdf`` which is the continuation of
+    Emitted by ``handle_docket_sheet_pdf`` which is the step of
     an ``archive=True`` request — the kent driver writes the PDF to disk
     and injects the resulting path as ``local_filepath``.
     """

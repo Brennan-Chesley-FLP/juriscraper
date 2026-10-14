@@ -151,14 +151,14 @@ class MinnesotaScraper(BaseScraper[MnDocket | MnDocument]):
         self, accumulated: dict, *, deduplication_key: str
     ) -> Request:
         """POST the disclaimer-acceptance form so the rest of the session
-        is authorised. The continuation kicks off the actual search."""
+        is authorised. The step kicks off the actual search."""
         return Request(
             request=HTTPRequestParams(
                 method=HttpMethod.POST,
                 url=LOGIN_URL,
                 data={"submitValue": "Accept"},
             ),
-            continuation=self.after_disclaimer,
+            step=self.after_disclaimer,
             accumulated_data=accumulated,
             deduplication_key=deduplication_key,
         )
@@ -183,7 +183,7 @@ class MinnesotaScraper(BaseScraper[MnDocket | MnDocument]):
                     from_dt=from_dt, to_dt=to_dt, start_row=start_row
                 ),
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data=accumulated_data,
             # Paginating POSTs re-issue the same form with an advanced
             # startRow / a new fromDt; dedup would collapse them.
@@ -250,7 +250,7 @@ class MinnesotaScraper(BaseScraper[MnDocket | MnDocument]):
                         cs_number=accumulated_data["cs_number"]
                     ),
                 ),
-                continuation=self.parse_search_results,
+                step=self.parse_search_results,
                 accumulated_data=accumulated_data,
                 deduplication_key=(
                     f"search:number:{accumulated_data['cs_number']}"
@@ -323,7 +323,7 @@ class MinnesotaScraper(BaseScraper[MnDocket | MnDocument]):
 
             yield Request(
                 request=HTTPRequestParams(method=HttpMethod.GET, url=absolute),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "search_court": court,
                     "search_docket_number": row["docket_number"],
@@ -468,7 +468,7 @@ class MinnesotaScraper(BaseScraper[MnDocket | MnDocument]):
                 url=orca_url,
                 headers={"Referer": response.url},
             ),
-            continuation=self.parse_orca_info,
+            step=self.parse_orca_info,
             accumulated_data={"docket": docket.model_dump(mode="json")},
             deduplication_key=f"orca:{docket.docket_number}",
         )
@@ -534,7 +534,7 @@ class MinnesotaScraper(BaseScraper[MnDocket | MnDocument]):
                 request=HTTPRequestParams(
                     method=HttpMethod.GET, url=doc.document_url
                 ),
-                continuation=self.handle_document_download,
+                step=self.handle_document_download,
                 expected_type="pdf",
                 accumulated_data={
                     "docket_number": docket.docket_number,
@@ -597,7 +597,7 @@ class MinnesotaScraper(BaseScraper[MnDocket | MnDocument]):
                 method=HttpMethod.GET,
                 url=entry_obj.entry_url,  # type: ignore[arg-type]
             ),
-            continuation=self.parse_docket_entry_page,
+            step=self.parse_docket_entry_page,
             accumulated_data={
                 "docket": docket.model_dump(mode="json"),
                 "entry_idx": next_idx,

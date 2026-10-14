@@ -158,7 +158,7 @@ class PAUjsPortalScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=SEARCH_URL,
             ),
-            continuation=self.submit_docket_search,
+            step=self.submit_docket_search,
             accumulated_data={
                 "search_mode": "docket_number",
                 "court": court_id,
@@ -182,7 +182,7 @@ class PAUjsPortalScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=SEARCH_URL,
             ),
-            continuation=self.submit_appellate_search,
+            step=self.submit_appellate_search,
             accumulated_data={
                 "search_mode": "appellate",
                 "court": court_id,
@@ -214,7 +214,7 @@ class PAUjsPortalScraper(BaseScraper[_Yield]):
                 "SearchBy": "DocketNumber",
                 "DocketNumber": accumulated_data["docket_number"],
             },
-            continuation=self.parse_results,
+            step=self.parse_results,
             accumulated_data=accumulated_data,
             deduplication_key=(
                 f"docket_search:{accumulated_data['docket_number']}"
@@ -237,7 +237,7 @@ class PAUjsPortalScraper(BaseScraper[_Yield]):
                 "FiledStartDate": accumulated_data["date_gte"],
                 "FiledEndDate": accumulated_data["date_lte"],
             },
-            continuation=self.parse_results,
+            step=self.parse_results,
             accumulated_data=accumulated_data,
             deduplication_key=(
                 f"appellate_search:{accumulated_data['court']}:"
@@ -306,7 +306,7 @@ class PAUjsPortalScraper(BaseScraper[_Yield]):
                         method=HttpMethod.GET,
                         url=sheet_url,
                     ),
-                    continuation=self.handle_docket_sheet_pdf,
+                    step=self.handle_docket_sheet_pdf,
                     expected_type="pdf",
                     accumulated_data={
                         "court": court,
@@ -386,7 +386,7 @@ class PAUjsPortalScraper(BaseScraper[_Yield]):
                     "FiledStartDate": half_start.isoformat(),
                     "FiledEndDate": half_end.isoformat(),
                 },
-                continuation=self.parse_results,
+                step=self.parse_results,
                 accumulated_data={
                     **accumulated_data,
                     "date_gte": half_start.isoformat(),

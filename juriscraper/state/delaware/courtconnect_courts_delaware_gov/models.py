@@ -309,27 +309,40 @@ class DeCourtConnectDocketEntry(ScrapedData):
     they are not a separate record type -- so the section is a label on the
     entry rather than a model of its own."""
 
+    courtroom: str | None = None
+    """Case Event Schedule only: the "Room" column ("SCN COURTROOM TBD").
+    The Docket Entries table has no such column, so this is None on every
+    ``docket_entries`` row."""
+
+    location: str | None = None
+    """Case Event Schedule only: the "Location" column, which names the
+    courthouse ("SUPERIOR CT NEW CASTLE COUNTY")."""
+
     extra_fields: dict[str, str] = {}
-    """Header -> value for any column this model does not name. Populated for
-    Case Event Schedule rows, whose column set is unknown: no case sampled on
-    2026-09-14 had a populated event schedule, so the parser reads that table
-    generically rather than inventing a shape for it."""
+    """Header -> value for any column this model does not name.
+
+    Empty across the whole corpus: the Case Event Schedule's five columns
+    (Event, Date/Time, Room, Location, Judge) are all named above, and the
+    Docket Entries table's four likewise. Kept as the landing place for a
+    column the site adds later, rather than dropping it silently."""
 
 
 class DeCourtConnectRelatedCase(ScrapedData):
-    """One row of the Related Cases section.
+    """One entry of the Related Cases section.
 
-    Read generically for the same reason as the event schedule: the section
-    exists on every docket report and was empty on all 128 cases sampled
-    (110 Chancery + 18 from other Delaware courts), so its columns have never
-    been observed.
+    The section is **not a table** -- it is a bare run of ``<a>`` links
+    separated by ``&nbsp;&nbsp;``, each pointing the frameset wrapper at
+    another case id and carrying that id as its text. So there is exactly one
+    datum per entry, and the relationship is untyped: the site says these
+    cases are related but never says how.
+
+    The related case need not be in the same court, or even in a number space
+    this scraper walks -- Chancery legacy case 6495 links to Common Pleas
+    ``CPU4-13-003466`` and Superior Court civil ``N11C-12-066``.
     """
 
     docket_number: str | None = None
-    """The related case's id, when a column plausibly holds one."""
-
-    extra_fields: dict[str, str] = {}
-    """Header -> value for the row's remaining columns."""
+    """The related case's id, as both the link text and its ``case_id``."""
 
 
 class DeCourtConnectDocket(ScrapedData):
@@ -373,6 +386,30 @@ class DeCourtConnectDocket(ScrapedData):
     """The description half of the Status line. The two halves are identical on
     every case sampled, but the site renders them as a pair and they are stored
     as one."""
+
+    is_appeal: bool | None = None
+    """Whether this case is an **appeal**, read off the case-type code.
+
+    Superior Court and Common Pleas each sit in both capacities, and the page
+    never says which -- the ``Type:`` line is the only marker it carries, and
+    it is authoritative. The obvious alternative signal is not usable: party
+    roles were measured across the corpus and ``APPELLANT``/``APPELLEE`` appear
+    on only 45-70% of known-appellate Superior cases (``AF`` 70%, ``AC`` 45%),
+    so plenty of real appeals are captioned ``PLAINTIFF``/``DEFENDANT``.
+
+    ``False`` is a positive claim of original jurisdiction, not "unknown":
+    Chancery's ``2A`` cases are all ``False`` because Chancery hears them at
+    first instance, and so are the handful of trial-court matters that sit on
+    Superior's appellate docket (``3C`` civil complaints, ``MH`` habeas
+    corpus, ``M3`` guardianship, ``ME`` consent orders -- 11 of 7,526 Superior
+    records). ``None`` means the page printed no case type to judge by.
+
+    Derived rather than filtered on: the mixed number spaces already use
+    ``APPEAL_CASE_TYPES`` to decide what to *collect* (``_in_scope``), while
+    Superior's ``A`` docket is collected whole. This field carries the same
+    distinction onto every record so a consumer can tell a ``delsuperct``
+    appeal from a ``delsuperct`` trial case without re-deriving the
+    vocabulary."""
 
     assigned_to_str: str | None = None
     """The JUDGE party row's name, as a string. CourtConnect has no separate

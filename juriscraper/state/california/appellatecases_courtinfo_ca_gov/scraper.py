@@ -42,6 +42,7 @@ from jkent.common.exceptions import TransientException
 from jkent.common.page_element import Link, PageElement, ViaLink
 from jkent.data_types import (
     CSS,
+    NO_RATE_LIMIT,
     BaseScraper,
     DriverRequirement,
     HttpMethod,
@@ -50,6 +51,7 @@ from jkent.data_types import (
     Request,
     Response,
     ScraperStatus,
+    TransientKind,
     WaitForLoadState,
     WaitForSelector,
     XPath,
@@ -79,6 +81,7 @@ from .parsers import (
     TrialCourtParser,
 )
 from .parsers._common import tab_header
+from .vocabularies import CaPublicationStatus
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -234,7 +237,6 @@ class CaAppScraper(BaseScraper[_Yield]):
     rate_limits: ClassVar[list[Rate] | None] = [Rate(3, Duration.SECOND)]
     driver_requirements: ClassVar[list[DriverRequirement]] = [
         DriverRequirement.JS_EVAL,
-        DriverRequirement.CHROME_ALIKE,
         DriverRequirement.CFCAP_HANDLER,
     ]
 
@@ -292,7 +294,7 @@ class CaAppScraper(BaseScraper[_Yield]):
                 url=search_results_url,
                 timeout=_NAV_TIMEOUT_S,
             ),
-            continuation=self.parse_case_summary,
+            step=self.parse_case_summary,
             reseedable=True,
             accumulated_data={
                 "prefix": prefix,
@@ -435,7 +437,7 @@ class CaAppScraper(BaseScraper[_Yield]):
             request=HTTPRequestParams(
                 method=HttpMethod.GET, url=docket_url, timeout=_NAV_TIMEOUT_S
             ),
-            continuation=self.parse_docket,
+            step=self.parse_docket,
             accumulated_data=accumulated_data,
             deduplication_key=(
                 f"parse_docket:{accumulated_data['docket_number']}"
@@ -468,8 +470,8 @@ class CaAppScraper(BaseScraper[_Yield]):
             collection = re.search(r"/opinions/([^/]+)/", url)
             yield link.follow(
                 archive=True,
-                continuation=self.archive_document,
-                bypass_rate_limit=True,
+                step=self.archive_document,
+                rate_limit=NO_RATE_LIMIT,
                 expected_type=ext,
                 accumulated_data={
                     "docket_number": docket_number,
@@ -601,7 +603,7 @@ class CaAppScraper(BaseScraper[_Yield]):
                     url=next_links[0].url,
                     timeout=_NAV_TIMEOUT_S,
                 ),
-                continuation=self.parse_case_summary,
+                step=self.parse_case_summary,
                 accumulated_data=accumulated_data,
                 deduplication_key=f"multi_result_page:{next_links[0].url}",
             )
@@ -643,7 +645,7 @@ class CaAppScraper(BaseScraper[_Yield]):
                         url=group["page_url"],
                         timeout=_NAV_TIMEOUT_S,
                     ),
-                    continuation=self.parse_case_summary,
+                    step=self.parse_case_summary,
                     accumulated_data=revisit,
                     deduplication_key=f"multi_result_revisit:{doc_id}",
                 )
@@ -665,7 +667,7 @@ class CaAppScraper(BaseScraper[_Yield]):
                     ),
                     description=f"multi-result case link doc_id={doc_id}",
                 ),
-                continuation=self.parse_case_summary,
+                step=self.parse_case_summary,
                 accumulated_data=new_data,
                 deduplication_key=f"parse_case_summary:{doc_id}",
             )
@@ -700,7 +702,7 @@ class CaAppScraper(BaseScraper[_Yield]):
             request=HTTPRequestParams(
                 method=HttpMethod.GET, url=briefs_url, timeout=_NAV_TIMEOUT_S
             ),
-            continuation=self.parse_briefs,
+            step=self.parse_briefs,
             accumulated_data=accumulated_data,
             deduplication_key=(
                 f"parse_briefs:{accumulated_data['docket_number']}"
@@ -742,7 +744,7 @@ class CaAppScraper(BaseScraper[_Yield]):
             request=HTTPRequestParams(
                 method=HttpMethod.GET, url=dispo_url, timeout=_NAV_TIMEOUT_S
             ),
-            continuation=self.parse_disposition,
+            step=self.parse_disposition,
             accumulated_data=accumulated_data,
             deduplication_key=(
                 f"parse_disposition:{accumulated_data['docket_number']}"
@@ -798,7 +800,7 @@ class CaAppScraper(BaseScraper[_Yield]):
             request=HTTPRequestParams(
                 method=HttpMethod.GET, url=parties_url, timeout=_NAV_TIMEOUT_S
             ),
-            continuation=self.parse_parties,
+            step=self.parse_parties,
             accumulated_data=accumulated_data,
             deduplication_key=(
                 f"parse_parties:{accumulated_data['docket_number']}"
@@ -868,7 +870,7 @@ class CaAppScraper(BaseScraper[_Yield]):
         self,
         response: Response,
         tab_page: str,
-        continuation: object,
+        step: object,
         accumulated_data: dict,
     ) -> Request:
         """Build the request for one case tab, reusing the current page's URL."""
@@ -878,10 +880,10 @@ class CaAppScraper(BaseScraper[_Yield]):
                 url=_build_tab_url(response.url, tab_page),
                 timeout=_NAV_TIMEOUT_S,
             ),
-            continuation=continuation,
+            step=step,
             accumulated_data=accumulated_data,
             deduplication_key=(
-                f"{continuation.__name__}:{accumulated_data['docket_number']}"
+                f"{step.__name__}:{accumulated_data['docket_number']}"
             ),
         )
 
@@ -1037,16 +1039,21 @@ class CaAppScraper(BaseScraper[_Yield]):
         yield from self._yield_unavailable_opinions(data)
 
     @staticmethod
-    def _is_published(status: str | None) -> bool:
+    def _is_published(status: object) -> bool:
         """True when a publication status says the opinion *was* published.
 
-        Substring matching has two traps this avoids: "Unpublished" contains
+        Reads the coded value when the vocabulary covers it. Falls back to the
+        raw string for anything it does not, so a status the site adds later
+        still classifies rather than silently reading as unpublished. The
+        substring form has two traps it must avoid: "Unpublished" contains
         "published", and so does "Depublished" (a publication later withdrawn,
         which must not count as published).
         """
+        if isinstance(status, CaPublicationStatus):
+            return status.published
         if not status:
             return False
-        lowered = status.lower()
+        lowered = str(status).lower()
         return (
             "published" in lowered
             and "unpublished" not in lowered
@@ -1066,7 +1073,10 @@ class CaAppScraper(BaseScraper[_Yield]):
         the description, since the overwhelming majority of Supreme Court
         dispositions ("Petition for review denied") are not opinions.
         """
-        if cls._is_published(disposition.get("publication_status")):
+        if cls._is_published(
+            disposition.get("publication_status")
+            or disposition.get("publication_status_raw")
+        ):
             return CaOpinionEvidence.PUBLICATION_STATUS
         description = (disposition.get("description") or "").strip().lower()
         if is_supreme and description.startswith("opinion"):
@@ -1101,6 +1111,9 @@ class CaAppScraper(BaseScraper[_Yield]):
                     court=data["court"],
                     evidence=evidence.value,
                     publication_status=disposition.get("publication_status"),
+                    publication_status_raw=disposition.get(
+                        "publication_status_raw"
+                    ),
                     case_name=data.get("case_name"),
                     case_citation=(
                         disposition.get("case_citation")
@@ -1136,6 +1149,8 @@ class CaAppScraper(BaseScraper[_Yield]):
         """
         cls._check_502_bad_gateway(page)
         cls._check_503_challenge(page)
+        cls._check_cloudflare_error(page)
+        cls._check_cloudflare_challenge(page)
         cls._check_maintenance(page)
         cls._check_application_error(page)
         cls._check_loading_spinners(page)
@@ -1150,11 +1165,19 @@ class CaAppScraper(BaseScraper[_Yield]):
             max_count=1,
         )
         if errors:
-            raise TransientException("F5 503 challenge page")
+            raise TransientException(
+                "F5 503 challenge page", kind=TransientKind.SITE_DEGRADED
+            )
 
     @staticmethod
     def _check_502_bad_gateway(page: PageElement) -> None:
-        """Raise TransientException if the page is a 502 Bad Gateway."""
+        """Raise TransientException if the *origin* served a 502 Bad Gateway.
+
+        This is the bare nginx/ColdFusion error page, whose heading reads
+        literally "502 Bad Gateway". Cloudflare's own edge 5xx page words it
+        differently and is caught by ``_check_cloudflare_error`` instead --
+        the two are separate pages, and matching one does not match the other.
+        """
         errors = page.query(
             XPath("//h1[contains(., '502 Bad Gateway')]"),
             "502 bad gateway heading",
@@ -1162,7 +1185,83 @@ class CaAppScraper(BaseScraper[_Yield]):
             max_count=1,
         )
         if errors:
-            raise TransientException("502 Bad Gateway")
+            raise TransientException(
+                "502 Bad Gateway", kind=TransientKind.SITE_DEGRADED
+            )
+
+    @staticmethod
+    def _check_cloudflare_error(page: PageElement) -> None:
+        """Raise TransientException on a Cloudflare edge 5xx error page.
+
+        Cloudflare fronts this site, and when the origin is unreachable it
+        serves its *own* branded error page rather than passing the origin's
+        through. That page splits the status across two spans::
+
+            <h1>
+              <span class="inline-block">Bad gateway</span>
+              <span class="code-label">Error code 502</span>
+            </h1>
+
+        so the heading's text is "Bad gateway Error code 502" and never
+        contains the string "502 Bad Gateway" that
+        ``_check_502_bad_gateway`` matches on. Nothing else on the page marks
+        it as broken either -- it carries no ``#centerColumn``, no tab strip
+        and no spinner -- so before this check every such page was parsed as
+        real content, and each one emitted a docket with that tab's data
+        silently empty. Twenty-five of them across a 7.9M-request sweep of
+        all nine courts, on every court, and they are a large part of why 404
+        dockets carried no parties at all.
+
+        Matched on the "Error code" span rather than on the class name or the
+        specific code: the classes are utility classes that change with
+        Cloudflare's template, and every 5xx it serves here (502, 520-524)
+        means the same thing -- the origin is unwell, retry. The code is read
+        back out for the message so the log still says which one it was.
+        """
+        codes = page.query_strings(
+            XPath(
+                "//h1//span[starts-with(normalize-space(.), 'Error code')]"
+                "/text()"
+            ),
+            "Cloudflare error-code label",
+            min_count=0,
+        )
+        if codes:
+            raise TransientException(
+                f"Cloudflare edge error page ({' '.join(codes[0].split())})",
+                kind=TransientKind.SITE_DEGRADED,
+            )
+
+    @staticmethod
+    def _check_cloudflare_challenge(page: PageElement) -> None:
+        """Raise TransientException on the Cloudflare bot challenge page.
+
+        The "Just a moment..." interstitial. ``CFCAP_HANDLER`` normally clears
+        it, but it still reaches a step occasionally -- 9 pages across the
+        nine-court sweep -- and like the error page it announces itself only
+        by its own chrome, so it was being parsed as content.
+
+        The wording has changed at least twice ("Checking your browser",
+        "Performing security verification", "Verifying you are human"), and
+        the residual ledger's old identifications for it are now stale, so
+        this matches the two parts of the page that have stayed put: the
+        ``<title>`` and the ``<noscript>`` notice. Either alone is enough --
+        a real page of this site has neither.
+        """
+        markers = page.query(
+            XPath(
+                "//title[contains(., 'Just a moment')] | "
+                "//noscript//*[contains("
+                "., 'Enable JavaScript and cookies to continue')]"
+            ),
+            "Cloudflare challenge markers",
+            min_count=0,
+        )
+        if markers:
+            raise TransientException(
+                "Cloudflare bot-challenge interstitial",
+                kind=TransientKind.INTERSTITIAL,
+            )
 
     @staticmethod
     def _check_application_error(page: PageElement) -> None:
@@ -1188,7 +1287,10 @@ class CaAppScraper(BaseScraper[_Yield]):
             max_count=1,
         )
         if errors:
-            raise TransientException("Site application error page")
+            raise TransientException(
+                "Site application error page",
+                kind=TransientKind.SITE_DEGRADED,
+            )
 
     @staticmethod
     def _check_maintenance(page: PageElement) -> None:
@@ -1207,7 +1309,10 @@ class CaAppScraper(BaseScraper[_Yield]):
             max_count=1,
         )
         if notice:
-            raise TransientException("Site in maintenance window")
+            raise TransientException(
+                "Site in maintenance window",
+                kind=TransientKind.SITE_DEGRADED,
+            )
 
     @staticmethod
     def _check_loading_spinners(page: PageElement) -> None:
@@ -1227,7 +1332,8 @@ class CaAppScraper(BaseScraper[_Yield]):
         if spinners:
             labels = [s.text_content().strip() for s in spinners]
             raise TransientException(
-                f"Page still loading (spinners present: {labels})"
+                f"Page still loading (spinners present: {labels})",
+                kind=TransientKind.SITE_DEGRADED,
             )
 
     # =========================================================================

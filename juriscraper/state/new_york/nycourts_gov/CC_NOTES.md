@@ -319,7 +319,7 @@ repair the raw `text` before handing a clean `PageElement` to the parser).
 
 ### Deduplication keys (§6)
 
-`<continuation-or-record>:<args>` format, no court-id prefix:
+`<step-or-record>:<args>` format, no court-id prefix:
 `parse_docket_page:<dn>`, `fill_docket_search:<arg>:<dec>`,
 `docket_detail:<page>:<row>`, `docket_filing_detail:<dn>:<page>-<row>`,
 `docket_number_results:<dn>`, `docket_detail_for_entry:<dn>`,

@@ -175,7 +175,7 @@ class WestVirginiaCourtsScraper(
                             "combine": "",
                         },
                     ),
-                    continuation=self.parse_listing,
+                    step=self.parse_listing,
                     accumulated_data={
                         "court": cfg.court,
                         "field_prefix": cfg.field_prefix,
@@ -210,7 +210,7 @@ class WestVirginiaCourtsScraper(
                     "combine": docket_number,
                 },
             ),
-            continuation=self.parse_listing,
+            step=self.parse_listing,
             accumulated_data={
                 "court": cfg.court,
                 "field_prefix": cfg.field_prefix,
@@ -273,7 +273,7 @@ class WestVirginiaCourtsScraper(
                     request=HTTPRequestParams(
                         method=HttpMethod.GET, url=row_data["pdf_url"]
                     ),
-                    continuation=self.handle_orderlist_download,
+                    step=self.handle_orderlist_download,
                     expected_type="pdf",
                     accumulated_data={
                         "court": court,
@@ -307,7 +307,7 @@ class WestVirginiaCourtsScraper(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET, url=detail_url
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "court": court,
                     "field_prefix": field_prefix,
@@ -378,7 +378,7 @@ class WestVirginiaCourtsScraper(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET, url=brief["download_url"]
                 ),
-                continuation=self.handle_brief_download,
+                step=self.handle_brief_download,
                 expected_type="pdf",
                 accumulated_data={
                     "docket_number": brief["docket_number"],

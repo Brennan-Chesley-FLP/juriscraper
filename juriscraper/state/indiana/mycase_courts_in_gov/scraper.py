@@ -166,7 +166,7 @@ class IndianaAppellateScraper(BaseScraper[InDocket | InDocument]):
                 headers=_search_headers(),
                 data=_encode_json_body(body),
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={
                 "mode": "ByCase",
                 "case_number": docket_number,
@@ -226,7 +226,7 @@ class IndianaAppellateScraper(BaseScraper[InDocket | InDocument]):
                     params={"SRCT": "", "CaseToken": case_token},
                     headers=_xhr_headers(),
                 ),
-                continuation=self.parse_case_detail,
+                step=self.parse_case_detail,
                 accumulated_data={
                     "case_number": case_number,
                     "court_id": court_id,
@@ -260,7 +260,7 @@ class IndianaAppellateScraper(BaseScraper[InDocket | InDocument]):
                     headers=_search_headers(),
                     data=_encode_json_body(next_body),
                 ),
-                continuation=self.parse_search_results,
+                step=self.parse_search_results,
                 accumulated_data={**accumulated_data, "skip": next_skip},
                 deduplication_key=SkipDeduplicationCheck(),
             )
@@ -410,7 +410,7 @@ class IndianaAppellateScraper(BaseScraper[InDocket | InDocument]):
                 headers=_search_headers(),
                 data=_encode_json_body(body),
             ),
-            continuation=self.parse_search_results,
+            step=self.parse_search_results,
             accumulated_data={
                 "mode": "ByParty",
                 "court_item_id": court_item_id,
@@ -536,7 +536,7 @@ class IndianaAppellateScraper(BaseScraper[InDocket | InDocument]):
                             request=HTTPRequestParams(
                                 method=HttpMethod.GET, url=full_url
                             ),
-                            continuation=self.download_document,
+                            step=self.download_document,
                             expected_type="pdf",
                             accumulated_data={
                                 "docket_number": docket_number,

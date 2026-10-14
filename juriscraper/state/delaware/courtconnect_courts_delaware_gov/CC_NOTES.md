@@ -339,14 +339,47 @@ Resolving (1) needs a pass that sweeps a few unit-months in *both* forms and
 tabulates suffix against case type. Until then the other five spaces are the
 complete ones.
 
-### Known gap: `CA` appeals on Superior's civil docket
+### Partial gap: `CA` appeals on Superior's civil docket
 
-`CA - AUTO ARBITRATION APPEAL` is an appellate case type that sits on Superior
-Court's ordinary `{County}{YY}C-{MM}-{NNN}` civil docket, not on the `A`
-docket. Reaching those means walking the entire Superior civil space — the
-largest on the portal — for one minor type, so it is **not covered**. `CA` is
-in `APPEAL_CASE_TYPES` already, so adding a `superior_civil` space later would
-pick them up with no other change.
+`CA - AUTO ARBITRATION APPEAL` is an appellate case type that can sit on
+Superior Court's ordinary `{County}{YY}C-{MM}-{NNN}` civil docket rather than
+the `A` docket. Reaching *those* means walking the entire Superior civil
+space — the largest on the portal — for one minor type, so they are not
+covered. Adding a `superior_civil` space later would pick them up with no other
+change; `CA` is in `APPEAL_CASE_TYPES` already.
+
+**Corrected 2026-09-30.** This was previously written as a total gap. It is
+not: `CA` cases also appear on the **`A`** docket and are already collected —
+4 of them in the corpus (`SK94A-10-001`, `SK00A-02-001`, `SK00A-08-001`,
+`N23A-05-008`). The gap is only over whichever `CA` cases carry a `C` number.
+
+### Superior's `A` docket is not *wholly* appellate
+
+`WHOLLY_APPELLATE_SPACES` collects `superior_appeal` and
+`superior_appeal_archival` without a case-type test, on the reasoning that the
+`A` type letter *is* the appellate docket. Measured over the corpus's 7,526
+Superior records, that is true of 7,515 of them and false of 11:
+
+| Type | Description | n | Appeal? |
+|---|---|---:|---|
+| `AF` `AD` `AA` `AB` `AC` `AE` `AI` `AG` | agency / CCP / certiorari / IAB / PSC / assessment / marijuana | 7,508 | yes |
+| `3A` | SUPERIOR CT CIVIL APPEALS | 3 | yes |
+| `CA` | AUTO ARBITRATION APPEAL | 4 | yes |
+| `3C` | SUPERIOR CT CIVIL COMPLAINTS | 7 | **no** |
+| `MH` | HABEAS CORPUS | 2 | **no** |
+| `M3` | APPOINTMENT OF GUARDIANSHIP | 1 | **no** |
+| `ME` | CONSENT ORDER | 1 | **no** |
+
+Those 11 are **kept, not filtered** — they are real Superior Court cases and
+dropping them would lose data — but they are labelled: see `is_appeal` under
+"Data Available". The space is still collected wholesale; the scope rule and
+the record label deliberately disagree on these 11.
+
+Note also that `M*` case types are now *observed* (`MH`, `M3`, `ME`), where
+`CASE_TYPE_COURTS` lists `M` among the deliberately-unmapped prefixes. All four
+records resolve to `delsuperct` correctly, but by the seed-court fallback
+rather than by rule. Mapping `M -> delsuperct` would make that explicit; it is
+left alone because no observed case depends on it.
 
 ## Data Available
 
@@ -359,6 +392,7 @@ pick them up with no other change.
 | `date_filed` | Printed as `Thursday , February 27th, 2025` — padded weekday, padded month, ordinal day. |
 | `case_type` / `case_type_code` / `case_type_description` | `2A - CIVIL ACTIONS` |
 | `status_code` / `status_description` | `CLOSED - CLOSED` or `ACTIVE - ACTIVE`; the halves were identical on every case sampled. Some non-Chancery cases print `none`, which is normalised away. |
+| `is_appeal` | Whether the case is an **appeal**, from `case_type_code`. Superior Court and Common Pleas each sit both at first instance and on appeal, and the page never says which — the `Type:` line is the only marker. Party roles are **not** usable: measured corpus-wide, `APPELLANT`/`APPELLEE` appear on only 45–70% of unambiguously appellate Superior cases (`AF` 70%, `AC` 45%), so many real appeals are captioned `PLAINTIFF`/`DEFENDANT`. `False` is a positive claim of original jurisdiction (all Chancery `2A`; the 11 trial-court types on the `A` docket); `None` only when no case type printed. |
 
 ### Case Parties
 
@@ -401,22 +435,100 @@ Other Delaware courts publish real registers of actions through the same table
 docket *activity* from this source — expect case existence, caption, filing
 date, judge, parties and counsel.
 
-### Related Cases / Case Event Schedule
+### Related Cases
 
-Both sections render on every report and were **empty on all 128 cases
-sampled** (110 Chancery across 2017–2026, plus 18 from Superior Court, Common
-Pleas and JP reached through the party search). Their column sets have
-therefore never been observed.
+**Shape confirmed 2026-09-30** against the 54,502-page run corpus, which holds
+**2** pages with a populated list. It is **not a table**: the section is a bare
+run of `<a>` links separated by `&nbsp;&nbsp;`, each pointing the frameset
+wrapper (`ck_public_qry_doct.cp_dktrpt_frames`) at another case id and carrying
+that id as its text. There are no columns and no relationship label — the site
+says the cases are related, never how.
 
-Rather than guess a shape, `parsers/sections.py` reads both generically: each
-row is zipped against the table's `<th>` labels and stored as a `{label:
-value}` map, with recognised columns promoted onto named fields and the rest
-kept in `extra_fields`. When a populated one finally appears, `jent residuals`
-will surface the real columns and the mapping can be tightened.
+| Field | Notes |
+|---|---|
+| `docket_number` | The linked case id, read from the href's `case_id`; the link text is the fallback. |
+
+The related case need not be in the same court or in a space this scraper
+walks: Chancery legacy case `6495` links to `8918` (Chancery legacy),
+`CPU4-13-003466` (Common Pleas) and `N11C-12-066` (Superior Court civil), and
+`8918` links back symmetrically.
+
+**Those linked cases are fetched** (`_related_case_requests`). Following the
+link is the only route to them: `N11C-12-066` sits on Superior Court's *civil*
+docket — the "Known gap: `CA` appeals" space above — which no number space here
+walks, and reaching it any other way would mean sweeping the largest docket on
+the portal.
+
+Three things about how that request is built:
+
+- It does **not** use `link.follow()`, though the affordance is there. The href
+  points at `ck_public_qry_doct.cp_dktrpt_frames`, the frameset wrapper, which
+  returns two `<frame>` tags and no docket. Only the case id is taken from the
+  link; the request goes to the inner endpoint like every other one here.
+- `space=None`, exactly as `docket_by_number` passes it. That makes the request
+  non-speculative (the site published this link, it is not a guess) and exempts
+  it from `_in_scope` — which is the point, since a related case is usually out
+  of scope *by number space* and is wanted anyway because a case we do collect
+  points at it.
+- **There is no depth cap.** The shared `docket_report:{case_id}` dedup key is
+  the only bound, and it is enough: it collapses the reciprocal links, so a
+  group of related cases is fetched once each and the walk stops. Only cases
+  that survive the scope filter follow their links at all.
+
+### The one component, measured
+
+Followed live on 2026-09-30 — the two cases the corpus had never fetched — to
+settle whether the graph could run away. It cannot: **the component is closed
+at four cases, and it is complete.** Each of the four lists the other three.
+
+| Case | Court | Type | Entries | In corpus? |
+|---|---|---|---|---|
+| `6495` | `delch` | `2A - CIVIL ACTIONS` | 1 | yes (`chancery_legacy`) |
+| `8918` | `delch` | `2A - CIVIL ACTIONS` | 1 | yes (`chancery_legacy`) |
+| `CPU4-13-003466` | `delctcompl` | `42 - TORT CLAIMS FOR CONVERSION` | 6 | **no** |
+| `N11C-12-066` | `delsuperct` | `CF - DEBT / BREACH OF CONTRACT` | **136** | **no** |
+
+It is one dispute — Ham / Morgan / Scott / Cindee Inc. — litigated across
+Chancery, Common Pleas and Superior Court, and the linkage is the only thing on
+the portal that says so. Note what the follow buys: the two Chancery dockets
+are the usual File & ServeXpress **stubs of one entry each**, while the
+Superior Court case they point at carries a **136-entry register of actions**
+on a 91 KB page. Neither of the two new cases is reachable any other way —
+`CPU4-13-003466` is a first-instance tort claim that the `common_pleas` scope
+filter would discard, and `N11C-12-066` sits on Superior's civil docket, which
+no space here walks.
+
+Across the whole corpus the follow yields 6 requests from those 2 pages, of
+which 4 are distinct cases and 2 (`CPU4-13-003466`, `N11C-12-066`) are new.
+
+**One cost this accepts.** jkent stores **no deduplication key on a speculative
+probe** (`insert_root_request(deduplicate=False)` — a deduplicated probe would
+never run, so the speculation tracker would never see its outcome), so a link
+to a case speculation already enumerated does not dedup against it and is
+fetched a second time. That is 2 requests here, and it is deliberate: the
+linking information is worth more than the duplicate fetch.
+
+### Case Event Schedule
+
+**Shape confirmed 2026-09-30**: **65** of the corpus's 26,966 case pages carry
+a schedule, 79 rows in all, every one a five-column table.
+
+| Column | Field | Example |
+|---|---|---|
+| Event | `description` | `MOTION TO STAY`, `ORAL ARGUMENT`, `CIVIL HEARING` |
+| Date/Time | `date_filed` + `time_filed` | `14-JUN-2011` / `09:00 AM` — one `<br>`-split cell, as a docket entry's Filing Date is |
+| Room | `courtroom` | `SCN COURTROOM TBD` |
+| Location | `location` | `SUPERIOR CT NEW CASTLE COUNTY` |
+| Judge | `name` | `SCOTT, CALVIN L` |
+
+Columns are matched by **header label**, not position, and an unrecognised
+label lands in `extra_fields` (empty across the whole corpus).
 
 Event-schedule rows are emitted as **`DeCourtConnectDocketEntry`** tagged
 `source_section="case_event_schedule"`, not as a separate record type: a
-future-dated calendar entry is a docket entry.
+future-dated calendar entry is a docket entry. `date_last_filing` is computed
+over the `docket_entries` rows **only** — a scheduled hearing is often in the
+future, and letting one set it would report a hearing date as the last filing.
 
 ### Documents
 
@@ -449,7 +561,7 @@ Two response quirks that are *not* bot protection but do need handling:
    Report Selection Criteria block and the single line "No case was found." in
    place of the case. `actually_successful` detects it, which is what stops
    speculation. The step checks for it **again** — the driver tracks the
-   speculation outcome but runs the continuation regardless, so without the
+   speculation outcome but runs the step regardless, so without the
    second check every probe past the end of a year raises on the absent Case
    Description table.
 2. **Truncated bodies.** Roughly 1 probe in 250 came back HTTP 200 with a
@@ -537,3 +649,32 @@ dockets_by_number / docket_by_number
 - `jent residuals` over that run: 6 clusters, all page chrome (section
   headings, table headers, the "No … were found" placeholders, the soft-404
   sentinel). No unclaimed data on the page.
+
+## Revision against the run corpus (2026-09-30)
+
+46 run dbs, **54,502 requests, 0 errors**, 26,962 records — 27,536 of the
+probes soft-404 misses. Every page is the one `parse_docket_report` step and
+every response is `text/html`, so there is no JSON track here.
+
+Three things the original 128-page sample could not settle, settled here:
+
+1. **Related Cases is a link list, not a table** (above). The table-based
+   reader it had found nothing, which is why `related_cases` was empty on all
+   26,962 records even though two of the pages behind them list three related
+   cases each.
+2. **The Case Event Schedule's column set** (above). `Date/Time` was not among
+   the header labels the generic reader recognised, so `date_filed` and
+   `time_filed` were **null on every one of the 79 event rows** — the schedule
+   was captured without its schedule.
+3. **There is nothing else.** A census of every `<b>Label:</b>` and every
+   `<th>` across all 54,502 pages returns exactly the labels the parsers read
+   and no others, and a census of every `href` returns only the in-page `#`
+   anchors, the disclaimer and search-hub links, the (broken, never followed)
+   person-detail link, and the 2 related-case links. **No documents of any
+   kind** — confirming the "Documents: None" finding above over three orders of
+   magnitude more pages.
+
+`residuals.yaml` dispositions the six surviving clusters, all chrome: the two
+tables' column headers, the section headings, the "No X were found"
+placeholders, the soft-404 sentinel, and the Report Selection Criteria block
+echoing the request's `case_id` back.

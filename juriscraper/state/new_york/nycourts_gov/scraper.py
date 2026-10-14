@@ -87,6 +87,7 @@ from jkent.common.page_element import PageElement
 from jkent.common.param_models import DateRange
 from jkent.data_types import (
     CSS,
+    NO_RATE_LIMIT,
     BaseScraper,
     DriverRequirement,
     HttpMethod,
@@ -486,7 +487,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=DOCKET_URL,
             ),
-            continuation=self.parse_docket_page,
+            step=self.parse_docket_page,
             accumulated_data={
                 "docket_number": docket_number,
                 "entry_point": "docket_by_number",
@@ -520,7 +521,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 method=HttpMethod.GET,
                 url=DOCKET_URL,
             ),
-            continuation=self.fill_docket_search,
+            step=self.fill_docket_search,
             accumulated_data={
                 "entry_point": "dockets_by_bulk",
                 **self._date_range_to_accumulated(
@@ -559,7 +560,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 "ctl00$cphMain$ddlFindParty": "FindOR",
             },
             submit_selector=CSS("input[name='ctl00$cphMain$btnFind']"),
-            continuation=self.parse_docket_results,
+            step=self.parse_docket_results,
             accumulated_data={
                 **accumulated_data,
                 "page_number": 1,
@@ -647,7 +648,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             yield form.submit(
                 data={},
                 submit_selector=CSS(f"#cphMain_gvResults_btnSelect_{i}"),
-                continuation=self.parse_docket_detail,
+                step=self.parse_docket_detail,
                 accumulated_data={
                     **accumulated_data,
                     "case_short_name_from_grid": row.get("case_short_name"),
@@ -734,7 +735,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 "__EVENTTARGET": "ctl00$cphMain$bttnDetails",
                 "__EVENTARGUMENT": "",
             },
-            continuation=self.parse_docket_filing_detail,
+            step=self.parse_docket_filing_detail,
             accumulated_data=filing_detail_data,
             deduplication_key=f"docket_filing_detail:{docket_number}:{accumulated_data.get('search_page')}-{accumulated_data.get('search_row')}",
         )
@@ -852,7 +853,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             row = button["row_index"]
             yield form.submit(
                 submit_selector=CSS(f"input[name='{button['button_name']}']"),
-                continuation=self.handle_file_download,
+                step=self.handle_file_download,
                 accumulated_data={
                     "docket_number": docket_number,
                     "file_name": button["file_name"],
@@ -860,7 +861,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                     "document_number": document_numbers_by_row.get(row),
                     "file_row": file_rows_by_row.get(row),
                 },
-                bypass_rate_limit=True,
+                rate_limit=NO_RATE_LIMIT,
                 priority=0,
                 archive=True,
                 # The grid's button already named the type; passing it here
@@ -951,7 +952,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 "ctl00$cphMain$tbCaseIdNum": parts[2],
             },
             submit_selector=CSS("input[name='ctl00$cphMain$btnFind']"),
-            continuation=self.parse_docket_number_results,
+            step=self.parse_docket_number_results,
             accumulated_data=accumulated_data,
             deduplication_key=f"docket_number_results:{docket_number}",
         )
@@ -1020,7 +1021,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
         yield form.submit(
             data={},
             submit_selector=CSS("#cphMain_gvResults_btnSelect_0"),
-            continuation=self.parse_docket_detail_for_entry,
+            step=self.parse_docket_detail_for_entry,
             accumulated_data=accumulated_data,
             deduplication_key=f"docket_detail_for_entry:{accumulated_data['docket_number']}",
         )
@@ -1074,7 +1075,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 "__EVENTTARGET": "ctl00$cphMain$bttnDetails",
                 "__EVENTARGUMENT": "",
             },
-            continuation=self.parse_filing_detail_from_docket,
+            step=self.parse_filing_detail_from_docket,
             accumulated_data={
                 "entry_point": accumulated_data.get("entry_point"),
                 "docket_number": docket_number,
@@ -1177,7 +1178,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
             row = button["row_index"]
             yield form.submit(
                 submit_selector=CSS(f"input[name='{button['button_name']}']"),
-                continuation=self.handle_file_download,
+                step=self.handle_file_download,
                 accumulated_data={
                     "docket_number": docket_number,
                     "file_name": button["file_name"],
@@ -1235,7 +1236,7 @@ class NYCourtPassScraper(BaseScraper[_Yield]):
                 "__EVENTTARGET": DOCKET_GRID,
                 "__EVENTARGUMENT": f"Page${target}",
             },
-            continuation=self.parse_docket_results,
+            step=self.parse_docket_results,
             accumulated_data={
                 **accumulated_data,
                 "page_number": target,

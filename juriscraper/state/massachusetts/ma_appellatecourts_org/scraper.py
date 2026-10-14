@@ -182,7 +182,7 @@ class MassachusettsAppellateScraper(BaseScraper[_Yield]):
                 url=f"{DOCKET_URL}/{docket_id}",
                 headers={"Accept": "text/html"},
             ),
-            continuation=self.parse_case_detail,
+            step=self.parse_case_detail,
             accumulated_data={
                 "docket_number": docket_id,
                 "court": court,
@@ -213,7 +213,7 @@ class MassachusettsAppellateScraper(BaseScraper[_Yield]):
                     url=f"{BASE_URL}/calendar/{calendar_type}",
                     headers={"Accept": "text/html"},
                 ),
-                continuation=self.parse_calendar,
+                step=self.parse_calendar,
                 accumulated_data={
                     "calendar_type": calendar_type,
                     "court": court,
@@ -285,7 +285,7 @@ class MassachusettsAppellateScraper(BaseScraper[_Yield]):
                     url=url,
                     headers={"Accept": "application/pdf"},
                 ),
-                continuation=self.handle_document_download,
+                step=self.handle_document_download,
                 expected_type="pdf",
                 accumulated_data={
                     "docket_number": docket_number,

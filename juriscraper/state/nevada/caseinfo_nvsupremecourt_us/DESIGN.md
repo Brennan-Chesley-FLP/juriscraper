@@ -173,7 +173,7 @@ fetch_by_internal_id
 
 `parse_case_view`:
 - Extracts header fields, parties, and docket entries (`combined_only=False`).
-- Yields an archive Request for each entry with a document URL; continuation
+- Yields an archive Request for each entry with a document URL; step
   is `download_document`.
 - Collects the set of (date, type, description) triples observed on the
   original page to dedupe against combined-view entries.

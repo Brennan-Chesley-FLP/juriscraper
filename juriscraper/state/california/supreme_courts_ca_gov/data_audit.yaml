@@ -1,0 +1,354 @@
+# Data-quality verdicts for the California Supreme Court briefs scraper.
+#
+# One entry per dotted path in the model tree, from the 2026-10-17
+# `audit-data` sweep over 18 run dbs (corpus cutoff 2026-09-16: 191 sessions,
+# 1,284 case listings, 11,506 brief listings, 11,466 downloaded PDFs, 0
+# errors, 0 invalid or dict-shaped rows).
+#
+# `when:` predicates are SQL over the materialized view described in
+# data-revisions-report-2026-10-17.md. The corpus has no court asymmetry worth
+# qualifying on -- 1,281 of 1,284 listings are `cal`, 3 are `calctapp_3rd`, and
+# every field behaves the same on both -- so most entries carry one verdict.
+#
+# Counts under `evidence:` are **pre-fix**: the corpus was produced by the
+# parsers as they stood on 2026-09-16. Paths marked `resolved_by:` were fixed
+# in the working tree on 2026-10-17 and are re-measured by the next sweep.
+
+scraper: juriscraper.state.california.supreme_courts_ca_gov.scraper:CalSupremeBriefsScraper
+identity: [court, docket_number]
+listing_identity: [court, docket_number, source_url]
+
+roots:
+  CalSupremeBriefCase: {}
+  CalSupremeArgumentSession: {join: [source_url], as: session}
+  CalSupremeDownloadedBrief: {join: [court, docket_number, brief_url], as: downloads}
+
+paths:
+
+  # ---- CalSupremeBriefCase ------------------------------------------------
+
+  CalSupremeBriefCase.court:
+    - verdict: redundant
+      note: >-
+        Derivable with no exceptions from docket_number[0] via
+        DOCKET_PREFIX_COURTS -- 1,284 of 1,284 agree. Kept deliberately: it is
+        half the CourtListener identity key, and deriving it at merge time
+        would re-encode the prefix map in a second place.
+      evidence: {rows: 1284, filled: 1284, distinct: 2, derivable_disagreements: 0}
+
+  CalSupremeBriefCase.docket_number:
+    - verdict: ok
+      evidence: {rows: 1284, filled: 1284, distinct: 1227}
+      note: Every value matches ^[A-Z][0-9]{6}$.
+
+  CalSupremeBriefCase.case_name:
+    - verdict: ok
+      evidence: {rows: 1284, filled: 1283, distinct: 1187}
+      note: >-
+        The one null is the documented "NO CASE ASSIGNED" heading. No sentinel
+        strings ("n/a", "none", "unknown") occur.
+
+  CalSupremeBriefCase.heading_raw:
+    - verdict: redundant
+      note: >-
+        Recomposes as docket_number + separator + case_name on 1,283 of 1,284
+        rows. Kept: the exception is exactly the row it exists for, and it is
+        the verbatim guard on the site's weakest field. Not proposed for drop.
+      evidence: {rows: 1284, filled: 1284, distinct: 1236}
+
+  CalSupremeBriefCase.date_argued:
+    - verdict: redundant
+      note: >-
+        Exactly date_session_start when date_session_start = date_session_end,
+        and null otherwise -- 462 filled, 0 disagreements, 0 single-day
+        sessions left null. Fully derivable. Proposed for a decision rather
+        than a drop (report 2026-10-17, Blocked): recommendation is to keep,
+        since it is the field CourtListener's Docket.date_argued wants and the
+        derivation rule is the scraper's to own, not the consumer's.
+      evidence: {rows: 1284, filled: 462, distinct: 103, derivable_disagreements: 0}
+
+  CalSupremeBriefCase.date_session_start:
+    - verdict: redundant
+      note: Denormalized from CalSupremeArgumentSession; 0 disagreements on 1,284 rows.
+      evidence: {rows: 1284, filled: 1284, distinct: 190}
+  CalSupremeBriefCase.date_session_end:
+    - verdict: redundant
+      note: Denormalized from CalSupremeArgumentSession; 0 disagreements.
+      evidence: {rows: 1284, filled: 1284, distinct: 191}
+  CalSupremeBriefCase.session_title:
+    - verdict: redundant
+      note: Denormalized from CalSupremeArgumentSession; 0 disagreements.
+      evidence: {rows: 1284, filled: 1284, distinct: 191}
+  CalSupremeBriefCase.session_type:
+    - verdict: redundant
+      note: >-
+        Denormalized from CalSupremeArgumentSession; 0 disagreements. All four
+        denormalized session fields are kept on purpose -- a case listing is
+        the unit a consumer joins on, and the session record may not be in the
+        same batch.
+      evidence: {rows: 1284, filled: 1284, distinct: 3}
+
+  CalSupremeBriefCase.notes:
+    - verdict: ok
+      evidence: {rows: 1284, filled: 399, distinct: 276}
+      note: Null-by-design on the 885 listings the court annotated with nothing.
+
+  CalSupremeBriefCase.consolidated_with:
+    - verdict: ok
+      evidence: {rows: 1284, filled: 12, distinct: 11}
+      note: >-
+        15 notes mention consolidation; 12 yield case numbers. The 3 that do
+        not read "(and consolidated case)" / "(and consolidated cases)" and
+        name no number, so there is nothing to extract. Verified by hand.
+
+  CalSupremeBriefCase.briefs:
+    - verdict: ok
+      evidence: {rows: 1284, filled: 1284, briefs: 11506}
+
+  CalSupremeBriefCase.source_url:
+    - verdict: ok
+      evidence: {rows: 1284, filled: 1284, distinct: 191}
+
+  CalSupremeBriefCase.source_entry_point:
+    - verdict: ok
+      evidence: {rows: 1284, filled: 1284, distinct: 1}
+      note: >-
+        Constant ("briefs_by_argument_date") because the scraper has exactly
+        one entry point. A constant by construction, not by accident; it earns
+        its place the moment a second entry point exists.
+
+  # ---- CalSupremeBrief (nested) -------------------------------------------
+
+  CalSupremeBrief.document_number:
+    - verdict: ok
+      evidence: {rows: 11506, filled: 11506, distinct: 49}
+
+  CalSupremeBrief.description:
+    - verdict: suspect
+      evidence: {rows: 11506, filled: 11506, distinct: 3905, mojibake: 13}
+      resolved_by: "fix_mojibake() in parsers/_common.py, 2026-10-17"
+      note: >-
+        13 titles are double-encoded on the court's own server: the response
+        is valid UTF-8 and declares charset=UTF-8, but the bytes spell the
+        mojibake ("Gasc\xc3\x83\xc2\xb3n" for Gascón, "\xc3\xa2\xc2\x80\xc2\x93" for an en dash).
+        Verified against the stored bytes of private-hummingbird:request:9 --
+        nothing in the fetch or the decode is wrong. collapse_ws now runs a
+        cp1252/UTF-8 round trip, which repairs all 13 and leaves correctly
+        spelled accented text ("San José", "Hernández") untouched.
+      assert:
+        id: description-is-not-double-encoded
+        on: briefs
+        find: "regexp_matches(description, 'Ã.|â€')"
+        rows: 13
+
+  CalSupremeBrief.document_type_raw:
+    - verdict: ok
+      note: >-
+        New on 2026-10-17: the verbatim split, which used to live in
+        document_type. Always populated -- when no title grammar matches, it
+        holds the whole description.
+      evidence: {rows: 11506, filled: 11506}
+
+  CalSupremeBrief.document_type:
+    - verdict: coded
+      resolved_by: "CaBriefDocumentType in vocabularies.py, 2026-10-17"
+      evidence:
+        rows: 11506
+        distinct_pre_fix: 954
+        distinct_post_title_fix: 894
+        singletons: 692
+        p_unseen: 0.060
+        members: 37
+        coverage: 0.9015
+      note: >-
+        37 members -- every type filed 10+ times, after merging a trailing
+        "Filed" and Authority/Authorities -- cover 90.15%. The remaining 9.8%
+        is a genuinely open tail, not more spellings: stripping leading
+        modifiers ("Amended", "Second Supplemental") collapses only 0.3
+        points. Uncovered titles code to None with the words in
+        document_type_raw.
+      assert:
+        id: document-type-tail-is-growing
+        on: briefs
+        find: "document_type IS NULL"
+        rows: 1133
+
+  CalSupremeBrief.filed_by:
+    - verdict: null-bug
+      evidence: {rows: 11506, filled: 11280, null: 226, distinct: 1663}
+      resolved_by: "_role_phrase_matches() in parsers/_common.py, 2026-10-17"
+      note: >-
+        226 titles produced no filer. 148 of those are genuinely bare
+        ("Order", "Case Summary", "General Docket"). The other 78 were the
+        comma form with a filer the role set did not list -- a conjunction
+        ("Intervener and Respondent", 39), a plural ("Non-Title Respondents",
+        10), a role the court uses that was never listed
+        ("Pub/Depublication Requestor", "Minor", "Attorney General", 19), one
+        of the court's four typos ("Real Pary in Interest", "Applellant",
+        "Resps", 5) -- or the same filer-then-document order written with a
+        dash (6). Roles are now matched compositionally: conjuncts are split
+        on " and ", depluralised, and each must be a listed role, so a title
+        like "Declaration of Charles H. Bell, Jr., ..." still goes unsplit
+        rather than acquiring an invented filer.
+    - verdict: null-by-design
+      when: "filed_by IS NULL AND document_type_raw = description"
+      note: >-
+        After the fix, 148 titles state a document and no filer. That is the
+        court's listing, not a parse failure.
+
+  CalSupremeBrief.date_filed:
+    - verdict: suspect
+      evidence: {rows: 11506, filled: 11506, distinct: 4037, implausible_year: 11}
+      note: >-
+        11 dates carry a year the court typo'd: 0005, 0010, 0021 (x4), 0022
+        (x2), 0025, 2222, 5017. Read verbatim off the page, which is correct
+        -- but a year of 5017 is poison in an index. Proposed, not applied
+        (report 2026-10-17, Blocked): null the date and add a date_filed_raw
+        sibling, so the court's text survives and the date column stays sane.
+        The 1997-2008 dates are genuine, from long-running capital cases.
+      assert:
+        id: date-filed-year-is-plausible
+        on: briefs
+        find: "date_filed < '1990-01-01' OR date_filed > '2027-12-31'"
+        rows: 11
+    - verdict: ok
+      when: "date_filed BETWEEN '1990-01-01' AND '2027-12-31'"
+      note: >-
+        23 briefs across 10 cases are filed after their session ended. All
+        read as post-argument filings (letter briefs, orders, supplemental
+        briefing) -- checked by hand, not a mis-association.
+
+  CalSupremeBrief.url:
+    - verdict: ok
+      evidence: {rows: 11506, filled: 11505, distinct: 11455}
+      note: >-
+        The one null is the documented unlinked May 7-8 2019 listing. Every
+        URL is on supreme.courts.ca.gov after canonical_brief_url rewrites the
+        27 Pantheon staging links.
+
+  CalSupremeBrief.filename:
+    - verdict: ok
+      evidence: {rows: 11506, filled: 11505, distinct: 11454}
+    - verdict: suspect
+      when: "filename_docket IS NOT NULL AND filename_docket <> upper(docket_number)"
+      evidence: {rows: 33, cases: 10}
+      note: >-
+        33 briefs are filed under a case whose number the PDF's own filename
+        contradicts. Two kinds, both the court's defect and neither repaired
+        (the scraper records what the page states):
+
+        (a) 7 single-row filename typos -- s152394 for S152934, s197387 for
+        S198387, s090449 for S090499, s053328, s045969, s107556. Harmless:
+        every other file on those cases agrees.
+
+        (b) 26 rows where the court attributed a whole brief set to the wrong
+        heading. On may-3-4-and-5-2016, S213468 (PERRIS v. STAMPER) carries
+        S097886's 9 briefs and S215914 (PEOPLE v. MORAN) carries S228030's 5 --
+        each an exact duplicate of that page's own listing for the real case,
+        byte-identical by content hash. On the three hand-authored blocks
+        (S105876, S130263, S198132) the link text and href are a *permutation*
+        of each other and some hrefs belong to other dockets entirely
+        (S249495, S249397, S251333, S252057).
+
+        A consumer that trusts (court, docket_number) will file 26 PDFs under
+        the wrong case. Proposed, not applied (report 2026-10-17, Blocked): a
+        filename_docket_number field that states the disagreement rather than
+        resolving it.
+      assert:
+        id: filename-names-the-listing-case
+        on: briefs
+        find: >-
+          regexp_extract(filename, '(?i)\b(s[0-9]{6})\b', 1) <> ''
+          AND upper(regexp_extract(filename, '(?i)\b(s[0-9]{6})\b', 1))
+              <> upper(docket_number)
+        rows: 33
+
+  # ---- CalSupremeArgumentSession ------------------------------------------
+
+  CalSupremeArgumentSession.court:
+    - verdict: ok
+      evidence: {rows: 191, filled: 191, distinct: 1}
+      note: Constant "cal" -- the site is the Supreme Court's own.
+  CalSupremeArgumentSession.session_title:
+    - verdict: ok
+      evidence: {rows: 191, filled: 191, distinct: 191}
+  CalSupremeArgumentSession.date_session_start:
+    - verdict: ok
+      evidence: {rows: 191, filled: 191, distinct: 190}
+  CalSupremeArgumentSession.date_session_end:
+    - verdict: ok
+      evidence: {rows: 191, filled: 191, distinct: 191}
+  CalSupremeArgumentSession.session_type:
+    - verdict: ok
+      evidence: {rows: 191, filled: 191, distinct: 3}
+      note: 186 regular, 3 special, 2 outreach.
+  CalSupremeArgumentSession.source_url:
+    - verdict: ok
+      evidence: {rows: 191, filled: 191, distinct: 191}
+
+  CalSupremeArgumentSession.session_note:
+    - verdict: null-unreachable
+      evidence: {rows: 191, filled: 0}
+      note: >-
+        Null on all 191 stored sessions because the corpus was swept on
+        2026-09-16 and the field was added by `revise-scraper` on 2026-10-16.
+        Not a bug: replaying masterful-baboon:request:4 against the stored
+        page yields the full October 7 2014 outreach note, and
+        spectral-bird:request:5 yields the September 29 2016 special-session
+        note. Expect 6 of 191 filled after the next sweep.
+
+  CalSupremeArgumentSession.documents:
+    - verdict: null-unreachable
+      evidence: {rows: 191, filled: 0}
+      note: >-
+        Same cause as session_note. Replaying spectral-bird:request:5 yields
+        both September 29 2016 documents. Expect 1 of 191 sessions with 2
+        documents after the next sweep.
+  CalSupremeSessionDocument.description:
+    - verdict: null-unreachable
+      note: No session document is in the corpus; see .documents above.
+  CalSupremeSessionDocument.url:
+    - verdict: null-unreachable
+      note: No session document is in the corpus; see .documents above.
+  CalSupremeSessionDocument.filename:
+    - verdict: null-unreachable
+      note: No session document is in the corpus; see .documents above.
+
+  # ---- CalSupremeDownloadedBrief ------------------------------------------
+
+  CalSupremeDownloadedBrief.court:
+    - verdict: redundant
+      note: Matches the case listing's court by construction.
+      evidence: {rows: 11466, filled: 11466, distinct: 2}
+  CalSupremeDownloadedBrief.docket_number:
+    - verdict: ok
+      evidence: {rows: 11466, filled: 11466, distinct: 1227}
+  CalSupremeDownloadedBrief.document_number:
+    - verdict: ok
+      evidence: {rows: 11466, filled: 11466, distinct: 49}
+  CalSupremeDownloadedBrief.description:
+    - verdict: redundant
+      note: >-
+        Restates CalSupremeBrief.description for the same (court,
+        docket_number, url). Kept: it makes the download record readable on
+        its own, which is what an archive record is for.
+      evidence: {rows: 11466, filled: 11466, distinct: 3904}
+  CalSupremeDownloadedBrief.date_filed:
+    - verdict: redundant
+      note: Restates CalSupremeBrief.date_filed, including the 11 typo'd years.
+      evidence: {rows: 11466, filled: 11466, distinct: 4036}
+  CalSupremeDownloadedBrief.brief_url:
+    - verdict: ok
+      evidence: {rows: 11466, filled: 11466, distinct: 11454}
+      note: >-
+        12 URLs appear on two dockets (consolidated pairs); the download dedup
+        key is per docket, so each is recorded twice. One listed URL is absent
+        entirely -- see the coverage note in the report.
+  CalSupremeDownloadedBrief.local_path:
+    - verdict: ok
+      evidence: {rows: 11466, filled: 11466, distinct: 11436}
+      note: >-
+        Content-addressed, so the 30 collisions are a *result*, not a defect:
+        they are the court's "_0" re-uploads, proven byte-identical to the
+        originals by sharing a hash. That identity is what established the
+        May 2016 duplicate listings as duplicates rather than as two filings.

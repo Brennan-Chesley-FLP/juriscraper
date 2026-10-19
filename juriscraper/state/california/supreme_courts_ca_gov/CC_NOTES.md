@@ -125,21 +125,71 @@ Two shapes, both parsed:
    with an `<ol>` of brief links. **Nothing is nested**, so the parser walks
    the container's children in document order; which note and which list
    belong to which heading is document order and nothing else.
-2. **Hand-authored body blocks** (6 pages). A `div.jcc-body__main` holding
-   `header.jcc-section-heading > h2`, a `div.jcc-section-heading__lead` note,
-   and a `div.jcc-body__main-text` list. Three are genuine cases the editor
-   added by hand (S105876, S130263, S198132 — each the last case on its
-   page); the other three hold a `Special Note:` heading naming the venue of
-   a special session, which carries no case and is skipped.
+2. **Hand-authored body blocks** (9 pages). A `div.jcc-body__main` holding
+   an optional `header.jcc-section-heading > h2`, a
+   `div.jcc-section-heading__lead` note, and a `div.jcc-body__main-text`
+   body. Three are genuine cases the editor added by hand (S105876, S130263,
+   S198132 — each the last case on its page).
+
+   The other **six state no case number and are not cases**: they are the
+   court's note *about the session*, and ride on
+   `CalSupremeArgumentSession.session_note` / `.documents` (see *Session
+   notes* below). A block is read as a case when its heading states a case
+   number or its body holds a list of brief links, and as a session note
+   otherwise.
 
 Each brief `<li>` is `<a href=...>Title</a> Filed on <Month D, YYYY>`.
+
+### Session notes (the six non-case body blocks)
+
+The session title says *that* a session was Special or Outreach but never
+*where* it sat. The hand-authored block is the only place the page says so,
+and it is now extracted verbatim as `session_note`:
+
+| Session | What the note states |
+|---|---|
+| Oct 3 2012 (special) | `Oral Argument Calendar - Special Session - UC Davis - October 3, 2012` |
+| Feb 5 2013 (special) | at University of San Francisco School of Law |
+| Oct 9 2013 (special) | at University of California Berkeley School of Law |
+| Sep 29 2016 (special) | at the Court of Appeal, Fourth Appellate District, Division One, San Diego |
+| Oct 7 2014 (outreach) | the schools the program served, the courtroom, the California Channel broadcast — **and the three cases called that afternoon, in argument order** |
+| Oct 6 2015 (outreach) | the schools the program served, the courtroom, the broadcast |
+
+Three of the six are introduced by a `Special Note:` heading, which is
+dropped: it labels the note rather than adding to it. The October 7 2014
+block is the only place on the whole site that any case's argument *order*
+appears; it is kept verbatim rather than parsed into per-case fields, since
+one page cannot establish a grammar.
+
+The September 29 2016 block also links two session-level PDFs, now recorded
+as `CalSupremeSessionDocument`:
+
+- `SSEP2916A.pdf` — the printed oral argument calendar for that session
+- `san_diego_special_session_case_summaries.pdf` — "Expanded Case Summaries"
+
+**They are recorded but not downloaded**: no run in the corpus ever fetched
+them, so nothing offline can verify a download handler. The calendar PDF is
+the same genre of document as the oral argument calendars named under *Next
+Steps* — the source for per-case argument dates.
 
 ## Data Available
 
 ### `CalSupremeArgumentSession` (one per session fetched)
 
 `court`, `session_title`, `date_session_start`, `date_session_end`,
-`session_type` (regular / special / outreach), `source_url`.
+`session_type` (regular / special / outreach), `session_note`, `documents[]`,
+`source_url`.
+
+Emitted by **`parse_session_page`**, not by the index step: the index link
+states only the title, while the session's own page states that plus the
+court's note about the session and any session-level document. The index
+step still does the date filtering, so only sessions inside the window are
+fetched and a run records exactly the sessions it saw.
+
+### `CalSupremeSessionDocument` (nested, one per session-level PDF)
+
+`description`, `url`, `filename`. Only the September 29 2016 session has
+any (2). Recorded, not downloaded — see *Session notes*.
 
 ### `CalSupremeBriefCase` (one per case *listing*, → CL `Docket`)
 
@@ -159,8 +209,8 @@ source_url)` identifies a listing.
 
 ### `CalSupremeBrief` (nested, → CL `RECAPDocument`)
 
-`document_number`, `description`, `document_type`, `filed_by`, `date_filed`,
-`url`, `filename`.
+`document_number`, `description`, `document_type_raw`, `document_type`
+(coded), `filed_by`, `date_filed`, `url`, `filename`.
 
 `document_number` is the **list position**, not the leading number in the
 filename: 420 of the 11,478 linked files disagree with their position because
@@ -182,7 +232,7 @@ the three forms the court uses:
 | possessive | `Appellant's Opening Brief on the Merits` | ~8,000 |
 | amicus | `Amicus Curiae Brief of Consumer Attorneys of California` | ~1,300 |
 | comma | `Real Party in Interest, The People, Answer Brief on the Merits` | ~200 |
-| bare | `Petition for Review`, `Order` (mostly pre-2011) | 226 |
+| bare | `Petition for Review`, `Order` (mostly pre-2011) | 148 |
 
 The verbatim `description` always stands; the split is a convenience.
 Two quirks are handled: the possessive filer may not contain a comma (so
@@ -192,6 +242,51 @@ misplace the apostrophe in `Real Party's in Interest <document>`, which is
 put back together rather than filed under a filer of "Real Party".
 
 Both `'` (U+2019) and `'` occur; the regexes accept either.
+
+### Roles are matched compositionally, not enumerated
+
+The comma form fires only when the title's leading chunk names party roles.
+Matching that chunk against a flat list missed 78 titles, so the check now
+splits it on ` and `, depluralises each conjunct, corrects the court's four
+typos, and requires **every** conjunct to be a listed role:
+
+| Shape | Example | Titles |
+|---|---|---:|
+| conjoined roles | `Intervener and Respondent, …` | 39 |
+| unlisted role | `Pub/Depublication Requestor`, `Minor`, `Attorney General` | 19 |
+| plural | `Non-Title Respondents`, `Interveners` | 10 |
+| dash instead of commas | `Real Parties in Interest - Preliminary Opposition` | 6 |
+| the court's typos | `Real Pary in Interest`, `Applellant`, `Resps` | 5 |
+
+Strictness is the point: `Declaration of Charles H. Bell, Jr., Regarding …`
+and `Response to June 15, 2016 Order` also lead with a comma chunk, and must
+keep coming back unsplit rather than acquiring an invented filer. After the
+widening, 148 of 11,506 titles state no filer — all genuinely bare (`Order`,
+`Case Summary`, `General Docket`).
+
+### `document_type` is coded; `document_type_raw` keeps the words
+
+`CaBriefDocumentType` ([`vocabularies.py`](vocabularies.py)) has 37 members —
+every type the court filed 10+ times, after merging a trailing `Filed` and
+`Authority`/`Authorities`, which are spelling variance and not distinctions
+the court draws. They cover **90.15%** of 11,506 listings.
+
+The other 9.8% is a genuinely open tail rather than more spellings: 692 of the
+894 distinct post-split values occur exactly once (`P(unseen) = 0.060`), and
+stripping leading modifiers (`Amended`, `Second Supplemental`) collapses only
+0.3 points of it. Those are filings the court titled for the occasion, and
+they code to `None` beside a populated `document_type_raw`. Codes 0 and 999
+are reserved, so a consumer storing codes can tell "nothing stated" from
+"stated something uncovered".
+
+### The court double-encodes 13 titles
+
+The host serves valid UTF-8 and declares `charset=UTF-8`, but 13 brief titles
+were encoded twice before being written: the bytes spell `GascÃ³n`, not
+`Gascón`. Verified against the stored bytes of the April 4–5 2017 page —
+nothing in the fetch or the decode is at fault. `collapse_ws` now runs a
+cp1252→UTF-8 round trip, which is its own filter: correctly spelled accented
+text (`San José`, `Hernández`) fails to re-decode and comes back untouched.
 
 ## Known Site Defects (all handled, none repaired silently)
 
@@ -213,10 +308,34 @@ Both `'` (U+2019) and `'` occur; the regexes accept either.
   corrected from the other.
 - **Heading separators vary** — `-`, `–`, or nothing at all (`S198387
   VANDERMOST v. BOWEN`).
+- **A session slug naming the wrong year** — `/briefs-argued-cases/december-6-and-7-2022-oral-argument-cases`
+  is titled `December 6-7, 2016 Oral Argument Cases` in both its `<h1>` and
+  its index link text, and the index files the link under its **2016**
+  accordion panel. No brief on the page is filed later than October 31 2016.
+  The session really was December 6–7 **2016**; the slug is the typo, and the
+  scraper is right to take the dates from the title. Do not "fix" this by
+  reading the year out of the slug. (Probably an artifact of the court's 2022
+  site migration — the special-session PDFs likewise live under `/2022-06/`.)
 - **Duplicate files across listings** — 23 URLs appear under two cases
   (consolidated pairs). The download dedup key is
   `<docket_number>-<filename>`, so a file shared by two *dockets* is fetched
   once per docket and a case listed under two *sessions* is fetched once.
+- **Briefs attributed to the wrong case** — 33 briefs sit under a case whose
+  number their own PDF filename contradicts. 7 are single-row filename typos
+  (`s152394` for S152934, `s197387` for S198387, …), harmless because every
+  other file on those cases agrees. The other 26 are the court attributing a
+  whole brief set to the wrong heading: on the May 3–5 2016 page, **S213468**
+  (PERRIS v. STAMPER) carries S097886's 9 briefs and **S215914** (PEOPLE v.
+  MORAN) carries S228030's 5 — each an exact duplicate of that page's own
+  listing for the real case, proven byte-identical by content hash. On the
+  three hand-authored blocks the link text and `href` are a *permutation* of
+  each other, and some `href`s belong to other dockets entirely (S249495,
+  S249397, S251333, S252057). Recorded as the page states it, never repaired;
+  see `data_audit.yaml` → `CalSupremeBrief.filename`.
+- **Implausible filing years** — 11 `date_filed` values carry a year the court
+  typo'd: `0005`, `0010`, `0021` (×4), `0022` (×2), `0025`, `2222`, `5017`.
+  Read verbatim. The 1997–2008 dates are genuine, from long-running capital
+  cases.
 
 ## Bot Protection Notes
 
@@ -284,6 +403,11 @@ runs whatever window asked for it.
 | `parsers/session_page.py` | `SessionPageParser` | one session page |
 | `parsers/_common.py` | — | title/date/brief-title helpers |
 
+`vocabularies.py` holds `CaBriefDocumentType`, the coded filing vocabulary.
+It is imported by `models.py`, not by the parsers: the parser emits the raw
+string into both `document_type_raw` and `document_type`, and the model codes
+one of them.
+
 Both are exercisable offline with `JKentParser.from_file(path, url=...)`.
 
 Headings and notes are read through a `.//text()` `query_strings` call rather
@@ -301,20 +425,46 @@ container's own text is never marked consumed — so reading a heading with
   PDFs (445 MB), 259/259 requests HTTP 200, 273/273 records valid.
 - `tests/local/test_cal_supreme_briefs_scraper.py` — offline parser tests
   over compact fixtures covering the title date grammar, both page shapes,
-  multi-note cases, `NO CASE ASSIGNED`, the unlinked brief, and the staging
-  host rewrite.
-- `jent residuals --clusters` over the session pages leaves 2 clusters, both
-  restatements of the session title (`<title>` and the breadcrumb). Nothing
-  the page states about a case is unclaimed.
+  multi-note cases, `NO CASE ASSIGNED`, the unlinked brief, the staging
+  host rewrite, and the session note / session documents.
+
+## Revision (2026-10-16, `revise-scraper`)
+
+Corpus: 18 run dbs, 11,767 requests, 193 stored session pages (191 distinct
+sessions) + 11,556 brief PDFs, 0 errors.
+
+- `jent residuals` over all 193 session pages found **6 clusters**. Four were
+  the hand-authored session-note blocks and are now extracted
+  (`session_note`, `documents`); the remaining two are dispositioned
+  `chrome` in [`residuals.yaml`](residuals.yaml) — the `<title>` and the
+  final breadcrumb crumb, both verbatim restatements of `session_title`.
+- Residual ledger is now **0 unidentified / 0 orphaned** at full width, and
+  `scripts/report.py --check` passes. Its one WARN is
+  `handle_brief_download` being "not analyzable" — those responses are PDFs,
+  so there is no DOM to measure.
+- Case and brief extraction is byte-for-byte unchanged: 191 sessions, 1,284
+  cases, 11,506 briefs, same as the 2026-09-10 sweep.
+- No JSON steps, so there is no `schemas.json`.
 
 ## Next Steps
 
-- Sweep the full 2010–2026 history and hand off to **revise-scraper** to
-  record `residuals.yaml` dispositions for the two title-restatement
-  clusters.
-- **audit-data** should look at `document_type` (954 distinct values, a long
-  amicus tail) and `filed_by` (1,664) — both are candidates for a coded
-  vocabulary with a raw fallback.
+- **Corpus extension**: nothing in the corpus ever fetched the two September
+  29 2016 session documents. Add a step that archives
+  `CalSupremeArgumentSession.documents` and re-sweep, so a download handler
+  can be verified offline.
+- **audit-data ran 2026-10-17** — see
+  [`data-revisions-report-2026-10-17.md`](data-revisions-report-2026-10-17.md)
+  and the verdict ledger [`data_audit.yaml`](data_audit.yaml). Fixed in the
+  working tree: the mojibake repair, the compositional role match, and the
+  `document_type` vocabulary. Awaiting a decision: the implausible
+  `date_filed` years, a `filename_docket_number` field for the 33
+  misattributed briefs, and whether `date_argued` (fully derivable from the
+  session span) stays.
+- **Re-sweep needed.** `session_note` and `documents` are null on all 191
+  stored sessions purely because the corpus predates them; replay confirms
+  both populate. The next sweep should show 6 sessions with a note and 1 with
+  2 documents, and `document_type` coded on ~90% of listings.
 - The oral argument calendar PDFs are the source for per-case argument dates
   and argument order, if `date_argued` needs filling in for multi-day
-  sessions.
+  sessions. The September 29 2016 note block links one directly; the rest are
+  on `/case-information/oral-arguments/oral-arguments-calendar`.

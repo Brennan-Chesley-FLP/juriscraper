@@ -20,6 +20,9 @@ from enum import Enum
 
 from jkent.common.data_models import ScrapedData
 
+from juriscraper.state.california.supreme_courts_ca_gov.vocabularies import (
+    CodedBriefDocumentType,
+)
 from juriscraper.state.common_models import CleanString, HarmonizedCaseName
 
 BASE_URL = "https://supreme.courts.ca.gov"
@@ -79,12 +82,38 @@ class CalSupremeSessionType(str, Enum):
     school or civic venue as a public-education program."""
 
 
+class CalSupremeSessionDocument(ScrapedData):
+    """A session-level document the court linked above the case listings.
+
+    Not a brief: these hang off the *session*, not off any one case. Only the
+    September 29 2016 special session carries any in the 2010-2026 corpus --
+    its printed oral argument calendar (``SSEP2916A.pdf``) and an "Expanded
+    Case Summaries" handout prepared for the law-school audience.
+
+    The calendar is the document that states what no session page does: which
+    day of a multi-day session each case was called, and in what order (see
+    :data:`CalSupremeBriefCase.date_argued`).
+    """
+
+    description: CleanString
+    """The link text verbatim, e.g. ``"Expanded Case Summaries"``."""
+
+    url: str
+    """Absolute URL of the document."""
+
+    filename: str | None = None
+    """The file's basename, URL-decoded."""
+
+
 class CalSupremeArgumentSession(ScrapedData):
     """One oral argument session listed on the briefs index.
 
-    The court's own calendar of argument sessions, 2010 to the present, as the
-    briefs index states it. Emitted alongside the cases so a run records which
-    sessions it saw (and which it filtered out has a visible complement).
+    The court's own calendar of argument sessions, 2010 to the present.
+    Emitted from the session's own page -- rather than from the index link
+    that led there -- because the page states two things the index link
+    cannot: the court's hand-authored note about the session, and any
+    session-level document it linked. Only sessions inside the run's window
+    are fetched, so a run records exactly the sessions it saw.
     """
 
     court: str
@@ -104,6 +133,31 @@ class CalSupremeArgumentSession(ScrapedData):
 
     session_type: CalSupremeSessionType
     """Regular, Special or Outreach -- see :class:`CalSupremeSessionType`."""
+
+    session_note: CleanString | None = None
+    """The court's hand-authored note about the session, verbatim.
+
+    Present on 6 of the 191 sessions in the corpus, and on those it is the
+    only place the session's *venue* is stated -- the title says "Special
+    Session" but never where::
+
+        Oral Argument Calendar - Special Session - UC Davis - October 3, 2012
+        ... at University of California Berkeley School of Law
+        ... at the Court of Appeal, Fourth Appellate District, Division One,
+            San Diego
+
+    On the two Outreach sessions it instead describes the public-education
+    program (which schools attended, which courtroom, that The California
+    Channel broadcast it), and on October 7 2014 it also names the three
+    cases called in the afternoon session, in argument order -- the only
+    place on the whole site that any case's argument *order* appears.
+
+    ``None`` for the 185 regular sessions, whose pages carry no such block.
+    """
+
+    documents: list[CalSupremeSessionDocument] = []
+    """Session-level documents linked above the case listings; see
+    :class:`CalSupremeSessionDocument`. Empty for all but one session."""
 
     source_url: str
     """URL of the session's own briefs page."""
@@ -131,12 +185,25 @@ class CalSupremeBrief(ScrapedData):
     Merits"`` or ``"Amicus Curiae Brief of Consumer Attorneys of
     California"``."""
 
-    document_type: CleanString | None = None
-    """The kind of document, with the filer stripped off -- ``"Opening Brief
-    on the Merits"``, ``"Focus Issues Letter"``, ``"Amicus Curiae Brief"``.
+    document_type_raw: CleanString | None = None
+    """The kind of document, with the filer stripped off, verbatim -- ``"Opening
+    Brief on the Merits"``, ``"Focus Issues Letter"``, ``"Amicus Curiae
+    Brief"``.
 
-    ``None`` when :data:`description` matches none of the three title
-    grammars the court uses; the verbatim ``description`` always stands.
+    ``None`` only for an empty title. When :data:`description` matches none of
+    the title grammars the court uses, this holds the whole description: the
+    document kind is stated there, the filer is not.
+    """
+
+    document_type: CodedBriefDocumentType | None = None
+    """:data:`document_type_raw` coded against
+    :class:`~juriscraper.state.california.supreme_courts_ca_gov.vocabularies.CaBriefDocumentType`.
+
+    ``None`` when the court titled the filing something the vocabulary does
+    not cover -- 9.8% of listings, a genuinely open tail of one-off titles
+    rather than more spellings of the 37 members. ``document_type_raw``
+    always carries the court's own words, so a ``None`` here is a flag, never
+    a loss.
     """
 
     filed_by: CleanString | None = None

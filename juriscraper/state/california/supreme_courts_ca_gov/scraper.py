@@ -17,11 +17,11 @@ Entry point (§4):
 Flow::
 
     1. briefs_by_argument_date  -> GET the briefs index
-    2. parse_briefs_index (3)   -> read every session link's date span,
-                                   emit CalSupremeArgumentSession for the
-                                   sessions inside the window, GET each
-    3. parse_session_page (2)   -> emit one CalSupremeBriefCase per case,
-                                   fan out an archive request per brief PDF
+    2. parse_briefs_index (3)   -> read every session link's date span and
+                                   GET the sessions inside the window
+    3. parse_session_page (2)   -> emit the CalSupremeArgumentSession and one
+                                   CalSupremeBriefCase per case, fan out an
+                                   archive request per brief PDF
     4. handle_brief_download(1) -> emit CalSupremeDownloadedBrief
 
 The date window is applied by the scraper, not the server: the site has no
@@ -177,8 +177,10 @@ class CalSupremeBriefsScraper(BaseScraper[_Yield]):
     ) -> Generator[ScraperYield[_Yield], None, None]:
         """Select the sessions overlapping the window and fetch each one.
 
-        Emits the ``CalSupremeArgumentSession`` for each session it fetches,
-        so a run records the court's argument calendar as well as its briefs.
+        The ``CalSupremeArgumentSession`` record is *not* emitted here: the
+        index link states only the title, which is all the span is read from.
+        The session's own page states that plus the court's note about it and
+        any session-level document, so ``parse_session_page`` emits it.
         """
         start = date.fromisoformat(accumulated_data["start_date"])
         end = date.fromisoformat(accumulated_data["end_date"])
@@ -190,7 +192,6 @@ class CalSupremeBriefsScraper(BaseScraper[_Yield]):
             if fields["date_session_start"] > end:
                 continue
 
-            yield ParsedData(data=session)
             yield Request(
                 request=HTTPRequestParams(
                     method=HttpMethod.GET, url=fields["source_url"]
@@ -216,10 +217,18 @@ class CalSupremeBriefsScraper(BaseScraper[_Yield]):
         response: Response,
         accumulated_data: dict,
     ) -> Generator[ScraperYield[_Yield], None, None]:
-        """Emit one case per heading and one archive request per brief PDF."""
+        """Emit the session, one case per heading, and an archive request
+        per brief PDF."""
         target_courts: list[str] = accumulated_data["target_courts"]
 
-        for parsed_case in SessionPageParser()(page):
+        parsed_session, parsed_cases = SessionPageParser().parse(page)
+        yield ParsedData(
+            data=CalSupremeArgumentSession.raw(
+                **parsed_session.raw_data, source_url=response.url
+            )
+        )
+
+        for parsed_case in parsed_cases:
             fields = parsed_case.raw_data
             if fields["court"] not in target_courts:
                 continue

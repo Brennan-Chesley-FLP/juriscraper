@@ -11,6 +11,9 @@ site defects documented in the scraper's CC_NOTES.md.
 import unittest
 from datetime import date
 
+import lxml.html
+from jkent.common.page_element import PageElement
+
 from juriscraper.state.california.supreme_courts_ca_gov.models import (
     CalSupremeArgumentSession,
     CalSupremeBriefCase,
@@ -21,8 +24,12 @@ from juriscraper.state.california.supreme_courts_ca_gov.parsers import (
     SessionPageParser,
 )
 from juriscraper.state.california.supreme_courts_ca_gov.parsers._common import (  # noqa: E501
+    fix_mojibake,
     parse_session_title,
     split_brief_title,
+)
+from juriscraper.state.california.supreme_courts_ca_gov.vocabularies import (
+    CaBriefDocumentType,
 )
 
 INDEX_URL = (
@@ -116,10 +123,18 @@ SESSION_HTML = """
     <header class="jcc-section-heading">
       <h2 class="jcc-section-heading__title"><span>Special Note:  </span></h2>
       <div class="jcc-section-heading__lead usa-prose">
-        <p>Oral Argument Calendar for February 4, 2026 at UC Davis</p>
+        <p><a href="/sites/default/files/supremecourt/default/2022-06/SSFEB0426A.pdf">Oral Argument Calendar for February 4, 2026 at UC Davis</a></p>
+        <p><a href="/sites/default/files/supremecourt/default/2022-06/davis_case_summaries.pdf">Expanded Case Summaries</a></p>
       </div>
     </header>
     <div class="jcc-body__main-text usa-prose clearfix"></div>
+  </div></div></div>
+
+  <div class="jcc-body"><div class="jcc-body__content"><div class="jcc-body__main">
+    <div class="jcc-body__main-text usa-prose clearfix">
+      <p><em>The morning session was dedicated to a special outreach program.</em></p>
+      <p>1. S289430 - IN RE Z.G.</p>
+    </div>
   </div></div></div>
 </article></main></div></body></html>
 """  # noqa: E501
@@ -249,6 +264,126 @@ class BriefTitleTest(unittest.TestCase):
         )
 
 
+class ConjoinedAndDashedFilerTest(unittest.TestCase):
+    """Title forms the 2026-10-17 data audit found going unsplit.
+
+    78 of the 226 titles that produced no ``filed_by`` were the comma form
+    with a filer the role set did not list: a conjunction of two roles, a
+    plural, one of the court's four typos, or a role written with a dash
+    instead of commas.
+    """
+
+    def test_conjoined_and_plural_roles_split(self):
+        cases = [
+            (
+                "Intervener and Respondent, Californians to Mend, "
+                "Not End, the Death Penalty, Written Return",
+                "Intervener and Respondent, Californians to Mend, "
+                "Not End, the Death Penalty",
+                "Written Return",
+            ),
+            (
+                "Interveners and Appellants, SEIU Local 1021, "
+                "Answer Brief on the Merits",
+                "Interveners and Appellants, SEIU Local 1021",
+                "Answer Brief on the Merits",
+            ),
+            (
+                "Non-Title Respondents, CDCR, Informal Response",
+                "Non-Title Respondents, CDCR",
+                "Informal Response",
+            ),
+            (
+                "Real Pary in Interest, The People, Answer Brief on the Merits",
+                "Real Pary in Interest, The People",
+                "Answer Brief on the Merits",
+            ),
+        ]
+        for title, filer, doc_type in cases:
+            with self.subTest(title=title):
+                self.assertEqual(split_brief_title(title), (filer, doc_type))
+
+    def test_dashed_filer_splits(self):
+        self.assertEqual(
+            split_brief_title(
+                "Real Parties in Interest - Preliminary Opposition"
+            ),
+            ("Real Parties in Interest", "Preliminary Opposition"),
+        )
+
+    def test_a_leading_phrase_that_is_not_a_role_leaves_the_title_whole(self):
+        # The widening must not invent a filer out of a document title that
+        # merely opens with a comma- or dash-separated clause.
+        for title in (
+            "Declaration of Charles H. Bell, Jr., Regarding the Likelihood",
+            "Response to June 15, 2016 Order, Exhibit A",
+            "Service Employees International Union, Local 1021, Brief",
+            "Appendix of Exhibits - Volume 2",
+        ):
+            with self.subTest(title=title):
+                self.assertEqual(split_brief_title(title), (None, title))
+
+
+class MojibakeTest(unittest.TestCase):
+    """The court double-encodes 13 brief titles; the repair is one-way."""
+
+    def test_double_encoded_text_is_repaired(self):
+        self.assertEqual(
+            fix_mojibake("Amicus Curiae Brief of George Gasc\u00c3\u00b3n"),
+            "Amicus Curiae Brief of George Gasc\u00f3n",
+        )
+        self.assertEqual(
+            fix_mojibake("Death Penalty \u00e2\u20ac\u201c No on Prop. 62"),
+            "Death Penalty \u2013 No on Prop. 62",
+        )
+
+    def test_correctly_encoded_text_is_untouched(self):
+        # These are the near misses: accented characters the court spelled
+        # right, which the round trip must reject rather than mangle.
+        for text in (
+            "San Jos\u00e9 Police & Fire Department Retirement Plan",
+            "Hern\u00e1ndez v. Mu\u00f1oz",
+            "Appellant's Brief \u2014 Volume I",
+            "plain ascii",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(fix_mojibake(text), text)
+
+
+class BriefDocumentTypeVocabularyTest(unittest.TestCase):
+    """``document_type`` is coded; ``document_type_raw`` keeps the words."""
+
+    def test_spelling_variants_map_to_one_member(self):
+        variants = {
+            "Opening Brief on the Merits Filed": (
+                CaBriefDocumentType.OPENING_BRIEF_ON_THE_MERITS
+            ),
+            "Additional Authority Letter": (
+                CaBriefDocumentType.ADDITIONAL_AUTHORITIES_LETTER
+            ),
+            "Reply brief": CaBriefDocumentType.REPLY_BRIEF,
+            "Answer to Petition For Review": (
+                CaBriefDocumentType.ANSWER_TO_PETITION_FOR_REVIEW
+            ),
+        }
+        for raw, member in variants.items():
+            with self.subTest(raw=raw):
+                self.assertIs(CaBriefDocumentType.parse(raw), member)
+
+    def test_an_uncovered_title_codes_to_none_rather_than_raising(self):
+        self.assertIsNone(
+            CaBriefDocumentType.parse("Expanded Background Summary")
+        )
+        self.assertIsNone(CaBriefDocumentType.parse(None))
+        self.assertIsNone(CaBriefDocumentType.parse(""))
+
+    def test_reserved_codes_are_never_assigned(self):
+        codes = [member.code for member in CaBriefDocumentType]
+        self.assertNotIn(0, codes)
+        self.assertNotIn(999, codes)
+        self.assertEqual(len(codes), len(set(codes)))
+
+
 class BriefsIndexParserTest(unittest.TestCase):
     def setUp(self):
         self.sessions = [
@@ -356,6 +491,65 @@ class SessionPageParserTest(unittest.TestCase):
         url = self.by_number["C061011"]["briefs"][0]["url"]
         self.assertTrue(url.startswith("https://supreme.courts.ca.gov/"))
         self.assertNotIn("pantheonsite.io", url)
+
+
+class SessionRecordTest(unittest.TestCase):
+    """The session record, and the hand-authored block that is not a case.
+
+    A ``jcc-body__main`` block whose heading states no case number is the
+    court's note *about the session* -- the only place the page says which
+    venue a Special Session sat at or which program an Outreach session
+    served. Six of the corpus's 191 sessions carry one; one of those also
+    links the session's printed oral argument calendar.
+    """
+
+    def setUp(self):
+        # ``from_string`` returns only the cases (the parser's ``__call__``
+        # contract), so the session is read through ``parse`` over the
+        # ``PageElement`` a step would be handed.
+        page = PageElement(
+            lxml.html.fromstring(SESSION_HTML), request_url=SESSION_URL
+        )
+        self.session = SessionPageParser().parse(page)[0].raw_data
+
+    def test_the_session_validates_with_the_url_the_step_adds(self):
+        CalSupremeArgumentSession(**self.session, source_url=SESSION_URL)
+
+    def test_note_blocks_are_joined_and_the_special_note_label_is_dropped(
+        self,
+    ):
+        note = self.session["session_note"]
+        self.assertIn(
+            "Oral Argument Calendar for February 4, 2026 at UC Davis", note
+        )
+        self.assertIn("The morning session was dedicated", note)
+        self.assertIn("1. S289430 - IN RE Z.G.", note)
+        self.assertNotIn("Special Note:", note)
+
+    def test_session_documents_are_collected_with_absolute_urls(self):
+        documents = self.session["documents"]
+        self.assertEqual(
+            [document["description"] for document in documents],
+            [
+                "Oral Argument Calendar for February 4, 2026 at UC Davis",
+                "Expanded Case Summaries",
+            ],
+        )
+        self.assertEqual(
+            documents[1]["url"],
+            "https://supreme.courts.ca.gov/sites/default/files"
+            "/supremecourt/default/2022-06/davis_case_summaries.pdf",
+        )
+        self.assertEqual(documents[1]["filename"], "davis_case_summaries.pdf")
+
+    def test_a_case_block_is_not_mistaken_for_a_session_note(self):
+        self.assertNotIn(
+            "PROFESSIONAL ENGINEERS", self.session["session_note"]
+        )
+        self.assertNotIn(
+            "7-c061011-app-focus-issues-ltr-052220.pdf",
+            str(self.session["documents"]),
+        )
 
 
 if __name__ == "__main__":

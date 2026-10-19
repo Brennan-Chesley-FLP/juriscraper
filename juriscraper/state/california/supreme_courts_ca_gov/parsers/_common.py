@@ -97,28 +97,124 @@ _POSSESSIVE_TITLE_RE = re.compile(
 
 #: The party roles the court opens a comma-form title with,
 #: "Real Party in Interest, The People, Answer Brief on the Merits".
+#:
+#: Singular forms only: :func:`_role_phrase_matches` depluralises before
+#: looking a phrase up, and splits a conjoined role ("Intervener and
+#: Respondent") into its conjuncts first, so the set stays the list of roles
+#: the court actually has rather than the cross-product of their spellings.
 _COMMA_FORM_ROLES = frozenset(
     {
         "appellant",
-        "appellants",
         "respondent",
-        "respondents",
         "petitioner",
-        "petitioners",
         "real party in interest",
-        "real parties in interest",
         "non-title respondent",
         "defendant",
-        "defendants",
         "plaintiff",
-        "plaintiffs",
         "intervener",
         "intervenor",
         "applicant",
         "amicus curiae",
         "referee",
+        # Roles the 2026-10-17 data audit found the court using in the
+        # comma form, which the original set did not list -- 19 titles.
+        "pub/depublication requestor",
+        "publication/depublication requestor",
+        "interested entities/parties",
+        "overview party",
+        "non-party movant",
+        "attorney general",
+        "presiding justice",
+        "minor",
     }
 )
+
+#: Misspellings of a role the court has published. Each is the court's own
+#: typo in a brief title, mapped to the role it meant; correcting them here
+#: keeps 5 titles from being filed under a filer of ``None``.
+_ROLE_TYPOS: dict[str, str] = {
+    "real pary in interest": "real party in interest",
+    "applellant": "appellant",
+    "resp": "respondent",
+    "resps": "respondent",
+}
+
+#: What the court joins two roles with in a single filer phrase --
+#: "Intervener and Respondent", "Defendant and Appellant". Both conjuncts
+#: must be roles for the phrase to be one.
+_ROLE_CONJUNCTION = " and "
+
+#: Irregular plurals of the role phrases above.
+_ROLE_PLURALS: dict[str, str] = {
+    "real parties in interest": "real party in interest",
+    "parties": "party",
+    "attorneys general": "attorney general",
+}
+
+
+def _singular_role(phrase: str) -> str:
+    """One role phrase, casefolded and reduced to the spelling the set holds.
+
+    Applies, in order: the court's known typos, the irregular plurals, then a
+    bare trailing ``s`` -- but only when dropping it lands on a real role, so
+    "Interested Entities/Parties" is not mangled into something unlisted.
+    """
+    normalised = " ".join(phrase.split()).casefold()
+    normalised = _ROLE_TYPOS.get(normalised, normalised)
+    normalised = _ROLE_PLURALS.get(normalised, normalised)
+    if normalised not in _COMMA_FORM_ROLES and normalised.endswith("s"):
+        depluralised = normalised[:-1]
+        if depluralised in _COMMA_FORM_ROLES:
+            return depluralised
+    return normalised
+
+
+def _role_phrase_matches(phrase: str) -> bool:
+    """Whether a title's leading chunk names one or more party roles.
+
+    ``"Intervener and Respondent"`` and ``"Non-Title Respondents"`` do;
+    ``"Declaration of Charles H. Bell"`` and ``"Response to June 15"`` do
+    not. Deliberately strict: anything that is not a listed role leaves the
+    title unsplit, which costs a ``filed_by`` but never invents one.
+    """
+    conjuncts = phrase.casefold().split(_ROLE_CONJUNCTION)
+    return bool(phrase) and all(
+        _singular_role(conjunct) in _COMMA_FORM_ROLES for conjunct in conjuncts
+    )
+
+
+#: Characters that can only come out of reading a UTF-8 lead byte through
+#: cp1252: the C2-F4 range, re-encoded. Text with none of these cannot be
+#: double-encoded, which skips the round trip below for 11,493 of the
+#: corpus's 11,506 brief titles.
+_MOJIBAKE_LEADS = re.compile("[\u00c2-\u00df\u00e0-\u00ef\u00f0-\u00f4]")
+
+
+def fix_mojibake(text: str) -> str:
+    """Undo one round of UTF-8-read-as-cp1252, when that is what happened.
+
+    13 brief titles in the 2010-2026 corpus are double-encoded *on the court's
+    own server* -- ``"Amicus Curiae Brief of George Gasc\u00c3\u00b3n"``, ``"... Death
+    Penalty \u00e2\u20ac\u201c No on Prop. 62"``. The response is valid UTF-8 and declares
+    ``charset=UTF-8``, so nothing in the fetch is wrong; the court encoded the
+    text twice before writing it out. Re-encoding through cp1252 and decoding
+    as UTF-8 recovers the character the court meant.
+
+    The round trip is its own filter, and a strict one: text that is *not*
+    double-encoded almost never survives it. ``"Gasc\u00f3n"`` spelled correctly
+    encodes to ``b"Gasc\xf3n"``, which is not valid UTF-8; an em dash encodes
+    to ``b"\x97"``, a bare continuation byte. Both raise, and the original
+    comes back untouched. Only a string whose bytes already spell a UTF-8
+    sequence -- which is what double encoding produces -- round-trips
+    cleanly.
+    """
+    if not _MOJIBAKE_LEADS.search(text):
+        return text
+    try:
+        repaired = text.encode("cp1252").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
+    return text if not repaired or "\ufffd" in repaired else repaired
 
 
 def collapse_ws(text: str | None) -> str | None:
@@ -126,10 +222,13 @@ def collapse_ws(text: str | None) -> str | None:
 
     The Drupal templates indent every value, so a bare ``.strip()`` leaves the
     page's layout inside multi-line values such as a case heading that wrapped.
+    Double-encoded text is repaired here too (see :func:`fix_mojibake`), so
+    every value the parsers read passes through the same single point.
     """
     if text is None:
         return None
-    return " ".join(text.split()) or None
+    collapsed = " ".join(text.split())
+    return fix_mojibake(collapsed) if collapsed else None
 
 
 def parse_session_title(
@@ -333,7 +432,15 @@ def split_brief_title(title: str) -> tuple[str | None, str | None]:
         return collapse_ws(filer), collapse_ws(document)
 
     parts = [part.strip() for part in collapsed.split(",")]
-    if len(parts) >= 3 and parts[0].casefold() in _COMMA_FORM_ROLES:
+    if len(parts) >= 3 and _role_phrase_matches(parts[0]):
         return collapse_ws(", ".join(parts[:-1])), collapse_ws(parts[-1])
+
+    # "Real Parties in Interest - Preliminary Opposition": the same filer-then-
+    # document order, written with a dash instead of commas. 6 titles, all on
+    # the May 2016 page. Only a leading role phrase qualifies, so a document
+    # title that merely contains " - " is left whole.
+    dashed = collapsed.split(" - ", 1)
+    if len(dashed) == 2 and _role_phrase_matches(dashed[0]):
+        return collapse_ws(dashed[0]), collapse_ws(dashed[1])
 
     return None, collapsed

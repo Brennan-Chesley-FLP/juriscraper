@@ -6,13 +6,19 @@ an ``<ol>`` of brief links -- repeated for every case argued that session.
 Nothing is nested, so each case is read by walking forward from its heading
 to the next one.
 
-Six pages in the 2010-2026 corpus also carry a hand-authored body section
-built from a ``<header class="jcc-section-heading">`` instead. Three of those
-are genuine cases the editor added by hand (S105876, S130263, S198132 -- each
-the last case on its page, and each with links pointing at the court's
-Pantheon staging host); the other three hold a "Special Note:" naming the
-venue of a special session, which carries no case and is skipped. Both shapes
-are read, so no case is lost to which template rendered it.
+Nine pages in the 2010-2026 corpus also carry a hand-authored
+``div.jcc-body__main`` block. Three of those are genuine cases the editor
+added by hand (S105876, S130263, S198132 -- each the last case on its page,
+and each with links pointing at the court's Pantheon staging host); both
+shapes are read, so no case is lost to which template rendered it.
+
+The other six state no case number. They are not cases but the court's note
+*about the session*, and are the only place the page says which venue a
+Special Session sat at, which schools an Outreach session served, or -- on
+October 7 2014 -- which cases were called that afternoon and in what order.
+One of them, September 29 2016, also links the session's printed oral
+argument calendar. Those ride on the ``CalSupremeArgumentSession`` this
+parser returns from :meth:`SessionPageParser.parse` alongside the cases.
 
 The page's own ``<h1>`` states the session title, which is where the argument
 dates come from; the parser reads it rather than taking the dates on trust
@@ -27,6 +33,7 @@ from jkent.common.parser import JKentParser
 from jkent.data_types import XPath
 
 from juriscraper.state.california.supreme_courts_ca_gov.models import (
+    CalSupremeArgumentSession,
     CalSupremeBriefCase,
     CalSupremeSessionType,
 )
@@ -68,15 +75,24 @@ _VIEW_CASE_CONTAINER = XPath(
 #: rather than the first one.
 _VIEW_BLOCK_CHILDREN = XPath("*")
 
-#: A hand-authored case block: the whole ``jcc-body__main`` that holds the
-#: heading, its lead note, and its brief list.
+#: A hand-authored body block: the whole ``jcc-body__main`` that holds a
+#: heading, its lead note, and its text. Nine of the corpus's 193 session
+#: pages carry one; the other 184 have no such block at all.
+#:
+#: The ``not()`` is load-bearing: the block's own text div is classed
+#: ``jcc-body__main-text``, which *contains* ``jcc-body__main``, so without it
+#: every block would match twice.
 _BODY_BLOCKS = XPath(
     "//div[contains(@class, 'jcc-body__main')]"
-    "[.//header[contains(@class, 'jcc-section-heading')]//h2]"
+    "[not(contains(@class, 'jcc-body__main-text'))]"
 )
 _BODY_HEADING = XPath(".//header[contains(@class, 'jcc-section-heading')]//h2")
 _BODY_NOTE = XPath(".//div[contains(@class, 'jcc-section-heading__lead')]")
 _BODY_BRIEF_LIST = XPath(".//div[contains(@class, 'jcc-body__main-text')]")
+
+#: Any link in a hand-authored block, for the session-level documents the
+#: September 29 2016 page hangs off its lead.
+_BODY_LINKS = XPath(".//a[@href]")
 
 #: One list item per brief, in either shape. The view's items carry a
 #: ``jcc-list__item`` class and the hand-authored ones do not, so the class
@@ -102,7 +118,7 @@ def _text_of(element: PageElement, description: str) -> str | None:
 
 
 class SessionPageParser(JKentParser[CalSupremeBriefCase]):
-    """Parse a session page into one ``CalSupremeBriefCase`` per case.
+    """Parse a session page into its session and one case per heading.
 
     Every field is taken from this page alone: the session title and dates
     from the ``<h1>``, the case number and caption from the case heading, the
@@ -113,14 +129,35 @@ class SessionPageParser(JKentParser[CalSupremeBriefCase]):
     A heading that states no case number falls back to the number the court
     built its brief filenames around -- the corpus's one ``"NO CASE
     ASSIGNED"`` heading sits over five files all named for S198132. A heading
-    that yields no number either way is skipped: it is not a case (the
-    "Special Note:" venue headings are the corpus's only instances), and
-    without a number the record could be joined to nothing.
+    that yields no number either way is not a case: in a view block it is
+    skipped (without a number the record could be joined to nothing), and in
+    a hand-authored block it is the court's note about the session, which
+    rides on the ``CalSupremeArgumentSession`` instead.
     """
 
     def __call__(
         self, page: PageElement
     ) -> list[DeferredValidation[CalSupremeBriefCase]]:
+        """The cases on the page. See :meth:`parse` for the session itself."""
+        return self.parse(page)[1]
+
+    def parse(
+        self, page: PageElement
+    ) -> tuple[
+        DeferredValidation[CalSupremeArgumentSession],
+        list[DeferredValidation[CalSupremeBriefCase]],
+    ]:
+        """The session this page is, and every case listed under it.
+
+        Returned together because both are read off the same ``<h1>`` and the
+        same hand-authored block: a block that states no case number is not a
+        case at all but the court's note *about the session* (which venue it
+        sat at, which school the outreach program served), and the one on the
+        September 29 2016 page hangs the session's printed calendar off it.
+
+        Neither record carries ``source_url`` -- the calling step adds it,
+        since the page does not state its own address.
+        """
         session_title = collapse_ws(
             page.query(_PAGE_TITLE, "session title", min_count=1, max_count=1)[
                 0
@@ -133,10 +170,21 @@ class SessionPageParser(JKentParser[CalSupremeBriefCase]):
         else:
             start, end, kind = span
 
+        case_blocks, session_note, documents = self._body_blocks(page)
         blocks: list[tuple[str, str | None, list[dict]]] = [
             *self._view_blocks(page),
-            *self._body_blocks(page),
+            *case_blocks,
         ]
+
+        session = CalSupremeArgumentSession.raw(
+            court="cal",
+            session_title=session_title,
+            date_session_start=start,
+            date_session_end=end,
+            session_type=kind,
+            session_note=session_note,
+            documents=documents,
+        )
 
         cases: list[DeferredValidation[CalSupremeBriefCase]] = []
         for heading_raw, note, briefs in blocks:
@@ -176,7 +224,7 @@ class SessionPageParser(JKentParser[CalSupremeBriefCase]):
                     briefs=briefs,
                 )
             )
-        return cases
+        return session, cases
 
     def _view_blocks(
         self, page: PageElement
@@ -224,36 +272,98 @@ class SessionPageParser(JKentParser[CalSupremeBriefCase]):
 
     def _body_blocks(
         self, page: PageElement
-    ) -> list[tuple[str, str | None, list[dict]]]:
-        """The hand-authored case blocks, in document order.
+    ) -> tuple[
+        list[tuple[str, str | None, list[dict]]], str | None, list[dict]
+    ]:
+        """The hand-authored blocks, split into cases and the session note.
 
-        Everything a block owns is nested inside it, so unlike the view's
-        flat siblings these need no lookahead to the next heading.
+        Returns ``(case_blocks, session_note, session_documents)``.
+
+        A block is a *case* when its heading states a case number, or when
+        its text div holds a list of brief links -- three pages in the corpus
+        carry such a block (S105876, S130263, S198132, each the last case on
+        its page, each with links pointing at the court's Pantheon staging
+        host). Everything a case block owns is nested inside it, so unlike the
+        view's flat siblings it needs no lookahead to the next heading.
+
+        Any other block is the court's note *about the session*. Six pages
+        carry one, and on each it states something no other part of the page
+        does -- the venue the special session sat at ("Special Session - UC
+        Davis", "at University of San Francisco School of Law"), the outreach
+        program an Outreach session served, or, on October 7 2014, the three
+        cases called that afternoon in argument order. Three of the six are
+        introduced by a ``Special Note:`` heading, which is dropped: it labels
+        the note rather than adding to it.
+
+        The notes of several blocks are joined in document order, as a case's
+        several notes are.
         """
         blocks: list[tuple[str, str | None, list[dict]]] = []
+        notes: list[str] = []
+        documents: list[dict] = []
         for block in page.query(
-            _BODY_BLOCKS, "hand-authored case blocks", min_count=0
+            _BODY_BLOCKS, "hand-authored blocks", min_count=0
         ):
             headings = block.query(
-                _BODY_HEADING, "block heading", min_count=1, max_count=1
+                _BODY_HEADING, "block heading", min_count=0, max_count=1
             )
-            heading_raw = _text_of(headings[0], "block heading text")
-            if heading_raw is None:
-                continue
-            notes = block.query(
-                _BODY_NOTE, "block note", min_count=0, max_count=1
+            heading_raw = (
+                _text_of(headings[0], "block heading text")
+                if headings
+                else None
             )
+            lead = block.query(
+                _BODY_NOTE, "block lead", min_count=0, max_count=1
+            )
+            lead_text = _text_of(lead[0], "block lead text") if lead else None
             lists = block.query(
-                _BODY_BRIEF_LIST, "block brief list", min_count=0, max_count=1
+                _BODY_BRIEF_LIST, "block text", min_count=0, max_count=1
             )
-            blocks.append(
-                (
-                    heading_raw,
-                    _text_of(notes[0], "block note text") if notes else None,
-                    self._briefs(lists[0]) if lists else [],
+            briefs = self._briefs(lists[0]) if lists else []
+
+            has_number = bool(
+                heading_raw and split_case_heading(heading_raw)[0]
+            )
+            if heading_raw and (has_number or briefs):
+                blocks.append((heading_raw, lead_text, briefs))
+                continue
+
+            # Not a case: the court's note about the session. The block's
+            # text div holds prose here rather than a brief list, so it is
+            # read as note text -- ``_briefs`` found nothing in it.
+            notes.extend(
+                text
+                for text in (
+                    lead_text,
+                    _text_of(lists[0], "block note text") if lists else None,
                 )
+                if text
             )
-        return blocks
+            documents.extend(self._session_documents(block))
+        return blocks, " ".join(notes) or None, documents
+
+    def _session_documents(self, block: PageElement) -> list[dict]:
+        """Session-level documents linked from a hand-authored note block.
+
+        Only the September 29 2016 special session has any: its printed oral
+        argument calendar and an "Expanded Case Summaries" handout. Returned
+        as plain dicts so the session validates in one deferred pass.
+        """
+        documents: list[dict] = []
+        for link in block.find_links(
+            _BODY_LINKS, "session document link", min_count=0
+        ):
+            url = canonical_brief_url(link.url)
+            if not url:
+                continue
+            documents.append(
+                {
+                    "description": collapse_ws(link.text),
+                    "url": url,
+                    "filename": filename_from_url(url),
+                }
+            )
+        return documents
 
     def _briefs(self, brief_list: PageElement) -> list[dict]:
         """The briefs in one case's list, in the order the court listed them.
@@ -281,6 +391,11 @@ class SessionPageParser(JKentParser[CalSupremeBriefCase]):
                 {
                     "document_number": position,
                     "description": description,
+                    # Both: the verbatim split, and the same value coded.
+                    # CaBriefDocumentType covers 90.2% of listings and
+                    # degrades to None rather than raising, so an unrecognised
+                    # title costs a code and nothing else.
+                    "document_type_raw": document_type,
                     "document_type": document_type,
                     "filed_by": filed_by,
                     "date_filed": parse_filed_on(

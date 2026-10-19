@@ -1,0 +1,36 @@
+# Residual identifications for the California Supreme Court briefs scraper.
+#
+# Recorded by `revise-scraper` over a full sweep of the briefs index
+# (193 stored session pages = 191 distinct sessions, cutoff 2026-09-10).
+#
+# The index step (`parse_briefs_index`) leaves no residual text at all and so
+# has no entries here.
+#
+# Four further clusters were found on the hand-authored `div.jcc-body__main`
+# blocks of the 6 special/outreach session pages and are no longer residual:
+# they are now extracted as `CalSupremeArgumentSession.session_note` and
+# `.documents`. Their stubs were deleted rather than dispositioned.
+scraper: juriscraper.state.california.supreme_courts_ca_gov.scraper:CalSupremeBriefsScraper
+residuals:
+  - step: parse_session_page
+    path: html/head/title
+    ident: Document title
+    disposition: chrome
+    note: >-
+      The session title with " | Supreme Court of California" appended. The
+      title itself is captured verbatim as
+      CalSupremeArgumentSession.session_title (and denormalized onto every
+      CalSupremeBriefCase.session_title), read from the page's <h1> rather
+      than from here, so this restates data already extracted and adds only
+      the site name.
+    example: December 4, 2012 Oral Argument Cases | Supreme Court of California
+  - step: parse_session_page
+    path: html/body/div/div/main/div/article/div/div/div/div/div/nav/ol/li/span
+    ident: Breadcrumb trail, final (current-page) crumb
+    disposition: chrome
+    note: >-
+      The USWDS breadcrumb's last item, which is the session title verbatim.
+      Same datum as session_title, already extracted from the <h1>. The
+      breadcrumb's earlier crumbs ("Home", "Case Information", "Briefs for
+      Argued Cases") are links and are counted as constant chrome, not here.
+    example: December 4, 2012 Oral Argument Cases
